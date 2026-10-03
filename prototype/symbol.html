@@ -1,0 +1,216 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>갈래 심볼 시안</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: three stages side by side (stack on phone), each with a live animation and a size ladder. */
+:root {
+  --bg: #FAF9F6; --surface: #FFFFFF; --ink: #141414; --muted: #6E6B66; --faint: #A29E97;
+  --line: #E6E3DD; --accent: #C8401A; --node-fill: #FFFFFF; --spur: #8F8B84;
+  --tile-dark: #141414; --tile-dark-ink: #FAF9F6;
+  --display: 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #161513; --surface: #1F1E1B; --ink: #F1EFEA; --muted: #A8A49D; --faint: #7B776F;
+  --line: #34322E; --accent: #F0704A; --node-fill: #1F1E1B; --spur: #8F8B84;
+  --tile-dark: #F1EFEA; --tile-dark-ink: #161513; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #161513; --surface: #1F1E1B; --ink: #F1EFEA; --muted: #A8A49D; --faint: #7B776F;
+  --line: #34322E; --accent: #F0704A; --node-fill: #1F1E1B; --spur: #8F8B84;
+  --tile-dark: #F1EFEA; --tile-dark-ink: #161513; color-scheme: dark }
+
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 40px 56px; display: flex; flex-direction: column; gap: 28px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+header .t { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1 1 420px; }
+h1 { margin: 0; font-family: var(--display); font-size: 28px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); line-height: 1.6; max-width: 62ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { height: 38px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+.btn[aria-pressed="true"] { border-color: var(--ink); font-weight: 600; }
+.btn:focus-visible, .stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.stage { width: 100%; aspect-ratio: 1; max-width: 100%; border-radius: 10px; background: var(--bg); cursor: pointer; display: block; border: 0; padding: 0; }
+.stage svg { width: 100%; height: 100%; display: block; }
+.name { display: flex; align-items: baseline; gap: 10px; }
+.name b { font-family: var(--display); font-size: 20px; }
+.name span { font-size: 14px; color: var(--muted); }
+.desc { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink); }
+.use { font-size: 12.5px; color: var(--muted); }
+.use b { color: var(--ink); font-weight: 600; }
+.ladder { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line); }
+.rung { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tile { border-radius: 22%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.tile.light { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.tile.dark { background: var(--tile-dark); }
+.foot { font-size: 13px; color: var(--muted); line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="t">
+      <h1>갈래 심볼 시안</h1>
+      <p>제각각 흩어진 획이 떨어져 정렬됩니다. 끝모양은 A 노선, B 분기점, C 한글 ‘ㄹ’. 그림을 누르면 다시 재생되고, 아래 줄은 128·48·32·16px에서 어떻게 보이는지예요.</p>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="all" type="button">모두 다시 재생</button>
+      <button class="btn" id="slow" type="button" aria-pressed="false">느리게</button>
+      <button class="btn" id="loop" type="button" aria-pressed="true">반복</button>
+    </div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <p class="foot">빨간 점은 서비스 화면의 ‘지금’ 표시와 같은 뜻이에요. 작은 크기에서는 획을 두껍게 바꿔서 그렸어요(16px 기준 두께 2배). 색과 굵기는 확정 전 임시값입니다.</p>
+</div>
+
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var slow = false, loop = true;
+
+  // Each concept: target strokes [x1,y1,x2,y2] in a 200 box, nodes appear after the strokes land.
+  var CONCEPTS = [
+    { id: 'A', title: '흩어진 획 → 노선', desc: '엉킨 획들이 떨어져 가로선 하나와 역 셋, 위로 빠지는 지선 하나가 돼요. 끝모양이 곧 서비스 화면의 레일과 노선도예요.',
+      use: '<b>추천 용도</b> · 패널을 열 때, 첫 사용 안내, 소개 페이지',
+      strokes: [[36,122,64,122],[62,122,90,122],[88,122,116,122],[114,122,142,122],[140,122,166,122],[100,122,116,100],[116,100,132,80],[132,80,154,80]],
+      nodes: [{x:48,y:122,r:9,k:'main'},{x:100,y:122,r:9,k:'main'},{x:154,y:80,r:7,k:'spur'},{x:154,y:122,r:10,k:'now'}] },
+    { id: 'B', title: '흩어진 획 → 분기점', desc: '획들이 모여 한 줄이 두 갈래로 갈라지는 점 하나가 돼요. 가장 단순해서 16px 툴바에서도 알아보기 쉬워요.',
+      use: '<b>추천 용도</b> · 툴바 아이콘, 앱 아이콘, 파비콘',
+      strokes: [[100,176,100,144],[100,146,100,112],[100,112,100,80],[100,82,100,46],[100,112,126,86],[124,88,152,60]],
+      nodes: [{x:100,y:112,r:12,k:'main'},{x:100,y:46,r:7,k:'dot'},{x:152,y:60,r:11,k:'now'}] },
+    { id: 'C', title: '흩어진 획 → ‘ㄹ’', desc: '획들이 쌓여 ‘갈래’의 ‘ㄹ’이 되고, 끝에서 지선 하나가 갈라져요. 한글 서비스라는 정체성이 가장 강해요.',
+      use: '<b>추천 용도</b> · 워드마크, 웹스토어 홍보 이미지',
+      strokes: [[56,44,140,44],[140,44,140,100],[56,100,140,100],[56,100,56,156],[56,156,140,156],[140,156,158,138],[156,140,172,124]],
+      nodes: [{x:140,y:156,r:9,k:'main'},{x:172,y:124,r:10,k:'now'}] }
+  ];
+
+  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+  function prep(c, i) {
+    var r = rng(97 + i * 131);
+    c.parts = c.strokes.map(function (s) {
+      var dx = s[2] - s[0], dy = s[3] - s[1];
+      var start = { x: 26 + r() * 148, y: 14 + r() * 80, a: r() * Math.PI, l: 16 + r() * 30, o: 0.35 };
+      return { start: start, end: { x: (s[0] + s[2]) / 2, y: (s[1] + s[3]) / 2, a: Math.atan2(dy, dx), l: Math.hypot(dx, dy), o: 1 } };
+    });
+  }
+  CONCEPTS.forEach(prep);
+
+  var easeInOut = function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+  var bounce = function (t) { var n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + 0.75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + 0.9375; return n * (t -= 2.625 / d) * t + 0.984375; };
+  var back = function (t) { var c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function lerpAngle(a, b, t) { var d = b - a; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI; return a + d * t; }
+
+  function el(tag, attrs) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function nodeStyle(n, e) {
+    if (n.k === 'now') { e.style.fill = 'var(--accent)'; e.style.stroke = 'none'; }
+    else if (n.k === 'spur') { e.style.fill = 'var(--node-fill)'; e.style.stroke = 'var(--spur)'; }
+    else if (n.k === 'dot') { e.style.fill = 'var(--ink)'; e.style.stroke = 'none'; }
+    else { e.style.fill = 'var(--node-fill)'; e.style.stroke = 'var(--ink)'; }
+  }
+
+  // static final render for the size ladder
+  function finalSvg(c, px, tone) {
+    var sw = px <= 16 ? 18 : px <= 32 ? 14 : px <= 48 ? 12 : 9;
+    var s = el('svg', { viewBox: '0 0 200 200', width: px, height: px, role: 'img', 'aria-label': c.id + ' ' + px + 'px' });
+    var ink = tone === 'dark' ? 'var(--tile-dark-ink)' : 'var(--ink)';
+    var nodeFill = tone === 'dark' ? 'var(--tile-dark)' : 'var(--surface)';
+    c.strokes.forEach(function (st) { var l = el('line', { x1: st[0], y1: st[1], x2: st[2], y2: st[3], 'stroke-width': sw, 'stroke-linecap': 'round' }); l.style.stroke = ink; s.appendChild(l); });
+    c.nodes.forEach(function (n) {
+      if (px <= 16 && n.k !== 'now' && n.k !== 'main') return;
+      var r = n.r * (px <= 16 ? 1.5 : px <= 32 ? 1.3 : 1.1);
+      var e = el('circle', { cx: n.x, cy: n.y, r: r, 'stroke-width': sw * 0.62 });
+      if (n.k === 'now') { e.style.fill = 'var(--accent)'; } else if (n.k === 'dot') { e.style.fill = ink; } else { e.style.fill = nodeFill; e.style.stroke = n.k === 'spur' ? 'var(--spur)' : ink; }
+      s.appendChild(e);
+    });
+    return s;
+  }
+
+  var grid = document.getElementById('grid');
+  CONCEPTS.forEach(function (c) {
+    var card = document.createElement('article'); card.className = 'card';
+    var stage = document.createElement('button'); stage.className = 'stage'; stage.type = 'button';
+    stage.setAttribute('aria-label', c.id + ' 시안 다시 재생');
+    var svg = el('svg', { viewBox: '0 0 200 200', role: 'img', 'aria-label': c.id + '. ' + c.title });
+    c.lines = c.parts.map(function () { var l = el('line', { 'stroke-width': 9, 'stroke-linecap': 'round' }); l.style.stroke = 'var(--ink)'; svg.appendChild(l); return l; });
+    c.dots = c.nodes.map(function (n) { var d = el('circle', { cx: n.x, cy: n.y, r: n.r, 'stroke-width': 5.5 }); nodeStyle(n, d); svg.appendChild(d); return d; });
+    stage.appendChild(svg);
+    stage.addEventListener('click', function () { play(c); });
+    card.appendChild(stage);
+    var nm = document.createElement('div'); nm.className = 'name';
+    var b = document.createElement('b'); b.textContent = c.id; var sp = document.createElement('span'); sp.textContent = c.title;
+    nm.appendChild(b); nm.appendChild(sp); card.appendChild(nm);
+    var p = document.createElement('p'); p.className = 'desc'; p.textContent = c.desc; card.appendChild(p);
+    var u = document.createElement('div'); u.className = 'use'; u.innerHTML = c.use; card.appendChild(u);
+    var lad = document.createElement('div'); lad.className = 'ladder';
+    [[128, 'light'], [48, 'light'], [32, 'dark'], [16, 'light'], [16, 'dark']].forEach(function (z) {
+      var rg = document.createElement('div'); rg.className = 'rung';
+      var tile = document.createElement('div'); tile.className = 'tile ' + z[1];
+      var pad = Math.round(z[0] * 0.14); tile.style.width = tile.style.height = (z[0] + pad * 2) + 'px';
+      tile.appendChild(finalSvg(c, z[0], z[1])); rg.appendChild(tile);
+      var cap = document.createElement('span'); cap.textContent = z[0] + 'px'; rg.appendChild(cap);
+      lad.appendChild(rg);
+    });
+    card.appendChild(lad);
+    grid.appendChild(card);
+    draw(c, 1);
+  });
+
+  function draw(c, T) {
+    // T: global progress in ms-normalized per stroke handled inside
+    c.parts.forEach(function (p, i) {
+      var t = typeof T === 'number' ? T : T[i];
+      var tx = easeInOut(t), ty = bounce(t);
+      var x = lerp(p.start.x, p.end.x, tx), y = lerp(p.start.y, p.end.y, ty);
+      var a = lerpAngle(p.start.a, p.end.a, easeInOut(Math.min(1, t * 1.15)));
+      var l = lerp(p.start.l, p.end.l, easeInOut(t));
+      var hx = Math.cos(a) * l / 2, hy = Math.sin(a) * l / 2;
+      var ln = c.lines[i];
+      ln.setAttribute('x1', (x - hx).toFixed(2)); ln.setAttribute('y1', (y - hy).toFixed(2));
+      ln.setAttribute('x2', (x + hx).toFixed(2)); ln.setAttribute('y2', (y + hy).toFixed(2));
+      ln.style.opacity = lerp(p.start.o, 1, Math.min(1, t * 2));
+    });
+  }
+  function drawNodes(c, t) {
+    c.dots.forEach(function (d, j) {
+      var k = Math.max(0, Math.min(1, t * c.dots.length - j * 0.6));
+      var s = k <= 0 ? 0 : back(k);
+      d.setAttribute('r', Math.max(0, c.nodes[j].r * s).toFixed(2));
+      d.style.opacity = k > 0 ? 1 : 0;
+    });
+  }
+
+  function play(c) {
+    if (c.raf) cancelAnimationFrame(c.raf);
+    clearTimeout(c.timer);
+    if (reduce) { draw(c, 1); drawNodes(c, 1); return; }
+    var f = slow ? 2.4 : 1, dur = 1100 * f, stagger = 80 * f, nodeDur = 520 * f;
+    var n = c.parts.length, total = stagger * (n - 1) + dur;
+    var t0 = performance.now();
+    drawNodes(c, 0);
+    function frame(now) {
+      var e = now - t0;
+      var ts = c.parts.map(function (_, i) { return Math.max(0, Math.min(1, (e - i * stagger) / dur)); });
+      draw(c, ts);
+      drawNodes(c, Math.max(0, Math.min(1, (e - total + 120 * f) / nodeDur)));
+      if (e < total + nodeDur) c.raf = requestAnimationFrame(frame);
+      else if (loop) c.timer = setTimeout(function () { play(c); }, 1800 * f);
+    }
+    c.raf = requestAnimationFrame(frame);
+  }
+
+  document.getElementById('all').addEventListener('click', function () { CONCEPTS.forEach(play); });
+  document.getElementById('slow').addEventListener('click', function (e) { slow = !slow; e.currentTarget.setAttribute('aria-pressed', String(slow)); CONCEPTS.forEach(play); });
+  document.getElementById('loop').addEventListener('click', function (e) { loop = !loop; e.currentTarget.setAttribute('aria-pressed', String(loop)); if (loop) CONCEPTS.forEach(play); });
+
+  setTimeout(function () { CONCEPTS.forEach(function (c, i) { setTimeout(function () { play(c); }, i * 180); }); }, 700);
+})();
+</script>
+
+</body></html>

@@ -1,0 +1,2034 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가닥 프로토타입</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='20 26 160 160'%3E%3Cg stroke='%23141414' stroke-width='16' stroke-linecap='round'%3E%3Cpath d='M36 122H166M100 122L132 80H154'/%3E%3C/g%3E%3Ccircle cx='100' cy='122' r='13' fill='%23fff' stroke='%23141414' stroke-width='10'/%3E%3Ccircle cx='154' cy='122' r='16' fill='%23C8401A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a control strip on top, then one framed device (browser, desktop app or VS Code) that hosts the same 가닥 engine.
+   Ink and paper with one accent: red ring = decided, red fill = now (one per screen). */
+:root {
+  --railw: 56px; --rx: 28px;
+  --bg: #FAF9F6; --surface: #FFFFFF; --fg: #141414; --fg2: #3F3F46; --muted: #6E6B66; --faint: #8F8B84;
+  --line: #E6E3DD; --bubble: #EFEDE8; --accent: #C8401A; --halo: #F6DDD4; --see: #E4E1DB;
+  --stem: #D6D2CB; --ring: #BDB9B2; --rail: #D9D5CE; --viewport: rgba(20,20,20,0.05); --flash: #FBEDE7;
+  --chrome: #ECEAE5; --side: #F4F2EE; --tip: #141414; --tip-fg: #F4F2EE; --tip-sub: #C9C5BE;
+  --shadow: 0 12px 32px rgba(20,20,20,0.08); --shadow-s: 0 4px 14px rgba(20,20,20,0.10);
+  --display: 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'IBM Plex Sans KR', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
+  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #3A3834;
+  --stem: #45433E; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --chrome: #262420; --side: #1B1A17; --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750;
+  --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
+  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #3A3834;
+  --stem: #45433E; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --chrome: #262420; --side: #1B1A17; --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750;
+  --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark }
+
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; }
+button { font-family: inherit; color: inherit; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: flex; flex-direction: column; padding-inline: 16px; box-sizing: border-box; }
+
+/* ---------- control strip ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding-block: 12px 10px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.logo svg { display: block; overflow: visible; }
+.brand b { font-family: var(--display); font-size: 20px; line-height: 1; }
+.brand .v { font-size: 11.5px; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+.mark line { stroke: var(--fg); }
+.mark .m-main { fill: var(--surface); stroke: var(--fg); }
+.mark .m-spur { fill: var(--surface); stroke: var(--ring); }
+.mark .m-now { fill: var(--accent); stroke: none; }
+.pick { display: flex; align-items: center; gap: 8px; }
+.pick > span { font-size: 11.5px; letter-spacing: 0.06em; color: var(--faint); }
+.switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.switch button { height: 30px; padding: 0 11px; border: 0; background: transparent; font-size: 12.5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.switch button + button { border-left: 1px solid var(--line); }
+.switch button[aria-pressed="true"] { color: var(--fg); font-weight: 600; background: var(--bg); box-shadow: inset 0 -2px 0 var(--fg); }
+.controls { margin-left: auto; display: flex; gap: 8px; }
+.btn { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--ring); color: var(--fg); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+.btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.btn.sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.btn[disabled] { opacity: 0.35; cursor: default; }
+.caption { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-bottom: 10px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+.caption b { color: var(--fg); font-weight: 600; }
+.caption .hint { color: var(--faint); }
+
+/* ---------- stage + device frames ---------- */
+.stage { flex: 1; min-height: 600px; overflow-x: auto; padding-bottom: 16px; }
+.surf { position: relative; height: 100%; min-width: 1000px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column; }
+
+/* browser */
+.btabs { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px 0; background: var(--chrome); }
+.dots { display: flex; gap: 6px; padding: 0 8px 10px 0; align-self: center; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--ring); display: block; }
+.btab { padding: 7px 14px; border-radius: 8px 8px 0 0; background: var(--surface); font-size: 12.5px; color: var(--fg2); max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btab.off { background: transparent; color: var(--faint); }
+.btool { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.url { flex: 1; height: 28px; border-radius: 14px; background: var(--chrome); display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; color: var(--muted); font-family: var(--mono); min-width: 0; overflow: hidden; white-space: nowrap; }
+.extbtn { position: relative; width: 34px; height: 28px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.extbtn:hover, .extbtn[aria-expanded="true"] { background: var(--chrome); }
+.badge { position: absolute; top: 0; right: 0; min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; background: var(--accent); color: #fff; font-size: 9.5px; font-weight: 600; line-height: 14px; text-align: center; }
+.site { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px minmax(0, 1fr); }
+.sitebar { background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; font-size: 13px; }
+.sitebar .sname { font-weight: 600; font-size: 14px; padding: 2px 8px 10px; color: var(--fg); }
+.sitebar .newc { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; height: 30px; font-size: 12.5px; text-align: left; padding: 0 10px; color: var(--fg2); margin-bottom: 10px; }
+.sitebar h6 { margin: 10px 8px 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--faint); }
+.citem { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 6px; color: var(--fg2); line-height: 1.35; transition: background .4s; }
+.citem span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.citem small { color: var(--faint); font-size: 11px; flex: none; }
+.citem.on { background: var(--bubble); color: var(--fg); font-weight: 500; }
+.citem.flash { background: var(--flash); }
+.citem.rep span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent); margin-right: 6px; vertical-align: 1px; }
+.sitemain { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--surface); }
+
+/* desktop app */
+.appgrid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 0; background: var(--chrome); }
+.win { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--surface); }
+.win + .win { border-left: 1px solid var(--line); }
+.wbar { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; background: var(--chrome); border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); flex: none; }
+.wbar .dots { padding: 0; }
+.wbar b { font-weight: 600; color: var(--fg2); }
+.wbar .r { margin-left: auto; font-size: 11.5px; color: var(--faint); }
+.appbody { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); }
+.appmain { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+
+/* vs code */
+.vsc { --bg: #1C1B19; --surface: #232220; --fg: #ECEAE5; --fg2: #D2CEC7; --muted: #A39F98; --faint: #807C75; --line: #393733; --bubble: #2F2D2A;
+  --accent: #F0704A; --halo: #4E2B20; --see: #3D3B37; --stem: #4A4743; --ring: #6E6A63; --rail: #45433E; --viewport: rgba(255,255,255,0.06); --flash: #3B2720;
+  --chrome: #2A2926; --side: #201F1D; --term: #161513; --code: #1A1918; --add: rgba(120,170,110,0.16); --del: rgba(220,110,90,0.18); --addfg: #9CC48E; --delfg: #E59580;
+  color: var(--fg); color-scheme: dark; }
+.vsgrid { flex: 1; min-height: 0; display: grid; grid-template-columns: 46px 200px minmax(0, 1fr); }
+.act { background: var(--chrome); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 10px; border-right: 1px solid var(--line); }
+.act button { width: 34px; height: 34px; border: 0; border-radius: 6px; background: transparent; color: var(--faint); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
+.act button.on { color: var(--fg); box-shadow: inset 2px 0 0 var(--fg); border-radius: 0; }
+.act svg { display: block; }
+.vside { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.vmain { display: flex; flex-direction: column; min-height: 0; min-width: 0; position: relative; }
+.vmain .editor { flex: 1 1 0; min-height: 70px; }
+.vmain .term { flex: 1.3 1 0; min-height: 0; border-top: 1px solid var(--line); }
+.vmain .drawer { margin: 0; border-radius: 0; border-width: 1px 0 0; box-shadow: none; }
+.xhead { padding: 10px 14px 6px; font-size: 11px; letter-spacing: 0.08em; color: var(--faint); }
+.xlist { display: flex; flex-direction: column; padding: 0 6px; }
+.xrow { display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; border: 0; background: transparent; color: var(--fg2); font-size: 12.5px; text-align: left; cursor: pointer; border-radius: 4px; }
+.xrow:hover { background: var(--viewport); }
+.xrow .gs { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.xrow .gs.x { color: var(--accent); }
+.xempty { padding: 4px 8px; font-size: 12px; color: var(--faint); }
+.cgrid { grid-template-columns: 46px 180px minmax(0, 1fr) 380px; }
+.cpanel { display: flex; flex-direction: column; min-height: 0; background: var(--side); border-left: 1px solid var(--line); }
+.chead { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--faint); }
+.chead b { color: var(--fg); font-weight: 600; font-size: 13px; }
+.cpanel .chat { padding: 16px 16px 16px; }
+.cpanel .thread { max-width: none; gap: 16px; }
+.cpanel .u { max-width: 100%; }
+.cpanel .u p, .cpanel .a { font-size: 13.5px; }
+.cpanel .inbox { margin: 0 12px 12px; }
+.cpanel .inbox .box { border-radius: 10px; font-size: 13px; }
+.cursor .vmain .editor { flex: 0 0 30%; }
+.cpanel .nudge-app { left: 12px; right: 12px; width: auto; }
+.statusbar { flex: none; display: flex; align-items: center; gap: 14px; height: 26px; padding: 0 10px; background: var(--chrome); border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.statusbar .sp { flex: 1; }
+.sbtn { display: inline-flex; align-items: center; gap: 7px; height: 22px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--fg2); font-size: 11.5px; cursor: pointer; }
+.sbtn:hover, .sbtn[aria-expanded="true"] { background: var(--viewport); }
+.sbtn svg { color: var(--fg); }
+.band { background: var(--chrome); display: flex; border-left: 1px solid var(--line); }
+.bandbtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 0; border: 0; background: var(--surface); cursor: pointer; color: var(--fg); margin: 34px 0 0; border-top: 1px solid var(--line); }
+.bandbtn:hover { background: var(--bg); }
+.bcount { min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 600; line-height: 18px; text-align: center; padding: 0 4px; box-sizing: border-box; }
+.blabel { font-size: 10.5px; color: var(--faint); writing-mode: vertical-rl; letter-spacing: 0.1em; }
+.drawer.fw { box-shadow: var(--shadow); }
+.drawer.fw .wbar { height: 28px; }
+.side-h { padding: 10px 14px 0; font-size: 12px; font-weight: 600; color: var(--fg2); }
+.litem .t.lk { cursor: pointer; }
+.litem .t.lk:hover { color: var(--accent); }
+.etabs { display: flex; background: var(--chrome); border-bottom: 1px solid var(--line); overflow: hidden; }
+.etab { padding: 8px 14px; font-size: 12.5px; color: var(--faint); border-right: 1px solid var(--line); white-space: nowrap; }
+.etab.on { background: var(--code); color: var(--fg); }
+.etab .gs { margin-left: 8px; font-size: 11px; }
+.editor { background: var(--code); overflow: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.75; padding: 8px 0; }
+.eline { display: grid; grid-template-columns: 44px 18px minmax(0, 1fr); white-space: pre-wrap; }
+.eline .ln { color: var(--faint); text-align: right; padding-right: 10px; font-variant-numeric: tabular-nums; }
+.eline .sg { color: var(--faint); }
+.eline.add { background: var(--add); } .eline.add .sg { color: var(--addfg); }
+.eline.del { background: var(--del); } .eline.del .sg { color: var(--delfg); }
+.eline.x { box-shadow: inset 3px 0 0 var(--accent); }
+.enote { margin: 6px 16px 10px 62px; font-family: var(--body); font-size: 12px; color: var(--accent); }
+.sash { background: var(--chrome); border-top: 1px solid var(--line); }
+.term { background: var(--term); display: flex; flex-direction: column; min-height: 0; }
+.ttabs { display: flex; gap: 18px; padding: 6px 14px; font-size: 11.5px; letter-spacing: 0.05em; color: var(--faint); border-bottom: 1px solid var(--line); }
+.ttabs .on { color: var(--fg); box-shadow: inset 0 -1px 0 var(--fg); padding-bottom: 4px; }
+
+/* ---------- chat (shared) ---------- */
+.chatwrap { position: relative; flex: 1; min-height: 0; }
+.chat { position: absolute; inset: 0; overflow-y: auto; padding: 22px calc(var(--railw) + 24px) 24px 24px; }
+.appmain .chat { padding-right: 28px; }
+.thread { max-width: 660px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.turn { display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; margin: 0 -10px; border-radius: 12px; transition: background .6s; }
+.turn.flash { background: var(--flash); }
+.turn.enter { animation: rise .35s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.u { align-self: flex-end; display: flex; align-items: center; gap: 8px; max-width: 88%; }
+.u .tag { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.u .tag.g { color: var(--accent); }
+.u p { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--bubble); line-height: 1.55; font-size: 14.5px; }
+.pager { display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pager button { border: 0; background: transparent; padding: 0 4px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.pager button:hover { color: var(--accent); }
+.a { margin: 0; line-height: 1.7; color: var(--fg); max-width: 62ch; font-size: 14.5px; }
+.a p { margin: 0; }
+.a.old { color: var(--muted); }
+.files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.file { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.sq { width: 7px; height: 7px; background: var(--fg); display: inline-block; flex: none; }
+.part { border-radius: 6px; transition: background .6s; }
+.part.flash { background: var(--flash); }
+.seam { display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.04em; color: var(--faint); }
+.seam::before, .seam::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.tool { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.tool summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; list-style: none; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.tool summary::-webkit-details-marker { display: none; }
+.tool summary svg { display: block; }
+.tool pre { margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bubble); font-family: var(--mono); font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; overflow-x: auto; color: var(--fg2); }
+.empty-chat { margin: 12vh auto 0; text-align: center; color: var(--faint); font-size: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.empty-chat b { font-family: var(--display); font-size: 22px; color: var(--fg2); font-weight: 600; }
+
+/* input */
+.inbox { margin: 0 calc(var(--railw) + 24px) 16px 24px; }
+.appmain .inbox { margin-right: 28px; }
+.inbox .box { max-width: 660px; margin: 0 auto; min-height: 46px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 12px 16px; font-size: 14px; line-height: 1.5; color: var(--faint); box-shadow: var(--shadow-s); white-space: pre-wrap; }
+.inbox .box.filled { color: var(--fg); border-color: var(--accent); }
+.inbox .box .by { display: block; font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+.caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -2px; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* terminal transcript */
+.tchat { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: var(--fg2); }
+.tchat .turn { gap: 4px; padding: 4px 8px; margin: 0 -8px; border-radius: 6px; }
+.tl { white-space: pre-wrap; }
+.tl.user { color: var(--fg); }
+.tl.user::before { content: "> "; color: var(--faint); }
+.tl.ai::before { content: "⏺ "; color: var(--fg); }
+.tl.sub { color: var(--faint); padding-left: 18px; }
+.tl.sub.w { color: var(--muted); }
+.tl.tag { color: var(--accent); font-size: 11.5px; }
+.tl.seamt { color: var(--faint); }
+.tprompt { border-top: 1px solid var(--line); padding: 8px 16px 10px; font-family: var(--mono); font-size: 12.5px; color: var(--fg); white-space: pre-wrap; }
+.tprompt::before { content: "> "; color: var(--faint); }
+.tprompt .ph { color: var(--faint); }
+.tprompt .by { display: block; font-family: var(--body); font-size: 11px; color: var(--accent); }
+
+/* ---------- 가닥: horizontal map drawer (web) ---------- */
+.drawer { flex: none; margin: 14px 16px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; z-index: 2; }
+.drawer[hidden] { display: none; }
+.dhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 12px 18px 0; }
+.dhead .mk { display: flex; align-items: center; gap: 8px; }
+.dhead .mk b { font-family: var(--display); font-size: 16px; }
+.map-title { font-size: 13.5px; font-weight: 600; color: var(--fg2); }
+.map-status { font-size: 12px; color: var(--faint); }
+.sp { flex: 1; }
+.scope { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.scope button { height: 26px; padding: 0 10px; border: 0; background: var(--surface); font-size: 12px; color: var(--faint); cursor: pointer; white-space: nowrap; }
+.scope button + button { border-left: 1px solid var(--line); }
+.scope button[aria-pressed="true"] { color: var(--fg); font-weight: 600; background: var(--bg); }
+.linkbtn { border: 0; background: transparent; padding: 0; font-size: 12.5px; color: var(--faint); cursor: pointer; }
+.linkbtn:hover { color: var(--fg); }
+.qbtn { border: 0; background: transparent; padding: 0; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.dbody { display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+.side-tabs { padding: 0 8px; }
+.qwrap { padding: 8px 12px 0; }
+.qin { width: 100%; box-sizing: border-box; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); padding: 0 10px; font: inherit; font-size: 12.5px; }
+.qin:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+.srow2 { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; }
+.srow2:hover { border-color: var(--ring); }
+.srow2 .k { font-size: 11px; color: var(--faint); }
+.srow2 .t { font-size: 13px; color: var(--fg); line-height: 1.4; }
+.srow2 .w { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.srow2.dec .t { color: var(--accent); font-weight: 600; }
+.fgrp { display: flex; flex-direction: column; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.fhead { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 13px; color: var(--fg); }
+.fhead .fn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fhead .latest { font-size: 11px; font-weight: 600; color: var(--fg); border: 1px solid var(--fg); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.fhead .warn { font-size: 11px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.fold-v { display: flex; gap: 8px; padding: 5px 10px 5px 25px; border: 0; border-top: 1px dashed var(--line); background: transparent; cursor: pointer; text-align: left; font-size: 12px; color: var(--faint); }
+.fold-v span:first-child { font-variant-numeric: tabular-nums; min-width: 22px; }
+.st.found, .cap.found { box-shadow: 0 0 0 5px var(--halo) !important; }
+.sitesw button { height: 24px; font-size: 11.5px; }
+.snav { padding: 5px 10px; font-size: 12.5px; color: var(--fg2); }
+.citem.pf { font-weight: 500; color: var(--fg); }
+.gpt .sitebar { background: var(--surface); }
+.gpt .sitebar .sname { font-size: 15px; }
+.gpt .inbox .box { border-radius: 26px; padding-inline: 20px; }
+.dbody.noled { grid-template-columns: minmax(0, 1fr); }
+.dbody.noled .dside { display: none; }
+.ledbtn { height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.ledbtn:hover { color: var(--fg); border-color: var(--ring); }
+.ledbtn.hot { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.map .in-s { animation: popin .42s cubic-bezier(.3,1.5,.5,1) both; }
+.map .in-l { animation: rise-l .4s ease-out both; }
+@keyframes rise-l { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.dside { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; max-height: 260px; }
+.map-scroll { overflow-x: auto; min-width: 0; }
+.map-scroll.ovf { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); }
+.map { position: relative; min-width: 560px; }
+.map svg.lines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.map-empty { padding: 28px 24px 34px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--muted); }
+.map-empty b { color: var(--fg2); font-weight: 600; }
+.map-empty .hint { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 13px; color: var(--muted); }
+.cnt { position: absolute; font-size: 11px; color: var(--faint); transform: translateY(-50%); pointer-events: none; }
+.alt-l { position: absolute; font-size: 11px; color: var(--muted); transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; }
+
+.st { position: absolute; padding: 0; border-radius: 50%; box-sizing: border-box; cursor: pointer; background: var(--surface); transform: translate(-50%, -50%); transition: box-shadow .25s, transform .2s; }
+.st:hover { transform: translate(-50%, -50%) scale(1.12); }
+.st.main { width: 16px; height: 16px; border: 3px solid var(--fg); }
+.st.dec { width: 20px; height: 20px; border: 4px solid var(--accent); }
+.st.cur { width: 20px; height: 20px; border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
+.st.br { width: 12px; height: 12px; border: 2px solid var(--muted); }
+.st.closed { width: 12px; height: 12px; border: 2px solid var(--ring); }
+.st.closed.l2 { width: 10px; height: 10px; border-color: var(--stem); }
+.st.br.cur, .st.l2.cur { width: 14px; height: 14px; border: 0; box-shadow: 0 0 0 5px var(--halo); }
+.st.tick { width: 8px; height: 8px; border: 2px solid var(--fg); }
+.st.tick.tdec { border-color: var(--accent); }
+.st.tick.tcur { border: 0; background: var(--accent); box-shadow: 0 0 0 4px var(--halo); }
+.st.ghost { width: 9px; height: 9px; border: 1.5px dashed var(--ring); background: var(--surface); }
+.st.viewing, .cap.viewing { box-shadow: 0 0 0 6px var(--see); }
+.st.cur.viewing, .cap.cur.viewing { box-shadow: 0 0 0 6px var(--halo); }
+.st.ref-hl, .cap.ref-hl { box-shadow: 0 0 0 6px var(--halo); }
+.st.todo::after, .cap.todo::after { content: ""; position: absolute; top: -7px; right: -7px; width: 7px; height: 7px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+
+.cap { position: absolute; transform: translate(-50%, -50%); box-sizing: border-box; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: box-shadow .25s; }
+.cap.main { border: 3px solid var(--fg); }
+.cap.dec { border: 4px solid var(--accent); }
+.cap.cur { border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
+.cell { width: 6px; height: 6px; padding: 0; border-radius: 50%; box-sizing: border-box; border: 0; background: var(--fg); cursor: pointer; }
+.cap.cur .cell { background: var(--surface); }
+.cell.open { background: transparent; border: 1.5px solid var(--accent); }
+.cap.cur .cell.open { border-color: var(--surface); }
+
+.lbl { position: absolute; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; }
+.lbl .t { font-size: 13px; line-height: 18px; color: var(--fg2); text-wrap: balance; }
+.lbl .t.now { font-weight: 600; color: var(--fg); }
+.lbl .f { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
+.lbl .d { font-size: 10.5px; color: var(--faint); }
+.seg { position: absolute; top: 4px; display: flex; align-items: baseline; gap: 6px; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; font-size: 11.5px; color: var(--faint); cursor: pointer; white-space: nowrap; }
+.seg b { font-size: 12px; font-weight: 600; color: var(--fg2); }
+.seg.shut b { font-weight: 500; color: var(--faint); }
+.seg:hover b { color: var(--accent); }
+.map.reveal path.trunk { stroke-dasharray: 1; animation: drawline .8s cubic-bezier(.3,.7,.2,1) .1s both; }
+.map.reveal .st, .map.reveal .cap { animation: popin .42s cubic-bezier(.3,1.5,.5,1) both; }
+@keyframes drawline { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes popin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.2); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* rail (web) */
+.rail { position: absolute; top: 0; bottom: 0; right: 8px; width: var(--railw); z-index: 1; }
+.rail .rline { position: absolute; left: calc(var(--rx) - 1px); width: 2px; background: var(--rail); }
+.rail .vp { position: absolute; left: calc(var(--rx) - 17px); width: 34px; border-radius: 6px; background: var(--viewport); pointer-events: none; }
+.rail-toggle { position: absolute; left: calc(var(--rx) - 21px); top: 6px; width: 42px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.rail-toggle:hover { background: var(--viewport); }
+.rail-toggle svg { display: block; overflow: visible; }
+.rail-toggle .cv { font-size: 9.5px; line-height: 1; color: var(--accent); font-weight: 600; }
+.rail .mark .m-main, .rail .mark .m-spur { fill: var(--surface); }
+.rail .st.main { width: 10px; height: 10px; border: 0; background: var(--fg); }
+.rail .st.dec { width: 10px; height: 10px; border: 2px solid var(--accent); }
+.rail .st.cur { width: 14px; height: 14px; box-shadow: 0 0 0 5px var(--halo); }
+.rail .st.br, .rail .st.closed { width: 9px; height: 9px; border-width: 2px; }
+.rail .st.viewing, .rail .cap.viewing { box-shadow: 0 0 0 4px var(--see); }
+.rail .st.cur.viewing, .rail .cap.cur.viewing { box-shadow: 0 0 0 5px var(--halo); }
+.rail .cap { flex-direction: column; width: 10px; height: auto; padding: 3px 0; gap: 3px; border-radius: 5px; }
+.rail .cap.main { border: 0; background: var(--fg); }
+.rail .cap.main .cell { background: var(--surface); }
+.rail .cap.dec { border-width: 2px; }
+.rail .cell { width: 4px; height: 4px; }
+.rail .fsq { position: absolute; width: 6px; height: 6px; background: var(--fg); transform: translateY(-50%); pointer-events: none; }
+.rail .tdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--surface); transform: translateY(-50%); pointer-events: none; }
+.rail-seam { position: absolute; left: calc(var(--rx) - 10px); width: 20px; height: 1px; background: var(--line); }
+
+/* ---------- 가닥 panel (app companion window, VS Code sidebar) ---------- */
+.gp { display: flex; flex-direction: column; min-height: 0; flex: 1; background: var(--surface); }
+.vside .gp { background: var(--side); }
+.gphead { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; }
+.gphead b { font-family: var(--display); font-size: 16px; }
+.gphead .r { margin-left: auto; font-size: 11.5px; color: var(--faint); }
+.vside .gphead { padding-top: 10px; }
+.vside .gphead .cap-t { font-size: 11px; letter-spacing: 0.08em; color: var(--faint); font-family: var(--body); font-weight: 500; }
+.ptabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+.ptabs button { position: relative; border: 0; background: transparent; height: 32px; padding: 0 9px; font-size: 12.5px; color: var(--faint); cursor: pointer; }
+.ptabs button[aria-selected="true"] { color: var(--fg); font-weight: 600; box-shadow: inset 0 -2px 0 var(--fg); }
+.ptabs .n { display: inline-block; min-width: 15px; height: 15px; margin-left: 4px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 10px; line-height: 15px; text-align: center; font-weight: 600; padding: 0 3px; box-sizing: border-box; }
+.pbody { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; }
+.pscope { display: flex; padding: 8px 12px 0; }
+
+/* vertical map */
+.vmap { display: flex; flex-direction: column; }
+.vseg { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 2px; padding: 3px 4px; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 11.5px; color: var(--faint); }
+.vseg b { font-size: 12px; font-weight: 600; color: var(--fg2); }
+.vseg.shut b { font-weight: 500; color: var(--faint); }
+.vseg:hover b { color: var(--accent); }
+.vrow { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 6px; padding: 5px 4px 5px 0; border: 0; background: transparent; text-align: left; cursor: pointer; border-radius: 6px; font-size: 13px; color: var(--fg2); }
+.vrow:hover { background: var(--viewport); }
+.vrow .g { position: relative; }
+.vrow .g::before { content: ""; position: absolute; left: 13px; top: -6px; bottom: -6px; width: 3px; background: var(--fg); }
+.vrow.first .g::before { top: 12px; }
+.vrow.last .g::before { bottom: calc(100% - 12px); }
+.vrow.solo .g::before { display: none; }
+.vrow .dot { position: absolute; left: 14.5px; top: 11px; transform: translate(-50%, -50%); box-sizing: border-box; border-radius: 50%; background: var(--surface); }
+.vside .vrow .dot { background: var(--side); }
+.vrow .dot.main { width: 13px; height: 13px; border: 3px solid var(--fg); }
+.vrow .dot.dec { width: 15px; height: 15px; border: 3.5px solid var(--accent); }
+.vrow .dot.cur { width: 15px; height: 15px; background: var(--accent); box-shadow: 0 0 0 5px var(--halo); }
+.vrow .dot.cap { border-radius: 8px; width: 13px; height: auto; padding: 2px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2.5px solid var(--fg); transform: translate(-50%, -6px); }
+.vrow .dot.cap.dec { border-color: var(--accent); }
+.vrow .dot.cap.cur { border: 0; background: var(--accent); }
+.vrow .dot.cap i { width: 4px; height: 4px; border-radius: 50%; background: var(--fg); }
+.vrow .dot.cap.cur i { background: var(--surface); }
+.vrow .dot.cap i.o { background: transparent; border: 1px solid var(--accent); box-sizing: border-box; }
+.vrow .dot.cap.cur i.o { border-color: var(--surface); }
+.vrow.side { color: var(--muted); font-size: 12.5px; }
+.vrow.side .g::after { content: ""; position: absolute; left: 15px; top: -6px; width: 12px; height: 17px; border-left: 2px solid var(--ring); border-bottom: 2px solid var(--ring); border-bottom-left-radius: 6px; }
+.vrow.side .dot { left: 30px; }
+.vrow.side.d2 .dot { left: 38px; }
+.vrow.side .dot.br { width: 10px; height: 10px; border: 2px solid var(--muted); }
+.vrow.side .dot.closed { width: 10px; height: 10px; border: 2px solid var(--ring); }
+.vrow.side .dot.cur { width: 12px; height: 12px; }
+.vrow.side .txt { padding-left: 18px; }
+.vrow.side.d2 .txt { padding-left: 26px; }
+.vrow .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; line-height: 1.4; }
+.vrow .tt { display: flex; gap: 6px; align-items: baseline; }
+.vrow .tt .n { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; flex: none; }
+.vrow .tt span { min-width: 0; }
+.vrow.is-cur .tt span { font-weight: 600; color: var(--fg); }
+.vrow .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--faint); }
+.vrow .meta .dc { color: var(--accent); }
+.vrow .meta .fl { display: inline-flex; align-items: center; gap: 4px; }
+.vrow .meta .td { color: var(--accent); }
+.vrow.viewing { background: var(--see); }
+.vrow.flash { background: var(--flash); }
+
+/* ledger */
+.led { display: flex; flex-direction: column; gap: 14px; }
+.lgrp { display: flex; flex-direction: column; gap: 8px; }
+.lgrp h5 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--faint); display: flex; justify-content: space-between; }
+.litem { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.vside .litem { background: var(--bg); }
+.litem .mk { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--accent); margin-top: 5px; box-sizing: border-box; }
+.litem.sg .mk { border-color: var(--fg2); border-style: dotted; }
+.litem .k { font-size: 11px; color: var(--faint); }
+.litem .t { font-size: 13px; line-height: 1.45; color: var(--fg); }
+.litem .w { font-size: 12px; line-height: 1.45; color: var(--muted); }
+.litem .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.litem.done { border-style: dashed; background: transparent; }
+.litem.done .mk { background: var(--accent); border-color: var(--accent); }
+.litem.done .t { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--ring); }
+.litem.done.sg .mk { background: var(--fg2); border-style: solid; border-color: var(--fg2); }
+.litem.later .mk { border-color: var(--ring); }
+.litem.new { animation: rise .4s ease-out; }
+.lsum { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.lempty { font-size: 13px; color: var(--faint); line-height: 1.6; padding: 6px 2px; }
+.revrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 9px; background: var(--bubble); font-size: 12.5px; color: var(--fg2); }
+
+/* judgement log */
+.log { display: flex; flex-direction: column; gap: 12px; }
+.log .src { font-size: 11.5px; color: var(--faint); line-height: 1.5; }
+.log .src code { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.lstep { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; font-size: 12.5px; line-height: 1.45; }
+.lstep .i { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--fg2); font-size: 10.5px; display: flex; align-items: center; justify-content: center; color: var(--fg2); font-variant-numeric: tabular-nums; }
+.lstep .i.hot { border-color: var(--accent); color: var(--accent); }
+.lstep b { font-weight: 600; font-size: 12px; color: var(--fg2); }
+.lstep span { color: var(--muted); }
+.lstep span.hot { color: var(--accent); }
+.lhist { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.lhist div { display: flex; gap: 8px; }
+.lhist .n { color: var(--faint); flex: none; font-variant-numeric: tabular-nums; }
+
+/* pattern */
+.pat { display: flex; flex-direction: column; gap: 14px; }
+.pat .ty { display: flex; flex-direction: column; gap: 6px; }
+.pat .ty small { font-size: 11px; letter-spacing: 0.08em; color: var(--faint); }
+.pat .ty b { font-family: var(--display); font-size: 19px; font-weight: 700; }
+.conf { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.conf .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--bubble); overflow: hidden; }
+.conf .bar i { display: block; height: 100%; background: var(--fg); }
+.sig { display: flex; flex-direction: column; gap: 8px; }
+.sig h5, .pat h5 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--faint); }
+.srow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; font-size: 12.5px; color: var(--fg2); }
+.srow em { font-style: normal; color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+.srow .bar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--bubble); overflow: hidden; }
+.srow .bar i { display: block; height: 100%; background: var(--muted); }
+.pat p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--fg2); }
+.pat .src { font-size: 11.5px; color: var(--faint); line-height: 1.5; }
+.pat .src code { font-family: var(--mono); font-size: 11px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* files */
+.flist { display: flex; flex-direction: column; gap: 6px; }
+.frow { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 6px 4px; border-radius: 6px; font-size: 12.5px; cursor: pointer; border: 0; background: transparent; text-align: left; color: var(--fg2); }
+.frow:hover { background: var(--viewport); }
+.frow small { font-size: 11px; color: var(--faint); grid-column: 2 / 3; }
+.frow .gs { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.frow .gs.x { color: var(--accent); }
+
+/* nudge (가닥의 한마디) */
+.nudge { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 13px; animation: rise .35s ease-out; }
+.nudge .who { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--faint); grid-column: 1 / 3; }
+.nudge .who b { color: var(--fg2); font-weight: 600; font-family: var(--display); font-size: 13px; }
+.nudge .x { grid-row: 1; grid-column: 3; border: 0; background: transparent; color: var(--faint); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; }
+.nudge .t { grid-column: 1 / -1; font-size: 14px; line-height: 1.5; color: var(--fg); font-weight: 500; }
+.nudge .w { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.nudge .row { grid-column: 1 / -1; display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.nudge.still { animation: none; }
+.nudge-web { position: absolute; right: calc(var(--railw) + 20px); bottom: 12px; width: 340px; z-index: 3; }
+.nudge-app { position: absolute; right: 20px; bottom: 12px; width: 330px; z-index: 3; }
+.nudge-vs { position: absolute; right: 14px; bottom: 14px; width: 360px; z-index: 3; border-radius: 6px; }
+
+/* overlays */
+.tip { position: fixed; z-index: 20; max-width: 270px; padding: 11px 13px; border-radius: 10px; background: var(--tip); color: var(--tip-fg); font-size: 12.5px; line-height: 1.5; pointer-events: none; display: flex; flex-direction: column; gap: 3px; }
+.tip b { font-size: 13.5px; font-weight: 600; }
+.tip .s { color: var(--tip-sub); }
+.tip .fl { display: flex; align-items: center; gap: 6px; color: var(--tip-sub); }
+.tip .fl i { width: 7px; height: 7px; background: var(--tip-fg); flex: none; }
+.pop { position: fixed; z-index: 21; width: min(380px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--fg); }
+.pop b { font-size: 14px; }
+.pop pre { margin: 0; white-space: pre-wrap; font-family: var(--body); font-size: 13px; line-height: 1.6; padding: 10px 12px; border-radius: 8px; background: var(--bubble); }
+.pop .diff { font-family: var(--mono); font-size: 12px; line-height: 1.6; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.pop .diff div { padding: 2px 10px; white-space: pre-wrap; }
+.pop .diff .d { background: rgba(200,64,26,0.10); }
+.pop .diff .a { background: rgba(110,150,100,0.14); }
+.pop .note { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.pop .row { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.popover { position: absolute; z-index: 6; top: 76px; right: 12px; width: 320px; padding: 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.popover .ph { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.popover .ph b { font-family: var(--display); font-size: 15px; }
+.toast { position: absolute; z-index: 7; left: 50%; bottom: 80px; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px; background: var(--tip); color: var(--tip-fg); font-size: 12.5px; white-space: nowrap; pointer-events: none; animation: rise .3s ease-out; }
+.tip[hidden], .pop[hidden], .popover[hidden], .toast[hidden] { display: none; }
+
+@media (max-width: 760px) { .controls { margin-left: 0; } .caption { font-size: 12.5px; } }
+@media (prefers-reduced-motion: reduce) { .turn.enter, .nudge, .litem.new, .toast { animation: none; } .st, .cap { transition: none; } .caret { animation: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand"><button class="logo" id="logo" type="button" aria-label="가닥 심볼 다시 재생"><b>가닥</b></button><span class="v">v4</span></div>
+    <div class="pick"><span>입구</span>
+      <div class="switch" id="surfSw" role="group" aria-label="입구 고르기">
+        <button type="button" data-v="web">웹</button>
+        <button type="button" data-v="app">데스크톱 앱</button>
+        <button type="button" data-v="vsc">VS Code</button>
+        <button type="button" data-v="cursor">Cursor</button>
+      </div>
+    </div>
+    <div class="pick"><span>예시</span>
+      <div class="switch" id="scenSw" role="group" aria-label="사용 유형 예시 고르기">
+        <button type="button" data-v="u1">실제 프로젝트 (U1)</button>
+        <button type="button" data-v="u2">한 창 몰아쓰기</button>
+        <button type="button" data-v="u3">매번 새 창</button>
+        <button type="button" data-v="u4">분기 활용</button>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="reset" type="button">처음 상태로</button>
+      <button class="btn primary" id="next" type="button">다음 턴 ▶</button>
+    </div>
+  </div>
+  <div class="caption" id="caption"></div>
+  <div class="stage" id="stage"></div>
+</div>
+<div class="tip" id="tip" hidden></div>
+<div class="pop" id="pop" hidden role="dialog"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =====================================================================
+     DATA — four usage types, each a small set of chats.
+     turn: { id, title, depth, dec, files, parts, ref, ret, topic, alts, todo, user, ai }
+     todo kinds: missing (auto from parts) · yours · open · unasked · branch · next · topic · repeat · handoff
+     ===================================================================== */
+  /* ---------- 지난 대화 (실제) 앞부분 38개: v3 프로토타입에 쓰던 데이터 ---------- */
+  var CANVAS = 'https://claude.ai/artifact/8vRzyobaGuymsnzeCsksQJ';
+  var PROTO = 'https://claude.ai/artifact/DiDL6qDSzjh2X67f66fvdc';
+  var SYMBOL = 'https://claude.ai/artifact/W2rmoRqmq1qTQR95Z7LaLp';
+  var HANDOFF = 'https://claude.ai/code/artifact/303753f7-13e0-4143-959f-b9705d2e5d9b';
+
+  /* ---------- example 1: this planning conversation (38 messages, 6 segments) ---------- */
+  var SESSION = [
+    { id: 's1', seg: '기획', depth: 0, title: '실현 가능한가',
+      user: 'Category C에 걸렸어. LLM 질문 정리 에이전트를 생각 중인데, 질문을 노드화해서 도식화하고 확장 프로그램으로 붙이면 어떨까? 구현 가능할지, 실현 가능성을 나랑 얘기해줘.',
+      ai: '가능해요. 확장 프로그램이 LLM 화면의 대화를 읽고, 질문마다 본류·곁길·결정으로 나눠 노드로 그리면 돼요. 어려운 건 분류 정확도와 사이트마다 다른 화면 구조라서, 범위를 Claude·ChatGPT 두 곳으로 좁히는 걸 권해요.' },
+    { id: 's2', depth: 0, title: '연계 문제의식',
+      user: '내가 처음 생각한 방향은 LLM 화면 바로 옆에 토글로 붙는 방식이야. 연계된 문제의식이 또 어떤 게 있을까? 레딧 같은 데서 찾아줄래?',
+      ai: '대화가 길어지면 앞 내용을 못 찾는다, 곁길 질문이 본론을 밀어낸다, 같은 걸 새 창에서 또 묻는다는 불만이 반복돼요. 분기 기능을 원하는 글도 많아서 문제 정의의 근거로 쓸 수 있어요.' },
+    { id: 's3', depth: 0, title: '채팅창 없는 화면', dec: '채팅창을 새로 만들지 않음', files: [{ n: '질문 정리 에이전트 화면 (캔버스)', u: CANVAS }],
+      user: '웹이나 앱에 채팅창이 또 있으면 그냥 LLM의 다른 발현처럼 보일 것 같아. 어떤 식으로 구현될 것 같아? 화면을 한 번 시각화해볼래?',
+      ai: '입력창 없이 LLM 화면 옆에 흐름만 보여주는 패널로 그렸어요. 갈래는 대답하지 않고, 이미 나눈 대화를 정리만 해요.' },
+    { id: 's4', depth: 0, title: '과거 대화 · 산출물', files: [{ n: '예시 · NBA 프로젝트 (보드 3개)', u: CANVAS }],
+      parts: [
+        { t: '과거 대화 불러와 재정렬', type: 'task' },
+        { t: '산출물 제목·폴더 보이기', type: 'task' },
+        { t: 'NBA 프로젝트로 예시 구현', type: 'task' }
+      ],
+      user: '과거 대화를 끌어와서 다시 정렬해보는 기능도 있으면 좋겠어. 산출물들도 어떤 제목으로 어떤 폴더에 있는지 보이고. 디자인은 깔끔하고 간결해야 해. 예시로 SNU KDT 기계학습과 딥러닝 프로젝트에서 나눴던 대화로 한번 구현해볼까?',
+      ai: 'NBA 에이징커브 대화 3개를 불러와 한 노선으로 잇고, 역마다 나온 파일을 제목·폴더와 함께 붙였어요. 산출물 탭에서는 어느 대화에서 무엇이 나왔는지 거꾸로 찾을 수 있어요.' },
+    { id: 's5', depth: 1, title: '실시간으로 읽나?',
+      user: 'LLM 화면을 실시간으로 읽을 수 있나? 그럼 배포하면 사용자가 Claude 로그인을 따로 해야 해?',
+      ai: '읽을 수 있어요. 콘텐츠 스크립트가 화면을 읽고, 새 메시지는 MutationObserver로 감지해요. 사용자가 이미 로그인한 탭을 그대로 읽으니 따로 로그인할 필요는 없어요.' },
+    { id: 's6', depth: 0, title: '구조도 · 웹이냐 앱이냐', ret: true, files: [{ n: '구조도', u: CANVAS }],
+      parts: [
+        { t: '구조도 그리기', type: 'task' },
+        { t: '웹이 나을까 앱이 나을까', type: 'q' },
+        { t: '과제 안내 확인', type: 'q' }
+      ],
+      user: '응 그림으로 그려줘. 이건 웹으로 만드는 게 좋을까 아님 앱으로? 과제 안내에서는 어떻게 나와 있니?',
+      ai: '확장 프로그램 · 백엔드 · 흐름 저장소로 구조도를 그렸어요. 과제는 “업무용 AI Agent 앱”이라 형식은 자유로워 보이지만, 확장 프로그램이 앱으로 인정되는지는 코칭 때 확인하는 게 안전해요.' },
+    { id: 's7', depth: 1, title: '앱 안에서 쓰려면',
+      user: '앱 안에서 사용하고 싶으면 어떻게 해야 해?',
+      ai: 'Claude 데스크톱 앱에는 MCP 서버로 붙이면 돼요. Claude가 대화를 직접 분류해 넘겨주니 API 비용이 따로 들지 않고, 흐름도는 로컬 창에 띄워요.' },
+    { id: 's8', depth: 0, title: '이름과 문제 정의', ret: true, dec: '이름 ‘갈래’ · 웹 입구 + 앱 입구', files: [{ n: '구조도 v2', u: CANVAS }, '갈래_프로젝트_개요.md'],
+      parts: [
+        { t: '구조도 갱신', type: 'task' },
+        { t: '제목·문제 정의 구조화', type: 'task' }
+      ],
+      user: '응 구조도를 갱신하고, 이 프로젝트의 제목과 문제 정의 역시 구조화해줘.',
+      ai: '확장 프로그램(웹 입구)과 MCP(앱 입구)가 같은 백엔드를 쓰는 구조로 고쳤어요. 이름은 ‘갈래’, 부제는 “흩어진 LLM 대화를 흐름으로 정리하는 AI 에이전트”로 정리했어요.' },
+
+    { id: 's9', seg: '조사', depth: 0, title: '질문·작업 유형', dec: '사용 양식 U1–U4 · 작업 T1–T5',
+      user: '문제 정의 앞단에 사람들이 LLM에게 던지는 질문과 task 유형도 연결하면 좋을 것 같은데. 유형별 사용 양식도 중요할 것 같고.',
+      ai: '사용 양식을 U1 프로젝트 분리형, U2 한 창 몰아쓰기형, U3 매번 새 창형, U4 분기 활용형으로, 작업을 T1–T5로 나눴어요. 유형마다 겪는 불편이 달라서 갈래가 해줄 일도 달라져요.' },
+    { id: 's10', depth: 0, title: '근거 연구 · 설문', files: ['갈래_사용양식_설문.md'],
+      parts: [
+        { t: '근거 연구 찾기', type: 'q' },
+        { t: '사용 양식 설문 만들기', type: 'task' }
+      ],
+      user: '응 이 작업 유형을 규명한 연구/논문들이 뭔지 알려주고, 사용 양식을 조사할 수 있는 설문을 구성해줘봐.',
+      ai: 'NBER 연구(묻기 49% · 하기 40% · 표현 11%), Anthropic Economic Index, Clio, WildChat 등을 근거로 묶었어요. 설문은 16문항으로 만들고 분석 계획까지 붙였어요.' },
+    { id: 's11', depth: 0, title: '최종 구조도 · 보완점', files: [{ n: '구조도 v3', u: CANVAS }],
+      parts: [
+        { t: '최종 구조도 보여주기', type: 'task' },
+        { t: '보완·고도화 여지', type: 'q' }
+      ],
+      user: '최종 구조도 한 번 띄워줄래? 그리고 좀 더 보완하거나 고도화할 여지가 있을까?',
+      ai: '최종 구조도를 띄우고, 보완점으로 답변 점검(빠진 요청 찾기), 수정 요청 모아두기, 프로젝트 단위 지도를 제안했어요.' },
+
+    { id: 's12', seg: '디자인', depth: 0, title: 'AI slop 같다',
+      user: '디자인적으로도… 너무 AI slop 같아. 기본 구상도를 뜯어봐야 할 것 같은데.',
+      ai: '카드·그라데이션·아이콘을 걷어내고, 같은 대화를 네 가지로 다시 표현해 보자고 했어요. 노선도, 목차형, 여백 레일, 레일 + 노선도예요.' },
+    { id: 's13', depth: 0, title: '네 방향 모두 구현', files: [{ n: '재설계 A–D', u: CANVAS }],
+      user: '4가지 후보로 전부 구현해줘봐.',
+      ai: '같은 NBA 대화를 A 노선도 · B 목차형 · C 여백 레일 · D 레일 + 노선도로 그렸어요. 색은 먹색과 빨강 하나만 썼어요.' },
+    { id: 's14', depth: 0, title: 'D안 + 산출물 역', dec: 'D안 · 레일 + 가로 노선도',
+      user: '나도 D가 적합하다고 생각해. 근데 산출물 나오는 것도 노선도에 드러나면 좋겠는데.',
+      ai: 'D안으로 정하고, 역 아래에 ■ 표시와 파일 수를 붙였어요. 같은 파일이 다시 나오면 v2, v3로 버전을 달아요.' },
+    { id: 's15', depth: 0, title: '덜어내기', files: [{ n: '재설계 D v2', u: CANVAS }],
+      user: '조금 복잡해 보이기도 한다…',
+      ai: '선 굵기를 두 단계로 줄이고, 역 라벨은 제목 한 줄만 남겼어요. 나머지 설명은 마우스를 올릴 때만 보여요.' },
+    { id: 's16', depth: 0, title: '파생 질문과 복귀', files: [{ n: 'D 확장 — 분화와 복귀', u: CANVAS }],
+      user: '하나의 질문에서 파생되는 1차, 2차 질문들은 어떻게 표현할까? 흐름이 기존 것으로 돌아왔을 때 노드가 기존 흐름에 잘 추가될 수 있을까?',
+      ai: '곁길은 한 층씩 내려가며 그리고, 본론으로 돌아오면 끝난 곁길은 옅게 접어요. 돌아온 질문은 갈라진 역 다음에 이어 붙어서 Git의 머지처럼 보여요.' },
+    { id: 's17', depth: 1, title: '볼륨이 커지면?', files: [{ n: 'D 확장 — 눈금 접기', u: CANVAS }],
+      user: '그럼 노선도에는 어떻게 표시돼? 볼륨이 커지면 안 될 텐데.',
+      ai: '층은 2단계까지만 두고, 지난 구간은 눈금으로 접어요. 질문이 30개를 넘어도 지도 폭이 크게 늘지 않아요. 지금 이 화면 위쪽이 그 모습이에요.' },
+    { id: 's18', depth: 2, title: '레일에서는?', files: [{ n: 'C·D 레일 — 비켜 서기', u: CANVAS }],
+      user: '아 내 말은, 파생 흐름이 오른쪽 옆 구역의 레일에는 어떻게 반영될까 하는 거였어.',
+      ai: '레일은 폭 40px 고정이라, 곁길은 오른쪽으로 한 칸씩 비켜 서요. 2차까지만 비켜 서고, 더 깊으면 2차 자리에 겹쳐 숫자로 보여요.' },
+    { id: 's19', depth: 1, title: '빨강과 검정 차이',
+      user: '빨간색 노드와 검정 노드의 차이는 뭐야?',
+      ai: '검정은 보통 질문, 빨간 테두리는 정한 것, 채운 빨강은 지금이에요. 그런데 레일에서는 채운 빨강이 두 뜻으로 쓰이고 있어서 헷갈릴 수 있어요.' },
+    { id: 's20', depth: 0, title: '빨강 의미 통일', ret: true, dec: '정함 = 빨간 테두리 · 지금 = 채운 빨강',
+      user: '응 통일해줘.',
+      ai: '모든 화면에서 정한 것은 빨간 테두리, 지금은 채운 빨강으로 맞췄어요. 채운 빨강은 화면 전체에 하나만 있어요.' },
+    { id: 's21', depth: 0, title: '프로젝트별 노선 색', dec: '노선 색 = 프로젝트', files: [{ n: '프로젝트 전체 지도', u: CANVAS }],
+      user: '노드 색은 프로젝트별로 구분되게 만들까? 내 다른 대화(프로젝트 칸에 많아) 참고해서 또 다른 예시 화면을 구현해줘.',
+      ai: '수업 폴더의 네 프로젝트를 노선 색으로 나눈 전체 지도를 만들었어요. 빨강은 계속 ‘지금’과 ‘정함’에만 쓰고, 노선 색은 프로젝트만 뜻해요.' },
+    { id: 's22', depth: 0, title: '유형별 화면', ref: 's9', files: [{ n: '사용 유형별 U1–U4', u: CANVAS }],
+      user: '우리 얘기했던 U1 프로젝트 분리형 / U2 한 창 몰아쓰기형 / U3 매번 새 창형 / U4 분기 활용형 있잖아. 유형별로 양상이 좀 달라질 것 같은데, 구분해서 한번 구현해줄 수 있나?',
+      ai: 'U1은 대화들을 한 노선으로 잇고, U2는 한 창을 주제별 노선으로 쪼개고, U3는 흩어진 새 창을 묶어 반복 질문을 알려주고, U4는 수정 가지를 우회선으로 드러내요.' },
+
+    { id: 's23', seg: '프로토타입', depth: 0, title: '역 누르면 이동',
+      user: '각 노드를 누르면 해당 대화 섹션으로 넘어갈 수 있었으면 좋겠어. 구현 가능할까?',
+      ai: '가능해요. 역마다 메시지 위치를 기억해 두었다가, 누르면 그 자리로 스크롤하고 잠깐 강조해요.' },
+    { id: 's24', depth: 0, title: '보는 중 · 직접 만져보기', files: [{ n: 'galrae-prototype/index.html', u: PROTO }],
+      parts: [
+        { t: '보는 위치 따라가기', type: 'task' },
+        { t: '직접 만져볼 방법', type: 'q' }
+      ],
+      user: '좋아, 그럼 지금 보는 위치가 따라 움직이게 구현해주고, 내가 실제로 프로토타입을 만져볼 수 있으면 좋겠는데. VS Code로 로컬에서 보거나… 어떤 방법이 있을까?',
+      ai: '스크롤하면 ‘보는 중’ 표시가 역을 따라가고, 레일에는 지금 보이는 구간이 막대로 떠요. 파일 하나짜리라 더블클릭하거나 VS Code Live Server로 열면 돼요.' },
+    { id: 's25', depth: 0, title: '여러 요청이 한 번에', dec: '요청 분해 · 캡슐 역',
+      user: '만약에 한 번 보내는 질문이 이렇게 단적이지 않고, 여러 질문이 중첩되어 있거나 task를 여러 개 요구하면 어떡하지?',
+      ai: '메시지 하나를 요청 단위로 쪼개고 요청마다 따로 분류해요. 그런 메시지는 점 여러 개가 든 캡슐 역으로 그리고, 답을 못 받은 요청은 빈 칸으로 남겨요.' },
+    { id: 's26', depth: 0, title: '프로토타입·구조도에 반영', files: [{ n: 'index.html v2', u: PROTO }, { n: '에이전트 내부 — 파이프라인', u: CANVAS }],
+      user: '프로토타입이랑 구조도에도 반영해서 시각화해줘.',
+      ai: '프로토타입에 캡슐 역, 빠진 요청 다시 묻기, 수정 모아두기를 넣었어요. 구조도에는 요청 분해 → 분류 → 붙일 자리 → 답변 점검 순서를 추가했어요.' },
+    { id: 's27', depth: 0, title: '메인 화면 최신화', files: [{ n: '① 메인 v2', u: CANVAS }],
+      user: '지금 LLM 질문 정리 에이전트 화면 구조도가 변경사항이 반영이 안 됐는데, 최신 버전으로 업데이트해줘.',
+      ai: '메인 화면에 캡슐 역, 레일 비켜 서기, 빨강 통일을 반영했어요.' },
+    { id: 's28', depth: 0, title: '전 페이지 통일', files: [{ n: '캔버스 전체 v3', u: CANVAS }],
+      user: '응 전 페이지를 지금 버전에 맞춰줘.',
+      ai: '다섯 페이지를 같은 표기 규칙으로 맞췄어요. 정함은 테두리, 지금은 채움, 곁길은 회색, 산출물은 ■예요.' },
+
+    { id: 's29', seg: '전달', depth: 0, title: '어떻게 전달할까',
+      user: '응 이제 조원한테 전달하려고 해. 내가 구상한 모든 걸 어떤 방식으로 전달하는 게 효과적일까?',
+      ai: '링크 모음보다 “이미 정한 것 / 아직 안 정한 것”을 가른 문서 하나가 좋아요. 보는 순서와 링크를 붙이고, 캔버스는 참고 자료로 두는 식이에요.' },
+    { id: 's30', depth: 0, title: '전달 문서 · Git 구조', files: [{ n: '갈래 전달 문서', u: HANDOFF }],
+      parts: [
+        { t: '전달 문서 만들기', type: 'task' },
+        { t: 'Git 저장소 구조 넣기', type: 'task' }
+      ],
+      user: '웅 전달 문서를 만들어줘. 그리고 나중에 조원과 git으로 구현할 듯한데, 그 구조도 언급해줬으면 좋겠다.',
+      ai: '한 줄 소개, 이미 정한 것, 보는 순서, 역할 분담안, Git 저장소 구조(extension · mcp · backend)까지 담은 문서를 만들었어요.' },
+    { id: 's31', depth: 1, title: '배포될까?',
+      user: '이건 내 질문인데, 이게 배포가 돼서 다른 사람들도 사용할 수 있게 될까?',
+      ai: '돼요. 개발자 모드 → 웹스토어 비공개 → 공개 순서로 넓히면 돼요. 공개하려면 API 키 처리, 개인정보 고지, 화면 구조 변경 대응이 필요해요.' },
+    { id: 's32', depth: 2, title: 'zip으로 주면?',
+      user: 'zip 파일로 배포하면, 사람들이 다운받아서 내가 쓰는 화면처럼 쓸 수 있나?',
+      ai: '돼요. 압축을 풀고 크롬 확장 프로그램 페이지에서 개발자 모드를 켠 뒤 “압축해제된 확장 프로그램 로드”로 폴더를 고르면 똑같이 떠요.' },
+    { id: 's33', depth: 1, title: '확장 프로그램도 앱?',
+      user: '과제에서 앱을 만들라 했는데 확장 프로그램을 만들어 가도 괜찮나??',
+      ai: '안내에 형식 제한은 없지만, 확실히 하려고 Slack 문의 문구를 써 드렸어요. 안 된다고 하면 대화 내보내기 파일을 올리는 웹앱으로 바꿀 수 있어요.' },
+    { id: 's34', depth: 0, title: '협업 방식', ret: true,
+      user: '그럼 조원이랑 어떻게 협업해야 할까? 내가 대부분의 흐름을 주도하고 싶고, 조원에게는 깃 레포 관리를 맡기고 코드 구현을 같이 하고 싶은데.',
+      ai: '내가 이슈를 쓰고 조원이 브랜치와 PR을 관리하는 방식을 제안했어요. 스키마와 표기 규칙은 내가 정하고, 구현은 이슈 단위로 나눠요.' },
+
+    { id: 's35', seg: '브랜딩', depth: 0, title: '브랜딩 요소',
+      parts: [
+        { t: '협업 방식은 전달 문서에 넣지 않기', type: 'rev', target: 's30' },
+        { t: '어떤 디자인 요소가 필요할까', type: 'q' }
+      ],
+      user: '일단 전달 문서엔 반영하지 말아봐. 난 그리고 디자인을 좀 더 고도화할 생각이 있어. 이 구조를 유지하되 진짜 앱 서비스처럼 브랜딩하려면 어떤 디자인 요소가 추가되면 좋겠어?',
+      ai: '협업 방식은 문서에 넣지 않고 모아 두었어요. 브랜딩 요소로는 심볼, 글꼴 짝, 움직임 원칙, 빈 화면 문구, 아이콘 크기 사다리를 제안했어요.' },
+    { id: 's36', depth: 0, title: '고도화 첨부 · 심볼', files: [{ n: '갈래 전달 문서 v2', u: HANDOFF }],
+      parts: [
+        { t: '고도화 내용을 전달 문서에 첨부', type: 'task' },
+        { t: '심볼 컨셉 이야기', type: 'q' },
+        { t: '선이 떨어지는 애니메이션 도구', type: 'q' }
+      ],
+      user: '이 디자인 고도화 내용을 전달 문서에 첨부해줘. 그리고 심볼 얘기를 더 해보자. 삐뚤빼뚤한 선들이 떨어지고 안의 작은 원을 중심으로 정렬되는 심볼, Claude를 암시할 수 있게. 선이 떨어지는 느낌을 애니메이션으로 구현하려면 어떤 사이트가 좋을까?',
+      ai: '전달 문서에 ‘디자인 고도화 방향’ 절을 붙였어요. Claude 로고를 닮게 하면 제휴로 오해받을 수 있어서, 선이 모여드는 움직임으로만 암시하길 권했어요. 애니메이션은 코드로 바로 그려서 보여드릴 수 있어요.' },
+    { id: 's37', depth: 0, title: '심볼 시안 3종', files: [{ n: 'galrae-symbol/index.html', u: SYMBOL }],
+      user: '응 셋 다 시안으로 만들어줘.',
+      ai: 'A 노선, B 분기점, C ‘ㄹ’ + 지선을 떨어져 모이는 애니메이션으로 만들었어요. 16px에서는 B와 C가 또렷해서, 아이콘은 B, 움직임은 A를 권해요.' },
+    { id: 's38', depth: 0, title: '이 대화를 예시로', files: [{ n: 'index.html v3 (이 화면)', u: PROTO }],
+      user: '지금 이 대화 있잖아. 이걸 예시 프로토타입으로 싹 다 넣어서 구현해줄 수 있어?',
+      ai: '지금 보고 있는 이 화면이에요. 이번 대화의 메시지 38개를 여섯 구간으로 나눠 넣었고, 지난 구간은 눈금으로 접혀 있어요. 구간 이름을 누르면 펼쳐져요.' }
+  ];
+
+  /* ---------- 지난 대화 (실제): 9/30 'LLM 질문 정리 에이전트', 메시지 50개 ---------- */
+  var PAST_MORE = [
+    { id: 's39', seg: '다듬기 · 이름', title: '정연하게 정렬됐네',
+      user: '근데 내가 중간중간 흐름 왔다갔다 한 것도 되게 뭔가 정연하게 정렬되어 있네',
+      ai: '곁길은 갈라진 역 옆으로 비켜 서고, 본론으로 돌아오면 다시 이어 붙어서 그래요. 왔다 갔다 한 흐름이 한 줄로 읽혀요.' },
+    { id: 's40', title: '노선도가 투박해졌다',
+      user: '근데 노선도 디자인이 투박해진 것 같다 어째. 우리의 초안은 이거였던 것 같은데',
+      ai: '초안의 레일 + 노선도 카드 모양으로 되돌렸어요.' },
+    { id: 's41', title: '레일이 끝에 치우침',
+      user: '지금 오른쪽에 있는 레일이 너무 화면 끝쪽에 치우친 느낌이야',
+      ai: '레일을 대화 쪽으로 옮겼어요.' },
+    { id: 's42', title: '레일 위치 · 다시 펼치기',
+      parts: [{ t: '레일을 한가운데로', type: 'task' }, { t: '더블클릭으로 구간 열기', type: 'task' }],
+      user: '아니 이번엔 너무 글과 가까워.. 한 중간 위치였음 좋겠어. 그리고 노선도 한 번 접으면 다시 펼칠 수가 없어. 레일 위 노드를 더블클릭하면 해당 구간 노선도 열리게 해줘',
+      ai: '레일을 대화와 화면 끝 사이 한가운데에 두고, 레일 점을 더블클릭하면 그 구간 노선도가 열리게 했어요.' },
+    { id: 's43', title: '노선도 가로로 꽉 차게',
+      user: '노선도가 가로 화면 다 차게 열리게 해줘 지금은 이상하게 잘려있어',
+      ai: '노선도 카드를 화면 폭에 맞춰 펼쳤어요.' },
+    { id: 's44', title: '심볼 A 적용', dec: '심볼 A', files: [{ n: '심볼 시안', u: SYMBOL }],
+      user: '이 심볼 시안 중 A로 결정했어. 이거 프로토타입에 녹여줘',
+      ai: '로고와 레일 버튼에 심볼 A를 넣고, 처음 열 때 선이 떨어져 모이게 했어요.' },
+    { id: 's45', title: '노선 선도 초안처럼',
+      user: '노선도 선도 초안처럼 바꿔주면 안될까? 그게 더 예쁠 것 같애',
+      ai: '선 끝을 둥글게 하고, 곁길이 비스듬히 올라갔다 눕는 심볼 A 모양으로 바꿨어요.' },
+    { id: 's46', depth: 1, title: '회색 얇은 선은?',
+      user: '내가 말한 건 노선도의 두꺼운 중심 선 말하는 거였어. 너 생각은 어떠니 회색 얇은 선으로 바꾸는 거',
+      ai: '회색 얇은 선은 차분하지만 노선도 느낌이 약해질 수 있어요. 바꿔서 보여 드렸어요.' },
+    { id: 's47', title: '다시 검은 선', ret: true, dec: '검은 굵은 선 유지',
+      user: '아아니야 다시 검은선으로 바꾸자.. 노선도 느낌이 확 죽네',
+      ai: '다시 검은 굵은 선으로 돌렸어요.' },
+    { id: 's48', title: '가운데 정렬 · 펼침 움직임',
+      user: '이 노선도.. 화면에서 왼쪽에 몰려있는 거 약간 거슬리는데 중간으로 위치하고, 펼칠 때 좀 부드럽게 펼쳐지는 동적 효과 넣을 수 있나',
+      ai: '노선도를 카드 가운데에 두고, 펼칠 때 선이 그려지며 역이 차례로 나타나게 했어요.' },
+    { id: 's49', title: '이름 다시 고민',
+      user: '제목을 좀 다시 고민해볼까? ‘갈래’의 한글이 주는 느낌과 의미는 너무 좋았는데 계속 반복되니까 갈래말래 같고 좀 그래',
+      ai: '‘가닥’을 가장 추천해요. “가닥을 잡다”가 서비스가 하는 일을 그대로 말해요. 다음 후보는 ‘갈피’예요.' },
+    { id: 's50', title: '가닥 조사 · 비교 화면', dec: '이름 ‘가닥’', files: [{ n: '이름 후보 비교 (캔버스)', u: CANVAS }],
+      user: '응 기존에 ‘가닥’이란 이름으로 제공하는 서비스가 있는지 조사해주고, 비교화면을 만들어줘',
+      ai: '두 이름 모두 비슷한 서비스가 있었어요. 가닥은 한글로는 비어 있지만 영문 “Gadak”이 같은 Claude 도구와 겹쳐서, 영문 표기는 따로 정하길 권했어요.' }
+  ];
+
+  var SCEN = {
+    u1: {
+      key: 'u1', name: 'U1 프로젝트 분리형', real: true, site: 'Claude', url: 'claude.ai/project/빅데이터핀테크응용ai',
+      project: '빅데이터핀테크응용ai', defScope: 'all', scopeLabel: '프로젝트 전체', tickSmall: true,
+      caption: '실제 대화예요. 같은 프로젝트의 지난 대화(9/30, 메시지 100개)와 지금 이 대화를 이었어요.',
+      start: 0,
+      startTodo: { kind: 'handoff', text: '지난 대화에서 정한 것 9개를 첫 메시지에 붙일까요?', why: '같은 프로젝트의 새 대화예요. “채팅이 길어져서 옮겼어”라고 다시 설명하지 않아도 되게 요약을 넣어 둘게요.', btn: '요약 붙이기',
+        prompt: '지난 대화(LLM 질문 정리 에이전트)에서 정한 것:\n1. 채팅창을 새로 만들지 않음 · 웹(확장) + 앱(MCP) 입구\n2. 화면 D안: 레일 + 가로 노선도\n3. 정함 = 빨간 테두리, 지금 = 채운 빨강\n4. 요청 분해 · 캡슐 역 · 수정 대기열\n5. 사용 양식 U1–U4 · 작업 T1–T5\n6. 노선 색 = 프로젝트\n7. 심볼 A · 검은 굵은 선 유지\n8. 이름 ‘가닥’ (영문 표기는 미정)\n이어서 고도화 방향을 이야기하자.' },
+      chats: [
+        { id: 'c1', title: 'LLM 질문 정리 에이전트', date: '9/30', turns: SESSION.concat(PAST_MORE) },
+        { id: 'c2', title: '가닥 고도화', date: '오늘', active: true, turns: [
+          { id: 'g1', seg: '정리', title: '맥락 정리 · 최신 가닥', files: ['가닥 최신 정리 (채팅)'],
+            user: '채팅이 너무 길어지는 것 같아서 여기로 옮겼어~ 맥락을 전부 학습하고 정리해서 가장 최신 버전의 ‘가닥 프로그램’ 내용을 채팅으로 올려줘봐',
+            ai: '정체성 · 문제 정의 · 에이전트 동작 · 표기 규칙 · 아직 안 정한 것까지 열 개 항목으로 정리했어요. 이름은 ‘가닥’으로 정한 것으로 봤어요.',
+            todo: [{ kind: 'open', text: '영문 표기 문제가 결론 없이 남아 있어요', why: '9/30 대화 마지막에 “영문 Gadak이 겹치니 따로 정하자”로 끝났어요.', btn: '지금 정하기', at: 's50',
+              prompt: '9/30에 미뤄둔 영문 표기, 지금 정하자. Gadak 말고 후보 몇 개 줘.',
+              follow: { user: '9/30에 미뤄둔 영문 표기, 지금 정하자. Gadak 말고 후보 몇 개 줘.', ai: '로마자 대신 한글 ‘가닥’만 쓰는 안을 먼저 권해요. 영문이 꼭 필요하면 설명형 이름을 붙이는 쪽이 겹칠 위험이 적어요.' } }] },
+          { id: 'g2', seg: '고도화 검토', title: '고도화 세 가지',
+            parts: [{ t: 'agentic 강화 · 비용', type: 'q' }, { t: 'VS Code · Cursor에 붙을까', type: 'q' }, { t: 'U1–U4를 어떻게 구현할까', type: 'q' }],
+            user: '우선은 고도화시켜야 하는 지점이 3개 있어. 1. 좀 더 agentic 느낌을 강화… 2. vscode나 cursor에서도 붙을 수 있을까? 3. U1 U2 U3 U4 사용자 행태가 어떻게 구현되어야 할까',
+            ai: '1번은 할 일 장부를 기존 분류 호출에 얹으면 돼서 비용이 크게 늘지 않아요. 2번은 가능하지만 일정상 로드맵으로, 3번은 가입 때 고르게 하지 말고 추론하길 권했어요.' },
+          { id: 'g3', depth: 1, title: 'VS Code 단계별로',
+            user: '2번은 13일까지 구현이 안 돼? 왜 어려워? 해야 하는 일을 단계별로 알려줘',
+            ai: 'Claude Code만 대상으로 좁히면 혼자 5~6일이면 돼요. 세션 JSONL을 읽는 방법부터 패키징까지 여덟 단계로 나눴어요.' },
+          { id: 'g4', depth: 2, title: '코덱스 · 제미나이에도?',
+            user: '코덱스나 챗지피티나 제미나이에는 안 붙으려나?',
+            ai: '붙어요. 크롬 확장 하나로 Claude · ChatGPT · Gemini 웹을, VS Code 확장 하나로 Claude Code · Codex · Gemini CLI를 덮을 수 있어요.' },
+          { id: 'g5', seg: '프로토타입', title: '프로토타입 v4', ret: true, files: [{ n: 'index.html', u: PROTO }],
+            parts: [{ t: '할 일 장부 + 한마디', type: 'task' }, { t: 'U1–U4 예시 대화', type: 'task' }, { t: '웹 · 앱 · VS Code 화면', type: 'task' }],
+            user: '그럼 이에 준하여 프로토타입 구현하자. 1번 할 일 장부+한마디 섹션도 넣고, 2번 유형 추론 예시 대화창 여러 개, 3번 웹 · 앱 · vscode에서 보이는 가닥 전부 확인할 수 있게',
+            ai: '세 가지를 한 파일에 넣었어요. 입구 3개와 사용 유형 4개를 골라 열두 가지 조합을 볼 수 있어요.',
+            todo: [{ kind: 'yours', text: 'Slack에 “확장 프로그램도 앱인지” 아직 안 물어보셨어요', why: '9/30에 문의하자고 했는데, 그 뒤 답을 받았다는 이야기가 없어요. 세 입구를 다 만들기 전에 확인하는 게 안전해요.', btn: '문의 글 보기', at: 's33',
+              pop: { title: 'Slack 문의 글', text: '안녕하세요, Category C 과제를 크롬 확장 프로그램(웹)과 Claude 데스크톱 MCP(앱) 형태로 만들려고 합니다. 이 형태도 “업무용 AI Agent 앱”으로 인정되는지 여쭙고 싶습니다.', note: '가닥이 보내지는 않아요. 복사해서 Slack에 붙여 넣으면 돼요.' } }] },
+          { id: 'g6', title: 'D안 느낌이 사라짐',
+            user: '음 이렇게 되면 그 D안의 느낌이 사라지고(레일+노선도) 노선도만 남는구나',
+            ai: '앱과 VS Code는 채팅 화면에 붙을 수 없어서 레일이 빠졌어요. 접힌 모양만 입구마다 바꾸고, 펼치면 가로 노선도로 통일하자고 제안했어요.' },
+          { id: 'g7', title: '간결하게 · 확률 표시', dec: 'D안 통일 · 패턴 카드 없앰', files: [{ n: 'index.html', u: PROTO }],
+            parts: [{ t: '세 입구 D안으로', type: 'task' }, { t: '볼륨 줄이기', type: 'task' }, { t: '“n% 확률로 U1” 필요할까', type: 'q' }],
+            user: '응 그렇게 사용이 간결해지게 해줘. 지금은 볼륨이 과도해. 그리고 n% 확률로 U1이신 것 같아요 이거, 필요할까? 싶어',
+            ai: '세 입구를 “접힘 → 가로 노선도”로 맞추고, 사용 패턴 카드와 판단 기록 탭을 뺐어요. 유형은 가닥이 다르게 움직이는 것으로 드러나면 충분해요.',
+            todo: [{ kind: 'next', text: '판단 기록을 발표 슬라이드 한 장으로 옮길까요?', why: '화면에서는 뺐지만, 요청 나누기 → 분류 → 붙일 자리 → 점검 → 한마디는 “에이전트다움”을 보여 주는 핵심이에요.', btn: '슬라이드 초안',
+              prompt: '판단 기록 다섯 단계를 발표 슬라이드 한 장 분량으로 정리해줘.',
+              follow: { user: '판단 기록 다섯 단계를 발표 슬라이드 한 장 분량으로 정리해줘.', ai: '“메시지 하나에 가닥이 하는 일”이라는 제목 아래, 실제 이 대화의 메시지 하나를 다섯 단계로 따라가는 구성으로 정리했어요.', files: ['슬라이드_판단기록.md'] } }] },
+          { id: 'g8', title: '실제 대화로 예시',
+            user: '실제 대화가 예시가 아니니까 뭔가 알아보기 어렵다. 실제 나눈 대화(지금 이 대화창도 좋고)를 기반으로 예시화면을 만들어줄 수 있을까?',
+            ai: '지금 보고 있는 화면이에요. U1은 지난 대화와 이 대화를 그대로 넣었고, U2–U4는 같은 실제 대화를 그 방식으로 썼다면 어땠을지 다시 짰어요.',
+            todo: [{ kind: 'next', text: '10/2 과제 등록이 내일이에요. 한 줄 소개를 ‘가닥’으로 확정할까요?', why: '전달 문서와 개요의 한 줄 소개가 아직 ‘갈래’ 이름이에요.', btn: '소개 확정',
+              prompt: '과제 등록용 한 줄 소개를 가닥 이름으로 확정해줘.',
+              follow: { user: '과제 등록용 한 줄 소개를 가닥 이름으로 확정해줘.', ai: '“가닥 — LLM과의 긴 작업에서 묻히는 질문 · 결정 · 산출물을 AI 에이전트가 노선도로 정리하고, 놓친 일을 먼저 알려 주는 도구 (크롬 확장 + Claude MCP)”로 정리했어요.' } }] }
+        ] }
+      ],
+      code: {
+        'index.html': [[' ', 'function renderAll(opts) {'], ['-', '    renderPanel(V);  // 세로 목록 · 패턴 · 판단 탭'], ['+', '    if (st.drawerOpen) { renderMap(V); renderSide(); }'], ['+', '    else if (st.surf === \'app\') renderBand();'], [' ', '}']]
+      }
+    },
+
+    u2: {
+      key: 'u2', name: 'U2 한 창 몰아쓰기형', site: 'ChatGPT', url: 'chatgpt.com/c/과제-이것저것',
+      caption: '재구성이에요. 같은 실제 대화(가닥 기획 · NBA 발표 · 과제 확인)를 한 창에 몰아 썼다면.',
+      start: 2,
+      chats: [
+        { id: 'k1', title: '과제 이것저것', date: '오늘', active: true, turns: [
+          { id: 'e1', title: '실현 가능한가', topic: '가닥 기획',
+            user: 'Category C에 걸렸어. LLM 질문 정리 에이전트를 생각 중인데, 질문을 노드화해서 도식화하고 확장 프로그램으로 붙이면 어떨까?',
+            ai: '가능해요. 확장 프로그램이 대화를 읽고, 질문마다 본류 · 곁길 · 결정으로 나눠 노드로 그리면 돼요.' },
+          { id: 'e2', title: '구조도 · 웹이냐 앱이냐', files: ['구조도'],
+            parts: [{ t: '구조도 그리기', type: 'task' }, { t: '웹이 나을까 앱이 나을까', type: 'q' },
+              { t: '과제 안내 확인', type: 'q', open: true, follow: { user: '과제 안내에서는 어떻게 나와 있는지도 물어봤는데 빠졌어.', ai: '과제는 “업무용 AI Agent 앱”이라고만 되어 있어 형식은 자유로워 보여요. 확장 프로그램이 인정되는지는 코칭 때 확인하는 게 안전해요.' } }],
+            user: '응 그림으로 그려줘. 이건 웹으로 만드는 게 좋을까 아님 앱으로? 과제 안내에서는 어떻게 나와 있니?',
+            ai: '확장 프로그램 · 백엔드 · 흐름 저장소로 구조도를 그렸어요. 일단 웹 입구로 시작하는 걸 권해요.' },
+          { id: 'e3', title: '−2.0 근거', topic: 'NBA 발표',
+            user: '−2.0은 어디서 나온 숫자야? 근거가 있어?',
+            ai: '은퇴 직전 마지막 유효 시즌의 BPM 평균이 −1.99라, −2.0은 데이터가 지지하는 값이에요.',
+            todo: [{ kind: 'topic', text: '주제가 바뀌었어요 · 가닥 기획 → NBA 발표', why: '한 창에 주제가 섞이면 앞 주제가 뒤 답변에 끌려 들어올 수 있어요. 노선을 나누면 어디서 갈라졌는지 보여요.', btn: '노선 나누기', effect: 'split' }] },
+          { id: 'e4', depth: 1, title: 'BPM이 뭐였지?',
+            user: '잠깐, BPM이 정확히 뭐였지?',
+            ai: 'Box Plus/Minus예요. 100번의 공격권당 리그 평균 선수 대비 기여도이고, 0이 평균이에요.' },
+          { id: 'e5', title: '최종 모델 확정', ret: true, dec: 'Ridge(나이별) + Platt', files: ['최종정리_한윤주.md'],
+            user: '최종 모델 확정하자.',
+            ai: 'Ridge(나이별) 9쌍에 Platt 보정을 붙인 구성으로 확정해요. 4년 기대기여 R² 0.6741, 32세 생존 AUC 0.7855예요.',
+            todo: [{ kind: 'check', text: '04에서 BPM 설명을 듣고 질문 없이 넘어갔어요. 확인 문제 하나 풀어 볼까요?', why: '발표에서 BPM을 설명해야 하는데, 이해했다는 신호 없이 다음 주제로 넘어갔어요.', btn: '문제 받기', at: 'e4',
+              prompt: 'BPM 개념 확인 문제 하나만 내줘. 발표에서 설명할 수 있는지 보고 싶어.',
+              follow: { user: 'BPM 개념 확인 문제 하나만 내줘. 발표에서 설명할 수 있는지 보고 싶어.', ai: '문제: BPM이 +3인 선수와 −2인 선수를 한 문장으로 비교해 보세요. 예시 답: “+3은 리그 평균보다 100공격권당 3점을 더 보태고, −2는 대체 선수 수준이에요.”' } }] },
+          { id: 'e6', title: '확장 프로그램도 앱?', topic: '과제 확인',
+            user: '과제에서 앱을 만들라 했는데 확장 프로그램을 만들어 가도 괜찮나??',
+            ai: '안내에 형식 제한은 없지만, 확실히 하려고 Slack 문의 문구를 써 드렸어요.',
+            todo: [{ kind: 'handoff', text: '이 창에 주제가 3개예요. 가닥 기획은 새 창으로 옮길까요?', why: '가닥 기획 노선만 요약해 새 창 첫 메시지로 넘기면 NBA 이야기가 섞이지 않아요.', btn: '요약 보기',
+              pop: { title: '새 창에 붙일 요약', text: 'LLM 질문 정리 에이전트(가칭)를 기획 중이야.\n정한 것: 크롬 확장으로 대화 옆에 붙는 노선도, 웹 입구부터 시작.\n남은 것: 과제 안내상 확장 프로그램이 앱으로 인정되는지 확인.', note: 'NBA 발표와 과제 확인 노선은 빼고 가닥 기획 노선만 담았어요.' } }] },
+          { id: 'e7', title: '이름 다시 고민', topic: '가닥 기획 · 다시', ref: 'e1',
+            user: '아 다시 그 에이전트 얘기. 이름을 좀 다시 고민해볼까? 갈래말래 같아서.',
+            ai: '‘가닥’을 가장 추천해요. “가닥을 잡다”가 서비스가 하는 일을 그대로 말해요.' }
+        ] }
+      ]
+    },
+
+    u3: {
+      key: 'u3', name: 'U3 매번 새 창형', site: 'Claude', url: 'claude.ai/new',
+      defScope: 'chat', scopeLabel: '비슷한 대화 묶음',
+      caption: '재구성이에요. 같은 실제 질문들을 질문마다 새 창을 열어 했다면. 배포 질문이 세 번째예요.',
+      start: 0,
+      emptyNote: '최근 이틀 새 대화 7개 · 비슷한 질문 3묶음을 찾았어요.',
+      groups: [['기획', ['p1', 'p5']], ['붙일 곳', ['p2', 'p6', 'p7']], ['배포', ['p3', 'p4', '*']]],
+      chats: [
+        { id: 'r0', title: '웹스토어에 올리려면', date: '오늘', active: true, turns: [
+          { id: 'q1', title: '웹스토어에 올리려면', ref: 'p3',
+            user: '이거 크롬 웹스토어에 올려서 다른 사람도 쓰게 하려면 어떻게 해?',
+            ai: '개발자 모드로 먼저 써 보고, 웹스토어 비공개 → 공개 순서로 넓히면 돼요. 공개하려면 API 키 처리와 개인정보 고지가 필요해요.',
+            todo: [{ kind: 'repeat', text: '배포 질문, 9/30에 두 번 하셨어요', why: '“배포될까?”와 “zip으로 주면?” 대화에서 같은 답을 받았어요. 묶어서 보면 이어서 물을 수 있어요.', btn: '묶음으로 보기', effect: 'scopeAll' }] },
+          { id: 'q2', title: '공개 전에 준비할 것',
+            user: '공개 전에 뭘 준비해야 해?',
+            ai: '개인정보 처리 방침, 권한을 요청하는 이유 설명, 스크린샷이 필요해요. 대화를 읽는 확장이라 권한 설명을 구체적으로 써야 해요.',
+            todo: [{ kind: 'next', text: '배포 질문 4개를 한 장 노트로 묶을까요?', why: '배포 · zip · 앱 인정 여부 · 공개 준비가 대화 4개에 흩어져 있어요.', btn: '노트 만들기',
+              prompt: '지금까지 배포 관련 질문 답을 한 장 노트로 정리해줘.',
+              follow: { user: '지금까지 배포 관련 질문 답을 한 장 노트로 정리해줘.', ai: '개발자 모드 → zip 공유 → 웹스토어 비공개 → 공개 순서로, 단계마다 필요한 것을 붙여 정리했어요.', files: ['배포_노트.md'] } }] }
+        ] },
+        { id: 'r7', title: '코덱스 · 제미나이에도?', date: '10/1', turns: [
+          { id: 'p7', title: '코덱스 · 제미나이에도?', ref: 'p6', user: '코덱스나 챗지피티나 제미나이에는 안 붙으려나?', ai: '붙어요. 크롬 확장 하나로 웹 세 곳, VS Code 확장 하나로 CLI 세 곳을 덮을 수 있어요.' } ] },
+        { id: 'r6', title: 'VS Code에도 붙을까', date: '10/1', turns: [
+          { id: 'p6', title: 'VS Code에도 붙을까', user: '개발자들은 vscode나 cursor에서 LLM을 쓰잖아. 거기에도 붙을 수 있을까?', ai: '붙어요. 크롬 확장이 아니라 VS Code 확장으로 만들고, Claude Code의 세션 파일을 읽으면 돼요.' } ] },
+        { id: 'r5', title: '확장 프로그램도 앱?', date: '9/30', turns: [
+          { id: 'p5', title: '확장 프로그램도 앱?', user: '과제에서 앱을 만들라 했는데 확장 프로그램을 만들어 가도 괜찮나??', ai: '안내에 형식 제한은 없지만, Slack에 한 번 물어보는 게 안전해요.' } ] },
+        { id: 'r4', title: 'zip으로 주면?', date: '9/30', turns: [
+          { id: 'p4', title: 'zip으로 주면?', ref: 'p3', user: 'zip 파일로 배포하면, 사람들이 다운받아서 내가 쓰는 화면처럼 쓸 수 있나?', ai: '돼요. 압축을 풀고 개발자 모드에서 “압축해제된 확장 프로그램 로드”로 폴더를 고르면 똑같이 떠요.' } ] },
+        { id: 'r3', title: '배포될까?', date: '9/30', turns: [
+          { id: 'p3', title: '배포될까?', user: '이게 배포가 돼서 다른 사람들도 사용할 수 있게 될까?', ai: '돼요. 개발자 모드 → 웹스토어 비공개 → 공개 순서로 넓히면 돼요.' } ] },
+        { id: 'r2', title: '실시간으로 읽나?', date: '9/30', turns: [
+          { id: 'p2', title: '실시간으로 읽나?', user: 'LLM 화면을 실시간으로 읽을 수 있나? 그럼 사용자가 Claude 로그인을 따로 해야 해?', ai: '읽을 수 있어요. 이미 로그인한 탭을 그대로 읽으니 따로 로그인할 필요는 없어요.' } ] },
+        { id: 'r1', title: 'LLM 질문 정리 에이전트', date: '9/30', turns: [
+          { id: 'p1', title: '실현 가능한가', user: 'LLM 질문 정리 에이전트를 생각 중인데, 확장 프로그램으로 붙이면 어떨까?', ai: '가능해요. 대화를 읽고 질문마다 본류 · 곁길 · 결정으로 나눠 노드로 그리면 돼요.' } ] }
+      ]
+    },
+
+    u4: {
+      key: 'u4', name: 'U4 분기 활용형', site: 'ChatGPT', url: 'chatgpt.com/c/가닥-디자인',
+      caption: '재구성이에요. 9/30의 실제 디자인 수정들을 메시지를 고쳐 쓰며 했다면. 고쳐 쓴 자리에 숨은 가지가 생겨요.',
+      start: 1, unaskedFile: 'prototype/index.html',
+      chats: [
+        { id: 'm1', title: '가닥 디자인 다듬기', date: '오늘', active: true, turns: [
+          { id: 'f1', title: '노선도가 투박해졌다', files: ['prototype/index.html'],
+            user: '노선도 디자인이 투박해진 것 같아. 초안처럼 돌려줘.',
+            ai: '초안의 레일 + 노선도 카드 모양으로 되돌렸어요.' },
+          { id: 'f2', title: '레일 위치', files: ['prototype/index.html'],
+            alts: [
+              { user: '레일이 너무 끝에 붙었어. 그리고 접은 노선도를 다시 펼칠 수 있게, 레일 점을 더블클릭하면 그 구간이 열리게 해줘.', ai: '레일을 대화 쪽으로 옮기고, 점을 더블클릭하면 그 구간 노선도가 열리게 했어요.', dec: '더블클릭으로 구간 열기' },
+              { user: '레일을 글 바로 옆으로 붙여줘.', ai: '레일을 대화 바로 옆으로 옮겼어요.' }
+            ],
+            user: '레일을 대화와 화면 끝 사이 한가운데로.',
+            ai: '레일을 대화와 화면 끝 사이 한가운데에 뒀어요.',
+            todo: [{ kind: 'branch', text: '가지 1에서 요청한 ‘더블클릭으로 구간 열기’가 지금 가지엔 없어요', why: '메시지를 두 번 고쳐 쓰면서 첫 가지에만 있던 요청이 화면에서 사라졌어요. 지금은 노선도를 접으면 다시 펼칠 수 없어요.', btn: '가져오기',
+              prompt: '고쳐 쓰기 전 가지에서 요청한 “레일 점 더블클릭하면 그 구간 노선도 열기”도 넣어줘.',
+              follow: { user: '고쳐 쓰기 전 가지에서 요청한 “레일 점 더블클릭하면 그 구간 노선도 열기”도 넣어줘.', ai: '레일 점을 더블클릭하면 그 구간 노선도가 열리게 했어요. 레일 위치는 한가운데 그대로예요.', files: ['prototype/index.html'] } }] },
+          { id: 'f3', title: '노선 선도 초안처럼', files: ['prototype/index.html'],
+            user: '노선도 선도 초안처럼 바꿔주면 안될까?',
+            ai: '노선 선 끝을 둥글게 하고 곁길을 심볼 A 모양으로 바꿨어요.',
+            todo: [{ kind: 'unasked', text: '노선 선만 요청했는데 로고 심볼 굵기도 바뀌었어요', why: '이전 판과 비교하니 노선 선 말고도 로고 심볼의 선 굵기가 달라졌어요.', btn: '바뀐 곳 보기',
+              pop: { title: '요청하지 않은 변경 · 로고 심볼', diff: [['d', '− .mark line { stroke-width: 10 }'], ['a', '+ .mark line { stroke-width: 7 }']],
+                note: '요청은 “노선도 선”이었어요. 로고 심볼은 그대로 두는 게 맞아 보여요.', btn: '심볼은 원래대로 요청',
+                prompt: '로고 심볼은 이전 판 그대로 돌려줘. 노선 선만 바꿔.',
+                follow: { user: '로고 심볼은 이전 판 그대로 돌려줘. 노선 선만 바꿔.', ai: '로고 심볼 굵기를 이전 판으로 되돌렸어요. 노선 선 변경은 그대로 뒀어요.', files: ['prototype/index.html'] } } }] },
+          { id: 'f4', depth: 1, title: '회색 얇은 선은?',
+            user: '너 생각은 어떠니? 노선도 중심 선을 회색 얇은 선으로 바꾸는 거',
+            ai: '차분해지지만 노선도 느낌이 약해질 수 있어요.' },
+          { id: 'f5', title: '선 굵기 결정', ret: true, dec: '검은 굵은 선 유지', files: ['prototype/index.html'],
+            alts: [{ user: '회색 얇은 선으로 바꿔줘.', ai: '중심 선을 회색 얇은 선으로 바꿨어요.' }],
+            user: '다시 검은 선으로 하자. 노선도 느낌이 확 죽네.',
+            ai: '중심 선을 다시 검은 굵은 선으로 돌렸어요.',
+            todo: [{ kind: 'next', text: '디자인 결정 3개를 전달 문서에 넣을까요?', why: '레일 위치 · 선 모양 · 선 굵기가 이 대화에서 정해졌는데 전달 문서의 ‘디자인 고도화’ 절에는 아직 없어요.', btn: '문서에 넣기',
+              prompt: '이 대화에서 정한 디자인 결정을 전달 문서 디자인 고도화 절에 추가해줘.',
+              follow: { user: '이 대화에서 정한 디자인 결정을 전달 문서 디자인 고도화 절에 추가해줘.', ai: '레일은 대화와 화면 끝 사이 한가운데, 노선은 검은 굵은 선에 둥근 끝, 곁길은 심볼 A 모양. 세 줄로 추가했어요.', files: ['가닥_전달문서.md'] } }] }
+        ] }
+      ],
+      code: {
+        'prototype/index.html': [[' ', '.rail { position: absolute; }'], ['+', '.rail { left: calc((gutter + width) / 2); }'], ['+', 'path.trunk { stroke-linecap: round; }'], ['x-', '.mark line { stroke-width: 10 }'], ['x+', '.mark line { stroke-width: 7 }']]
+      }
+    }
+  };
+
+  var SURF = {
+    web: { name: '웹 · 크롬 확장', read: '콘텐츠 스크립트가 대화 화면을 읽고, 새 메시지는 MutationObserver로 감지', where: '사이드바 대화 목록 + 이 브라우저에서 연 대화 42개',
+      fold: '접으면 채팅 옆 레일, 펼치면 가로 노선도.' },
+    app: { name: '앱 · Claude 데스크톱 + MCP', read: 'Claude가 답할 때마다 가닥의 record_turn 도구로 기록을 넘김', where: 'MCP로 받은 대화 기록 42개',
+      fold: '접으면 앱 옆의 얇은 띠, 펼치면 노선도 창. 앱 화면은 움직일 수 없어서 역을 누르면 내용을 띄워요.' },
+    vsc: { name: 'VS Code · Claude Code', read: 'hook(Stop) 신호를 받으면 세션 JSONL의 새 줄을 읽음', where: '~/.claude/projects 세션 파일 42개',
+      fold: '접으면 상태 표시줄의 미니 노선, 펼치면 터미널 위 노선도. 실행 버튼은 터미널에 입력해요.' },
+    cursor: { name: 'Cursor · Agent', read: 'Cursor hook으로 질문(beforeSubmitPrompt) · 답변(afterAgentResponse) · 파일 수정(afterFileEdit)을 받음', where: 'Cursor 대화 기록(transcript) 42개',
+      fold: '접으면 상태 표시줄의 미니 노선, 펼치면 편집기 아래 노선도. Agent 패널은 움직일 수 없어서, 실행 버튼은 글을 클립보드에 담아 붙여 넣게 해요.' }
+  };
+
+  var KIND = {
+    missing: { g: 'miss', label: '빠진 요청', p: 1 }, yours: { g: 'miss', label: '내가 할 일', p: 2 }, open: { g: 'miss', label: '끝나지 않은 곁길', p: 3 },
+    unasked: { g: 'miss', label: '요청 외 변경', p: 1 }, branch: { g: 'miss', label: '숨은 가지', p: 2 },
+    check: { g: 'sug', label: '이해 확인', p: 4 }, topic: { g: 'sug', label: '주제 전환', p: 4 }, repeat: { g: 'sug', label: '반복 질문', p: 4 }, handoff: { g: 'sug', label: '이어 가기', p: 5 }, next: { g: 'sug', label: '다음 할 일', p: 6 }
+  };
+
+  /* =====================================================================
+     STATE
+     ===================================================================== */
+  var SC, byId, ACT;          // scenario, all turns by id, active chat
+  var st = { site: null, sideTab: 'todo', q: '', ledgerOpen: true, popSeg: null, surf: 'web', key: 'u1', shown: 0, scope: 'chat', split: false, items: {}, extras: [], nudge: null, input: '', inputBy: '', typing: false,
+    exp: {}, drawerOpen: true, sideTab: 'todo', ptab: 'map', popover: false, alt: {}, fresh: {}, enter: null, file: null, toast: '' };
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var tip = document.getElementById('tip'), pop = document.getElementById('pop'), stage = document.getElementById('stage');
+  var R = {};                 // refs to the mounted surface's elements
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function fname(f) { return typeof f === 'string' ? f : f.n; }
+
+  /* ---------- symbol A ---------- */
+  var MARK = { strokes: [[36,122,64,122],[62,122,90,122],[88,122,116,122],[114,122,142,122],[140,122,166,122],[100,122,116,100],[116,100,132,80],[132,80,154,80]],
+    nodes: [{ x: 48, y: 122, r: 9, k: 'main' }, { x: 100, y: 122, r: 9, k: 'main' }, { x: 154, y: 80, r: 7, k: 'spur' }, { x: 154, y: 122, r: 10, k: 'now' }] };
+  function makeMark(h, sw) {
+    var svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('viewBox', '26 62 150 76'); svg.setAttribute('height', h); svg.setAttribute('width', Math.round(h * 150 / 76));
+    svg.setAttribute('class', 'mark'); svg.setAttribute('aria-hidden', 'true');
+    var seed = 97; function r() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+    var m = { svg: svg, lines: [], dots: [], parts: [] };
+    MARK.strokes.forEach(function (s) {
+      var l = document.createElementNS(SVGNS, 'line'); l.setAttribute('stroke-width', sw); l.setAttribute('stroke-linecap', 'round'); svg.appendChild(l); m.lines.push(l);
+      m.parts.push({ s: { x: 34 + r() * 132, y: 20 + r() * 46, a: r() * Math.PI, l: 16 + r() * 30 }, e: { x: (s[0] + s[2]) / 2, y: (s[1] + s[3]) / 2, a: Math.atan2(s[3] - s[1], s[2] - s[0]), l: Math.hypot(s[2] - s[0], s[3] - s[1]) } });
+    });
+    MARK.nodes.forEach(function (n) { var c = document.createElementNS(SVGNS, 'circle'); c.setAttribute('cx', n.x); c.setAttribute('cy', n.y); c.setAttribute('r', n.r); c.setAttribute('stroke-width', sw * 0.62); c.setAttribute('class', 'm-' + n.k); svg.appendChild(c); m.dots.push(c); });
+    markFrame(m, 1, 1); return m;
+  }
+  function mEase(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function mBounce(t) { var n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + 0.75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + 0.9375; return n * (t -= 2.625 / d) * t + 0.984375; }
+  function mBack(t) { var c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function markFrame(m, T, N) {
+    m.parts.forEach(function (p, i) {
+      var t = typeof T === 'number' ? T : T[i], d = p.e.a - p.s.a; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI;
+      var a = p.s.a + d * mEase(Math.min(1, t * 1.15)), len = lerp(p.s.l, p.e.l, mEase(t)), x = lerp(p.s.x, p.e.x, mEase(t)), y = lerp(p.s.y, p.e.y, mBounce(t));
+      var hx = Math.cos(a) * len / 2, hy = Math.sin(a) * len / 2, l = m.lines[i];
+      l.setAttribute('x1', (x - hx).toFixed(2)); l.setAttribute('y1', (y - hy).toFixed(2)); l.setAttribute('x2', (x + hx).toFixed(2)); l.setAttribute('y2', (y + hy).toFixed(2));
+      l.style.opacity = lerp(0.35, 1, Math.min(1, t * 2));
+    });
+    m.dots.forEach(function (c, j) { var k = Math.max(0, Math.min(1, N * m.dots.length - j * 0.6)); c.setAttribute('r', Math.max(0, MARK.nodes[j].r * (k <= 0 ? 0 : mBack(k))).toFixed(2)); c.style.opacity = k > 0 ? 1 : 0; });
+  }
+  function playMark(m, speed) {
+    if (m.raf) cancelAnimationFrame(m.raf);
+    if (reduce) { markFrame(m, 1, 1); return; }
+    var f = speed || 1, dur = 1100 * f, stg = 80 * f, nd = 520 * f, total = stg * (m.parts.length - 1) + dur, t0 = performance.now();
+    function frame(now) { var e = now - t0; markFrame(m, m.parts.map(function (_, i) { return Math.max(0, Math.min(1, (e - i * stg) / dur)); }), Math.max(0, Math.min(1, (e - total + 120 * f) / nd))); if (e < total + nd) m.raf = requestAnimationFrame(frame); }
+    m.raf = requestAnimationFrame(frame);
+  }
+  var logoMark = makeMark(26, 10);
+  document.getElementById('logo').insertBefore(logoMark.svg, document.getElementById('logo').firstChild);
+  document.getElementById('logo').addEventListener('click', function () { playMark(logoMark); });
+  function miniMark(h) { return makeMark(h || 14, 14).svg; }
+
+  /* =====================================================================
+     MODEL
+     ===================================================================== */
+  function load(key) {
+    SC = SCEN[key]; byId = {}; ACT = null;
+    SC.chats.forEach(function (c) {
+      if (c.active) ACT = c;
+      var n = 0;
+      c.turns.forEach(function (t, i) {
+        t.chat = c; t.ci = i; t.depth = t.depth || 0; byId[t.id] = t;
+        if (t.depth === 0) n++; t.n = (n < 10 ? '0' : '') + n;
+        (t.parts || []).forEach(function (p) { if (p.open0 === undefined) p.open0 = !!p.open; p.open = p.open0; });
+      });
+    });
+    st.key = key; st.shown = SC.start; st.scope = SC.defScope || 'chat'; st.split = false; st.items = {}; st.extras = []; st.alt = {}; st.fresh = {};
+    st.input = ''; st.inputBy = ''; st.typing = false; st.exp = {}; st.popover = false; st.enter = null; st.file = null; st.toast = '';
+    st.nudge = SC.startTodo ? 'start' : null; if (st.nudge) st.fresh.start = true;
+    st.sideTab = 'todo'; st.ptab = 'map';
+    pop.hidden = true; tip.hidden = true;
+  }
+  function activeTurns() { return ACT.turns.slice(0, st.shown); }
+  function numLabel(t) { return t.chat === ACT ? t.n : t.chat.date + ' ' + t.n; }
+  function chatOf(id) { return byId[id] && byId[id].chat; }
+
+  /* view = the list of turns a map draws, with segments */
+  function buildView(scope) {
+    var vis = [], segOf = [];
+    if (scope === 'all' && SC.project) {
+      SC.chats.forEach(function (c) { var ts = c === ACT ? activeTurns() : c.turns, cs = ''; ts.forEach(function (t) { if (t.seg) cs = t.seg; vis.push(t); segOf.push(c.date + ' · ' + (cs || c.title)); }); });
+    } else if (scope === 'all' && SC.groups) {
+      SC.groups.forEach(function (g) {
+        g[1].forEach(function (id) {
+          if (id === '*') activeTurns().forEach(function (t) { vis.push(t); segOf.push(g[0]); });
+          else { vis.push(byId[id]); segOf.push(g[0]); }
+        });
+      });
+    } else {
+      var seg = '';
+      activeTurns().forEach(function (t) { if (t.seg) seg = t.seg; if (st.split && t.topic) seg = t.topic; vis.push(t); segOf.push(seg); });
+    }
+    var segs = [], sIdx = [];
+    segOf.forEach(function (s, i) { if (i === 0 || s !== segOf[i - 1]) segs.push(s); sIdx.push(segs.length - 1); });
+    var multi = segs.length > 1;
+    var curT = st.shown > 0 ? activeTurns()[st.shown - 1] : null;
+    var key = scope + (st.split ? 's' : '');
+    if (!st.exp[key]) {
+      st.exp[key] = {};
+      var mains = vis.filter(function (t) { return t.depth === 0; }).length;
+      var curSeg = curT && vis.indexOf(curT) >= 0 ? segs[sIdx[vis.indexOf(curT)]] : segs[segs.length - 1];
+      segs.forEach(function (s) { st.exp[key][s] = mains <= 9 || s === curSeg; });
+    }
+    var V = { scope: scope, vis: vis, segs: segs, sIdx: {}, multi: multi, cur: curT, key: key };
+    vis.forEach(function (t, i) { V.sIdx[t.id] = sIdx[i]; });
+    V.isOpen = function (s) { return !multi || st.exp[key][segs[s]] !== false; };
+    V.segStart = function (t) { var i = vis.indexOf(t); return i > 0 && sIdx[i] !== sIdx[i - 1]; };
+    // anchors and side chains
+    var anchor = null, chains = [], anc = {};
+    vis.forEach(function (t) {
+      if (t.depth === 0) { anchor = t; return; }
+      if (!anchor) return;
+      anc[t.id] = anchor.id;
+      var last = chains[chains.length - 1];
+      if (t.depth === 1 || !last || last.anchor !== anchor.id) chains.push({ anchor: anchor.id, nodes: [t] }); else last.nodes.push(t);
+    });
+    var active = curT && curT.depth > 0 ? chains.filter(function (c) { return c.nodes.indexOf(curT) >= 0; })[0] : null;
+    chains.forEach(function (c) { c.closed = c !== active; });
+    V.anc = anc; V.chains = chains;
+    V.kind = function (t) {
+      if (t === curT) return 'cur';
+      if (t.depth > 0) { var ch = chains.filter(function (c) { return c.nodes.indexOf(t) >= 0; })[0]; return ch && ch.closed ? 'closed' : 'br'; }
+      return t.dec ? 'dec' : 'main';
+    };
+    return V;
+  }
+
+  /* ---------- ledger items ---------- */
+  function itemsOf(t) {
+    var out = [];
+    (t.parts || []).forEach(function (p, i) {
+      if (!p.open0) return;
+      out.push({ id: t.id + ':p' + i, t: t, kind: 'missing', text: '“' + p.t + '” 답이 안 왔어요', why: t.n + '에서 요청 ' + t.parts.length + '개 중 하나가 답에서 빠졌어요.', btn: '다시 묻기', prompt: p.follow.user, follow: p.follow, part: i });
+    });
+    (t.todo || []).forEach(function (d, i) { var o = Object.assign({ id: t.id + ':' + i, t: t }, d); out.push(o); });
+    return out;
+  }
+  function allItems() {
+    var out = [];
+    if (SC.startTodo) out.push(Object.assign({ id: 'start', t: null }, SC.startTodo));
+    activeTurns().forEach(function (t) { out = out.concat(itemsOf(t)); });
+    return out;
+  }
+  function stateOf(it) { return st.items[it.id] || 'open'; }
+  function openItems() { return allItems().filter(function (it) { var s = stateOf(it); return s === 'open' || s === 'later'; }); }
+  function itemById(id) { return allItems().filter(function (it) { return it.id === id; })[0]; }
+  function revisions() { var r = []; activeTurns().forEach(function (t) { (t.parts || []).forEach(function (p) { if (p.type === 'rev') r.push({ t: t, p: p }); }); }); return r; }
+  function allFiles(t) {
+    var f = (t.files || []).slice();
+    st.extras.forEach(function (x) { if (x.src === t.id && x.follow.files) f = f.concat(x.follow.files); });
+    return f;
+  }
+  function hasTodo(t) { return openItems().some(function (it) { return it.t === t || (it.at && it.at === t.id); }); }
+
+  /* =====================================================================
+     SURFACES — mount once per surface/scenario, then render pieces
+     ===================================================================== */
+  function mount() {
+    stage.innerHTML = ''; R = {};
+    var s = el('div', 'surf ' + st.surf + (st.surf === 'cursor' ? ' vsc' : '')); stage.appendChild(s); R.root = s;
+    if (st.surf === 'web') mountWeb(s); else if (st.surf === 'app') mountApp(s); else if (st.surf === 'cursor') mountCursor(s); else mountVsc(s);
+    R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; s.appendChild(R.toastEl);
+  }
+  function site() { return st.surf === 'web' && st.site ? st.site : SC.site; }
+  function chatList(container) {
+    container.innerHTML = '';
+    R.citems = {};
+    if (SC.project) {
+      container.appendChild(el('h6', null, site() === 'ChatGPT' ? '프로젝트' : '프로젝트 · ' + SC.project));
+      if (site() === 'ChatGPT') { var pf = el('div', 'citem pf'); pf.appendChild(el('span', null, '▾ ' + SC.project)); container.appendChild(pf); }
+      SC.chats.forEach(function (c) { addC(c.title, c.date, c); });
+    }
+    container.appendChild(el('h6', null, SC.project ? (site() === 'ChatGPT' ? '채팅' : '최근') : (site() === 'ChatGPT' ? '채팅' : '최근 대화')));
+    if (!SC.project) SC.chats.forEach(function (c) { addC(c.title, c.date, c); });
+    (SC.recents || []).forEach(function (r) { if (!SC.chats.some(function (c) { return c.title === r; })) addC(r, ''); });
+    (SC.more || []).forEach(function (m) { addC(m[0], m[1]); });
+    function addC(title, date, c) {
+      var rep = SC.groups && c && c !== ACT && (function (g) { return c.turns.some(function (t) { return g[1].indexOf(t.id) >= 0; }); })(SC.groups[SC.groups.length - 1]);
+      var d = el('div', 'citem' + (c === ACT ? ' on' : '') + (rep && st.shown > 0 ? ' rep' : ''));
+      d.appendChild(el('span', null, title)); if (date) d.appendChild(el('small', null, date));
+      container.appendChild(d); if (c) R.citems[c.id] = d;
+    }
+  }
+
+  /* web chrome follows the chosen site so the same 가닥 can be seen on Claude or ChatGPT */
+  function renderSiteChrome() {
+    var sname = site(), gpt = sname === 'ChatGPT';
+    R.btab.textContent = ACT.title + ' · ' + sname;
+    R.url.textContent = gpt ? 'chatgpt.com/' + (SC.project ? 'g/g-p-' + SC.project + '/c/' : 'c/') + ACT.id + '…' : (SC.project ? 'claude.ai/project/' + SC.project : 'claude.ai/chat/' + ACT.id + '…');
+    R.sname.textContent = sname;
+    R.newc.innerHTML = '';
+    var nb = el('div', 'newc', gpt ? '✎ 새 채팅' : '+ 새 채팅'); R.newc.appendChild(nb);
+    if (gpt) { R.newc.appendChild(el('div', 'snav', '⌕ 채팅 검색')); R.newc.appendChild(el('div', 'snav', '▤ 라이브러리')); }
+    else { R.newc.appendChild(el('div', 'snav', '☰ 채팅')); R.newc.appendChild(el('div', 'snav', '▣ 프로젝트')); }
+    R.siteSw.innerHTML = '';
+    ['Claude', 'ChatGPT'].forEach(function (nm) {
+      var b = el('button', null, nm); b.type = 'button'; b.setAttribute('aria-pressed', String(sname === nm));
+      b.onclick = function () { st.site = nm; renderAll(); flashToast(nm + ' 화면에 붙은 가닥이에요. 노선도와 할 일은 똑같이 동작해요.'); };
+      R.siteSw.appendChild(b);
+    });
+    R.root.classList.toggle('gpt', gpt);
+  }
+
+  function winDots() { var d = el('div', 'dots'); d.innerHTML = '<i></i><i></i><i></i>'; return d; }
+
+  /* the drawer is the same in every entry: horizontal map + ledger */
+  function mountDrawer(host, asWindow) {
+    var dr = el('section', 'drawer' + (asWindow ? ' fw' : '')); dr.setAttribute('aria-label', '가닥 노선도'); host.appendChild(dr); R.drawer = dr;
+    if (asWindow) { var wb = el('div', 'wbar'); wb.appendChild(winDots()); wb.appendChild(el('b', null, '가닥')); wb.appendChild(el('span', 'r', asWindow)); dr.appendChild(wb); }
+    var dh = el('div', 'dhead'); dr.appendChild(dh);
+    if (!asWindow) { var mk = el('span', 'mk'); mk.appendChild(miniMark(15)); mk.appendChild(el('b', null, '가닥')); dh.appendChild(mk); }
+    R.mapTitle = el('span', 'map-title'); dh.appendChild(R.mapTitle);
+    R.scopeBox = el('span'); dh.appendChild(R.scopeBox);
+    R.status = el('span', 'map-status'); dh.appendChild(R.status); dh.appendChild(el('span', 'sp'));
+    R.segAll = el('button', 'linkbtn'); R.segAll.type = 'button'; dh.appendChild(R.segAll);
+    R.qbtn = el('button', 'qbtn'); R.qbtn.type = 'button'; R.qbtn.onclick = function (e) { e.stopPropagation(); showRevPop(this); }; dh.appendChild(R.qbtn);
+    R.ledBtn = el('button', 'ledbtn'); R.ledBtn.type = 'button'; R.ledBtn.onclick = function () { st.ledgerOpen = !st.ledgerOpen; st.focusMap = true; renderAll(); }; dh.appendChild(R.ledBtn);
+    var fold = el('button', 'btn sm', '접기'); fold.type = 'button'; fold.onclick = toggleDrawer; dh.appendChild(fold);
+    var db = el('div', 'dbody'); dr.appendChild(db); R.dbody = db;
+    R.mapScroll = el('div', 'map-scroll'); R.map = el('div', 'map'); R.mapScroll.appendChild(R.map); db.appendChild(R.mapScroll);
+    R.mapScroll.addEventListener('scroll', function () { tip.hidden = true; });
+    var side = el('div', 'dside'); db.appendChild(side);
+    R.sideHead = el('div', 'ptabs side-tabs'); side.appendChild(R.sideHead);
+    var qw = el('div', 'qwrap'); R.qInput = el('input', 'qin'); R.qInput.type = 'search'; R.qInput.id = 'gadak-find'; R.qInput.placeholder = '지난 대화에서 찾기 · 예) 이름, Ridge';
+    R.qInput.setAttribute('aria-label', '지난 대화에서 찾기'); R.qInput.value = st.q;
+    R.qInput.addEventListener('input', function () { st.q = R.qInput.value.trim(); renderSideBody(); markFound(); });
+    qw.appendChild(R.qInput); side.appendChild(qw);
+    R.sideBody = el('div', 'pbody'); side.appendChild(R.sideBody);
+  }
+
+  function mountWeb(s) {
+    var tabs = el('div', 'btabs'); tabs.appendChild(winDots());
+    R.btab = el('div', 'btab'); tabs.appendChild(R.btab); tabs.appendChild(el('div', 'btab off', '새 탭')); s.appendChild(tabs);
+    var tool = el('div', 'btool'); R.url = el('div', 'url'); tool.appendChild(R.url);
+    R.siteSw = el('span', 'scope sitesw'); tool.appendChild(R.siteSw);
+    var ext = el('button', 'extbtn'); ext.type = 'button'; ext.setAttribute('aria-label', '가닥 펼치기 또는 접기'); ext.appendChild(miniMark(13));
+    R.extBadge = el('span', 'badge'); ext.appendChild(R.extBadge); ext.onclick = toggleDrawer; tool.appendChild(ext); s.appendChild(tool);
+    var site = el('div', 'site'); s.appendChild(site);
+    var bar = el('aside', 'sitebar'); R.sname = el('div', 'sname'); bar.appendChild(R.sname); R.newc = el('div'); bar.appendChild(R.newc);
+    R.clist = el('div'); bar.appendChild(R.clist); site.appendChild(bar);
+    var main = el('div', 'sitemain'); site.appendChild(main);
+    mountDrawer(main);
+    var cw = el('div', 'chatwrap'); main.appendChild(cw);
+    R.chat = el('div', 'chat'); R.thread = el('div', 'thread'); R.chat.appendChild(R.thread); cw.appendChild(R.chat);
+    R.rail = el('nav', 'rail'); R.rail.setAttribute('aria-label', '가닥 레일'); cw.appendChild(R.rail);
+    R.nudgeHost = cw;
+    var ib = el('div', 'inbox'); R.inbox = el('div', 'box'); ib.appendChild(R.inbox); main.appendChild(ib);
+    R.chat.addEventListener('scroll', onChatScroll);
+  }
+
+  function mountApp(s) {
+    var g = el('div', 'appgrid'); s.appendChild(g);
+    var w = el('div', 'win'); g.appendChild(w);
+    var wb = el('div', 'wbar'); wb.appendChild(winDots()); wb.appendChild(el('b', null, 'Claude')); wb.appendChild(el('span', null, ACT.title));
+    wb.appendChild(el('span', 'r', 'MCP · gadak 연결됨')); w.appendChild(wb);
+    var body = el('div', 'appbody'); w.appendChild(body);
+    var bar = el('aside', 'sitebar'); bar.appendChild(el('div', 'newc', '+ 새 채팅')); R.clist = el('div'); bar.appendChild(R.clist); body.appendChild(bar);
+    var main = el('div', 'appmain'); body.appendChild(main);
+    mountDrawer(main, '가닥 창 · 띠를 누르면 접혀요');
+    var cw = el('div', 'chatwrap'); main.appendChild(cw);
+    R.chat = el('div', 'chat'); R.thread = el('div', 'thread'); R.chat.appendChild(R.thread); cw.appendChild(R.chat);
+    R.nudgeHost = cw;
+    var ib = el('div', 'inbox'); R.inbox = el('div', 'box'); ib.appendChild(R.inbox); main.appendChild(ib);
+    R.band = el('div', 'band'); g.appendChild(R.band);
+  }
+
+  function mountCursor(s) {
+    var wb = el('div', 'wbar'); wb.appendChild(winDots());
+    wb.appendChild(el('b', null, (SC.project ? 'gadak' : (SC.key === 'u4' ? 'gadak-design' : (SC.key === 'u2' ? 'homework' : 'gadak-deploy'))) + ' — Cursor'));
+    wb.appendChild(el('span', 'r', '가닥 확장(.vsix) · hooks.json 연결됨')); s.appendChild(wb);
+    var g = el('div', 'vsgrid cgrid'); s.appendChild(g);
+    var act = el('div', 'act'); g.appendChild(act);
+    act.innerHTML = '<button type="button" class="on" aria-label="탐색기"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2.5h6l4 4v11H5z"/><path d="M11 2.5v4h4"/></svg></button><button type="button" aria-label="검색"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4.5 4.5"/></svg></button>';
+    var side = el('div', 'vside'); g.appendChild(side);
+    side.appendChild(el('div', 'xhead', '탐색기')); R.explorer = el('div', 'xlist'); side.appendChild(R.explorer);
+    var main = el('div', 'vmain'); g.appendChild(main);
+    R.etabs = el('div', 'etabs'); main.appendChild(R.etabs);
+    R.editor = el('div', 'editor'); main.appendChild(R.editor);
+    mountDrawer(main);
+    var cp = el('div', 'cpanel'); g.appendChild(cp);
+    var ch = el('div', 'chead'); ch.appendChild(el('b', null, 'Agent')); ch.appendChild(el('span', null, ACT.title)); cp.appendChild(ch);
+    var cw = el('div', 'chatwrap'); cp.appendChild(cw);
+    R.chat = el('div', 'chat'); R.thread = el('div', 'thread'); R.chat.appendChild(R.thread); cw.appendChild(R.chat);
+    R.nudgeHost = cw;
+    var ib = el('div', 'inbox'); R.inbox = el('div', 'box'); ib.appendChild(R.inbox); cp.appendChild(ib);
+    var sb = el('div', 'statusbar'); s.appendChild(sb);
+    sb.appendChild(el('span', null, '⎇ main')); sb.appendChild(el('span', null, 'Cursor Agent')); sb.appendChild(el('span', 'sp'));
+    R.sbtn = el('button', 'sbtn'); R.sbtn.type = 'button'; R.sbtn.onclick = toggleDrawer; sb.appendChild(R.sbtn);
+  }
+
+  function mountVsc(s) {
+    var wb = el('div', 'wbar'); wb.appendChild(winDots());
+    wb.appendChild(el('b', null, (SC.project ? 'nba-aging-curve' : (SC.key === 'u4' ? 'talk-script' : (SC.key === 'u2' ? 'job-apply' : 'pandas-notes'))) + ' — Visual Studio Code'));
+    wb.appendChild(el('span', 'r', 'Cursor에서도 같은 확장(.vsix)')); s.appendChild(wb);
+    var g = el('div', 'vsgrid'); s.appendChild(g);
+    var act = el('div', 'act'); g.appendChild(act);
+    act.innerHTML = '<button type="button" class="on" aria-label="탐색기"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2.5h6l4 4v11H5z"/><path d="M11 2.5v4h4"/></svg></button><button type="button" aria-label="검색"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4.5 4.5"/></svg></button>';
+    var side = el('div', 'vside'); g.appendChild(side);
+    side.appendChild(el('div', 'xhead', '탐색기')); R.explorer = el('div', 'xlist'); side.appendChild(R.explorer);
+    var main = el('div', 'vmain'); g.appendChild(main);
+    R.etabs = el('div', 'etabs'); main.appendChild(R.etabs);
+    R.editor = el('div', 'editor'); main.appendChild(R.editor);
+    mountDrawer(main);
+    var term = el('div', 'term'); main.appendChild(term);
+    var tt = el('div', 'ttabs'); tt.innerHTML = '<span>문제</span><span>출력</span><span class="on">터미널 · claude</span>'; term.appendChild(tt);
+    R.chat = el('div', 'tchat'); R.thread = el('div'); R.chat.appendChild(R.thread); term.appendChild(R.chat);
+    R.inbox = el('div', 'tprompt'); term.appendChild(R.inbox);
+    R.nudgeHost = main;
+    var sb = el('div', 'statusbar'); s.appendChild(sb);
+    sb.appendChild(el('span', null, '⎇ main'));
+    sb.appendChild(el('span', null, 'Claude Code'));
+    sb.appendChild(el('span', 'sp'));
+    R.sbtn = el('button', 'sbtn'); R.sbtn.type = 'button'; R.sbtn.onclick = toggleDrawer; sb.appendChild(R.sbtn);
+  }
+
+  /* mini line: the folded rail for entries that cannot sit beside the chat */
+  function miniLine(vertical, len) {
+    var V = buildView('chat'), mains = V.vis.filter(function (t) { return t.depth === 0; }).slice(-5), cur = V.cur;
+    var gap = 14, n = Math.max(mains.length, 1), L = len || (n - 1) * gap + 12;
+    var svg = document.createElementNS(SVGNS, 'svg'), w = vertical ? 22 : L + 10, h = vertical ? L + 10 : 14;
+    svg.setAttribute('width', w); svg.setAttribute('height', h); svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h); svg.setAttribute('aria-hidden', 'true'); svg.style.display = 'block';
+    function c(tag, a) { var e = document.createElementNS(SVGNS, tag); for (var k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; }
+    if (!mains.length) { c('line', vertical ? { x1: 8, y1: 5, x2: 8, y2: h - 5, stroke: 'currentColor', 'stroke-width': 2, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round' } : { x1: 5, y1: 7, x2: w - 5, y2: 7, stroke: 'currentColor', 'stroke-width': 2, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round' }); return svg; }
+    var step = mains.length > 1 ? (L - 2) / (mains.length - 1) : 0;
+    function P(i) { var d = 6 + i * step; return vertical ? [8, d] : [d, 7]; }
+    var a = P(0), b = P(mains.length - 1);
+    c('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'currentColor', 'stroke-width': 2.5, 'stroke-linecap': 'round' });
+    if (cur && cur.depth > 0) { var q = P(mains.length - 1); c('path', { d: vertical ? 'M 8 ' + q[1] + ' L 16 ' + (q[1] + 6) : 'M ' + q[0] + ' 7 L ' + (q[0] + 6) + ' 2', stroke: 'var(--accent)', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }); }
+    mains.forEach(function (t, i) {
+      var p = P(i), isCur = t === cur, dec = !!t.dec;
+      c('circle', { cx: p[0], cy: p[1], r: isCur ? 3.6 : 2.8, fill: isCur ? 'var(--accent)' : 'var(--surface)', stroke: isCur ? 'none' : dec ? 'var(--accent)' : 'currentColor', 'stroke-width': 1.6 });
+    });
+    return svg;
+  }
+  function renderBand() {
+    var b = R.band; b.innerHTML = '';
+    var btn = el('button', 'bandbtn'); btn.type = 'button'; btn.setAttribute('aria-label', st.drawerOpen ? '가닥 창 접기' : '가닥 창 펼치기'); btn.title = st.drawerOpen ? '가닥 창 접기' : '가닥 창 펼치기';
+    btn.appendChild(miniMark(12));
+    btn.appendChild(miniLine(true, 110));
+    var n = openItems().length; if (n) btn.appendChild(el('span', 'bcount', String(n)));
+    btn.appendChild(el('span', 'blabel', st.drawerOpen ? '접기' : '펼치기'));
+    btn.onclick = toggleDrawer; b.appendChild(btn);
+  }
+  function renderStatus() {
+    var b = R.sbtn; b.innerHTML = ''; b.appendChild(miniMark(10)); b.appendChild(miniLine(false));
+    var V = buildView('chat'), n = openItems().length;
+    b.appendChild(el('span', null, (V.cur ? V.cur.n + ' ' + V.cur.title : '새 세션') + (n ? ' · 할 일 ' + n : '')));
+    b.title = st.drawerOpen ? '가닥 노선도 접기' : '가닥 노선도 펼치기';
+    b.setAttribute('aria-expanded', String(st.drawerOpen));
+  }
+  function renderExplorer() {
+    var x = R.explorer; x.innerHTML = '', seen = {};
+    activeTurns().forEach(function (t) {
+      allFiles(t).forEach(function (f) {
+        var n = fname(f); if (seen[n]) { seen[n].v++; return; }
+        var r = el('button', 'xrow'); r.type = 'button'; r.appendChild(el('span', null, n)); var g = el('span', 'gs', 'A'); r.appendChild(g);
+        seen[n] = { v: 1, g: g, t: t };
+        r.onclick = function () { st.file = n; renderEditor(); };
+        x.appendChild(r);
+      });
+    });
+    Object.keys(seen).forEach(function (n) {
+      var s = seen[n], un = SC.unaskedFile === n && openItems().some(function (i) { return i.kind === 'unasked'; });
+      s.g.textContent = un ? 'M!' : s.v > 1 ? 'M' : 'A'; if (un) s.g.classList.add('x');
+    });
+    if (!x.children.length) x.appendChild(el('div', 'xempty', '아직 바뀐 파일이 없어요.'));
+  }
+  var seen = {};
+
+  /* =====================================================================
+     RENDER
+     ===================================================================== */
+  function renderAll(opts) {
+    opts = opts || {};
+    tip.hidden = true;
+    var keep = R.chat ? R.chat.scrollTop : 0;
+    if (R.clist) chatList(R.clist);
+    renderThread();
+    R.chat.scrollTop = opts.bottom ? R.chat.scrollHeight : keep;
+    renderInput();
+    var V = buildView(st.scope), n = openItems().length;
+    R.drawer.hidden = !st.drawerOpen;
+    if (st.drawerOpen) { renderMapHead(V); renderSide(); renderMap(V); }
+    if (st.surf === 'web') { renderRail(); renderSiteChrome(); R.extBadge.textContent = n; R.extBadge.hidden = !n; }
+    else if (st.surf === 'app') renderBand();
+    else { renderStatus(); renderEditor(); renderExplorer(); }  /* vsc · cursor */
+    renderNudge();
+    document.getElementById('next').disabled = st.shown >= ACT.turns.length || st.typing;
+    updateViewing(true);
+    renderCaption();
+  }
+
+  function renderCaption() {
+    var c = document.getElementById('caption'); c.innerHTML = '';
+    c.appendChild(el('b', null, SC.name + ' · ' + SURF[st.surf].name));
+    c.appendChild(el('span', null, SC.caption));
+    c.appendChild(el('span', 'hint', SURF[st.surf].fold));
+  }
+
+  /* ---------- thread ---------- */
+  function renderThread() {
+    R.thread.innerHTML = ''; R.turnEls = {}; R.partEls = {};
+    var ts = activeTurns(), term = st.surf === 'vsc', V = buildView('chat');
+    if (!ts.length && !st.extras.length) {
+      if (term) { R.thread.appendChild(el('div', 'tl sub', 'Claude Code · ' + SC.name.split(' ')[0] + ' 예시 세션')); R.thread.appendChild(el('div', 'tl sub', '무엇을 도와드릴까요?')); }
+      else { var e = el('div', 'empty-chat'); e.appendChild(el('b', null, '무엇을 도와드릴까요?')); e.appendChild(el('span', null, SC.project ? '프로젝트 · ' + SC.project : '새 대화')); R.thread.appendChild(e); }
+      return;
+    }
+    ts.forEach(function (t, i) {
+      if (V.segStart(t)) R.thread.appendChild(term ? el('div', 'tl seamt', '── ' + V.segs[V.sIdx[t.id]] + ' ──') : el('div', 'seam', V.segs[V.sIdx[t.id]]));
+      var n = term ? termTurn(t) : chatTurn(t); if (st.enter === t.id) n.classList.add('enter');
+      R.turnEls[t.id] = n; R.thread.appendChild(n);
+      st.extras.forEach(function (x) { if (x.at === i + 1) { var f = term ? termFollow(x) : chatFollow(x); if (st.enter === x.id) f.classList.add('enter'); R.thread.appendChild(f); } });
+    });
+    st.extras.forEach(function (x) { if (x.at === 0) R.thread.appendChild(term ? termFollow(x) : chatFollow(x)); });
+    st.enter = null;
+  }
+  function altIndex(t) { return st.alt[t.id] == null ? t.alts.length : st.alt[t.id]; }
+  function pager(t) {
+    var p = el('span', 'pager'), k = altIndex(t), n = t.alts.length + 1;
+    var prev = el('button', null, '‹'); prev.type = 'button'; prev.setAttribute('aria-label', '이전 가지');
+    var next = el('button', null, '›'); next.type = 'button'; next.setAttribute('aria-label', '다음 가지');
+    prev.onclick = function () { st.alt[t.id] = Math.max(0, k - 1); renderAll(); };
+    next.onclick = function () { st.alt[t.id] = Math.min(n - 1, k + 1); renderAll(); };
+    p.appendChild(prev); p.appendChild(document.createTextNode((k + 1) + '/' + n)); p.appendChild(next); return p;
+  }
+  function textOf(t) { if (!t.alts) return { user: t.user, ai: t.ai, old: false }; var k = altIndex(t); return k < t.alts.length ? { user: t.alts[k].user, ai: t.alts[k].ai, old: true } : { user: t.user, ai: t.ai, old: false }; }
+  function chatTurn(t) {
+    var w = el('div', 'turn'); w.dataset.id = t.id; var tx = textOf(t);
+    var u = el('div', 'u');
+    if (t.depth > 0) u.appendChild(el('span', 'tag', t.depth + '차 곁길'));
+    if (t.ref) u.appendChild(el('span', 'tag', '↩ ' + numLabel(byId[t.ref])));
+    if (t.parts) u.appendChild(el('span', 'tag', '요청 ' + t.parts.length + '개'));
+    if (t.alts) u.appendChild(pager(t));
+    u.appendChild(el('p', null, tx.user)); w.appendChild(u);
+    var a = el('div', 'a' + (tx.old ? ' old' : '')); var para = el('p', 'part', tx.ai); a.appendChild(para);
+    if (t.parts) R.partEls[t.id + ':0'] = para;
+    if (t.files && !tx.old) { var fs = el('div', 'files'); t.files.forEach(function (f) { var x = el('span', 'file'); x.appendChild(el('span', 'sq')); x.appendChild(document.createTextNode(fname(f))); fs.appendChild(x); }); a.appendChild(fs); }
+    if (tx.old) a.appendChild(el('div', 'tool', '숨은 가지 ' + (altIndex(t) + 1) + ' · 지금 대화는 가지 ' + (t.alts.length + 1) + '로 이어져요' + (t.alts[altIndex(t)].dec ? ' · 이 가지에서 정한 것: ' + t.alts[altIndex(t)].dec : '')));
+    if (st.surf === 'app') a.appendChild(toolChip(t));
+    w.appendChild(a); return w;
+  }
+  function chatFollow(x) {
+    var w = el('div', 'turn'); w.dataset.id = x.src || x.id;
+    var u = el('div', 'u'); u.appendChild(el('span', 'tag g', '가닥 제안 · ' + KIND[x.kind].label)); u.appendChild(el('p', null, x.follow.user)); w.appendChild(u);
+    var a = el('div', 'a'); var para = el('p', 'part', x.follow.ai); a.appendChild(para);
+    if (x.follow.files) { var fs = el('div', 'files'); x.follow.files.forEach(function (f) { var s = el('span', 'file'); s.appendChild(el('span', 'sq')); s.appendChild(document.createTextNode(f)); fs.appendChild(s); }); a.appendChild(fs); }
+    if (st.surf === 'app') { var d = el('details', 'tool'); var sm = el('summary'); sm.appendChild(miniMark(9)); sm.appendChild(document.createTextNode('가닥 기록 · 할 일 1건 처리')); d.appendChild(sm); d.appendChild(el('pre', null, JSON.stringify({ tool: 'resolve_todo', id: x.item, state: 'done' }, null, 1))); a.appendChild(d); }
+    if (x.part != null) R.partEls[x.src + ':' + x.part] = para;
+    w.appendChild(a); return w;
+  }
+  function toolChip(t) {
+    var d = el('details', 'tool'); var sm = el('summary'); sm.appendChild(miniMark(9));
+    var bits = [t.depth ? t.depth + '차 곁길' : '본류 ' + t.n]; if (t.parts) bits.push('요청 ' + t.parts.length + '개'); if (t.dec) bits.push('정함');
+    sm.appendChild(document.createTextNode('가닥 기록 · ' + bits.join(' · '))); d.appendChild(sm);
+    var V = buildView('chat');
+    var obj = { tool: 'record_turn', id: t.id, depth: t.depth, parent: V.anc[t.id] || (t.ci > 0 ? t.chat.turns[t.ci - 1].id : null), title: t.title };
+    if (t.dec) obj.decision = t.dec; if (t.files) obj.files = t.files.map(fname);
+    if (t.parts) obj.parts = t.parts.map(function (p) { var q = { text: p.t, type: p.type === 'rev' ? 'revision' : p.type === 'q' ? 'question' : 'task' }; if (p.type !== 'rev') q.answered = !p.open; if (p.target) q.target = p.target; return q; });
+    if (t.ref) obj.ref = t.ref; if (t.alts) obj.branches = t.alts.length + 1;
+    d.appendChild(el('pre', null, JSON.stringify(obj, null, 1)));
+    return d;
+  }
+  function termTurn(t) {
+    var w = el('div', 'turn'); w.dataset.id = t.id; var tx = textOf(t);
+    var tags = []; if (t.depth > 0) tags.push(t.depth + '차 곁길'); if (t.ref) tags.push('↩ ' + numLabel(byId[t.ref])); if (t.parts) tags.push('요청 ' + t.parts.length + '개'); if (t.alts) tags.push('가지 ' + (altIndex(t) + 1) + '/' + (t.alts.length + 1) + ' (Esc Esc로 되감기)');
+    if (tags.length) w.appendChild(el('div', 'tl tag', '가닥 · ' + tags.join(' · ')));
+    w.appendChild(el('div', 'tl user', tx.user));
+    var a = el('div', 'tl ai part', tx.ai); w.appendChild(a); if (t.parts) R.partEls[t.id + ':0'] = a;
+    if (t.files && !tx.old) t.files.forEach(function (f) { w.appendChild(el('div', 'tl sub w', '⎿  Update(' + fname(f) + ')')); });
+    return w;
+  }
+  function termFollow(x) {
+    var w = el('div', 'turn'); w.dataset.id = x.src || x.id;
+    w.appendChild(el('div', 'tl tag', '가닥 제안 · ' + KIND[x.kind].label));
+    w.appendChild(el('div', 'tl user', x.follow.user));
+    var a = el('div', 'tl ai part', x.follow.ai); w.appendChild(a);
+    (x.follow.files || []).forEach(function (f) { w.appendChild(el('div', 'tl sub w', '⎿  Write(' + f + ')')); });
+    if (x.part != null) R.partEls[x.src + ':' + x.part] = a;
+    return w;
+  }
+  function isCode(f) { return /\.(py|json|csv|md)$/.test(f); }
+
+  function renderInput() {
+    var b = R.inbox; b.innerHTML = '';
+    if (st.surf === 'vsc') {
+      if (st.input) { if (st.inputBy) b.appendChild(el('span', 'by', st.inputBy)); b.appendChild(document.createTextNode(st.input)); if (st.typing) b.appendChild(el('span', 'caret')); }
+      else b.appendChild(el('span', 'ph', '메시지를 입력하세요'));
+      return;
+    }
+    b.className = 'box' + (st.input ? ' filled' : '');
+    if (st.input) { if (st.inputBy) b.appendChild(el('span', 'by', st.inputBy)); b.appendChild(document.createTextNode(st.input)); if (st.typing) b.appendChild(el('span', 'caret')); }
+    else b.textContent = st.surf === 'cursor' ? 'Agent에게 메시지 보내기' : (st.surf === 'web' ? (site() === 'ChatGPT' ? '무엇이든 물어보세요' : 'Claude에게 메시지 보내기') : 'Claude에게 메시지 보내기');
+  }
+
+  /* ---------- web: map head, horizontal map, rail ---------- */
+  function scopeSwitch(host) {
+    host.innerHTML = '';
+    if (!SC.scopeLabel) return;
+    var sw = el('span', 'scope');
+    [['chat', '이 대화'], ['all', SC.scopeLabel]].forEach(function (o) {
+      var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(st.scope === o[0]));
+      b.onclick = function () { st.scope = o[0]; renderAll(); };
+      sw.appendChild(b);
+    });
+    host.appendChild(sw);
+  }
+  function renderMapHead(V) {
+    R.mapTitle.textContent = st.scope === 'all' ? (SC.project || '비슷한 대화 묶음') : ACT.title;
+    scopeSwitch(R.scopeBox);
+    R.status.textContent = statusText(V);
+    var rv = revisions(); R.qbtn.hidden = !rv.length; R.qbtn.textContent = '수정 ' + rv.length + '건 · 최종본 요청 →';
+    R.segAll.hidden = !V.multi;
+    if (V.multi) { var allOpen = V.segs.every(function (_, s) { return V.isOpen(s); }); R.segAll.textContent = allOpen ? '지난 구간 접기' : '모두 펼치기';
+      R.segAll.onclick = function () { st.popSeg = allOpen ? null : 'cur'; V.segs.forEach(function (s, i) { st.exp[V.key][s] = allOpen ? (V.cur ? V.segs[V.sIdx[V.cur.id]] === s : i === V.segs.length - 1) : true; }); renderAll(); }; }
+  }
+  function statusText(V) {
+    var bits = [];
+    if (st.scope === 'all') bits.push('대화 ' + SC.chats.length + '개');
+    if (V.cur && V.cur.depth > 0 && byId[V.anc[V.cur.id]]) bits.push(byId[V.anc[V.cur.id]].n + '에서 곁길 ' + V.cur.depth + '단계');
+    var op = openItems().length; if (op) bits.push('할 일 ' + op + '개');
+    if (!bits.length) bits.push('역을 누르면 그 대화로 이동해요');
+    return bits.join(' · ');
+  }
+
+  var TICK = 18;
+  function renderMap(V) {
+    var mapEl = R.map, mapScroll = R.mapScroll; mapEl.innerHTML = ''; R.mapDots = {};
+    if (!V.vis.length) {
+      mapEl.style.height = ''; mapEl.style.width = '';
+      var e = el('div', 'map-empty'); e.appendChild(el('b', null, '아직 잡힌 가닥이 없어요.')); e.appendChild(el('span', null, '대화를 시작하면 여기에 흐름이 그려져요.'));
+      if (SC.emptyNote) { var h = el('div', 'hint'); h.appendChild(el('span', null, SC.emptyNote)); var b = el('button', 'btn sm', SC.scopeLabel + ' 보기'); b.type = 'button'; b.onclick = function () { st.scope = 'all'; renderAll(); }; h.appendChild(b); e.appendChild(h); }
+      mapEl.appendChild(e); mapScroll.classList.remove('ovf'); return;
+    }
+    var multi = V.multi, top = multi ? 34 : 22, Y0 = top + 64, L1 = Y0 - 36, L2 = Y0 - 62;
+    mapEl.style.height = (Y0 + 82) + 'px';
+    var W = Math.max(mapScroll.clientWidth, 560), pad = 64;
+    var mains = V.vis.filter(function (t) { return t.depth === 0; });
+    var cur = V.cur, tail = cur && cur.depth > 0 && V.vis.indexOf(cur) >= 0 ? 0.8 : 0;
+    var E = 0, C = 0, G = 0, segMains = {};
+    mains.forEach(function (m) { segMains[V.sIdx[m.id]] = (segMains[V.sIdx[m.id]] || 0) + 1; });
+    mains.forEach(function (m, i) { if (i > 0 && V.sIdx[m.id] !== V.sIdx[mains[i - 1].id]) G++; if (i < mains.length - 1) { if (V.isOpen(V.sIdx[m.id])) E++; else C++; } });
+    var step = Math.max(multi ? 96 : 108, Math.min(150, (W - 2 * pad - C * TICK - G * 50) / Math.max(1, E + tail)));
+    var pos = {}, x = pad, segX = {};
+    var mctx = document.createElement('canvas').getContext('2d'); mctx.font = '600 12px ' + getComputedStyle(document.body).fontFamily;
+    function segLabelW(sx) { var nm = V.segs[sx], br = V.vis.filter(function (t) { return V.sIdx[t.id] === sx; }).length; return mctx.measureText(nm + ' ' + br + ' ▸').width + 22; }
+    mains.forEach(function (m, i) {
+      if (i > 0) {
+        var pv = mains[i - 1], po = V.isOpen(V.sIdx[pv.id]), mo = V.isOpen(V.sIdx[m.id]), add = po ? step : (segMains[V.sIdx[pv.id]] > 12 ? 7 : TICK);
+        if (V.sIdx[m.id] !== V.sIdx[pv.id]) { add += po ? (mo ? 22 : 24) : (mo ? step * 0.55 : 44); if (multi) x = Math.max(x + add, segX[V.sIdx[pv.id]] + segLabelW(V.sIdx[pv.id]) + (mo ? step * 0.3 : 0)) - add; }
+        x += add;
+      }
+      if (segX[V.sIdx[m.id]] == null) segX[V.sIdx[m.id]] = x - 8;
+      pos[m.id] = { x: x, y: Y0 };
+    });
+    var lastM = pos[mains[mains.length - 1].id];
+    var need = lastM.x + (tail ? step * tail : 0) + Math.max(pad, step / 2 + 16);
+    var cL = pos[mains[0].id].x - step / 2, cR = lastM.x + (tail ? step * tail : 0) + step / 2;
+    var shift = need < W ? Math.max(0, W / 2 - (cL + cR) / 2) : 0;
+    if (shift > 0) mains.forEach(function (m) { pos[m.id].x += shift; });
+    var first = pos[mains[0].id]; lastM = pos[mains[mains.length - 1].id];
+    mapEl.style.width = Math.max(W, need) + 'px';
+    var svg = document.createElementNS(SVGNS, 'svg'); svg.setAttribute('class', 'lines'); mapEl.appendChild(svg);
+    function path(d, stroke, w, dash) { var q = document.createElementNS(SVGNS, 'path'); q.setAttribute('d', d); q.setAttribute('fill', 'none'); q.style.stroke = stroke; q.setAttribute('stroke-width', w); q.setAttribute('stroke-linecap', 'round'); q.setAttribute('stroke-linejoin', 'round'); if (dash) q.setAttribute('stroke-dasharray', dash); else q.setAttribute('pathLength', '1'); svg.appendChild(q); return q; }
+    // trunk: each chat in project view gets its own run so the seams read as separate conversations
+    var runs = [], runStart = mains[0];
+    mains.forEach(function (m, i) { var nx = mains[i + 1]; if (!nx || (st.scope === 'all' && V.sIdx[nx.id] !== V.sIdx[m.id])) { runs.push([runStart, m]); runStart = nx; } });
+    runs.forEach(function (r, i) {
+      path('M ' + pos[r[0].id].x + ' ' + Y0 + ' H ' + pos[r[1].id].x, 'var(--fg)', 4.5).setAttribute('class', 'trunk');
+      if (i < runs.length - 1) path('M ' + (pos[r[1].id].x + 12) + ' ' + Y0 + ' H ' + (pos[runs[i + 1][0].id].x - 12), 'var(--ring)', 2.5, '0.1 7');
+    });
+    if (tail) path('M ' + (lastM.x + 14) + ' ' + Y0 + ' H ' + (lastM.x + step * tail), 'var(--fg)', 3.5, '0.1 8');
+    // segment names
+    if (multi) V.segs.forEach(function (name, s) {
+      var ms = mains.filter(function (m) { return V.sIdx[m.id] === s; }); if (!ms.length) return;
+      var x0 = pos[ms[0].id].x, open = V.isOpen(s), br = V.vis.filter(function (t) { return V.sIdx[t.id] === s && t.depth > 0; }).length;
+      var b = el('button', 'seg' + (open ? '' : ' shut')); b.type = 'button'; b.style.left = (x0 - 8) + 'px';
+      b.appendChild(el('b', null, name)); b.appendChild(el('span', null, open ? '' : String(ms.length + br) + ' ▸'));
+      b.setAttribute('aria-expanded', String(open));
+      b.onclick = function () { st.exp[V.key][name] = !open; st.popSeg = name; renderAll(); if (!open) { var p0 = R.mapPos && R.mapPos[ms[0].id]; if (p0) R.mapScroll.scrollTo({ left: Math.max(0, p0.x - 60), behavior: reduce ? 'auto' : 'smooth' }); } };
+      mapEl.appendChild(b);
+    });
+    // side chains
+    var groups = {};
+    V.vis.forEach(function (t) { if (t.depth > 0 && V.anc[t.id] && V.isOpen(V.sIdx[V.anc[t.id]])) (groups[V.anc[t.id]] = groups[V.anc[t.id]] || []).push(t); });
+    Object.keys(groups).forEach(function (aid) {
+      if (!pos[aid]) return;
+      var nodes = groups[aid], active = nodes.indexOf(cur) >= 0;
+      var l1 = nodes.filter(function (n) { return n.depth === 1; }), l2 = nodes.filter(function (n) { return n.depth >= 2; });
+      var ax = pos[aid].x, run1 = (Y0 - L1) * 0.76, run2 = (L1 - L2) * 0.76;
+      var s1 = ax + 18, g1 = Math.max(s1 + run1 + 16, ax + step * 0.62), g2 = g1 + 8 + run2 + 14;
+      path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--ring)', 3);
+      if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--stem)', 2.5);
+      function dot(list, level, y) {
+        if (!list.length) return;
+        var gx = level === 2 ? g2 : g1;
+        var t1 = active && list.indexOf(cur) >= 0 ? cur : list[list.length - 1];
+        var b = el('button', 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (t1 === cur ? ' cur' : '') + (list.some(hasTodo) ? ' todo' : ''));
+        b.type = 'button'; b.style.left = gx + 'px'; b.style.top = y + 'px'; b.dataset.tid = t1.id;
+        b.setAttribute('aria-label', level + '차 곁길: ' + list.map(function (n) { return n.title; }).join(', '));
+        wireGroup(b, nodes, t1, byId[aid], active); mapEl.appendChild(b);
+        list.forEach(function (n) { R.mapDots[n.id] = b; pos[n.id] = { x: gx, y: y }; });
+      }
+      dot(l1, 1, L1); dot(l2, 2, L2);
+      if (nodes.length > 1) { var c = el('div', 'cnt', String(nodes.length)); c.style.left = ((l2.length ? g2 : g1) + 10) + 'px'; c.style.top = (l2.length ? L2 : L1) + 'px'; mapEl.appendChild(c); }
+    });
+    // detours for rewritten messages (U4)
+    mains.forEach(function (t) {
+      if (!t.alts || !V.isOpen(V.sIdx[t.id])) return;
+      var p = pos[t.id], w = Math.min(34, step * 0.32), h = 30;
+      path('M ' + (p.x - w) + ' ' + Y0 + ' C ' + (p.x - w) + ' ' + (Y0 - h) + ', ' + (p.x + w) + ' ' + (Y0 - h) + ', ' + (p.x + w) + ' ' + Y0, 'var(--ring)', 2, '4 4');
+      t.alts.forEach(function (a, k) {
+        var gx = p.x - 10 + k * 20 - (t.alts.length - 1) * 4, g = el('button', 'st ghost'); g.type = 'button';
+        g.style.left = gx + 'px'; g.style.top = (Y0 - h * 0.75) + 'px'; g.setAttribute('aria-label', '숨은 가지 ' + (k + 1) + ': ' + a.user);
+        if (a.dec) g.style.borderColor = 'var(--accent)';
+        g.onclick = function () { st.alt[t.id] = k; renderAll(); go(t.id); };
+        g.onmouseenter = function () { tip.innerHTML = ''; tip.appendChild(el('b', null, '숨은 가지 ' + (k + 1))); tipLine(a.user); if (a.dec) tipLine('정함 · ' + a.dec); tipLine('누르면 이 가지를 대화에서 보여 줘요', 's'); placeTip(g); };
+        g.onmouseleave = function () { tip.hidden = true; };
+        mapEl.appendChild(g);
+      });
+      var lb = el('div', 'alt-l', '가지 ' + (t.alts.length + 1)); lb.style.left = p.x + 'px'; lb.style.top = (Y0 - h - 2) + 'px'; mapEl.appendChild(lb);
+    });
+    // stations
+    mains.forEach(function (t) {
+      var p = pos[t.id], k = V.kind(t), open = V.isOpen(V.sIdx[t.id]), b;
+      if (!open) { b = el('button', 'st tick' + (k === 'cur' ? ' tcur' : (t.dec ? ' tdec' : ''))); b.type = 'button'; }
+      else if (t.parts) b = capsule(t, k);
+      else { b = el('button', 'st ' + k); b.type = 'button'; }
+      if (open && hasTodo(t)) b.classList.add('todo');
+      b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
+      b.setAttribute('aria-label', numLabel(t) + ' ' + t.title + ' 로 이동');
+      wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
+      if (!open) return;
+      var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 20) + 'px'; l.style.width = (step - 14) + 'px';
+      l.appendChild(el('span', 't' + (k === 'cur' ? ' now' : ''), t.title));
+      var af = allFiles(t); if (af.length) { var f = el('span', 'f'); f.appendChild(el('span', 'sq')); var vmax = 0; af.forEach(function (x) { vmax = Math.max(vmax, versionOf(t, x).v); }); f.appendChild(document.createTextNode(String(af.length) + (vmax > 1 ? ' · v' + vmax : ''))); l.appendChild(f); }
+      if (st.scope === 'all' && SC.groups) l.appendChild(el('span', 'd', t.chat.date));
+      l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
+    });
+    // reference arcs (U3 repeats, cross-chat refs) as faint curves under the line
+    V.vis.forEach(function (t) {
+      if (!t.ref || !pos[t.ref] || !pos[t.id] || t.depth > 0) return;
+      var a = pos[t.ref], b = pos[t.id]; if (a.y !== Y0 || b.y !== Y0) return;
+      var mid = (a.x + b.x) / 2;
+      path('M ' + a.x + ' ' + (Y0 + 12) + ' Q ' + mid + ' ' + (Y0 + 30) + ' ' + b.x + ' ' + (Y0 + 12), 'var(--accent)', 1.5, '2 4');
+    });
+    R.mapPos = pos;
+    mapScroll.classList.toggle('ovf', mapEl.offsetWidth > mapScroll.clientWidth + 1);
+    if (st.popSeg && !reduce) {
+      var want = st.popSeg === 'cur' ? (cur ? V.segs[V.sIdx[cur.id]] : null) : st.popSeg, k = 0;
+      Array.prototype.forEach.call(mapEl.querySelectorAll('[data-seg]'), function (e) {
+        if (e.dataset.seg !== want) return;
+        e.classList.add(e.classList.contains('lbl') ? 'in-l' : 'in-s'); e.style.animationDelay = (0.04 * (e.classList.contains('lbl') ? k : k++)).toFixed(2) + 's';
+      });
+    }
+    st.popSeg = null;
+    if (st.focusMap && cur && pos[cur.id]) { mapScroll.scrollLeft = Math.max(0, pos[cur.id].x - mapScroll.clientWidth * 0.7); st.focusMap = false; }
+    else if (st.focusMap && !cur) { mapScroll.scrollLeft = mapScroll.scrollWidth; st.focusMap = false; }
+  }
+  function capsule(t, k) {
+    var c = el('div', 'cap ' + (k === 'cur' ? 'cur' : (t.dec ? 'dec' : 'main')));
+    c.setAttribute('role', 'group');
+    t.parts.forEach(function (q, i) {
+      if (q.type === 'rev') return;
+      var cell = el('button', 'cell' + (q.open ? ' open' : '')); cell.type = 'button';
+      cell.setAttribute('aria-label', q.t + (q.open ? ' (답 없음)' : ' 로 이동'));
+      cell.addEventListener('click', function (e) { e.stopPropagation(); goPart(t, i); });
+      c.appendChild(cell);
+    });
+    return c;
+  }
+  function railY(t) { var H = R.rail.clientHeight - 64, e = R.turnEls[t.id]; var sh = Math.max(R.chat.scrollHeight, 1); return 48 + (e.offsetTop / sh) * H; }
+  function renderRail() {
+    var rail = R.rail; rail.innerHTML = ''; R.railDots = {};
+    var V = buildView('chat');
+    var RX = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rx')) || 28;
+    var tg = el('button', 'rail-toggle'); tg.type = 'button'; tg.appendChild(miniMark(17));
+    var n = openItems().length; if (!st.drawerOpen && n) tg.appendChild(el('span', 'cv', '할 일 ' + n));
+    tg.setAttribute('aria-label', st.drawerOpen ? '가닥 접기' : '가닥 펼치기'); tg.title = st.drawerOpen ? '가닥 접기' : '가닥 펼치기'; tg.onclick = toggleDrawer; rail.appendChild(tg);
+    var ln = el('div', 'rline'); ln.style.top = '50px'; ln.style.bottom = '16px'; rail.appendChild(ln);
+    R.vp = el('div', 'vp'); rail.appendChild(R.vp);
+    V.vis.forEach(function (t) {
+      if (!R.turnEls[t.id]) return;
+      if (V.segStart(t)) { var sm = el('div', 'rail-seam'); sm.style.top = (railY(t) - 9) + 'px'; rail.appendChild(sm); }
+      var k = V.kind(t), x = RX + (t.depth === 0 ? 0 : (t.depth === 1 ? 10 : 16)), y = railY(t), b;
+      if (t.parts) b = capsule(t, k); else { b = el('button', 'st ' + k); b.type = 'button'; b.setAttribute('aria-label', t.title + ' 로 이동'); }
+      b.style.left = x + 'px'; b.style.top = y + 'px'; b.dataset.tid = t.id;
+      wire(b, t); rail.appendChild(b); R.railDots[t.id] = b;
+      if (allFiles(t).length) { var q = el('div', 'fsq'); q.style.left = (RX - 17) + 'px'; q.style.top = y + 'px'; rail.appendChild(q); }
+      if (hasTodo(t)) { var d = el('div', 'tdot'); d.style.left = (RX + 9) + 'px'; d.style.top = (y - 9) + 'px'; rail.appendChild(d); }
+    });
+  }
+
+  /* ---------- ledger column inside the drawer ---------- */
+  function renderSide() {
+    var n = openItems().length;
+    R.dbody.classList.toggle('noled', !st.ledgerOpen);
+    R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
+    R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);
+    R.ledBtn.setAttribute('aria-expanded', String(st.ledgerOpen));
+    if (!st.ledgerOpen) return;
+    tabs(R.sideHead, [['todo', '할 일', n], ['dec', '정한 것'], ['files', '산출물']], st.sideTab, function (v) { st.sideTab = v; });
+    if (R.qInput.value !== st.q) R.qInput.value = st.q;
+    renderSideBody(); markFound();
+  }
+  function tabs(host, list, cur, set) {
+    host.innerHTML = ''; host.setAttribute('role', 'tablist');
+    list.forEach(function (o) {
+      var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(cur === o[0]));
+      if (o[2]) b.appendChild(el('span', 'n', String(o[2])));
+      b.onclick = function () { set(o[0]); renderAll(); };
+      host.appendChild(b);
+    });
+  }
+  /* every turn the project knows about: past chats in full, the open chat up to now */
+  function allKnown() { var out = []; SC.chats.forEach(function (c) { out = out.concat(c === ACT ? activeTurns() : c.turns); }); return out; }
+  function hit(t) { var q = st.q.toLowerCase(); if (!q) return false; return [t.title, t.user, t.ai, t.dec || ''].concat((t.files || []).map(fname)).join(' ').toLowerCase().indexOf(q) >= 0; }
+  function markFound() {
+    if (!R.map) return;
+    Array.prototype.forEach.call(R.map.querySelectorAll('.found'), function (e) { e.classList.remove('found'); });
+    if (!st.q) return;
+    allKnown().forEach(function (t) { if (hit(t) && R.mapDots && R.mapDots[t.id]) R.mapDots[t.id].classList.add('found'); });
+  }
+  function renderSideBody() {
+    var b = R.sideBody; b.innerHTML = '';
+    if (st.q) { renderFound(b); return; }
+    if (st.sideTab === 'todo') renderLedger(b);
+    else if (st.sideTab === 'dec') renderDecisions(b);
+    else renderArtifacts(b);
+  }
+  function rowBtn(host, top, main, sub, t) {
+    var r = el('button', 'srow2'); r.type = 'button';
+    if (top) r.appendChild(el('span', 'k', top));
+    r.appendChild(el('span', 't', main)); if (sub) r.appendChild(el('span', 'w', sub));
+    r.onclick = function () { go(t.id); };
+    host.appendChild(r); return r;
+  }
+  function renderDecisions(host) {
+    var list = allKnown().filter(function (t) { return t.dec; }).reverse();
+    if (!list.length) { host.appendChild(el('div', 'lempty', '아직 정한 것이 없어요.')); return; }
+    host.appendChild(el('div', 'lsum', (SC.project ? '이 프로젝트' : '이 대화') + '에서 정한 것 ' + list.length + '개 · 최근 순'));
+    list.forEach(function (t) { rowBtn(host, numLabel(t) + ' · ' + t.title, t.dec, null, t).classList.add('dec'); });
+  }
+  function baseName(n) { return n.replace(/\s*\(.*\)$/, '').replace(/\s+v\d+(\.\d+)?$/, '').trim(); }
+  function fileVersions() {
+    var map = {}, order = [];
+    allKnown().forEach(function (t) {
+      allFiles(t).forEach(function (f) {
+        var n = fname(f), b = baseName(n);
+        if (!map[b]) { map[b] = []; order.push(b); }
+        map[b].push({ n: n, t: t });
+      });
+    });
+    return { map: map, order: order };
+  }
+  function versionOf(t, f) { var fv = fileVersions(), list = fv.map[baseName(fname(f))] || [], i = -1; list.forEach(function (v, k) { if (v.t === t && v.n === fname(f)) i = k; }); return { v: i + 1, of: list.length }; }
+  function renderArtifacts(host) {
+    var fv = fileVersions();
+    if (!fv.order.length) { host.appendChild(el('div', 'lempty', '아직 나온 산출물이 없어요.')); return; }
+    var unaskedT = openItems().filter(function (i) { return i.kind === 'unasked'; }).map(function (i) { return i.t; });
+    host.appendChild(el('div', 'lsum', '산출물 ' + fv.order.length + '개 · 같은 파일은 판(v)으로 묶었어요'));
+    fv.order.slice().reverse().forEach(function (b) {
+      var vs = fv.map[b], last = vs[vs.length - 1];
+      var g = el('div', 'fgrp');
+      var h = el('button', 'fhead'); h.type = 'button'; h.appendChild(el('span', 'sq'));
+      h.appendChild(el('span', 'fn', b)); h.appendChild(el('span', 'latest', vs.length > 1 ? 'v' + vs.length + ' 최신' : '최신'));
+      if (unaskedT.indexOf(last.t) >= 0) h.appendChild(el('span', 'warn', '요청 외 변경'));
+      h.onclick = function () { st.file = last.n; go(last.t.id); };
+      g.appendChild(h);
+      if (vs.length > 1) vs.slice(0, -1).reverse().forEach(function (v, k) {
+        var r = el('button', 'fold-v'); r.type = 'button'; r.appendChild(el('span', null, 'v' + (vs.length - 1 - k)));
+        r.appendChild(el('span', null, numLabel(v.t) + ' ' + v.t.title)); r.onclick = function () { go(v.t.id); }; g.appendChild(r);
+      });
+      host.appendChild(g);
+    });
+  }
+  function renderFound(host) {
+    var ts = allKnown().filter(hit).reverse();
+    host.appendChild(el('div', 'lsum', ts.length ? '“' + st.q + '” · ' + ts.length + '곳. 정한 것이 먼저 나와요.' : '“' + st.q + '”이 나온 곳이 없어요.'));
+    ts.sort(function (a, b) { return (b.dec ? 1 : 0) - (a.dec ? 1 : 0); });
+    ts.slice(0, 12).forEach(function (t) {
+      var q = st.q.toLowerCase(), src = [t.dec, t.title, t.user, t.ai].filter(Boolean).filter(function (x) { return x.toLowerCase().indexOf(q) >= 0; })[0] || t.title;
+      var i = src.toLowerCase().indexOf(q), snip = (i > 24 ? '…' : '') + src.slice(Math.max(0, i - 24), i + q.length + 36) + (i + q.length + 36 < src.length ? '…' : '');
+      rowBtn(host, numLabel(t) + ' · ' + (t.chat !== ACT ? t.chat.title : '이 대화') + (t.dec ? ' · 정함' : ''), t.title, snip, t);
+    });
+  }
+  function revRow(rv) {
+    var r = el('div', 'revrow'); r.appendChild(el('span', null, '모아 둔 수정 ' + rv.length + '건'));
+    var b = el('button', 'btn sm', '최종본 요청'); b.type = 'button'; b.onclick = function (e) { e.stopPropagation(); showRevPop(b); }; r.appendChild(b); return r;
+  }
+  function renderLedger(host) {
+    var all = allItems(), led = el('div', 'led'); host.appendChild(led);
+    if (!all.length) { led.appendChild(el('div', 'lempty', '아직 없어요. 빠진 요청이나 다음 할 일이 생기면 가닥이 여기 모아요.')); return; }
+    [['miss', '놓친 일'], ['sug', '제안']].forEach(function (g) {
+      var list = all.filter(function (i) { return KIND[i.kind].g === g[0]; });
+      if (!list.length) return;
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, g[1]));
+      list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
+      led.appendChild(grp);
+    });
+  }
+  function ledgerItem(it) {
+    var s = stateOf(it), sg = KIND[it.kind].g === 'sug';
+    var d = el('div', 'litem' + (sg ? ' sg' : '') + (s === 'done' ? ' done' : '') + (s === 'later' ? ' later' : '') + (st.fresh[it.id] ? ' new' : ''));
+    d.appendChild(el('span', 'mk'));
+    var body = el('div'); d.appendChild(body);
+    body.appendChild(el('div', 'k', (it.t ? numLabel(it.at ? byId[it.at] : it.t) + ' · ' : '') + KIND[it.kind].label));
+    var t = el('div', 't', it.text); body.appendChild(t);
+    if (it.t && s !== 'done') { t.classList.add('lk'); t.onclick = function () { go(it.at || it.t.id); }; }
+    if (s !== 'done') {
+      var row = el('div', 'row');
+      var a = el('button', 'btn sm primary', it.btn); a.type = 'button'; a.disabled = st.typing; a.onclick = function (e) { e.stopPropagation(); act(it, a); }; row.appendChild(a);
+      if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { st.items[it.id] = 'later'; if (st.nudge === it.id) st.nudge = null; renderAll(); }; row.appendChild(l); }
+      body.appendChild(row);
+    }
+    return d;
+  }
+
+  /* ---------- VS Code editor ---------- */
+  function renderEditor() {
+    var files = []; activeTurns().forEach(function (t) { allFiles(t).forEach(function (f) { if (files.indexOf(fname(f)) < 0) files.push(fname(f)); }); });
+    var cur = st.file && files.indexOf(st.file) >= 0 ? st.file : files[files.length - 1];
+    R.etabs.innerHTML = '';
+    if (!files.length) { R.etabs.appendChild(el('div', 'etab on', '시작')); R.editor.innerHTML = ''; var e = el('div', 'enote', '아직 바뀐 파일이 없어요. 대화가 이어지면 Claude Code가 고친 파일이 여기 열려요.'); e.style.color = 'var(--faint)'; R.editor.appendChild(e); return; }
+    files.slice(-4).forEach(function (f) { var t = el('div', 'etab' + (f === cur ? ' on' : ''), f); t.appendChild(el('span', 'gs', 'M')); t.style.cursor = 'pointer'; t.onclick = function () { st.file = f; renderEditor(); }; R.etabs.appendChild(t); });
+    R.editor.innerHTML = '';
+    var lines = (SC.code && SC.code[cur]) || [[' ', '# ' + cur], [' ', ''], ['+', '(이 턴에서 가닥이 기록한 파일이에요)']];
+    var unaskedOpen = SC.unaskedFile === cur && openItems().some(function (i) { return i.kind === 'unasked'; });
+    var ln = 0;
+    lines.forEach(function (l) {
+      var kind = l[0], x = kind.charAt(0) === 'x';
+      if (x && !unaskedOpen && kind === 'x+') return;
+      var k = x ? kind.charAt(1) : kind; ln++;
+      var row = el('div', 'eline' + (k === '+' ? ' add' : k === '-' ? ' del' : '') + (x && unaskedOpen ? ' x' : ''));
+      row.appendChild(el('span', 'ln', String(ln))); row.appendChild(el('span', 'sg', k === ' ' ? '' : k)); row.appendChild(el('span', null, l[1])); R.editor.appendChild(row);
+    });
+    if (unaskedOpen) R.editor.appendChild(el('div', 'enote', '가닥 · 빨간 줄은 요청하지 않은 변경이에요. 할 일 장부에서 되돌리기를 요청할 수 있어요.'));
+  }
+
+  /* ---------- nudge ---------- */
+  var lastNudge = null;
+  function renderNudge() {
+    if (R.nudgeEl) { R.nudgeEl.remove(); R.nudgeEl = null; }
+    var it = st.nudge && itemById(st.nudge);
+    if (!it || stateOf(it) !== 'open') return;
+    var n = el('div', 'nudge ' + (st.surf === 'web' ? 'nudge-web' : st.surf === 'app' || st.surf === 'cursor' ? 'nudge-app' : 'nudge-vs') + (lastNudge === it.id + st.surf ? ' still' : ''));
+    lastNudge = it.id + st.surf;
+    var who = el('div', 'who'); who.appendChild(miniMark(12)); who.appendChild(el('b', null, '가닥')); who.appendChild(el('span', null, '· ' + KIND[it.kind].label)); n.appendChild(who);
+    var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', '한마디 닫기'); x.onclick = function () { st.items[it.id] = 'later'; st.nudge = null; renderAll(); }; n.appendChild(x);
+    n.appendChild(el('div', 't', it.text)); n.appendChild(el('div', 'w', it.why));
+    var row = el('div', 'row');
+    var a = el('button', 'btn sm accent', it.btn); a.type = 'button'; a.disabled = st.typing; a.onclick = function (e) { e.stopPropagation(); act(it, a); }; row.appendChild(a);
+    var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { st.items[it.id] = 'later'; st.nudge = null; renderAll(); }; row.appendChild(l);
+    n.appendChild(row);
+    R.nudgeHost.appendChild(n); R.nudgeEl = n;
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true;
+  });
+
+  /* =====================================================================
+     ACTIONS
+     ===================================================================== */
+  function act(it, anchor) {
+    if (st.typing) return;
+    st.fresh = {};
+    if (it.effect === 'split') { st.split = true; st.items[it.id] = 'done'; st.nudge = null; st.focusMap = true; flashToast('주제별 노선 3개로 나눴어요. 다음 전환부터는 알아서 나눠요.'); renderAll(); return; }
+    if (it.effect === 'scopeAll') { st.scope = 'all'; st.items[it.id] = 'done'; st.nudge = null; st.drawerOpen = true; renderAll(); return; }
+    if (it.pop) { showItemPop(it, anchor); return; }
+    typeInto(it.prompt, '가닥이 넣은 글 · ' + KIND[it.kind].label, function () {
+      if (it.follow) send(it); else { st.items[it.id] = 'done'; st.nudge = null; st.inputBy = '가닥이 넣은 글 · 보내기 전에 고칠 수 있어요'; renderAll(); }
+    });
+  }
+  function send(it, follow) {
+    var f = follow || it.follow;
+    var x = { id: 'x' + Date.now(), item: it.id, src: it.t ? it.t.id : null, kind: it.kind, follow: f, at: st.shown, part: it.part };
+    st.extras.push(x); st.enter = x.id; st.items[it.id] = 'done'; if (st.nudge === it.id) st.nudge = null;
+    if (it.part != null) it.t.parts[it.part].open = false;
+    st.input = ''; st.inputBy = '';
+    renderAll({ bottom: true });
+  }
+  function typeInto(text, by, done) {
+    if (st.surf === 'cursor') { by = by.replace('가닥이 넣은 글', '클립보드에 담음 · 붙여 넣으면'); try { navigator.clipboard.writeText(text).catch(function () {}); } catch (e) {} }
+    st.typing = true; st.input = ''; st.inputBy = by; st.nudge = st.nudge; renderAll();
+    if (reduce) { st.input = text; st.typing = false; renderInput(); setTimeout(done, 300); return; }
+    var i = 0, stepN = Math.max(1, Math.ceil(text.length / 45));
+    var iv = setInterval(function () {
+      i = Math.min(text.length, i + stepN); st.input = text.slice(0, i); renderInput();
+      if (i >= text.length) { clearInterval(iv); setTimeout(function () { st.typing = false; done(); }, 450); }
+    }, 22);
+  }
+  function showItemPop(it, anchor) {
+    var P = it.pop; pop.innerHTML = '';
+    pop.appendChild(el('b', null, P.title));
+    if (P.text) pop.appendChild(el('pre', null, P.text));
+    if (P.diff) { var d = el('div', 'diff'); P.diff.forEach(function (l) { d.appendChild(el('div', l[0], l[1])); }); pop.appendChild(d); }
+    if (P.note) pop.appendChild(el('div', 'note', P.note));
+    var row = el('div', 'row');
+    var c = el('button', 'btn sm', '닫기'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
+    if (P.prompt) { var a = el('button', 'btn sm primary', P.btn); a.type = 'button'; a.onclick = function () { pop.hidden = true; typeInto(P.prompt, '가닥이 넣은 글 · ' + KIND[it.kind].label, function () { send(it, P.follow); }); }; row.appendChild(a); }
+    else { var cp = el('button', 'btn sm primary', '새 창에 붙일 글 복사'); cp.type = 'button'; cp.onclick = function () {
+      var ok = function () { st.items[it.id] = 'done'; if (st.nudge === it.id) st.nudge = null; pop.hidden = true; flashToast('복사했어요. 새 창 첫 메시지에 붙여 넣으면 돼요.'); renderAll(); };
+      try { navigator.clipboard.writeText(P.text).then(ok, ok); } catch (e) { ok(); } }; row.appendChild(cp); }
+    pop.appendChild(row);
+    placePop(anchor);
+  }
+  function showRevPop(anchor) {
+    var rv = revisions(); pop.innerHTML = '';
+    pop.appendChild(el('b', null, '모아 둔 수정 ' + rv.length + '건'));
+    var lines = ['지금까지 모은 수정사항을 반영해서 최종본을 한 번에 다시 써줘.'];
+    rv.forEach(function (r, i) { var tg = byId[r.p.target]; lines.push((i + 1) + '. ' + r.p.t + ' (' + numLabel(tg) + ' ' + tg.title + (tg.chat !== ACT ? ' · ' + tg.chat.title : '') + ')'); });
+    lines.push('위 항목 말고는 바꾸지 마.');
+    pop.appendChild(el('pre', null, lines.join('\n')));
+    pop.appendChild(el('div', 'note', '바로 재생성하지 않고 모아 두었다가, 최종본을 한 번만 요청해요.'));
+    var row = el('div', 'row'); var c = el('button', 'btn sm', '닫기'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
+    var a = el('button', 'btn sm primary', '입력창에 넣기'); a.type = 'button'; a.onclick = function () { pop.hidden = true; typeInto(lines.join('\n'), '가닥이 넣은 글 · 수정 모음', function () { st.inputBy = '가닥이 넣은 글 · 보내기 전에 고칠 수 있어요'; renderAll(); }); }; row.appendChild(a);
+    pop.appendChild(row); placePop(anchor);
+  }
+  function placePop(anchor) {
+    pop.hidden = false;
+    var r = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = Math.max(16, Math.min(window.innerWidth - w - 16, r.right - w)), top = r.bottom + 8;
+    if (top + h > window.innerHeight - 12) top = Math.max(12, r.top - h - 8);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  var toastT = null;
+  function flashToast(msg) { if (!R.toastEl) return; R.toastEl.textContent = msg; R.toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { R.toastEl.hidden = true; }, 2600); }
+
+  function nextTurn() {
+    if (st.typing || st.shown >= ACT.turns.length) return;
+    var t = ACT.turns[st.shown]; st.shown++; st.enter = t.id; st.input = ''; st.inputBy = ''; st.fresh = {};
+    if (st.shown === 1 || t.seg || (st.split && t.topic)) { st.exp = {}; st.popSeg = 'cur'; }
+    if (SC.startTodo && stateOf({ id: 'start' }) === 'open' && st.shown === 1) { st.items.start = 'later'; }
+    var its = itemsOf(t), pick = null;
+    its.forEach(function (it) {
+      st.fresh[it.id] = true;
+      if (it.kind === 'topic' && st.split) { st.items[it.id] = 'done'; return; }
+      if (!pick || KIND[it.kind].p < KIND[pick.kind].p) pick = it;
+    });
+    if (st.split && t.topic) flashToast('주제가 바뀌어 새 노선 “' + t.topic + '”을 만들었어요.');
+    if (pick) st.nudge = pick.id; else if (st.nudge && stateOf(itemById(st.nudge) || { id: '' }) !== 'open') st.nudge = null;
+    st.focusMap = true;
+    renderAll({ bottom: true });
+  }
+
+  /* ---------- tooltips + navigation ---------- */
+  function placeTip(b) {
+    tip.hidden = false;
+    var r = b.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    var left = Math.min(window.innerWidth - tw - 8, Math.max(8, r.left + r.width / 2 - tw / 2)), top = r.bottom + 12;
+    if (top + th > window.innerHeight - 8) top = r.top - th - 12;
+    if (b.closest('.rail')) { left = r.left - tw - 14; top = Math.max(8, r.top - th / 2); }
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  }
+  function tipLine(text, cls) { tip.appendChild(el('span', cls || null, text)); }
+  function showTip(t, b) {
+    tip.innerHTML = ''; tip.appendChild(el('b', null, t.title));
+    tipLine((t.chat !== ACT ? t.chat.title + ' · ' + t.chat.date + ' · ' : '') + (t.depth ? t.depth + '차 곁길' : '본류 ' + t.n), 's');
+    if (t.dec) tipLine('정함 · ' + t.dec);
+    if (t.ret) tipLine('곁길에서 돌아와 이어 붙음', 's');
+    if (t.ref) tipLine('↩ ' + numLabel(byId[t.ref]) + ' ' + byId[t.ref].title + '와 연결', 's');
+    if (t.alts) tipLine('⑂ 고쳐 쓴 메시지 · 가지 ' + (t.alts.length + 1) + '개', 's');
+    (t.parts || []).forEach(function (q) { tipLine((q.type === 'rev' ? '→ 수정 대기열 · ' : (q.open ? '○ 답 없음 · ' : '● ')) + q.t, q.type === 'rev' ? 's' : null); });
+    allFiles(t).forEach(function (f) { var s = el('span', 'fl'); s.appendChild(el('i')); s.appendChild(document.createTextNode(fname(f))); tip.appendChild(s); });
+    if (hasTodo(t)) tipLine('○ 가닥이 찾은 할 일이 있어요', 's');
+    placeTip(b);
+  }
+  function wire(b, t) {
+    b.addEventListener('click', function (e) { if (e.target.classList.contains('cell')) return; go(t.id); });
+    b.addEventListener('mouseenter', function () { showTip(t, b); });
+    b.addEventListener('mouseleave', function () { tip.hidden = true; });
+    b.addEventListener('focus', function () { showTip(t, b); });
+    b.addEventListener('blur', function () { tip.hidden = true; });
+  }
+  function wireGroup(b, nodes, target, anchor, active) {
+    function show() {
+      tip.innerHTML = ''; tip.appendChild(el('b', null, active ? '곁길 · 지금 여기' : '곁길 ' + nodes.length + '개'));
+      tipLine(anchor.n + ' ' + anchor.title + '에서 갈라짐', 's');
+      nodes.forEach(function (n) { tipLine((n.depth >= 2 ? '　└ ' : '· ') + n.title + (hasTodo(n) ? '  ○' : '')); });
+      if (!active) tipLine('끝난 곁길이라 접혀 있어요', 's');
+      placeTip(b);
+    }
+    b.addEventListener('click', function () { go(target.id); });
+    b.addEventListener('mouseenter', show); b.addEventListener('focus', show);
+    b.addEventListener('mouseleave', function () { tip.hidden = true; }); b.addEventListener('blur', function () { tip.hidden = true; });
+  }
+  function scrollToEl(e) {
+    var top = e.offsetTop, n = e; while (n.offsetParent && n.offsetParent !== R.chat && n.offsetParent !== document.body) { n = n.offsetParent; top += n.offsetTop; }
+    R.chat.scrollTo({ top: Math.max(0, top - 16), behavior: reduce ? 'auto' : 'smooth' });
+    e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 1400);
+  }
+  function go(id) {
+    var t = byId[id]; if (!t) return;
+    if (t.chat !== ACT) {
+      var ci = R.citems && R.citems[t.chat.id];
+      if (ci) { ci.classList.remove('flash'); void ci.offsetWidth; ci.classList.add('flash'); setTimeout(function () { ci.classList.remove('flash'); }, 1600); }
+      flashToast('다른 대화 “' + t.chat.title + '”(' + t.chat.date + ')예요. 실제로는 그 대화를 열고 이 위치로 가요.');
+      return;
+    }
+    if ((st.surf === 'vsc' || st.surf === 'cursor') && allFiles(t).length) { if (!st.file || allFiles(t).map(fname).indexOf(st.file) < 0) st.file = fname(allFiles(t)[allFiles(t).length - 1]); renderEditor(); }
+    if (st.surf !== 'web') { showTurnPop(t); return; }
+    var e = R.turnEls[id]; if (!e) return;
+    scrollToEl(e);
+  }
+  function showTurnPop(t) {
+    pop.innerHTML = '';
+    pop.appendChild(el('b', null, t.n + ' ' + t.title));
+    var tx = textOf(t); pop.appendChild(el('pre', null, tx.user)); pop.appendChild(el('div', null, tx.ai));
+    pop.appendChild(el('div', 'note', st.surf === 'app' ? '가닥은 Claude 앱 화면을 움직일 수 없어서, 이 메시지를 여기서 보여 줘요.' : (st.surf === 'cursor' ? '가닥은 Agent 패널을 스크롤할 수 없어서 여기서 보여 줘요.' : '가닥은 터미널을 스크롤할 수 없어서 여기서 보여 줘요.') + (allFiles(t).length ? ' 바뀐 파일은 편집기에 열었어요.' : '')));
+    var row = el('div', 'row'); var c = el('button', 'btn sm', '닫기'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c); pop.appendChild(row);
+    placePop(R.mapScroll);
+  }
+  function goPart(t, i) {
+    var q = t.parts[i];
+    if (q.open || st.surf !== 'web') { var it = itemsOf(t).filter(function (x) { return x.part === i; })[0]; go(t.id); if (it && stateOf(it) !== 'done') { st.nudge = it.id; st.items[it.id] = 'open'; renderNudge(); } return; }
+    var e = R.partEls[t.id + ':' + i] || R.turnEls[t.id]; if (e) scrollToEl(e);
+  }
+
+  /* viewing: the turn under the top third of the chat lights up everywhere */
+  var viewing = null;
+  function updateViewing(force) {
+    if (!R.chat || !R.thread) return;
+    var y = R.chat.scrollTop + R.chat.clientHeight * 0.3, v = null;
+    Array.prototype.forEach.call(R.thread.children, function (n) { if (n.dataset.id && n.offsetTop <= y) v = n.dataset.id; });
+    if (R.chat.scrollTop + R.chat.clientHeight >= R.chat.scrollHeight - 4) { var last = R.thread.lastElementChild; if (last && last.dataset.id) v = last.dataset.id; }
+    if (R.vp && R.rail) { var H = R.rail.clientHeight - 64, sh = Math.max(R.chat.scrollHeight, 1); R.vp.style.top = (48 + R.chat.scrollTop / sh * H - 6) + 'px'; R.vp.style.height = (R.chat.clientHeight / sh * H + 12) + 'px'; }
+    if (v === viewing && !force) return;
+    viewing = v;
+    Array.prototype.forEach.call(R.root.querySelectorAll('.viewing'), function (n) { n.classList.remove('viewing'); });
+    if (!v) return;
+    [R.mapDots, R.railDots, R.vDots].forEach(function (set) { if (set && set[v]) set[v].classList.add('viewing'); });
+  }
+  var ticking = false;
+  function onChatScroll() { if (ticking) return; ticking = true; requestAnimationFrame(function () { ticking = false; updateViewing(); }); }
+
+  function toggleDrawer() {
+    tip.hidden = true; st.drawerOpen = !st.drawerOpen; if (st.drawerOpen) st.focusMap = true; renderAll();
+    if (st.drawerOpen && !reduce) { R.map.classList.remove('reveal'); void R.map.offsetWidth; R.map.classList.add('reveal'); setTimeout(function () { R.map && R.map.classList.remove('reveal'); }, 1200); }
+  }
+
+  /* =====================================================================
+     WIRING
+     ===================================================================== */
+  function setPressed(id, v) { Array.prototype.forEach.call(document.querySelectorAll('#' + id + ' button'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === v)); }); }
+  function switchScen(k) { load(k); setPressed('scenSw', k); mount(); st.focusMap = true; renderAll({ bottom: true }); playMark(logoMark, 0.8); reveal(); }
+  function switchSurf(s) { st.surf = s; setPressed('surfSw', s); mount(); st.focusMap = true; renderAll({ bottom: true }); reveal(); }
+  function reveal() { if (reduce || !R.map) return; R.map.classList.remove('reveal'); void R.map.offsetWidth; R.map.classList.add('reveal'); setTimeout(function () { R.map && R.map.classList.remove('reveal'); }, 1200); }
+  Array.prototype.forEach.call(document.querySelectorAll('#surfSw button'), function (b) { b.addEventListener('click', function () { switchSurf(b.dataset.v); }); });
+  Array.prototype.forEach.call(document.querySelectorAll('#scenSw button'), function (b) { b.addEventListener('click', function () { switchScen(b.dataset.v); }); });
+  document.getElementById('next').addEventListener('click', nextTurn);
+  document.getElementById('reset').addEventListener('click', function () { switchScen(st.key); });
+  window.addEventListener('resize', function () { requestAnimationFrame(function () { renderAll(); }); });
+
+  var hash = (location.hash || '').replace('#', '');
+  var initSurf = /^(web|app|vsc|cursor)$/.test(hash) ? hash : 'web';
+  st.surf = initSurf; setPressed('surfSw', initSurf);
+  load('u1'); setPressed('scenSw', 'u1'); mount(); st.focusMap = true;
+  renderAll({ bottom: true });
+  requestAnimationFrame(function () { renderAll({ bottom: true }); reveal(); });
+  setTimeout(function () { playMark(logoMark); }, 250);
+})();
+</script>
+
+</body>
+</html>

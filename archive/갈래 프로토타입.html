@@ -1,0 +1,934 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>갈래 프로토타입</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='20 26 160 160'%3E%3Cg stroke='%23141414' stroke-width='16' stroke-linecap='round'%3E%3Cpath d='M36 122H166M100 122L132 80H154'/%3E%3C/g%3E%3Ccircle cx='100' cy='122' r='13' fill='%23fff' stroke='%23141414' stroke-width='10'/%3E%3Ccircle cx='154' cy='122' r='16' fill='%23C8401A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Follows draft D: floating map card over paper, thin grey rail, one accent that means "decided" (ring) or "now" (fill). */
+:root {
+  --railw: 56px; --rx: 28px;
+  --bg: #FAF9F6; --surface: #FFFFFF; --fg: #141414; --fg2: #3F3F46; --muted: #6E6B66; --faint: #8F8B84;
+  --line: #E6E3DD; --bubble: #EFEDE8; --accent: #C8401A; --halo: #F6DDD4; --see: #EDEBE6;
+  --stem: #D6D2CB; --trunk: #A9A59E; --ring: #BDB9B2; --rail: #D9D5CE; --viewport: rgba(20,20,20,0.05); --flash: #FBEDE7;
+  --tip: #141414; --tip-fg: #F4F2EE; --tip-sub: #C9C5BE; --shadow: 0 12px 32px rgba(20,20,20,0.08);
+  --display: 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
+  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #34322E;
+  --stem: #45433E; --trunk: #6F6B64; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750; --shadow: 0 12px 32px rgba(0,0,0,0.4); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
+  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #34322E;
+  --stem: #45433E; --trunk: #6F6B64; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750; --shadow: 0 12px 32px rgba(0,0,0,0.4); color-scheme: dark }
+
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; }
+button { font-family: inherit; color: inherit; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.logo svg { display: block; overflow: visible; }
+.mark line { stroke: var(--fg); }
+.mark .m-main { fill: var(--surface); stroke: var(--fg); }
+.mark .m-spur { fill: var(--surface); stroke: var(--ring); }
+.mark .m-now { fill: var(--accent); stroke: none; }
+.brand b { font-family: var(--display); font-size: 19px; line-height: 1; }
+.brand span { font-size: 12.5px; color: var(--faint); }
+.controls { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); cursor: pointer; }
+.btn:hover { border-color: var(--ring); color: var(--fg); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+.btn[disabled] { opacity: 0.35; cursor: default; }
+.btn.ask { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.switch button { height: 30px; padding: 0 12px; border: 0; background: var(--surface); font-size: 12.5px; color: var(--faint); cursor: pointer; }
+.switch button + button { border-left: 1px solid var(--line); }
+.switch button[aria-pressed="true"] { color: var(--fg); font-weight: 600; background: var(--bg); }
+
+/* map card */
+.drawer { min-width: 0; margin: 16px 16px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.drawer[hidden] { display: none; }
+.map-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; padding: 18px 24px 0; }
+.map-title { font-family: var(--display); font-size: 18px; font-weight: 700; }
+.map-status { font-size: 12.5px; color: var(--faint); }
+.map-head .sp { flex: 1; }
+.linkbtn { border: 0; background: transparent; padding: 0; font-size: 13px; color: var(--faint); cursor: pointer; }
+.linkbtn:hover { color: var(--fg); }
+.qbtn { border: 0; background: transparent; padding: 0; font-size: 14px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.map-scroll { overflow-x: auto; }
+.map-scroll.ovf { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+.map { position: relative; min-width: 640px; }
+
+.mline { position: absolute; height: 4px; background: var(--fg); transform: translateY(-2px); }
+.mline.wait { height: 0; border-top: 3px dotted var(--fg); background: none; transform: translateY(-1.5px); }
+.stem { position: absolute; width: 2px; background: var(--stem); transform: translateX(-1px); }
+.map.reveal path.trunk { stroke-dasharray: 1; animation: drawline .8s cubic-bezier(.3,.7,.2,1) .12s both; }
+.map.reveal path.spur { stroke-dasharray: 1; animation: drawline .5s ease-out .7s both; }
+.map.reveal path:not(.trunk):not(.spur) { animation: fadein .4s ease .8s both; }
+.map.reveal .st, .map.reveal .cap { animation: popin .42s cubic-bezier(.3,1.5,.5,1) both; }
+.map.reveal .lbl { animation: rise-l .4s ease-out both; }
+.map.reveal .cnt, .map.reveal .seg { animation: fadein .4s ease both; }
+@keyframes drawline { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes popin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.2); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes rise-l { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.map svg.lines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cnt { position: absolute; font-size: 11px; color: var(--faint); transform: translateY(-50%); pointer-events: none; }
+
+.st { position: absolute; padding: 0; border-radius: 50%; box-sizing: border-box; cursor: pointer; background: var(--surface); transform: translate(-50%, -50%); transition: box-shadow .25s, transform .2s; }
+.st:hover { transform: translate(-50%, -50%) scale(1.12); }
+.st.main { width: 16px; height: 16px; border: 3px solid var(--fg); }
+.st.dec { width: 20px; height: 20px; border: 4px solid var(--accent); }
+.st.cur { width: 20px; height: 20px; border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
+.st.br { width: 12px; height: 12px; border: 2px solid var(--muted); }
+.st.closed { width: 12px; height: 12px; border: 2px solid var(--ring); }
+.st.closed.l2 { width: 10px; height: 10px; border-color: var(--stem); }
+.st.br.cur, .st.l2.cur { width: 14px; height: 14px; border: 0; box-shadow: 0 0 0 5px var(--halo); }
+.st.tick { width: 8px; height: 8px; border: 2px solid var(--fg); }
+.st.tick.tdec { border-color: var(--accent); }
+.st.tick.tcur { border: 0; background: var(--accent); box-shadow: 0 0 0 4px var(--halo); }
+.st.viewing, .cap.viewing { box-shadow: 0 0 0 6px var(--see); }
+.st.cur.viewing, .cap.cur.viewing { box-shadow: 0 0 0 6px var(--halo); }
+.st.ref-hl, .cap.ref-hl { box-shadow: 0 0 0 6px var(--halo); }
+
+.cap { position: absolute; transform: translate(-50%, -50%); box-sizing: border-box; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: box-shadow .25s; }
+.cap.main { border: 3px solid var(--fg); }
+.cap.dec { border: 4px solid var(--accent); }
+.cap.cur { border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
+.cell { width: 6px; height: 6px; padding: 0; border-radius: 50%; box-sizing: border-box; border: 0; background: var(--fg); cursor: pointer; }
+.cap.cur .cell { background: var(--surface); }
+.cell.open { background: transparent; border: 1.5px solid var(--accent); }
+.cap.cur .cell.open { border-color: var(--surface); }
+.cell:hover { transform: scale(1.35); }
+
+.lbl { position: absolute; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.lbl .t { font-size: 14px; line-height: 19px; color: var(--fg2); text-wrap: balance; }
+.lbl .t.now { font-weight: 600; color: var(--fg); }
+.lbl .f { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.sq { width: 7px; height: 7px; background: var(--fg); display: inline-block; flex: none; }
+
+.seg { position: absolute; top: 4px; display: flex; align-items: baseline; gap: 6px; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; font-size: 11.5px; color: var(--faint); cursor: pointer; white-space: nowrap; }
+.seg b { font-size: 12.5px; font-weight: 600; color: var(--fg2); }
+.seg.shut b { font-weight: 500; color: var(--faint); }
+.seg:hover b { color: var(--accent); }
+
+/* chat + rail */
+.body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.chat { position: relative; overflow-y: auto; padding: 24px calc(var(--railw) + 24px) 40px 16px; }
+.thread { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.turn { display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; margin: 0 -10px; border-radius: 12px; transition: background .6s; }
+.turn.flash { background: var(--flash); }
+.turn.enter { animation: rise .35s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.u { align-self: flex-end; display: flex; align-items: center; gap: 8px; max-width: 85%; }
+.u .tag { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.u p { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--bubble); line-height: 1.55; }
+.a { margin: 0; line-height: 1.7; color: var(--fg); max-width: 62ch; }
+.a .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.a .file { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; }
+a.file { text-decoration: none; }
+a.file:hover { color: var(--accent); border-color: var(--accent); }
+.part { border-radius: 6px; transition: background .6s; }
+.part.flash { background: var(--flash); }
+.seam { display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.04em; color: var(--faint); }
+.seam::before, .seam::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+.rail { position: absolute; top: 0; bottom: 0; right: 8px; width: var(--railw); }
+.rail .rline { position: absolute; left: calc(var(--rx) - 1px); width: 2px; background: var(--rail); }
+.rail .vp { position: absolute; left: calc(var(--rx) - 17px); width: 34px; border-radius: 6px; background: var(--viewport); pointer-events: none; }
+.rail-toggle { position: absolute; left: calc(var(--rx) - 21px); top: 6px; width: 42px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.rail-toggle:hover { background: var(--viewport); }
+.rail-toggle svg { display: block; overflow: visible; }
+.rail-toggle .cv { font-size: 9px; line-height: 1; color: var(--accent); }
+.rail .mark .m-main, .rail .mark .m-spur { fill: var(--bg); }
+.rail .st.main { width: 10px; height: 10px; border: 0; background: var(--fg); }
+.rail .st.dec { width: 10px; height: 10px; border: 2px solid var(--accent); background: var(--bg); }
+.rail .st.cur { width: 14px; height: 14px; box-shadow: 0 0 0 5px var(--halo); }
+.rail .st.br, .rail .st.closed { width: 9px; height: 9px; border-width: 2px; background: var(--bg); }
+.rail .st.viewing, .rail .cap.viewing { box-shadow: 0 0 0 4px var(--see); }
+.rail .st.cur.viewing, .rail .cap.cur.viewing { box-shadow: 0 0 0 5px var(--halo); }
+.rail .cap { flex-direction: column; width: 10px; height: auto; padding: 3px 0; gap: 3px; border-radius: 5px; }
+.rail .cap.main { border: 0; background: var(--fg); }
+.rail .cap.main .cell { background: var(--bg); }
+.rail .cap.dec { border-width: 2px; background: var(--bg); }
+.rail .cell { width: 4px; height: 4px; }
+.rail .fsq { position: absolute; width: 6px; height: 6px; background: var(--fg); transform: translateY(-50%); pointer-events: none; }
+.rail-seam { position: absolute; left: calc(var(--rx) - 10px); width: 20px; height: 1px; background: var(--line); }
+
+.tip { position: fixed; z-index: 10; max-width: 260px; padding: 12px 14px; border-radius: 10px; background: var(--tip); color: var(--tip-fg); font-size: 13px; line-height: 1.5; pointer-events: none; display: flex; flex-direction: column; gap: 4px; }
+.tip b { font-size: 14px; font-weight: 600; }
+.tip .s { color: var(--tip-sub); }
+.tip .fl { display: flex; align-items: center; gap: 6px; color: var(--tip-sub); }
+.tip .fl i { width: 7px; height: 7px; background: var(--tip-fg); flex: none; }
+.pop { position: fixed; z-index: 11; width: min(360px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.pop pre { margin: 0; white-space: pre-wrap; font-family: var(--body); font-size: 13px; line-height: 1.6; padding: 10px 12px; border-radius: 8px; background: var(--bubble); }
+.pop .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+
+.tip[hidden], .pop[hidden] { display: none; }
+@media (max-width: 560px) { :root { --railw: 44px; --rx: 20px; } .brand span { display: none; } .drawer { margin: 12px 12px 0; } .map-head { padding: 14px 16px 0; } }
+@media (prefers-reduced-motion: reduce) { .turn.enter { animation: none; } .st, .cap { transition: none; } }
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand"><button class="logo" id="logo" type="button" aria-label="갈래 심볼 다시 재생"><b>갈래</b></button><span id="sub"></span></div>
+    <div class="switch" role="group" aria-label="예시 대화 고르기">
+      <button type="button" data-ex="session" aria-pressed="true">이번 기획 대화</button>
+      <button type="button" data-ex="nba" aria-pressed="false">NBA 프로젝트</button>
+    </div>
+    <div class="controls">
+      <button class="btn ask" id="ask" type="button" hidden>빠진 요청 다시 묻기</button>
+      <button class="btn" id="reset" type="button">처음 상태로</button>
+      <button class="btn primary" id="next" type="button">다음 턴 ▶</button>
+    </div>
+  </header>
+
+  <section class="drawer" id="drawer" aria-label="대화 노선도">
+    <div class="map-head">
+      <span class="map-title" id="mapTitle"></span>
+      <span class="map-status" id="status"></span>
+      <span class="sp"></span>
+      <button class="linkbtn" id="segAll" type="button" hidden></button>
+      <button class="qbtn" id="qbtn" type="button" hidden></button>
+      <button class="btn" id="toggle" type="button" aria-label="지도 접기">접기</button>
+    </div>
+    <div class="map-scroll" id="mapScroll"><div class="map" id="map"></div></div>
+  </section>
+
+  <div class="body">
+    <div class="chat" id="chat"><div class="thread" id="thread"></div></div>
+    <nav class="rail" id="rail" aria-label="대화 레일"></nav>
+  </div>
+</div>
+<div class="tip" id="tip" hidden></div>
+<div class="pop" id="pop" hidden role="dialog" aria-label="모아둔 수정사항"></div>
+
+<script>
+(function () {
+  var CANVAS = 'https://claude.ai/artifact/8vRzyobaGuymsnzeCsksQJ';
+  var PROTO = 'https://claude.ai/artifact/DiDL6qDSzjh2X67f66fvdc';
+  var SYMBOL = 'https://claude.ai/artifact/W2rmoRqmq1qTQR95Z7LaLp';
+  var HANDOFF = 'https://claude.ai/code/artifact/303753f7-13e0-4143-959f-b9705d2e5d9b';
+
+  /* ---------- example 1: this planning conversation (38 messages, 6 segments) ---------- */
+  var SESSION = [
+    { id: 's1', seg: '기획', depth: 0, title: '실현 가능한가',
+      user: 'Category C에 걸렸어. LLM 질문 정리 에이전트를 생각 중인데, 질문을 노드화해서 도식화하고 확장 프로그램으로 붙이면 어떨까? 구현 가능할지, 실현 가능성을 나랑 얘기해줘.',
+      ai: '가능해요. 확장 프로그램이 LLM 화면의 대화를 읽고, 질문마다 본류·곁길·결정으로 나눠 노드로 그리면 돼요. 어려운 건 분류 정확도와 사이트마다 다른 화면 구조라서, 범위를 Claude·ChatGPT 두 곳으로 좁히는 걸 권해요.' },
+    { id: 's2', depth: 0, title: '연계 문제의식',
+      user: '내가 처음 생각한 방향은 LLM 화면 바로 옆에 토글로 붙는 방식이야. 연계된 문제의식이 또 어떤 게 있을까? 레딧 같은 데서 찾아줄래?',
+      ai: '대화가 길어지면 앞 내용을 못 찾는다, 곁길 질문이 본론을 밀어낸다, 같은 걸 새 창에서 또 묻는다는 불만이 반복돼요. 분기 기능을 원하는 글도 많아서 문제 정의의 근거로 쓸 수 있어요.' },
+    { id: 's3', depth: 0, title: '채팅창 없는 화면', dec: '채팅창을 새로 만들지 않음', files: [{ n: '질문 정리 에이전트 화면 (캔버스)', u: CANVAS }],
+      user: '웹이나 앱에 채팅창이 또 있으면 그냥 LLM의 다른 발현처럼 보일 것 같아. 어떤 식으로 구현될 것 같아? 화면을 한 번 시각화해볼래?',
+      ai: '입력창 없이 LLM 화면 옆에 흐름만 보여주는 패널로 그렸어요. 갈래는 대답하지 않고, 이미 나눈 대화를 정리만 해요.' },
+    { id: 's4', depth: 0, title: '과거 대화 · 산출물', files: [{ n: '예시 · NBA 프로젝트 (보드 3개)', u: CANVAS }],
+      parts: [
+        { t: '과거 대화 불러와 재정렬', type: 'task' },
+        { t: '산출물 제목·폴더 보이기', type: 'task' },
+        { t: 'NBA 프로젝트로 예시 구현', type: 'task' }
+      ],
+      user: '과거 대화를 끌어와서 다시 정렬해보는 기능도 있으면 좋겠어. 산출물들도 어떤 제목으로 어떤 폴더에 있는지 보이고. 디자인은 깔끔하고 간결해야 해. 예시로 SNU KDT 기계학습과 딥러닝 프로젝트에서 나눴던 대화로 한번 구현해볼까?',
+      ai: 'NBA 에이징커브 대화 3개를 불러와 한 노선으로 잇고, 역마다 나온 파일을 제목·폴더와 함께 붙였어요. 산출물 탭에서는 어느 대화에서 무엇이 나왔는지 거꾸로 찾을 수 있어요.' },
+    { id: 's5', depth: 1, title: '실시간으로 읽나?',
+      user: 'LLM 화면을 실시간으로 읽을 수 있나? 그럼 배포하면 사용자가 Claude 로그인을 따로 해야 해?',
+      ai: '읽을 수 있어요. 콘텐츠 스크립트가 화면을 읽고, 새 메시지는 MutationObserver로 감지해요. 사용자가 이미 로그인한 탭을 그대로 읽으니 따로 로그인할 필요는 없어요.' },
+    { id: 's6', depth: 0, title: '구조도 · 웹이냐 앱이냐', ret: true, files: [{ n: '구조도', u: CANVAS }],
+      parts: [
+        { t: '구조도 그리기', type: 'task' },
+        { t: '웹이 나을까 앱이 나을까', type: 'q' },
+        { t: '과제 안내 확인', type: 'q' }
+      ],
+      user: '응 그림으로 그려줘. 이건 웹으로 만드는 게 좋을까 아님 앱으로? 과제 안내에서는 어떻게 나와 있니?',
+      ai: '확장 프로그램 · 백엔드 · 흐름 저장소로 구조도를 그렸어요. 과제는 “업무용 AI Agent 앱”이라 형식은 자유로워 보이지만, 확장 프로그램이 앱으로 인정되는지는 코칭 때 확인하는 게 안전해요.' },
+    { id: 's7', depth: 1, title: '앱 안에서 쓰려면',
+      user: '앱 안에서 사용하고 싶으면 어떻게 해야 해?',
+      ai: 'Claude 데스크톱 앱에는 MCP 서버로 붙이면 돼요. Claude가 대화를 직접 분류해 넘겨주니 API 비용이 따로 들지 않고, 흐름도는 로컬 창에 띄워요.' },
+    { id: 's8', depth: 0, title: '이름과 문제 정의', ret: true, dec: '이름 ‘갈래’ · 웹 입구 + 앱 입구', files: [{ n: '구조도 v2', u: CANVAS }, '갈래_프로젝트_개요.md'],
+      parts: [
+        { t: '구조도 갱신', type: 'task' },
+        { t: '제목·문제 정의 구조화', type: 'task' }
+      ],
+      user: '응 구조도를 갱신하고, 이 프로젝트의 제목과 문제 정의 역시 구조화해줘.',
+      ai: '확장 프로그램(웹 입구)과 MCP(앱 입구)가 같은 백엔드를 쓰는 구조로 고쳤어요. 이름은 ‘갈래’, 부제는 “흩어진 LLM 대화를 흐름으로 정리하는 AI 에이전트”로 정리했어요.' },
+
+    { id: 's9', seg: '조사', depth: 0, title: '질문·작업 유형', dec: '사용 양식 U1–U4 · 작업 T1–T5',
+      user: '문제 정의 앞단에 사람들이 LLM에게 던지는 질문과 task 유형도 연결하면 좋을 것 같은데. 유형별 사용 양식도 중요할 것 같고.',
+      ai: '사용 양식을 U1 프로젝트 분리형, U2 한 창 몰아쓰기형, U3 매번 새 창형, U4 분기 활용형으로, 작업을 T1–T5로 나눴어요. 유형마다 겪는 불편이 달라서 갈래가 해줄 일도 달라져요.' },
+    { id: 's10', depth: 0, title: '근거 연구 · 설문', files: ['갈래_사용양식_설문.md'],
+      parts: [
+        { t: '근거 연구 찾기', type: 'q' },
+        { t: '사용 양식 설문 만들기', type: 'task' }
+      ],
+      user: '응 이 작업 유형을 규명한 연구/논문들이 뭔지 알려주고, 사용 양식을 조사할 수 있는 설문을 구성해줘봐.',
+      ai: 'NBER 연구(묻기 49% · 하기 40% · 표현 11%), Anthropic Economic Index, Clio, WildChat 등을 근거로 묶었어요. 설문은 16문항으로 만들고 분석 계획까지 붙였어요.' },
+    { id: 's11', depth: 0, title: '최종 구조도 · 보완점', files: [{ n: '구조도 v3', u: CANVAS }],
+      parts: [
+        { t: '최종 구조도 보여주기', type: 'task' },
+        { t: '보완·고도화 여지', type: 'q' }
+      ],
+      user: '최종 구조도 한 번 띄워줄래? 그리고 좀 더 보완하거나 고도화할 여지가 있을까?',
+      ai: '최종 구조도를 띄우고, 보완점으로 답변 점검(빠진 요청 찾기), 수정 요청 모아두기, 프로젝트 단위 지도를 제안했어요.' },
+
+    { id: 's12', seg: '디자인', depth: 0, title: 'AI slop 같다',
+      user: '디자인적으로도… 너무 AI slop 같아. 기본 구상도를 뜯어봐야 할 것 같은데.',
+      ai: '카드·그라데이션·아이콘을 걷어내고, 같은 대화를 네 가지로 다시 표현해 보자고 했어요. 노선도, 목차형, 여백 레일, 레일 + 노선도예요.' },
+    { id: 's13', depth: 0, title: '네 방향 모두 구현', files: [{ n: '재설계 A–D', u: CANVAS }],
+      user: '4가지 후보로 전부 구현해줘봐.',
+      ai: '같은 NBA 대화를 A 노선도 · B 목차형 · C 여백 레일 · D 레일 + 노선도로 그렸어요. 색은 먹색과 빨강 하나만 썼어요.' },
+    { id: 's14', depth: 0, title: 'D안 + 산출물 역', dec: 'D안 · 레일 + 가로 노선도',
+      user: '나도 D가 적합하다고 생각해. 근데 산출물 나오는 것도 노선도에 드러나면 좋겠는데.',
+      ai: 'D안으로 정하고, 역 아래에 ■ 표시와 파일 수를 붙였어요. 같은 파일이 다시 나오면 v2, v3로 버전을 달아요.' },
+    { id: 's15', depth: 0, title: '덜어내기', files: [{ n: '재설계 D v2', u: CANVAS }],
+      user: '조금 복잡해 보이기도 한다…',
+      ai: '선 굵기를 두 단계로 줄이고, 역 라벨은 제목 한 줄만 남겼어요. 나머지 설명은 마우스를 올릴 때만 보여요.' },
+    { id: 's16', depth: 0, title: '파생 질문과 복귀', files: [{ n: 'D 확장 — 분화와 복귀', u: CANVAS }],
+      user: '하나의 질문에서 파생되는 1차, 2차 질문들은 어떻게 표현할까? 흐름이 기존 것으로 돌아왔을 때 노드가 기존 흐름에 잘 추가될 수 있을까?',
+      ai: '곁길은 한 층씩 내려가며 그리고, 본론으로 돌아오면 끝난 곁길은 옅게 접어요. 돌아온 질문은 갈라진 역 다음에 이어 붙어서 Git의 머지처럼 보여요.' },
+    { id: 's17', depth: 1, title: '볼륨이 커지면?', files: [{ n: 'D 확장 — 눈금 접기', u: CANVAS }],
+      user: '그럼 노선도에는 어떻게 표시돼? 볼륨이 커지면 안 될 텐데.',
+      ai: '층은 2단계까지만 두고, 지난 구간은 눈금으로 접어요. 질문이 30개를 넘어도 지도 폭이 크게 늘지 않아요. 지금 이 화면 위쪽이 그 모습이에요.' },
+    { id: 's18', depth: 2, title: '레일에서는?', files: [{ n: 'C·D 레일 — 비켜 서기', u: CANVAS }],
+      user: '아 내 말은, 파생 흐름이 오른쪽 옆 구역의 레일에는 어떻게 반영될까 하는 거였어.',
+      ai: '레일은 폭 40px 고정이라, 곁길은 오른쪽으로 한 칸씩 비켜 서요. 2차까지만 비켜 서고, 더 깊으면 2차 자리에 겹쳐 숫자로 보여요.' },
+    { id: 's19', depth: 1, title: '빨강과 검정 차이',
+      user: '빨간색 노드와 검정 노드의 차이는 뭐야?',
+      ai: '검정은 보통 질문, 빨간 테두리는 정한 것, 채운 빨강은 지금이에요. 그런데 레일에서는 채운 빨강이 두 뜻으로 쓰이고 있어서 헷갈릴 수 있어요.' },
+    { id: 's20', depth: 0, title: '빨강 의미 통일', ret: true, dec: '정함 = 빨간 테두리 · 지금 = 채운 빨강',
+      user: '응 통일해줘.',
+      ai: '모든 화면에서 정한 것은 빨간 테두리, 지금은 채운 빨강으로 맞췄어요. 채운 빨강은 화면 전체에 하나만 있어요.' },
+    { id: 's21', depth: 0, title: '프로젝트별 노선 색', dec: '노선 색 = 프로젝트', files: [{ n: '프로젝트 전체 지도', u: CANVAS }],
+      user: '노드 색은 프로젝트별로 구분되게 만들까? 내 다른 대화(프로젝트 칸에 많아) 참고해서 또 다른 예시 화면을 구현해줘.',
+      ai: '수업 폴더의 네 프로젝트를 노선 색으로 나눈 전체 지도를 만들었어요. 빨강은 계속 ‘지금’과 ‘정함’에만 쓰고, 노선 색은 프로젝트만 뜻해요.' },
+    { id: 's22', depth: 0, title: '유형별 화면', ref: 's9', files: [{ n: '사용 유형별 U1–U4', u: CANVAS }],
+      user: '우리 얘기했던 U1 프로젝트 분리형 / U2 한 창 몰아쓰기형 / U3 매번 새 창형 / U4 분기 활용형 있잖아. 유형별로 양상이 좀 달라질 것 같은데, 구분해서 한번 구현해줄 수 있나?',
+      ai: 'U1은 대화들을 한 노선으로 잇고, U2는 한 창을 주제별 노선으로 쪼개고, U3는 흩어진 새 창을 묶어 반복 질문을 알려주고, U4는 수정 가지를 우회선으로 드러내요.' },
+
+    { id: 's23', seg: '프로토타입', depth: 0, title: '역 누르면 이동',
+      user: '각 노드를 누르면 해당 대화 섹션으로 넘어갈 수 있었으면 좋겠어. 구현 가능할까?',
+      ai: '가능해요. 역마다 메시지 위치를 기억해 두었다가, 누르면 그 자리로 스크롤하고 잠깐 강조해요.' },
+    { id: 's24', depth: 0, title: '보는 중 · 직접 만져보기', files: [{ n: 'galrae-prototype/index.html', u: PROTO }],
+      parts: [
+        { t: '보는 위치 따라가기', type: 'task' },
+        { t: '직접 만져볼 방법', type: 'q' }
+      ],
+      user: '좋아, 그럼 지금 보는 위치가 따라 움직이게 구현해주고, 내가 실제로 프로토타입을 만져볼 수 있으면 좋겠는데. VS Code로 로컬에서 보거나… 어떤 방법이 있을까?',
+      ai: '스크롤하면 ‘보는 중’ 표시가 역을 따라가고, 레일에는 지금 보이는 구간이 막대로 떠요. 파일 하나짜리라 더블클릭하거나 VS Code Live Server로 열면 돼요.' },
+    { id: 's25', depth: 0, title: '여러 요청이 한 번에', dec: '요청 분해 · 캡슐 역',
+      user: '만약에 한 번 보내는 질문이 이렇게 단적이지 않고, 여러 질문이 중첩되어 있거나 task를 여러 개 요구하면 어떡하지?',
+      ai: '메시지 하나를 요청 단위로 쪼개고 요청마다 따로 분류해요. 그런 메시지는 점 여러 개가 든 캡슐 역으로 그리고, 답을 못 받은 요청은 빈 칸으로 남겨요.' },
+    { id: 's26', depth: 0, title: '프로토타입·구조도에 반영', files: [{ n: 'index.html v2', u: PROTO }, { n: '에이전트 내부 — 파이프라인', u: CANVAS }],
+      user: '프로토타입이랑 구조도에도 반영해서 시각화해줘.',
+      ai: '프로토타입에 캡슐 역, 빠진 요청 다시 묻기, 수정 모아두기를 넣었어요. 구조도에는 요청 분해 → 분류 → 붙일 자리 → 답변 점검 순서를 추가했어요.' },
+    { id: 's27', depth: 0, title: '메인 화면 최신화', files: [{ n: '① 메인 v2', u: CANVAS }],
+      user: '지금 LLM 질문 정리 에이전트 화면 구조도가 변경사항이 반영이 안 됐는데, 최신 버전으로 업데이트해줘.',
+      ai: '메인 화면에 캡슐 역, 레일 비켜 서기, 빨강 통일을 반영했어요.' },
+    { id: 's28', depth: 0, title: '전 페이지 통일', files: [{ n: '캔버스 전체 v3', u: CANVAS }],
+      user: '응 전 페이지를 지금 버전에 맞춰줘.',
+      ai: '다섯 페이지를 같은 표기 규칙으로 맞췄어요. 정함은 테두리, 지금은 채움, 곁길은 회색, 산출물은 ■예요.' },
+
+    { id: 's29', seg: '전달', depth: 0, title: '어떻게 전달할까',
+      user: '응 이제 조원한테 전달하려고 해. 내가 구상한 모든 걸 어떤 방식으로 전달하는 게 효과적일까?',
+      ai: '링크 모음보다 “이미 정한 것 / 아직 안 정한 것”을 가른 문서 하나가 좋아요. 보는 순서와 링크를 붙이고, 캔버스는 참고 자료로 두는 식이에요.' },
+    { id: 's30', depth: 0, title: '전달 문서 · Git 구조', files: [{ n: '갈래 전달 문서', u: HANDOFF }],
+      parts: [
+        { t: '전달 문서 만들기', type: 'task' },
+        { t: 'Git 저장소 구조 넣기', type: 'task' }
+      ],
+      user: '웅 전달 문서를 만들어줘. 그리고 나중에 조원과 git으로 구현할 듯한데, 그 구조도 언급해줬으면 좋겠다.',
+      ai: '한 줄 소개, 이미 정한 것, 보는 순서, 역할 분담안, Git 저장소 구조(extension · mcp · backend)까지 담은 문서를 만들었어요.' },
+    { id: 's31', depth: 1, title: '배포될까?',
+      user: '이건 내 질문인데, 이게 배포가 돼서 다른 사람들도 사용할 수 있게 될까?',
+      ai: '돼요. 개발자 모드 → 웹스토어 비공개 → 공개 순서로 넓히면 돼요. 공개하려면 API 키 처리, 개인정보 고지, 화면 구조 변경 대응이 필요해요.' },
+    { id: 's32', depth: 2, title: 'zip으로 주면?',
+      user: 'zip 파일로 배포하면, 사람들이 다운받아서 내가 쓰는 화면처럼 쓸 수 있나?',
+      ai: '돼요. 압축을 풀고 크롬 확장 프로그램 페이지에서 개발자 모드를 켠 뒤 “압축해제된 확장 프로그램 로드”로 폴더를 고르면 똑같이 떠요.' },
+    { id: 's33', depth: 1, title: '확장 프로그램도 앱?',
+      user: '과제에서 앱을 만들라 했는데 확장 프로그램을 만들어 가도 괜찮나??',
+      ai: '안내에 형식 제한은 없지만, 확실히 하려고 Slack 문의 문구를 써 드렸어요. 안 된다고 하면 대화 내보내기 파일을 올리는 웹앱으로 바꿀 수 있어요.' },
+    { id: 's34', depth: 0, title: '협업 방식', ret: true,
+      user: '그럼 조원이랑 어떻게 협업해야 할까? 내가 대부분의 흐름을 주도하고 싶고, 조원에게는 깃 레포 관리를 맡기고 코드 구현을 같이 하고 싶은데.',
+      ai: '내가 이슈를 쓰고 조원이 브랜치와 PR을 관리하는 방식을 제안했어요. 스키마와 표기 규칙은 내가 정하고, 구현은 이슈 단위로 나눠요.' },
+
+    { id: 's35', seg: '브랜딩', depth: 0, title: '브랜딩 요소',
+      parts: [
+        { t: '협업 방식은 전달 문서에 넣지 않기', type: 'rev', target: 's30' },
+        { t: '어떤 디자인 요소가 필요할까', type: 'q' }
+      ],
+      user: '일단 전달 문서엔 반영하지 말아봐. 난 그리고 디자인을 좀 더 고도화할 생각이 있어. 이 구조를 유지하되 진짜 앱 서비스처럼 브랜딩하려면 어떤 디자인 요소가 추가되면 좋겠어?',
+      ai: '협업 방식은 문서에 넣지 않고 모아 두었어요. 브랜딩 요소로는 심볼, 글꼴 짝, 움직임 원칙, 빈 화면 문구, 아이콘 크기 사다리를 제안했어요.' },
+    { id: 's36', depth: 0, title: '고도화 첨부 · 심볼', files: [{ n: '갈래 전달 문서 v2', u: HANDOFF }],
+      parts: [
+        { t: '고도화 내용을 전달 문서에 첨부', type: 'task' },
+        { t: '심볼 컨셉 이야기', type: 'q' },
+        { t: '선이 떨어지는 애니메이션 도구', type: 'q' }
+      ],
+      user: '이 디자인 고도화 내용을 전달 문서에 첨부해줘. 그리고 심볼 얘기를 더 해보자. 삐뚤빼뚤한 선들이 떨어지고 안의 작은 원을 중심으로 정렬되는 심볼, Claude를 암시할 수 있게. 선이 떨어지는 느낌을 애니메이션으로 구현하려면 어떤 사이트가 좋을까?',
+      ai: '전달 문서에 ‘디자인 고도화 방향’ 절을 붙였어요. Claude 로고를 닮게 하면 제휴로 오해받을 수 있어서, 선이 모여드는 움직임으로만 암시하길 권했어요. 애니메이션은 코드로 바로 그려서 보여드릴 수 있어요.' },
+    { id: 's37', depth: 0, title: '심볼 시안 3종', files: [{ n: 'galrae-symbol/index.html', u: SYMBOL }],
+      user: '응 셋 다 시안으로 만들어줘.',
+      ai: 'A 노선, B 분기점, C ‘ㄹ’ + 지선을 떨어져 모이는 애니메이션으로 만들었어요. 16px에서는 B와 C가 또렷해서, 아이콘은 B, 움직임은 A를 권해요.' },
+    { id: 's38', depth: 0, title: '이 대화를 예시로', files: [{ n: 'index.html v3 (이 화면)', u: PROTO }],
+      user: '지금 이 대화 있잖아. 이걸 예시 프로토타입으로 싹 다 넣어서 구현해줄 수 있어?',
+      ai: '지금 보고 있는 이 화면이에요. 이번 대화의 메시지 38개를 여섯 구간으로 나눠 넣었고, 지난 구간은 눈금으로 접혀 있어요. 구간 이름을 누르면 펼쳐져요.' }
+  ];
+
+  /* ---------- example 2: NBA aging-curve project ---------- */
+  var NBA = [
+    { id: 'n1', depth: 0, title: '무엇을 예측할까', dec: '기대기여 = P×BPM + (1−P)×(−2.0)',
+      user: 'NBA 선수의 에이징 커브로 뭘 예측하면 좋을까? 29세까지 기록이 있어.',
+      ai: '29세까지의 기록으로 30~33세 4년간의 총 기대기여와, 나이별로 계속 뛸 확률을 함께 예측하는 걸 제안해요. 기대기여 = P(뛴다) × BPM + (1 − P) × (−2.0)로 두면 은퇴와 결장까지 한 숫자에 담을 수 있어요.' },
+    { id: 'n2', depth: 0, title: '대체선수 수준 근거', dec: '−2.0 유지',
+      user: '−2.0은 어디서 나온 숫자야? 근거가 있어?',
+      ai: '채점 셀 6,759개 중 3,946개(58.4%)가 이 상수로 채워져서 민감도를 재봤어요. 은퇴 직전 마지막 유효 시즌의 BPM 평균이 −1.99라, −2.0은 데이터가 지지하는 값이에요.' },
+    { id: 'n3', depth: 1, title: 'BPM이 뭐였지?',
+      user: '잠깐, BPM이 정확히 뭐였지?',
+      ai: 'Box Plus/Minus예요. 박스스코어 기록으로 추정한, 100번의 공격권당 리그 평균 선수 대비 기여도예요. 0이 평균이고 −2 근처가 대체 선수 수준이에요.' },
+    { id: 'n4', depth: 0, title: 'LASSO냐 Ridge냐', dec: 'Ridge 채택', files: ['선수명단_입력피처_한윤주.csv'],
+      parts: [
+        { t: 'LASSO냐 Ridge냐', type: 'q' },
+        { t: 'VIF 표 만들기', type: 'task', open: true,
+          follow: { user: '아까 VIF 표도 만들어 달라고 했는데 빠졌어.', ai: '빠뜨렸네요. VIF가 10을 넘는 열 68개를 높은 순으로 정리한 표예요. 가장 높은 열은 bpm_mean으로 VIF가 14,196이에요.', files: ['vif_table.csv'] } },
+        { t: '01 식 이름을 ‘4년 기대기여’로', type: 'rev', target: 'n1' }
+      ],
+      user: '다시 본론. LASSO냐 Ridge냐 정리해주고, VIF 표도 만들어줘. 아 그리고 1번 답의 기대기여 식은 이름을 ‘4년 기대기여’로 바꿔줘.',
+      ai: 'VIF가 10을 넘는 열이 80개 중 68개예요. 폴드마다 LASSO가 고른 피처 목록의 자카드 유사도는 0.14로 거의 겹치지 않고요. 성능은 Ridge 0.6635, LASSO 0.6630으로 같으니 안정적인 Ridge를 쓰는 게 좋아요.' },
+    { id: 'n5', depth: 0, title: '어떤 정제가 효과 있나', dec: 'winsor 1% + last3', files: ['exp_prep_2_7.csv'],
+      user: '전처리는 어떤 정제가 효과 있었어?',
+      ai: '아홉 갈래로 실험했어요. 포지션 내 표준화는 −0.0175로 오히려 해로웠고, winsor 1%는 +0.0097로 유의하게 좋아졌어요. 변수를 더하기보다 꼬리를 자르는 쪽이 맞았어요.' },
+    { id: 'n6', depth: 1, title: 'winsor가 뭐야?',
+      user: 'winsor가 정확히 뭐야?',
+      ai: '극단값을 버리지 않고 상하위 몇 %를 경계값으로 눌러 담는 방법이에요. winsor 1%면 하위 1%와 상위 1%를 각각 1번째, 99번째 백분위수 값으로 바꿔요.' },
+    { id: 'n7', depth: 2, title: '1%와 2% 차이는?',
+      user: '그럼 1%랑 2%는 뭐가 달라?',
+      ai: '2%가 더 많이 눌러요. 이 데이터에선 좋은 구간이 1~2% 사이라서 하나로 고정하지 않고 폴드 안에서 고르게 했어요.' },
+    { id: 'n8', depth: 0, title: '후보 15개 비교', ret: true, files: ['model_results.csv', 'fig_model_compare.png'],
+      user: '좋아, 모델 비교로 넘어가자. 후보 15개 돌려줘.',
+      ai: 'Ridge, LightGBM, MLP, GRU, LSTM, TCN, Transformer 등 15개를 같은 폴드로 비교했어요. 14개 비교 중 유의한 개선은 Ridge+GRU − GRU(+0.0092) 하나였어요.' },
+    { id: 'n9', depth: 1, title: 'Platt 보정이 뭐야?',
+      user: 'Platt 보정은 뭐야?',
+      ai: '분류기 점수를 로지스틱 함수 하나로 다시 맞춰서 실제 확률처럼 만드는 방법이에요. 생존 확률을 계약 리스크에 쓸 거라 필요해요.' },
+    { id: 'n10', depth: 0, title: '시드 잡음 확인', dec: '동률 허용폭 0.0175',
+      user: '시드를 바꾸면 순위가 흔들리던데, 모델 차이가 진짜야?',
+      ai: 'GRU 6시드의 흔들림 폭이 0.0175였어요. 이보다 작은 차이는 동률로 봐야 해요.' },
+    { id: 'n11', depth: 0, title: '−2.0 다시 보기', ref: 'n2',
+      user: '아까 −2.0 얘기 다시. 최종 모델에서도 그 값 괜찮아?',
+      ai: '예측은 이 상수에 의존하지 않아요. 곡선 헤드는 관측 BPM으로, 생존 헤드는 출전 여부로 학습하니까요. −2.0 그대로 두면 돼요.' },
+    { id: 'n12', depth: 0, title: '최종 모델 확정', dec: 'Ridge(나이별) + Platt', files: ['final_summary.json', '최종정리_한윤주.md'],
+      user: '최종 모델 확정하자.',
+      ai: 'Ridge(나이별) 9쌍에 Platt 보정을 붙인 구성으로 확정해요. 4년 총 기대기여 R² 0.6741, 32세 생존 AUC 0.7855예요. 정리 문서도 만들었어요.' }
+  ];
+
+  var EXAMPLES = {
+    session: { turns: SESSION, start: 36, sub: '갈래 기획 · 이번 대화 전체 (메시지 38개 · 구간 6개)', title: '갈래 기획 대화' },
+    nba: { turns: NBA, start: 7, sub: 'NBA 에이징커브 · 전처리와 모델링 (예시 대화)', title: '전처리와 모델링' }
+  };
+
+
+
+  /* ---------- symbol A: scattered strokes fall into one line, three stations and a spur ---------- */
+  var MARK = {
+    strokes: [[36,122,64,122],[62,122,90,122],[88,122,116,122],[114,122,142,122],[140,122,166,122],[100,122,116,100],[116,100,132,80],[132,80,154,80]],
+    nodes: [{ x: 48, y: 122, r: 9, k: 'main' }, { x: 100, y: 122, r: 9, k: 'main' }, { x: 154, y: 80, r: 7, k: 'spur' }, { x: 154, y: 122, r: 10, k: 'now' }]
+  };
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function makeMark(h, sw) {
+    var svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('viewBox', '26 62 150 76'); svg.setAttribute('height', h); svg.setAttribute('width', Math.round(h * 150 / 76));
+    svg.setAttribute('class', 'mark'); svg.setAttribute('aria-hidden', 'true');
+    var seed = 97; function r() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+    var m = { svg: svg, lines: [], dots: [], parts: [] };
+    MARK.strokes.forEach(function (st) {
+      var l = document.createElementNS(SVGNS, 'line'); l.setAttribute('stroke-width', sw); l.setAttribute('stroke-linecap', 'round'); svg.appendChild(l); m.lines.push(l);
+      var dx = st[2] - st[0], dy = st[3] - st[1];
+      m.parts.push({ s: { x: 34 + r() * 132, y: 20 + r() * 46, a: r() * Math.PI, l: 16 + r() * 30 }, e: { x: (st[0] + st[2]) / 2, y: (st[1] + st[3]) / 2, a: Math.atan2(dy, dx), l: Math.hypot(dx, dy) } });
+    });
+    MARK.nodes.forEach(function (n) {
+      var c = document.createElementNS(SVGNS, 'circle'); c.setAttribute('cx', n.x); c.setAttribute('cy', n.y); c.setAttribute('r', n.r); c.setAttribute('stroke-width', sw * 0.62); c.setAttribute('class', 'm-' + n.k); svg.appendChild(c); m.dots.push(c);
+    });
+    markFrame(m, 1, 1);
+    return m;
+  }
+  function mEase(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function mBounce(t) { var n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + 0.75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + 0.9375; return n * (t -= 2.625 / d) * t + 0.984375; }
+  function mBack(t) { var c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+  function mLerp(a, b, t) { return a + (b - a) * t; }
+  function markFrame(m, T, N) {
+    m.parts.forEach(function (p, i) {
+      var t = typeof T === 'number' ? T : T[i];
+      var d = p.e.a - p.s.a; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI;
+      var a = p.s.a + d * mEase(Math.min(1, t * 1.15)), len = mLerp(p.s.l, p.e.l, mEase(t));
+      var x = mLerp(p.s.x, p.e.x, mEase(t)), y = mLerp(p.s.y, p.e.y, mBounce(t));
+      var hx = Math.cos(a) * len / 2, hy = Math.sin(a) * len / 2, l = m.lines[i];
+      l.setAttribute('x1', (x - hx).toFixed(2)); l.setAttribute('y1', (y - hy).toFixed(2)); l.setAttribute('x2', (x + hx).toFixed(2)); l.setAttribute('y2', (y + hy).toFixed(2));
+      l.style.opacity = mLerp(0.35, 1, Math.min(1, t * 2));
+    });
+    m.dots.forEach(function (c, j) {
+      var k = Math.max(0, Math.min(1, N * m.dots.length - j * 0.6));
+      c.setAttribute('r', Math.max(0, MARK.nodes[j].r * (k <= 0 ? 0 : mBack(k))).toFixed(2)); c.style.opacity = k > 0 ? 1 : 0;
+    });
+  }
+  function playMark(m, speed) {
+    if (m.raf) cancelAnimationFrame(m.raf);
+    if (reduce) { markFrame(m, 1, 1); return; }
+    var f = speed || 1, dur = 1100 * f, stagger = 80 * f, nodeDur = 520 * f, total = stagger * (m.parts.length - 1) + dur, t0 = performance.now();
+    function frame(now) {
+      var e = now - t0;
+      markFrame(m, m.parts.map(function (_, i) { return Math.max(0, Math.min(1, (e - i * stagger) / dur)); }), Math.max(0, Math.min(1, (e - total + 120 * f) / nodeDur)));
+      if (e < total + nodeDur) m.raf = requestAnimationFrame(frame);
+    }
+    m.raf = requestAnimationFrame(frame);
+  }
+  var logoMark = makeMark(28, 10), railMark = makeMark(18, 13);
+  var logoBtn = document.getElementById('logo');
+  logoBtn.insertBefore(logoMark.svg, logoBtn.firstChild);
+  logoBtn.addEventListener('click', function () { playMark(logoMark); });
+
+  var EX, TURNS, START, byId, SEGS, expanded, multi;
+  var extras = [], shown = 0, viewing = null, drawerOpen = true, focusMap = true;
+
+  var chat = document.getElementById('chat'), thread = document.getElementById('thread');
+  var mapEl = document.getElementById('map'), railEl = document.getElementById('rail'), mapScroll = document.getElementById('mapScroll');
+  var tip = document.getElementById('tip'), drawer = document.getElementById('drawer'), pop = document.getElementById('pop');
+  var turnEls = {}, partEls = {}, mapDots = {}, railDots = {}, vpEl = null;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function fname(f) { return typeof f === 'string' ? f : f.n; }
+  function fileEl(f) {
+    var e = (typeof f !== 'string' && f.u) ? el('a', 'file') : el('span', 'file');
+    if (e.tagName === 'A') { e.href = f.u; e.target = '_blank'; e.rel = 'noopener'; }
+    e.appendChild(el('span', 'sq')); e.appendChild(document.createTextNode(fname(f))); return e;
+  }
+  function num(t) { var m = 0; for (var k = 0; k <= t.i; k++) if (TURNS[k].depth === 0) m++; return (m < 10 ? '0' : '') + m; }
+  function visible() { return TURNS.slice(0, shown); }
+  function allFiles(t) { var f = (t.files || []).slice(); (t.parts || []).forEach(function (q) { if (!q.open && q.follow && q.follow.files && extras.some(function (x) { return x.id === t.id; })) f = f.concat(q.follow.files); }); return f; }
+  function isOpen(s) { return !multi || !!expanded[s]; }
+  function prevMain(t) { for (var k = t.i - 1; k >= 0; k--) if (TURNS[k].depth === 0) return TURNS[k].id; return t.id; }
+
+  function load(key) {
+    EX = EXAMPLES[key]; TURNS = EX.turns; START = EX.start; byId = {}; SEGS = [];
+    TURNS.forEach(function (t, i) {
+      t.i = i; byId[t.id] = t;
+      if (t.seg || i === 0) SEGS.push(t.seg || '');
+      t.s = SEGS.length - 1; t.segStart = i > 0 && !!t.seg;
+      (t.parts || []).forEach(function (p) { if (p.open0 === undefined) p.open0 = !!p.open; });
+    });
+    multi = SEGS.length > 1;
+    document.getElementById('sub').textContent = EX.sub;
+    Array.prototype.forEach.call(document.querySelectorAll('.switch button'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.ex === key)); });
+    resetState();
+  }
+  function resetState() {
+    shown = START; extras = []; viewing = null; pop.hidden = true; tip.hidden = true;
+    TURNS.forEach(function (t) { (t.parts || []).forEach(function (p) { p.open = p.open0; }); });
+    expanded = {}; expanded[TURNS[shown - 1].s] = true; focusMap = true;
+    renderChat(); renderAll(); chat.scrollTop = chat.scrollHeight; updateViewing();
+  }
+
+  /* ---------- structure ---------- */
+  function structure() {
+    var vis = visible(), anchor = null, chains = [], cur = vis[vis.length - 1];
+    vis.forEach(function (t) {
+      if (t.depth === 0) { anchor = t; t.anchor = null; return; }
+      t.anchor = anchor.id;
+      var last = chains[chains.length - 1];
+      if (t.depth === 1 || !last || last.anchor !== anchor.id) chains.push({ anchor: anchor.id, nodes: [t] });
+      else last.nodes.push(t);
+    });
+    var active = cur.depth > 0 ? chains[chains.length - 1] : null;
+    chains.forEach(function (c) { c.closed = c !== active; });
+    return { vis: vis, chains: chains, cur: cur, active: active };
+  }
+  function kind(t, S) {
+    if (t === S.cur) return 'cur';
+    if (t.depth > 0) { var ch = S.chains.filter(function (c) { return c.nodes.indexOf(t) >= 0; })[0]; return ch && ch.closed ? 'closed' : 'br'; }
+    return t.dec ? 'dec' : 'main';
+  }
+
+  /* ---------- chat ---------- */
+  function seamNode(t) { return el('div', 'seam', SEGS[t.s]); }
+  function turnNode(t, animate) {
+    var w = el('div', 'turn' + (animate ? ' enter' : '')); w.dataset.id = t.id;
+    var u = el('div', 'u');
+    if (t.depth > 0) u.appendChild(el('span', 'tag', t.depth + '차 곁길'));
+    if (t.ref) u.appendChild(el('span', 'tag', '↩ ' + num(byId[t.ref])));
+    if (t.parts) u.appendChild(el('span', 'tag', '요청 ' + t.parts.length + '개'));
+    u.appendChild(el('p', null, t.user)); w.appendChild(u);
+    var a = el('div', 'a'); var para = el('p', 'part', t.ai); para.style.margin = '0'; a.appendChild(para);
+    if (t.parts) partEls[t.id + ':0'] = para;
+    if (t.files) { var fs = el('div', 'files'); t.files.forEach(function (f) { fs.appendChild(fileEl(f)); }); a.appendChild(fs); }
+    w.appendChild(a);
+    return w;
+  }
+  function followNode(x, animate) {
+    var t = byId[x.id], f = t.parts[x.part].follow;
+    var w = el('div', 'turn' + (animate ? ' enter' : '')); w.dataset.id = t.id;
+    var u = el('div', 'u'); u.appendChild(el('span', 'tag', '↩ ' + num(t) + ' 빠진 요청')); u.appendChild(el('p', null, f.user)); w.appendChild(u);
+    var a = el('div', 'a'); var para = el('p', 'part', f.ai); para.style.margin = '0'; a.appendChild(para);
+    if (f.files) { var fs = el('div', 'files'); f.files.forEach(function (n) { fs.appendChild(fileEl(n)); }); a.appendChild(fs); }
+    w.appendChild(a); partEls[t.id + ':' + x.part] = para;
+    return w;
+  }
+  function renderChat() {
+    thread.innerHTML = ''; turnEls = {}; partEls = {};
+    visible().forEach(function (t, i) {
+      if (t.segStart) thread.appendChild(seamNode(t));
+      var n = turnNode(t, false); turnEls[t.id] = n; thread.appendChild(n);
+      extras.forEach(function (x) { if (x.at === i + 1) thread.appendChild(followNode(x, false)); });
+    });
+  }
+  function openParts() { var r = []; visible().forEach(function (t) { (t.parts || []).forEach(function (p, i) { if (p.open) r.push({ t: t, i: i, p: p }); }); }); return r; }
+  function revisions() { var r = []; visible().forEach(function (t) { (t.parts || []).forEach(function (p) { if (p.type === 'rev') r.push({ t: t, p: p }); }); }); return r; }
+
+  /* ---------- horizontal map: one line, side questions as short stems ---------- */
+  var TICK = 18;
+  function renderMap(S) {
+    mapEl.innerHTML = ''; mapDots = {};
+    var top = multi ? 34 : 18, Y0 = top + 64, L1 = Y0 - 36, L2 = Y0 - 62;
+    mapEl.style.height = (Y0 + 86) + 'px';
+    var W = Math.max(mapScroll.clientWidth, 640), pad = 72;
+    var mains = S.vis.filter(function (t) { return t.depth === 0; });
+    var tail = S.cur.depth > 0 ? 0.8 : 0;
+    var E = 0, C = 0, G = 0;
+    mains.forEach(function (m, i) { if (i > 0 && m.s !== mains[i - 1].s) G++; if (i < mains.length - 1) { if (isOpen(m.s)) E++; else C++; } });
+    var step = Math.max(multi ? 100 : 112, Math.min(160, (W - 2 * pad - C * TICK - G * 50) / Math.max(1, E + tail)));
+    var pos = {}, x = pad;
+    mains.forEach(function (m, i) {
+      if (i > 0) {
+        var pv = mains[i - 1], add = isOpen(pv.s) ? step : TICK;
+        if (m.s !== pv.s) add += isOpen(pv.s) ? (isOpen(m.s) ? 0 : 24) : (isOpen(m.s) ? step * 0.55 : 44);
+        x += add;
+      }
+      pos[m.id] = { x: x, y: Y0 };
+    });
+    var need = pos[mains[mains.length - 1].id].x + (tail ? step * tail : 0) + Math.max(pad, step / 2 + 16);
+    /* center the line when it is shorter than the card */
+    var cL = pos[mains[0].id].x - step / 2, cR = pos[mains[mains.length - 1].id].x + (tail ? step * tail : 0) + step / 2;
+    var shift = need < W ? Math.max(0, W / 2 - (cL + cR) / 2) : 0;
+    if (shift > 0) mains.forEach(function (m) { pos[m.id].x += shift; });
+    var first = pos[mains[0].id], lastM = pos[mains[mains.length - 1].id];
+    mapEl.style.width = Math.max(W, need) + 'px';
+
+    /* lines drawn like symbol A: round caps, side lines leave at an angle then run flat */
+    var svg = document.createElementNS(SVGNS, 'svg'); svg.setAttribute('class', 'lines'); mapEl.appendChild(svg);
+    function path(d, stroke, w, dash) { var q = document.createElementNS(SVGNS, 'path'); q.setAttribute('d', d); q.setAttribute('fill', 'none'); q.style.stroke = stroke; q.setAttribute('stroke-width', w); q.setAttribute('stroke-linecap', 'round'); q.setAttribute('stroke-linejoin', 'round'); if (dash) q.setAttribute('stroke-dasharray', dash); else q.setAttribute('pathLength', '1'); svg.appendChild(q); return q; }
+    path('M ' + first.x + ' ' + Y0 + ' H ' + lastM.x, 'var(--fg)', 4.5).setAttribute('class', 'trunk');
+    if (tail) path('M ' + (lastM.x + 14) + ' ' + Y0 + ' H ' + (lastM.x + step * tail), 'var(--fg)', 3.5, '0.1 8');
+
+    /* segment names */
+    mapEl._segX = {};
+    if (multi) SEGS.forEach(function (name, s) {
+      var ms = mains.filter(function (m) { return m.s === s; }); if (!ms.length) return;
+      var x0 = pos[ms[0].id].x, open = isOpen(s);
+      var br = S.vis.filter(function (t) { return t.s === s && t.depth > 0; }).length;
+      var b = el('button', 'seg' + (open ? '' : ' shut')); b.type = 'button'; b.style.left = (x0 - 8) + 'px';
+      b.appendChild(el('b', null, name)); b.appendChild(el('span', null, open ? '' : String(ms.length + br) + ' ▸'));
+      b.setAttribute('aria-expanded', String(open));
+      b.setAttribute('aria-label', name + ' 구간, 메시지 ' + (ms.length + br) + '개, ' + (open ? '접기' : '펼치기'));
+      b.onclick = function () { if (open) expanded[s] = false; else focusSeg(s); renderAll(); if (!open) mapScroll.scrollLeft = Math.max(0, mapEl._segX[s] - 60); };
+      mapEl.appendChild(b); mapEl._segX[s] = x0;
+    });
+
+    /* side questions: one stem per anchor, level 1 and level 2 stacked */
+    var groups = {};
+    S.vis.forEach(function (t) { if (t.depth > 0 && isOpen(byId[t.anchor].s)) (groups[t.anchor] = groups[t.anchor] || []).push(t); });
+    Object.keys(groups).forEach(function (aid) {
+      var nodes = groups[aid], active = nodes.indexOf(S.cur) >= 0;
+      var l1 = nodes.filter(function (n) { return n.depth === 1; }), l2 = nodes.filter(function (n) { return n.depth >= 2; });
+      var ax = pos[aid].x, run1 = (Y0 - L1) * 0.76, run2 = (L1 - L2) * 0.76;
+      var s1 = ax + 18, g1 = Math.max(s1 + run1 + 16, ax + step * 0.62), g2 = g1 + 8 + run2 + 14;
+      var topY = l2.length ? L2 : L1, topX = l2.length ? g2 : g1;
+      path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--ring)', 3).setAttribute('class', 'spur');
+      if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--stem)', 2.5).setAttribute('class', 'spur');
+      function dot(list, level, y) {
+        var gx = level === 2 ? g2 : g1;
+        if (!list.length) return;
+        var t1 = active ? (S.cur.depth === level || (level === 2 && S.cur.depth > 2) ? S.cur : list[list.length - 1]) : list[0];
+        var isCur = t1 === S.cur;
+        var cls = 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (isCur ? ' cur' : '');
+        var b = el('button', cls); b.type = 'button'; b.style.left = gx + 'px'; b.style.top = y + 'px';
+        b.setAttribute('aria-label', level + '차 곁길 ' + list.length + '개: ' + list.map(function (n) { return n.title; }).join(', ') + ' — 누르면 이동');
+        wireGroup(b, nodes, t1, byId[aid], active);
+        mapEl.appendChild(b);
+        list.forEach(function (n) { mapDots[n.id] = b; pos[n.id] = { x: gx, y: y }; });
+      }
+      dot(l1, 1, L1); dot(l2, 2, L2);
+      if (nodes.length > 1) { var c = el('div', 'cnt', String(nodes.length)); c.style.left = (topX + 10) + 'px'; c.style.top = topY + 'px'; mapEl.appendChild(c); }
+    });
+
+    /* stations */
+    mains.forEach(function (t) {
+      var p = pos[t.id], k = kind(t, S), open = isOpen(t.s), b;
+      if (!open) { b = el('button', 'st tick' + (k === 'cur' ? ' tcur' : (t.dec ? ' tdec' : ''))); b.type = 'button'; }
+      else if (t.parts) b = capsule(t, k);
+      else { b = el('button', 'st ' + k); b.type = 'button'; }
+      b.style.left = p.x + 'px'; b.style.top = p.y + 'px';
+      if (!t.parts || !open) b.setAttribute('aria-label', num(t) + ' ' + t.title + ' 로 이동');
+      wire(b, t); mapEl.appendChild(b); mapDots[t.id] = b;
+      if (!open) return;
+      var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 22) + 'px'; l.style.width = (step - 14) + 'px';
+      l.appendChild(el('span', 't' + (k === 'cur' ? ' now' : ''), t.title));
+      var af = allFiles(t); if (af.length) { var f = el('span', 'f'); f.appendChild(el('span', 'sq')); f.appendChild(document.createTextNode(String(af.length))); l.appendChild(f); }
+      mapEl.appendChild(l);
+    });
+
+    document.getElementById('mapTitle').textContent = EX.title;
+    var rv = revisions(), qb = document.getElementById('qbtn');
+    qb.hidden = !rv.length; qb.textContent = '수정 ' + rv.length + '건 · 최종본 요청 →';
+    var sa = document.getElementById('segAll'); sa.hidden = !multi;
+    if (multi) { var allOpen = SEGS.every(function (_, s) { return isOpen(s); }); sa.textContent = allOpen ? '지난 구간 접기' : '모두 펼치기'; sa.dataset.all = allOpen ? '1' : ''; }
+    mapEl._pos = pos;
+    mapScroll.classList.toggle('ovf', mapEl.offsetWidth > mapScroll.clientWidth + 1);
+    if (focusMap) { var fp = pos[S.cur.id]; if (fp) mapScroll.scrollLeft = Math.max(0, fp.x - mapScroll.clientWidth * 0.7); focusMap = false; }
+  }
+
+  function capsule(t, k, small) {
+    var c = el('div', 'cap ' + (k === 'cur' ? 'cur' : (t.dec ? 'dec' : 'main')));
+    c.setAttribute('role', 'group'); c.setAttribute('aria-label', num(t) + ' ' + t.title + ', 요청 ' + t.parts.length + '개');
+    t.parts.forEach(function (q, i) {
+      if (q.type === 'rev') return;
+      var cell = el('button', 'cell' + (q.open ? ' open' : '')); cell.type = 'button';
+      cell.setAttribute('aria-label', q.t + (q.open ? ' (답 없음)' : ' 로 이동'));
+      cell.addEventListener('click', function (e) { e.stopPropagation(); goPart(t, i); });
+      c.appendChild(cell);
+    });
+    return c;
+  }
+
+  /* ---------- rail: thin grey line, side questions step right ---------- */
+  function railY(t) { var H = railEl.clientHeight - 64, e = turnEls[t.id]; var sh = Math.max(chat.scrollHeight, 1); return 48 + (e.offsetTop / sh) * H; }
+  function renderRail(S) {
+    railEl.innerHTML = ''; railDots = {};
+    var RX = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rx')) || 40;
+    var tg = el('button', 'rail-toggle'); tg.type = 'button'; tg.appendChild(railMark.svg); if (!drawerOpen) tg.appendChild(el('span', 'cv', '▾')); tg.setAttribute('aria-expanded', String(drawerOpen)); tg.setAttribute('aria-label', drawerOpen ? '노선도 접기' : '노선도 펼치기'); tg.title = drawerOpen ? '노선도 접기' : '노선도 펼치기 · 점을 더블클릭하면 그 구간이 열려요'; tg.onclick = toggleDrawer; railEl.appendChild(tg);
+    var ln = el('div', 'rline'); ln.style.top = '46px'; ln.style.bottom = '16px'; railEl.appendChild(ln);
+    vpEl = el('div', 'vp'); railEl.appendChild(vpEl);
+    S.vis.forEach(function (t) { if (t.segStart) { var sm = el('div', 'rail-seam'); sm.style.top = (railY(t) - 9) + 'px'; sm.title = SEGS[t.s]; railEl.appendChild(sm); } });
+    S.vis.forEach(function (t) {
+      var k = kind(t, S), x = RX + (t.depth === 0 ? 0 : (t.depth === 1 ? 10 : 16)), y = railY(t), b;
+      if (t.parts) b = capsule(t, k, true); else { b = el('button', 'st ' + k); b.type = 'button'; b.setAttribute('aria-label', t.title + ' 로 이동'); }
+      b.style.left = x + 'px'; b.style.top = y + 'px';
+      wire(b, t); railEl.appendChild(b); railDots[t.id] = b;
+      b.addEventListener('dblclick', function (e) { e.preventDefault(); openMapAt(t); });
+      if (allFiles(t).length) { var q = el('div', 'fsq'); q.style.left = (RX - 17) + 'px'; q.style.top = y + 'px'; railEl.appendChild(q); }
+    });
+  }
+
+  function goPart(t, i) {
+    var q = t.parts[i];
+    if (q.open) { go(t.id); return; }
+    var e = partEls[t.id + ':' + i] || turnEls[t.id];
+    var top = e.offsetTop; var n = e; while (n.offsetParent && n.offsetParent !== chat) { n = n.offsetParent; top += n.offsetTop; }
+    chat.scrollTo({ top: Math.max(0, top - 60), behavior: reduce ? 'auto' : 'smooth' });
+    e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 1400);
+  }
+  function showPop(anchor) {
+    var rv = revisions(); pop.innerHTML = '';
+    pop.appendChild(el('b', null, '모아둔 수정 ' + rv.length + '건'));
+    var lines = ['지금까지 모은 수정사항을 반영해서 최종본을 한 번에 다시 써줘.'];
+    rv.forEach(function (r, i) { lines.push((i + 1) + '. ' + r.p.t + ' (' + num(byId[r.p.target]) + ' ' + byId[r.p.target].title + ')'); });
+    lines.push('위 항목 말고는 바꾸지 마.');
+    pop.appendChild(el('pre', null, lines.join('\n')));
+    var row = el('div', 'row'); row.appendChild(el('span', null, '실제 확장 프로그램에서는 이 글이 입력창에 들어가요.'));
+    var close = el('button', 'btn', '닫기'); close.type = 'button'; close.onclick = function () { pop.hidden = true; }; row.appendChild(close); pop.appendChild(row);
+    pop.hidden = false;
+    var r = anchor.getBoundingClientRect();
+    pop.style.left = Math.max(16, Math.min(window.innerWidth - pop.offsetWidth - 16, r.right - pop.offsetWidth)) + 'px';
+    pop.style.top = (r.bottom + 8) + 'px';
+  }
+  document.addEventListener('click', function (e) { if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true; });
+  document.getElementById('qbtn').addEventListener('click', function (e) { e.stopPropagation(); showPop(this); });
+  document.getElementById('segAll').addEventListener('click', function () {
+    if (this.dataset.all) { expanded = {}; expanded[TURNS[shown - 1].s] = true; focusMap = true; }
+    else SEGS.forEach(function (_, s) { expanded[s] = true; });
+    renderAll();
+  });
+
+  /* ---------- tooltips + navigation ---------- */
+  function placeTip(b) {
+    tip.hidden = false;
+    var r = b.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    var left = Math.min(window.innerWidth - tw - 8, Math.max(8, r.left + r.width / 2 - tw / 2));
+    var top = r.bottom + 12; if (top + th > window.innerHeight - 8) top = r.top - th - 12;
+    if (b.closest('.rail')) { left = r.left - tw - 14; top = Math.max(8, r.top - th / 2); }
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  }
+  function tipLine(text, cls) { tip.appendChild(el('span', cls || null, text)); }
+  function tipFile(f) { var s = el('span', 'fl'); s.appendChild(el('i')); s.appendChild(document.createTextNode(fname(f))); tip.appendChild(s); }
+  function showTip(t, b) {
+    tip.innerHTML = '';
+    tip.appendChild(el('b', null, t.title));
+    if (t.depth) tipLine(t.depth + '차 곁길 · ' + num(byId[t.anchor]) + '에서 갈라짐', 's');
+    else if (multi) tipLine(num(t) + ' · ' + SEGS[t.s], 's');
+    if (t.dec) tipLine('정함 · ' + t.dec);
+    if (t.ret) tipLine('곁길에서 돌아와 ' + num(byId[prevMain(t)]) + '에 이어 붙음', 's');
+    if (t.ref) tipLine('↩ ' + num(byId[t.ref]) + ' ' + byId[t.ref].title + '와 연결', 's');
+    (t.parts || []).forEach(function (q) { tipLine((q.type === 'rev' ? '→ 수정 대기열 · ' : (q.open ? '○ 답 없음 · ' : '● ')) + q.t, q.type === 'rev' ? 's' : null); });
+    allFiles(t).forEach(tipFile);
+    if (b.closest('.rail')) tipLine(drawerOpen ? '더블클릭하면 지도에서 이 구간으로' : '더블클릭하면 이 구간 노선도가 열려요', 's');
+    placeTip(b);
+  }
+  function wire(b, t) {
+    b.addEventListener('click', function (e) { if (e.target.classList.contains('cell')) return; go(t.id); });
+    b.addEventListener('mouseenter', function () { showTip(t, b); if (t.ref) hlRef(t.ref, true); });
+    b.addEventListener('mouseleave', function () { tip.hidden = true; if (t.ref) hlRef(t.ref, false); });
+    b.addEventListener('focus', function () { showTip(t, b); });
+    b.addEventListener('blur', function () { tip.hidden = true; });
+  }
+  function wireGroup(b, nodes, target, anchor, active) {
+    function show() {
+      tip.innerHTML = '';
+      tip.appendChild(el('b', null, active ? '곁길 · 지금 여기' : '곁길 ' + nodes.length + '개'));
+      tipLine(num(anchor) + ' ' + anchor.title + '에서 갈라짐', 's');
+      nodes.forEach(function (n) { tipLine((n.depth >= 2 ? '　└ ' : '· ') + n.title + (n.files ? '  ■' + n.files.length : '')); });
+      if (!active) tipLine('끝난 곁길이라 접혀 있어요', 's');
+      placeTip(b);
+    }
+    b.addEventListener('click', function () { go(target.id); });
+    b.addEventListener('mouseenter', show); b.addEventListener('focus', show);
+    b.addEventListener('mouseleave', function () { tip.hidden = true; }); b.addEventListener('blur', function () { tip.hidden = true; });
+  }
+  function hlRef(id, on) { [mapDots[id], railDots[id]].forEach(function (d) { if (d) d.classList.toggle('ref-hl', on); }); }
+  function go(id) {
+    var t = byId[id], e = turnEls[id]; if (!e) return;
+    if (multi && !isOpen(t.s)) {
+      focusSeg(t.s); renderAll();
+      var p = mapEl._pos && mapEl._pos[id]; if (p) mapScroll.scrollLeft = Math.max(0, p.x - mapScroll.clientWidth / 2);
+    }
+    chat.scrollTo({ top: Math.max(0, e.offsetTop - 16), behavior: reduce ? 'auto' : 'smooth' });
+    e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash');
+    setTimeout(function () { e.classList.remove('flash'); }, 1400);
+  }
+
+  /* ---------- viewing: soft grey halo follows the scroll ---------- */
+  function updateViewing() {
+    var vis = visible(), y = chat.scrollTop + chat.clientHeight * 0.3, v = vis[0].id;
+    Array.prototype.forEach.call(thread.children, function (n) { if (n.dataset.id && n.offsetTop <= y) v = n.dataset.id; });
+    if (chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 4) v = thread.lastElementChild.dataset.id;
+    if (vpEl) {
+      var H = railEl.clientHeight - 64, sh = Math.max(chat.scrollHeight, 1);
+      vpEl.style.top = (48 + chat.scrollTop / sh * H - 6) + 'px';
+      vpEl.style.height = (chat.clientHeight / sh * H + 12) + 'px';
+    }
+    if (v === viewing) return;
+    viewing = v;
+    [mapDots, railDots].forEach(function (set) {
+      Object.keys(set).forEach(function (k) { set[k].classList.remove('viewing'); });
+      if (set[v]) set[v].classList.add('viewing');
+    });
+  }
+  mapScroll.addEventListener('scroll', function () { tip.hidden = true; });
+  var ticking = false;
+  chat.addEventListener('scroll', function () { if (ticking) return; ticking = true; requestAnimationFrame(function () { ticking = false; updateViewing(); }); });
+
+  /* keep the rail beside the conversation, not pinned to the window edge */
+  function placeRail() {
+    var br = railEl.parentNode.getBoundingClientRect(), tr = thread.getBoundingClientRect();
+    var gutter = tr.right - br.left, w = railEl.offsetWidth;
+    var left = Math.max(gutter + 12, Math.min((gutter + br.width) / 2 - w / 2, br.width - w - 8));
+    railEl.style.right = 'auto'; railEl.style.left = left + 'px';
+  }
+  function renderAll() {
+    var S = structure(); tip.hidden = true; placeRail();
+    if (drawerOpen) renderMap(S);
+    renderRail(S); viewing = null; updateViewing();
+    document.getElementById('next').disabled = shown >= TURNS.length;
+    var op = openParts(), ask = document.getElementById('ask');
+    ask.hidden = !op.length; ask.textContent = '빠진 요청 다시 묻기 (' + op.length + ')';
+    var bits = [];
+    if (S.cur.depth > 0) bits.push(num(byId[S.cur.anchor]) + '에서 곁길 ' + S.cur.depth + '단계');
+    op.forEach(function (o) { bits.push(num(o.t) + '의 “' + o.p.t + '” 답 없음'); });
+    if (!bits.length) bits.push(shown >= TURNS.length ? '대화 끝 · 역을 누르면 그 대화로 이동해요' : '역이나 레일 점을 누르면 그 대화로 이동해요');
+    document.getElementById('status').textContent = bits.join(' · ');
+  }
+  /* opening a past segment keeps only it and the current one open, so the map fits the card */
+  function focusSeg(s) { var c = TURNS[shown - 1].s; expanded = {}; expanded[c] = true; expanded[s] = true; }
+  /* double-click a rail dot: reopen the map at that dot's segment */
+  function openMapAt(t) {
+    tip.hidden = true;
+    if (multi) focusSeg(t.s);
+    var wasShut = !drawerOpen;
+    if (wasShut) { drawerOpen = true; drawer.hidden = false; playMark(railMark, 0.7); }
+    renderAll(); if (wasShut) unfold();
+    var p = mapEl._pos && mapEl._pos[t.id]; if (p) mapScroll.scrollLeft = Math.max(0, p.x - mapScroll.clientWidth / 2);
+    var d = mapDots[t.id]; if (d) { d.classList.add('ref-hl'); setTimeout(function () { d.classList.remove('ref-hl'); }, 1200); }
+  }
+  function toggleDrawer() {
+    tip.hidden = true;
+    if (drawerOpen) { fold(function () { drawerOpen = false; drawer.hidden = true; renderAll(); }); return; }
+    drawerOpen = true; drawer.hidden = false; playMark(railMark, 0.7);
+    focusMap = true; renderAll(); unfold();
+  }
+  /* the card grows open, the trunk draws left to right, stations pop in as the line reaches them */
+  var foldTimer = null;
+  function unfold() {
+    if (reduce) return;
+    clearTimeout(foldTimer);
+    var h = drawer.scrollHeight;
+    drawer.style.transition = 'none'; drawer.style.height = '0px'; drawer.style.opacity = '0'; drawer.style.transform = 'translateY(-6px)';
+    void drawer.offsetHeight;
+    drawer.style.transition = 'height .45s cubic-bezier(.2,.8,.2,1), opacity .3s ease, transform .45s cubic-bezier(.2,.8,.2,1)';
+    drawer.style.height = h + 'px'; drawer.style.opacity = '1'; drawer.style.transform = 'none';
+    var x0 = mapScroll.scrollLeft, vw = mapScroll.clientWidth;
+    mapEl.classList.remove('reveal'); void mapEl.offsetWidth; mapEl.classList.add('reveal');
+    Array.prototype.forEach.call(mapEl.querySelectorAll('.st, .cap, .lbl, .cnt'), function (e) {
+      var x = parseFloat(e.style.left) || 0, k = Math.max(0, Math.min(1, (x - x0) / vw));
+      e.style.animationDelay = (0.18 + k * 0.62 + (e.classList.contains('lbl') ? 0.06 : 0)).toFixed(2) + 's';
+    });
+    foldTimer = setTimeout(function () {
+      drawer.style.transition = ''; drawer.style.height = ''; drawer.style.transform = '';
+      mapEl.classList.remove('reveal');
+      Array.prototype.forEach.call(mapEl.querySelectorAll('[style*="animation-delay"]'), function (e) { e.style.animationDelay = ''; });
+    }, 1500);
+  }
+  function fold(done) {
+    if (reduce) { done(); return; }
+    clearTimeout(foldTimer); mapEl.classList.remove('reveal');
+    drawer.style.transition = 'none'; drawer.style.height = drawer.offsetHeight + 'px'; void drawer.offsetHeight;
+    drawer.style.transition = 'height .32s cubic-bezier(.4,0,.2,1), opacity .22s ease, transform .32s ease';
+    drawer.style.height = '0px'; drawer.style.opacity = '0'; drawer.style.transform = 'translateY(-6px)';
+    foldTimer = setTimeout(function () { done(); drawer.style.transition = ''; drawer.style.height = ''; drawer.style.opacity = ''; drawer.style.transform = ''; }, 330);
+  }
+
+  document.getElementById('next').addEventListener('click', function () {
+    if (shown >= TURNS.length) return;
+    var t = TURNS[shown]; shown++;
+    if (t.segStart) { thread.appendChild(seamNode(t)); expanded = {}; }
+    expanded[t.s] = true; focusMap = true;
+    var n = turnNode(t, !reduce); turnEls[t.id] = n; thread.appendChild(n);
+    renderAll();
+    chat.scrollTo({ top: chat.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+  });
+  document.getElementById('reset').addEventListener('click', resetState);
+  document.getElementById('toggle').addEventListener('click', toggleDrawer);
+  document.getElementById('ask').addEventListener('click', function () {
+    var last = null;
+    openParts().forEach(function (o) {
+      o.p.open = false; var x = { id: o.t.id, part: o.i, at: shown }; extras.push(x);
+      last = followNode(x, !reduce); thread.appendChild(last);
+    });
+    renderAll();
+    if (last) chat.scrollTo({ top: chat.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.switch button'), function (b) {
+    b.addEventListener('click', function () { load(b.dataset.ex); playMark(logoMark); if (drawerOpen) unfold(); });
+  });
+  window.addEventListener('resize', function () { requestAnimationFrame(renderAll); });
+
+  load('session');
+  requestAnimationFrame(function () { requestAnimationFrame(unfold); });
+  setTimeout(function () { playMark(logoMark); }, 250);
+  requestAnimationFrame(function () { chat.scrollTop = chat.scrollHeight; focusMap = true; renderAll(); });
+})();
+</script>
+
+</body></html>
