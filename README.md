@@ -28,6 +28,7 @@
 ├─ docs/
 │  ├─ schema.md                 ← 데이터 계약 · API · DB 테이블 · 입구별 원천 데이터
 │  ├─ agent-prompt.md           ← 분류 에이전트 프롬프트 · 출력 JSON · 예시 · 비용 · 평가
+│  ├─ usage-guide.md            ← 내 LLM 이용 형태(구독 · API 키 · 입구)에 맞게 가닥을 붙이는 법
 │  ├─ design/
 │  │  ├─ tokens.css             ← 색 · 글꼴 토큰 (라이트 · 다크 · 개발 도구)
 │  │  └─ prototype.css          ← 프로토타입 CSS 전체 (클래스 구조 그대로 옮겨 쓰기)
@@ -35,7 +36,8 @@
 │     ├─ 설문지_v2.md           ← 구글 폼에 쓴 22문항
 │     ├─ 설문응답_2026-10-01.xlsx← 원자료 (16명). 저장소에는 올리지 않음
 │     └─ 설문분석.md            ← 분석과 가닥에 반영한 것
-└─ archive/                     ← ‘갈래’ 시절 자료 (전달 문서, 캔버스, 옛 프로토타입, 이름 비교 이미지)
+├─ archive/                     ← ‘갈래’ 시절 자료 (전달 문서, 캔버스, 옛 프로토타입, 이름 비교 이미지)
+└─ backend/ · cursor-hooks/ · tests/ ← 구현 (10/3부터. 구조는 5-1)
 ```
 
 ### 0-2. 링크
@@ -275,6 +277,8 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 - **턴 중복 방지**: 같은 `chat.id` + `messageRef`가 다시 오면(새로고침 · hook 재실행) 새 역을 만들지 않고 덮어써요.
 - **화면 갱신**: 로컬 웹 페이지는 1~2초마다 `/view`를 다시 불러와요(폴링). 웹 확장은 `/turns` 응답을 받아 바로 그려요.
 - **hook 스크립트 하나**: Cursor와 Claude Code가 `cursor-hooks/gadak-hook.py`를 같이 써요. 받은 JSON 모양만 어댑터 둘로 맞춰요.
+- **hook 이벤트는 `/events`로**: hook은 질문 · 파일 수정 · 답변을 따로따로 보내요. 백엔드가 같은 대화 · 같은 질문끼리 모아 Turn 하나로 만들어요. 완성된 턴을 보내는 입구(웹 확장 · 불러오기)는 `/turns`.
+- **엔진**: 가닥이 판단에 쓰는 LLM은 `backend/engines/`에서 갈아 끼워요. 지금은 Claude 구독 엔진(`claude_cli`)과 엔진 없음(`none`). 고르는 법은 `docs/usage-guide.md`.
 - **재생**: 저장해 둔 hook 입력이나 예시 대화를 같은 경로로 다시 흘려보내요(`backend/replay.py`). 정확도 평가 · 측정 · 데모 백업에 써요.
 - **배포 웹 데모**: 예시 재생은 키 없이 돼요. 불러온 대화를 분류하려면 서버에 API 키가 필요해요(구독은 서버에서 쓸 수 없음). 키 마련과 올린 대화의 보관 방식 · 안내 문구는 11장.
 - 이 규칙들을 데이터 계약(`docs/schema.md`)에 넣는 건 기획 담당 확인 뒤예요. 제안은 `CHANGES.md` 4번.
@@ -300,7 +304,9 @@ gadak/
 │  ├─ content/mount.js   Shadow DOM에 레일 · 노선도 카드 붙이기
 │  └─ background.js      백엔드와 통신
 ├─ backend/              Flask
-│  ├─ app.py             /turns · /projects/:id/view · /search · /files · /items · /import · /trace · 로컬 웹 페이지(/)
+│  ├─ app.py             /events · /turns · /projects/:id/view · /search · /files · /items · /import · /trace · 로컬 웹 페이지(/)
+│  ├─ assemble.py        hook 이벤트를 Turn 하나로 모음
+│  ├─ engines/           판단에 쓰는 LLM: claude_cli(Claude 구독) · none
 │  ├─ agent/classify.py  1단: 매 턴 분류, LLM 호출 1회 (agent-prompt.md)
 │  ├─ agent/investigate.py  2단: 조건이 걸린 턴만 도는 도구 루프
 │  ├─ agent/tools.py     2단 도구 넷 (get_request · get_diff · search_decisions · list_open_items)
@@ -315,8 +321,10 @@ gadak/
 │  └─ src/status.ts      상태 표시줄 미니 노선
 ├─ cursor-hooks/         Cursor · Claude Code가 같이 쓰는 hook (대화를 읽는 곳은 확장이 아니라 여기)
 │  ├─ gadak-hook.py      받은 JSON을 백엔드로 POST. 어댑터 둘: Cursor 형식 · Claude Code 형식
-│  ├─ hooks.json         Cursor용 (.cursor/hooks.json 으로 복사)
-│  └─ claude-settings.json  Claude Code용 (.claude/settings.json 의 hooks 항목)
+│  ├─ hooks.json         Cursor용 틀
+│  ├─ claude-settings.json  Claude Code용 틀
+│  └─ install.py         두 틀에 내 PC 경로를 채워 보여 줌 (파일은 안 건드림)
+├─ tests/                hook · 백엔드 테스트 (python -m unittest discover -s tests)
 └─ eval/                 분류 정확도 평가 (정답: data/example_conversations.json의 u1)
 ```
 
@@ -561,7 +569,7 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 |---|---|
 | 확장 프로그램이 ‘앱’으로 인정되는지 | **인정됨 (10/3 확인).** Slack 문의는 하지 않아요. 배포 웹 데모(불러오기 · 재생)는 교수님이 링크로 바로 써 볼 수 있게 그대로 같이 내요 |
 | 영문 표기 | 미정 (7-2 참고) |
-| 분류용 LLM · 엔진 | **Claude로 정함**(10/3). 가닥이 판단에 쓰는 LLM(엔진)은 사용자가 가진 것에 맞춰 골라요. ① **Claude 구독(Pro · Max)만 있으면** 내 PC의 Claude Code(`claude -p`)를 엔진으로 써요. API 키도 추가 비용도 없고, 구독 한도를 같이 써요. 구현 담당이 Pro 구독만 있어서 개발 기본값이에요(10/3 확인: 한 번 호출에 7~8초). ② **Anthropic API 키가 있으면** 키로 직접 호출해요(예정). 1단을 어느 모델로 돌릴지는 u1 정확도를 재서 정해요. **미정**: 배포 웹 데모는 서버에서 구독을 쓸 수 없어서, 불러온 대화를 분류하려면 API 키가 필요해요(예시 재생은 키 없이 됨) |
+| 분류용 LLM · 엔진 | **Claude로 정함**(10/3). 가닥이 판단에 쓰는 LLM(엔진)은 사용자가 가진 것에 맞춰 골라요. ① **Claude 구독(Pro · Max)만 있으면** 내 PC의 Claude Code(`claude -p`)를 엔진으로 써요. API 키도 추가 비용도 없고, 구독 한도를 같이 써요. 구현 담당이 Pro 구독만 있어서 개발 기본값이에요(10/3 측정: 한 번 호출에 3~8초). 설정은 `docs/usage-guide.md`. ② **Anthropic API 키가 있으면** 키로 직접 호출해요(예정). 1단을 어느 모델로 돌릴지는 u1 정확도를 재서 정해요. **미정**: 배포 웹 데모는 서버에서 구독을 쓸 수 없어서, 불러온 대화를 분류하려면 API 키가 필요해요(예시 재생은 키 없이 됨) |
 | 개인정보 | **저장은 내 PC(로컬 SQLite), 분류할 때만 그 턴이 LLM API로 나가요**(10/3 · ‘로컬 처리’라고 쓰지 않음). 사이트별 켜기 · 끄기, ‘읽지 않을 대화’ 지정. 대화 원문 저장은 로컬 SQLite에만. 배포 웹 데모에 올린 대화의 보관 방식과 안내 문구는 미정 |
 | 사이트 화면 구조 변경 | DOM 읽기는 사이트별 파일로 격리. 셀렉터는 상수로 모아 둠 |
 | Claude Code · Codex · Gemini CLI 기록 형식 | **10/3**: Claude Code는 공식 hooks로 읽어서 해당 없음. Codex · Gemini CLI는 그대로 — 공식 약속이 아님, 버전 확인 코드 필요 |

@@ -1,0 +1,30 @@
+"""설정. 값은 환경 변수나 저장소 루트의 .env에서 읽어요."""
+import os
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path) -> None:
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv(ROOT / "backend" / ".env")
+_load_dotenv(ROOT / ".env")
+
+# 대화 원문이 든 DB는 저장소 밖(내 PC의 홈)에 둬요
+HOME = Path(os.environ.get("GADAK_HOME", Path.home() / ".gadak")).expanduser()
+HOST = os.environ.get("GADAK_HOST", "127.0.0.1")
+PORT = int(os.environ.get("GADAK_PORT", "7311"))
+DB_PATH = Path(os.environ.get("GADAK_DB", HOME / "gadak.db")).expanduser()
+
+# auto | claude_cli | none  (docs/usage-guide.md)
+ENGINE = os.environ.get("GADAK_ENGINE", "auto")
+ENGINE_MODEL = os.environ.get("GADAK_ENGINE_MODEL", "haiku")

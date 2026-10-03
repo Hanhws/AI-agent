@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [{ "command": "__GADAK_HOOK__" }],
+    "afterAgentResponse": [{ "command": "__GADAK_HOOK__" }],
+    "afterFileEdit": [{ "command": "__GADAK_HOOK__" }],
+    "stop": [{ "command": "__GADAK_HOOK__" }]
+  }
+}
