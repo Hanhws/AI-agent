@@ -1,0 +1,31 @@
+/* 가닥 디자인 토큰. 라이트(기본) · 다크(시스템 설정 또는 data-theme) · 개발 도구(VS Code · Cursor) 세 벌. */
+:root {
+  --railw: 56px; --rx: 28px;
+  --bg: #FAF9F6; --surface: #FFFFFF; --fg: #141414; --fg2: #3F3F46; --muted: #6E6B66; --faint: #8F8B84;
+  --line: #E6E3DD; --bubble: #EFEDE8; --accent: #C8401A; --halo: #F6DDD4; --see: #E4E1DB;
+  --stem: #D6D2CB; --ring: #BDB9B2; --rail: #D9D5CE; --viewport: rgba(20,20,20,0.05); --flash: #FBEDE7;
+  --chrome: #ECEAE5; --side: #F4F2EE; --tip: #141414; --tip-fg: #F4F2EE; --tip-sub: #C9C5BE;
+  --shadow: 0 12px 32px rgba(20,20,20,0.08); --shadow-s: 0 4px 14px rgba(20,20,20,0.10);
+  --display: 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'IBM Plex Sans KR', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
+  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #3A3834;
+  --stem: #45433E; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --chrome: #262420; --side: #1B1A17; --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750;
+  --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
+  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #3A3834;
+  --stem: #45433E; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --chrome: #262420; --side: #1B1A17; --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750;
+  --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark }
+
+
+/* 개발 도구 입구(VS Code · Cursor)는 테마와 상관없이 이 어두운 값을 씀 */
+.vsc { --bg: #1C1B19; --surface: #232220; --fg: #ECEAE5; --fg2: #D2CEC7; --muted: #A39F98; --faint: #807C75; --line: #393733; --bubble: #2F2D2A;
+  --accent: #F0704A; --halo: #4E2B20; --see: #3D3B37; --stem: #4A4743; --ring: #6E6A63; --rail: #45433E; --viewport: rgba(255,255,255,0.06); --flash: #3B2720;
+  --chrome: #2A2926; --side: #201F1D; --term: #161513; --code: #1A1918; --add: rgba(120,170,110,0.16); --del: rgba(220,110,90,0.18); --addfg: #9CC48E; --delfg: #E59580;
+  color: var(--fg); color-scheme: dark; }
