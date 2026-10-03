@@ -4,6 +4,7 @@
 10/3에 더한 것이에요 (CHANGES.md 4번).
 """
 import sqlite3
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,7 +84,13 @@ def provisional_title(text: str) -> str:
     return first if len(first) <= TITLE_LEN else first[:TITLE_LEN] + "…"
 
 
+def project_key(name):
+    """한글 이름은 자모가 풀린 형태로 들어오기도 해서 한 가지 형태(NFC)로 맞춰요."""
+    return unicodedata.normalize("NFC", name) if name else name
+
+
 def upsert_chat(conn, *, project, chat_id, site, title=None) -> None:
+    project = project_key(project)
     project_id = project or NO_PROJECT
     conn.execute(
         "INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)",
@@ -201,7 +208,7 @@ def projects(conn) -> list:
 
 def view(conn, project_id, scope="all", chat_id=None):
     """노선도를 그릴 턴 목록. scope=chat이면 그 대화만."""
-    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    project = conn.execute("SELECT * FROM projects WHERE id = ?", (project_key(project_id),)).fetchone()
     if project is None:
         return None
     chats = conn.execute(

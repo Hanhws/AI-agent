@@ -85,6 +85,16 @@ class BackendTest(unittest.TestCase):
         (turn,) = self.view("빅데이터핀테크응용ai")["chats"][0]["turns"]
         self.assertEqual((turn["ai"], turn["files"]), ("고친 답", ["index.html"]))
 
+    def test_korean_project_name_matches_in_either_unicode_form(self):
+        import unicodedata
+        decomposed = unicodedata.normalize("NFD", "가닥")
+        prompt = dict(events("cursor_payloads.json")[0], project=decomposed)
+        self.send([prompt])
+        for name in ("가닥", decomposed):
+            response = self.client.get(f"/projects/{name}/view")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.get_json()["project"]["id"], "가닥")
+
     def test_bad_event_is_rejected(self):
         self.assertEqual(self.client.post("/events", json={"kind": "prompt"}).status_code, 400)
 

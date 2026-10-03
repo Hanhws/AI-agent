@@ -68,6 +68,14 @@ class ClaudeCodeNormalizeTest(unittest.TestCase):
         self.assertEqual(event["edits"], [{"file": "/x/proj/a.py", "old": None, "new": "print(1)"}])
 
 
+class KoreanFolderTest(unittest.TestCase):
+    def test_project_name_is_normalized(self):
+        import unicodedata
+        payload = dict(load("cursor_payloads.json")[0],
+                       workspace_roots=["/Users/demo/" + unicodedata.normalize("NFD", "가닥")])
+        self.assertEqual(hook.normalize(payload)["project"], "가닥")
+
+
 class UnknownPayloadTest(unittest.TestCase):
     def test_ignored(self):
         self.assertIsNone(hook.normalize({"hello": "world"}))

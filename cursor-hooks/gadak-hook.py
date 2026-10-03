@@ -7,6 +7,7 @@ hook이 stdin으로 넘긴 JSON을 가닥 이벤트로 맞춰 백엔드(/events)
 import json
 import os
 import sys
+import unicodedata
 import urllib.request
 from pathlib import Path
 
@@ -33,7 +34,8 @@ def _clip(text):
 
 
 def _project(path):
-    return Path(path).name if path else None
+    # macOS는 한글 폴더 이름을 자모가 풀린 형태로 넘기기도 해서 한 가지 형태로 맞춰요
+    return unicodedata.normalize("NFC", Path(path).name) if path else None
 
 
 def from_cursor(p):
