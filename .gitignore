@@ -8,3 +8,11 @@ __pycache__/
 
 # 설문 원자료. 응답자에게 "익명이며 과제 분석에만 써요"라고 안내했으므로 공개 저장소에 올리지 않음
 docs/survey/*.xlsx
+
+# 실제 대화가 든 파일. 공개 저장소에 올리지 않고 각자 PC에만 둬요 (README 0-1)
+data/example_conversations.json
+prototype/index.html
+screenshots/
+archive/갈래 프로토타입.html
+archive/LLM 질문 정리 에이전트 화면.html
+docs/agent-prompt.examples.md
