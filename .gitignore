@@ -1,0 +1,7 @@
+.env
+*.sqlite
+*.db
+node_modules/
+__pycache__/
+.DS_Store
+*.vsix
