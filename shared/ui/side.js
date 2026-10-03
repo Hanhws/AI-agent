@@ -23,7 +23,7 @@
       list.forEach(function (o) {
         var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(cur === o[0]));
         if (o[2]) b.appendChild(el('span', 'n', String(o[2])));
-        b.onclick = function () { set(o[0]); g.render(); };
+        b.onclick = function () { set(o[0]); g.track('ui', { what: 'tab_' + o[0] }); g.render(); };
         host.appendChild(b);
       });
     }
@@ -44,6 +44,7 @@
       return list.sort(function (a, b) { return (b.t.dec ? 1 : 0) - (a.t.dec ? 1 : 0); });
     };
     g.setQuery = function (q) {
+      if (q && !st.q) g.track('ui', { what: 'search' });   // 무엇을 찾는지는 적지 않아요
       st.q = q; g.renderSideBody(); g.markFound();
       if (!g.hooks.search) return;
       clearTimeout(findTimer);
@@ -69,7 +70,7 @@
       var r = el('button', 'srow2'); r.type = 'button';
       if (top) r.appendChild(el('span', 'k', top));
       r.appendChild(el('span', 't', main)); if (sub) r.appendChild(el('span', 'w', sub));
-      r.onclick = function () { g.go(t.id); };
+      r.onclick = function () { g.track('ui', { what: 'go_list' }); g.go(t.id); };
       host.appendChild(r); return r;
     }
     function renderDecisions(host) {
@@ -131,8 +132,8 @@
       if (it.t && s !== 'done') { t.classList.add('lk'); t.onclick = function () { g.go(at.id); }; }
       if (s !== 'done') {
         var row = el('div', 'row');
-        var a = el('button', 'btn sm primary', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a); }; row.appendChild(a);
-        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; g.render(); }; row.appendChild(l); }
+        var a = el('button', 'btn sm primary', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a, 'list'); }; row.appendChild(a);
+        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; g.render(); }; row.appendChild(l); }
         body.appendChild(row);
       }
       return d;

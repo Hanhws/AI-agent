@@ -83,6 +83,7 @@ def serve(window=True, shell=False, parent=None) -> int:
         print(f"{config.PORT}번 포트를 다른 프로그램이 쓰고 있어요. GADAK_PORT로 다른 번호를 정해 주세요.")
         return 1
     rt.on_quit = server.shutdown
+    rt.via = "app" if shell else "browser"
     rt.start()
     if parent:
         rt.watch_parent(parent)

@@ -6,19 +6,22 @@
   var G = window.Gadak, el = G.el, fname = G.fname;
   var params = new URLSearchParams(location.search);
   var S = { demo: params.has('demo'), scen: params.get('scen'), projects: [], project: null, chat: null, reset: true,
-    rev: -1, status: null, asked: {}, full: {}, bottom: true, goto: null, sources: null, off: false };
+    rev: -1, status: null, asked: {}, full: {}, bottom: true, goto: null, sources: null, off: false, usage: null };
   var POLL = 1500, FILES_SHOWN = 8;
   // 가닥 창은 시스템 설정(밝게 · 어둡게)을 따라가요. 주소에 ?theme=light · dark 를 붙이면 고정돼요
   if (/^(light|dark)$/.test(params.get('theme') || '')) document.documentElement.dataset.theme = params.get('theme');
 
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    nudgeClass: 'nudge-web', statusBits: statusBits,
+    nudgeClass: 'nudge-web', statusBits: statusBits, track: track,
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
   if (S.demo) delete g.hooks.search;  // 예시는 화면에 실린 글에서 바로 찾아요
   var st = g.st, R = g.R;
+
+  /* 사용 기록: 무엇을 눌렀는지만 적어요(글은 안 적어요). 적을 수 있는 이름과 칸은 backend/usage_schema.py에 다 있어요 */
+  function track(name, fields) { if (!S.demo && !S.off) api('usage', 'POST', { name: name, fields: fields || {} }).catch(function () {}); }
 
   function api(path, method, body) {
     var opt = method ? { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) } : undefined;
@@ -44,6 +47,7 @@
     R.chat.addEventListener('scroll', onChatScroll);
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
     R.src = el('div', 'pop srcpop'); R.src.hidden = true; document.body.appendChild(R.src);
+    R.ask = el('div', 'pop srcpop'); R.ask.hidden = true; R.ask.setAttribute('role', 'dialog'); document.body.appendChild(R.ask);
     R.file = el('input'); R.file.type = 'file'; R.file.accept = '.zip,.json'; R.file.hidden = true; R.file.onchange = importFile; shell.appendChild(R.file);
     document.addEventListener('click', function (e) { if (!R.src.hidden && !R.src.contains(e.target) && !(R.srcBtn && R.srcBtn.contains(e.target))) R.src.hidden = true; });
     setTimeout(function () { G.playMark(mark); }, 250);
@@ -115,7 +119,7 @@
     if (t.parts) R.partEls[t.id + ':0'] = para;
     if (t.long && full === t) {
       var more = el('button', 'linkbtn more', '전체 보기'); more.type = 'button';
-      more.onclick = function () { api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; para.textContent = d.turn.ai; more.remove(); g.renderRail(); }); };
+      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; para.textContent = d.turn.ai; more.remove(); g.renderRail(); }); };
       a.appendChild(more);
     }
     if (t.files) {
@@ -151,7 +155,7 @@
     R.srcBtn = el('button', 'btn sm', '찾은 곳'); R.srcBtn.type = 'button'; R.srcBtn.onclick = toggleSources; row.appendChild(R.srcBtn);
     if (s && s.classify.paused) { var again = el('button', 'btn sm', '정리 다시'); again.type = 'button'; again.onclick = function () { api('classify', 'POST', { pause: false }).then(tick); }; row.appendChild(again); }
     // 2단이 어떤 도구로 무엇을 보고 결론 냈는지는 노선도 카드에 넣지 않고 별도 페이지에서 봐요 (README 3-1)
-    var log = el('button', 'btn sm', '판단 기록'); log.type = 'button'; log.onclick = function () { window.open('trace', '_blank'); }; row.appendChild(log);
+    var log = el('button', 'btn sm', '판단 기록'); log.type = 'button'; log.onclick = function () { track('ui', { what: 'trace' }); window.open('trace', '_blank'); }; row.appendChild(log);
     var quit = el('button', 'btn sm', '끄기'); quit.type = 'button'; quit.onclick = quitApp; row.appendChild(quit);
     f.appendChild(row);
   }
@@ -159,7 +163,10 @@
   /* ---------- 찾은 곳: 무엇으로 LLM을 쓰는지, 어떻게 읽는지 ---------- */
   function toggleSources() {
     if (!R.src.hidden) { R.src.hidden = true; return; }
-    api('sources').then(function (d) { S.sources = d.sources; renderSources(); R.src.hidden = false; });
+    track('ui', { what: 'sources' });
+    R.ask.hidden = true;   // 같은 자리에 떠요. 보내기는 찾은 곳 안에서도 고를 수 있어요
+    // 먼저 켜 둔 예전 가닥에 붙어 있으면 사용 기록 쪽은 없을 수 있어요. 없으면 그 줄만 빼고 보여 줘요
+    Promise.all([api('sources'), api('usage/state').catch(function () { return null; })]).then(function (d) { S.sources = d[0].sources; S.usage = d[1]; renderSources(); R.src.hidden = false; });
   }
   function renderSources() {
     var p = R.src; p.innerHTML = '';
@@ -185,6 +192,57 @@
       if (btn) { btn.type = 'button'; d.appendChild(btn); }
       p.appendChild(d);
     });
+    if (S.usage && S.usage.configured) p.appendChild(usageBlock());
+  }
+
+  /* ---------- 사용 기록 보내기: 처음 한 번 묻고, 찾은 곳에서 바꿔요 (README 5장) ---------- */
+  var USAGE_NOTE = '어떤 기능을 얼마나 쓰는지 같은 사용 기록을 가닥 팀 서버로 보내요. 대화 글 · 제목 · 파일 이름은 보내지 않아요.';
+  function button(label, cls, click) { var b = el('button', 'btn sm' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.onclick = click; return b; }
+  function loadUsage() {
+    if (S.demo) return;
+    api('usage/state').then(function (u) { S.usage = u; if (u.configured && !u.share) askUsage(); }, function () {});
+  }
+  function askUsage() {
+    var p = R.ask; p.innerHTML = ''; p.hidden = false;
+    p.appendChild(el('b', null, '가닥을 더 좋게 만드는 데 참여할까요?'));
+    p.appendChild(el('div', 'note', USAGE_NOTE + ' 언제든 ‘찾은 곳’에서 끄고, 보낸 기록을 지울 수 있어요.'));
+    var seen = el('div'); p.appendChild(seen);
+    var row = el('div', 'row');
+    row.appendChild(button('보내는 것 보기', '', function () { showUsage(seen); }));
+    row.appendChild(button('안 보내기', '', function () { setShare(false); }));
+    row.appendChild(button('보내기', 'primary', function () { setShare(true); }));
+    p.appendChild(row);
+  }
+  function setShare(on) {
+    api('usage/consent', 'POST', { share: on }).then(function (u) {
+      S.usage = u; R.ask.hidden = true;
+      g.flashToast(on ? '고마워요. 사용 기록을 보낼게요.' : '사용 기록을 보내지 않을게요.');
+      if (!R.src.hidden) renderSources();
+    });
+  }
+  function showUsage(host) {
+    api('usage/recent').then(function (d) {
+      host.innerHTML = '';
+      host.appendChild(el('div', 'note', '이 PC에 적혀 있는 기록이에요. 보낸다면 이 모양 그대로 가요.'));
+      host.appendChild(el('pre', 'sent', d.events.length ? d.events.map(function (e) { return e.day + '  ' + e.name + '  ' + JSON.stringify(e.fields); }).join('\n') : '아직 적힌 기록이 없어요.'));
+    });
+  }
+  function usageBlock() {
+    var u = S.usage, on = u.share === 'yes', d = el('div', 'src');
+    d.appendChild(el('span', 'k' + (on ? ' on' : ''), on ? '보내는 중 · 보낸 기록 ' + u.sent + '개' : '보내지 않아요'));
+    d.appendChild(el('span', 't', '사용 기록 보내기'));
+    d.appendChild(el('span', 'w', USAGE_NOTE));
+    var seen = el('div'), row = el('div', 'row');
+    row.appendChild(button(on ? '끄기' : '켜기', on ? '' : 'primary', function () { setShare(!on); }));
+    row.appendChild(button('보내는 것 보기', '', function () { showUsage(seen); }));
+    if (u.sent) row.appendChild(button('서버에서 지우기', '', function () {
+      api('usage/consent', 'POST', { forget: true }).then(function (x) {
+        S.usage = x; renderSources();
+        g.flashToast(x.deleted == null ? '서버에 닿지 못했어요. 보내기는 꺼 뒀어요.' : '서버에 있던 기록 ' + x.deleted + '개를 지웠어요.');
+      });
+    }));
+    d.appendChild(row); d.appendChild(seen);
+    return d;
   }
   function importFile() {
     var file = R.file.files[0]; if (!file) return;
@@ -231,13 +289,14 @@
   /* ---------- 실행: 가닥 창은 대화 창의 입력창을 건드릴 수 없어서 클립보드에 담아요 ---------- */
   function copyOut(text, label, done) {
     var ok = function () { g.flashToast('복사했어요. 대화 창에 붙여 넣으면 돼요.'); done(); };
+    track('ui', { what: 'copy' });
     G.copy(text).then(ok);
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 
   /* ---------- 데이터 ---------- */
-  function openProject(id) { if (id === S.project) return; S.project = id; S.chat = null; S.reset = true; S.bottom = true; S.keepScope = null; load(); }
-  function openChat(id) { if (g.ACT && id === g.ACT.id) return; S.chat = id; S.reset = true; S.bottom = !S.goto; S.keepScope = st.scope; load(); }
+  function openProject(id) { if (id === S.project) return; track('ui', { what: 'open_project' }); S.project = id; S.chat = null; S.reset = true; S.bottom = true; S.keepScope = null; load(); }
+  function openChat(id) { if (g.ACT && id === g.ACT.id) return; track('ui', { what: 'open_chat' }); S.chat = id; S.reset = true; S.bottom = !S.goto; S.keepScope = st.scope; load(); }
   function show(SC) {
     g.load(SC, S.reset);
     if (S.reset && S.keepScope) st.scope = S.keepScope;
@@ -297,5 +356,5 @@
   g.render();
   window.addEventListener('resize', function () { requestAnimationFrame(function () { g.render(); }); });
   if (S.demo) load().then(function () { g.reveal(); });
-  else { S.timer = setInterval(tick, POLL); tick().then(function () { g.reveal(); if (params.get('panel') === 'sources') toggleSources(); }); }
+  else { S.timer = setInterval(tick, POLL); tick().then(function () { g.reveal(); loadUsage(); if (params.get('panel') === 'sources') toggleSources(); }); }
 })();

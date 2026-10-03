@@ -147,6 +147,8 @@ class Syncer:
                 self.scan_once(conn, live=not first)
             except Exception as exc:  # 한 번 실패해도 다음 차례에 다시 봐요
                 self.status.update(phase="idle", error=str(exc)[:200])
+            if first:
+                self.rt.opened(conn)
             first = False
             stop.wait(INTERVAL)
         conn.close()

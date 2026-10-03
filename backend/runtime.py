@@ -7,7 +7,8 @@ import threading
 import time
 from pathlib import Path
 
-from . import config, store
+from . import config, store, usage
+from .engines import resolve_name
 from .agent.classify import Classifier
 from .sources.sync import Syncer
 
@@ -27,6 +28,8 @@ class Runtime:
         self.connect().close()       # 스레드들이 돌기 전에 저장소를 한 번 만들어 둬요
         self.syncer = Syncer(self)
         self.classifier = Classifier(self, engine)
+        self.sender = usage.Sender(self)   # 동의한 사용 기록을 가닥 팀 서버로 (서버 주소가 없으면 쉬어요)
+        self.via = "browser"               # 가닥 앱이 켰으면 "app" (launch.py)
 
     def connect(self):
         return store.connect(self.db_path)
@@ -37,8 +40,12 @@ class Runtime:
 
     def start(self) -> None:
         """읽기 · 정리를 뒤에서 돌려요."""
-        for target in (self.syncer.run_forever, self.classifier.run_forever):
+        for target in (self.syncer.run_forever, self.classifier.run_forever, self.sender.run_forever):
             threading.Thread(target=target, args=(self._stop,), daemon=True).start()
+
+    def opened(self, conn) -> None:
+        """켜고 처음 한 번 다 읽은 뒤: 어떤 입구의 대화가 얼마나 있는지 사용 기록에 적어요."""
+        usage.note_open(conn, self.via, self.classifier.status["engine"] or resolve_name())
 
     def watch_parent(self, pid) -> None:
         """가닥 앱이 켠 백엔드는 앱이 사라지면(강제 종료 포함) 따라 꺼져요. 혼자 남아 돌지 않게요."""

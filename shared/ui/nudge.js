@@ -12,13 +12,14 @@
       var it = st.nudge && g.itemById(st.nudge);
       if (!it || g.stateOf(it) !== 'open' || !R.nudgeHost) return;
       var n = el('div', 'nudge ' + (g.hooks.nudgeClass || 'nudge-app') + (lastNudge === it.id ? ' still' : ''));
+      if (lastNudge !== it.id) g.track('item', { kind: it.kind, did: 'shown', at: 'nudge' });
       lastNudge = it.id;
       var who = el('div', 'who'); who.appendChild(G.miniMark(12)); who.appendChild(el('b', null, '가닥')); who.appendChild(el('span', null, '· ' + KIND[it.kind].label)); n.appendChild(who);
-      var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', '한마디 닫기'); x.onclick = function () { g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; n.appendChild(x);
+      var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', '한마디 닫기'); x.onclick = function () { g.track('item', { kind: it.kind, did: 'close', at: 'nudge' }); g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; n.appendChild(x);
       n.appendChild(el('div', 't', it.text)); n.appendChild(el('div', 'w', it.why));
       var row = el('div', 'row');
-      var a = el('button', 'btn sm accent', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a); }; row.appendChild(a);
-      var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; row.appendChild(l);
+      var a = el('button', 'btn sm accent', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a, 'nudge'); }; row.appendChild(a);
+      var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'nudge' }); g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; row.appendChild(l);
       n.appendChild(row);
       R.nudgeHost.appendChild(n); R.nudgeEl = n;
     };
@@ -29,8 +30,9 @@
       if (g.hooks.insert) g.hooks.insert(text, label, done);
       else G.copy(text).then(done);
     }
-    g.act = function (it, anchor) {
+    g.act = function (it, anchor, at) {
       if (st.typing) return;
+      g.track('item', { kind: it.kind, did: 'run', at: at || 'list' });
       st.fresh = {};
       if (it.effect === 'split') { st.split = true; finish(it); st.focusMap = true; g.flashToast('주제별 노선으로 나눴어요. 다음 전환부터는 알아서 나눠요.'); g.render(); return; }
       if (it.effect === 'scopeAll') { st.scope = 'all'; finish(it); st.drawerOpen = true; g.render(); return; }

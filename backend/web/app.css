@@ -79,3 +79,7 @@ button.citem.on:hover { background: var(--bubble); }
 .srcpop .src .btn { align-self: flex-start; margin-top: 4px; }
 .gone { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--bg); color: var(--muted); font-size: 14px; }
 .gone b { font-family: var(--display); font-size: 22px; color: var(--fg2); font-weight: 600; }
+
+/* 사용 기록 보내기 */
+.srcpop .src .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.srcpop pre.sent { max-height: 150px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--bubble); font-family: var(--mono); font-size: 11px; line-height: 1.55; white-space: pre; }

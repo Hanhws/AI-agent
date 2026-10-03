@@ -19,8 +19,9 @@
 """
 import collections
 import json
+import time
 
-from .. import config, store
+from .. import config, store, usage
 from ..engines import EngineError
 from . import tools, trace
 
@@ -381,6 +382,7 @@ class Investigator:
             return None
         engine = self.engine()
         self.clf.status["checking"] = row["id"]
+        began = time.time()
         try:
             result = check(tools.Context(conn, row), looks,
                            lambda system, payload, schema: self.clf.call(system, payload, schema, engine))
@@ -399,5 +401,11 @@ class Investigator:
             trace.save(conn, row["id"], looks, result, engine)
             store.set_checked(conn, row["id"], 1)
         self.clf.status["checks"] += 1
+        used = collections.Counter(s["tool"] for s in result["steps"])
+        usage.record(conn, "check", {name: True for name in looks}, steps=len(result["steps"]), calls=result["calls"],
+                     made=len(ids), dropped=len(result["dropped"]), ended=result["ended"],
+                     seconds=time.time() - began, **used)
+        for item in result["items"]:
+            usage.record(conn, "item", kind=item["kind"], did="made", at="auto")
         self.clf.rt.bump()
         return result

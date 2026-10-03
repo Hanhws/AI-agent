@@ -19,7 +19,7 @@
       R.status = el('span', 'map-status'); dh.appendChild(R.status); dh.appendChild(el('span', 'sp'));
       R.segAll = el('button', 'linkbtn'); R.segAll.type = 'button'; dh.appendChild(R.segAll);
       R.qbtn = el('button', 'qbtn'); R.qbtn.type = 'button'; R.qbtn.onclick = function (e) { e.stopPropagation(); g.showRevPop(this); }; dh.appendChild(R.qbtn);
-      R.ledBtn = el('button', 'ledbtn'); R.ledBtn.type = 'button'; R.ledBtn.onclick = function () { st.ledgerOpen = !st.ledgerOpen; st.focusMap = true; g.render(); }; dh.appendChild(R.ledBtn);
+      R.ledBtn = el('button', 'ledbtn'); R.ledBtn.type = 'button'; R.ledBtn.onclick = function () { st.ledgerOpen = !st.ledgerOpen; st.focusMap = true; g.track('ui', { what: st.ledgerOpen ? 'list_open' : 'list_close' }); g.render(); }; dh.appendChild(R.ledBtn);
       var fold = el('button', 'btn sm', '접기'); fold.type = 'button'; fold.onclick = g.toggleDrawer; dh.appendChild(fold);
       var db = el('div', 'dbody'); dr.appendChild(db); R.dbody = db;
       R.mapScroll = el('div', 'map-scroll'); R.map = el('div', 'map'); R.mapScroll.appendChild(R.map); db.appendChild(R.mapScroll);
@@ -34,7 +34,8 @@
     };
 
     g.toggleDrawer = function () {
-      tip.hidden = true; st.drawerOpen = !st.drawerOpen; if (st.drawerOpen) st.focusMap = true; g.render();
+      tip.hidden = true; st.drawerOpen = !st.drawerOpen; if (st.drawerOpen) st.focusMap = true;
+      g.track('ui', { what: st.drawerOpen ? 'map_open' : 'map_close' }); g.render();
       if (st.drawerOpen) g.reveal();
     };
     g.reveal = function () { if (G.reduce || !R.map) return; R.map.classList.remove('reveal'); void R.map.offsetWidth; R.map.classList.add('reveal'); setTimeout(function () { if (R.map) R.map.classList.remove('reveal'); }, 1200); };
@@ -46,7 +47,7 @@
       var sw = el('span', 'scope');
       [['chat', '이 대화'], ['all', g.SC.scopeLabel]].forEach(function (o) {
         var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(st.scope === o[0]));
-        b.onclick = function () { st.scope = o[0]; st.focusMap = true; g.render(); };
+        b.onclick = function () { st.scope = o[0]; st.focusMap = true; g.track('ui', { what: 'scope_' + o[0] }); g.render(); };
         sw.appendChild(b);
       });
       host.appendChild(sw);
@@ -58,7 +59,7 @@
       var rv = g.revisions(); R.qbtn.hidden = !rv.length; R.qbtn.textContent = '수정 ' + rv.length + '건 · 최종본 요청 →';
       R.segAll.hidden = !V.multi;
       if (V.multi) { var allOpen = V.segs.every(function (_, s) { return V.isOpen(s); }); R.segAll.textContent = allOpen ? '지난 구간 접기' : '모두 펼치기';
-        R.segAll.onclick = function () { st.popSeg = allOpen ? null : 'cur'; V.segs.forEach(function (s, i) { V.setOpen(s, allOpen ? (V.cur && V.sIdx[V.cur.id] != null ? V.segs[V.sIdx[V.cur.id]] === s : i === V.segs.length - 1) : true); }); g.render(); }; }
+        R.segAll.onclick = function () { g.track('ui', { what: allOpen ? 'fold_all' : 'open_all' }); st.popSeg = allOpen ? null : 'cur'; V.segs.forEach(function (s, i) { V.setOpen(s, allOpen ? (V.cur && V.sIdx[V.cur.id] != null ? V.segs[V.sIdx[V.cur.id]] === s : i === V.segs.length - 1) : true); }); g.render(); }; }
     };
     function statusText(V) {
       var bits = [];
@@ -126,7 +127,7 @@
         var b = el('button', 'seg' + (open ? '' : ' shut')); b.type = 'button'; b.style.left = (x0 - 8) + 'px';
         b.appendChild(el('b', null, name)); b.appendChild(el('span', null, open ? '' : String(ms.length + br) + ' ▸'));
         b.setAttribute('aria-expanded', String(open));
-        b.onclick = function () { V.setOpen(name, !open); st.popSeg = name; g.render(); if (!open) { var p0 = R.mapPos && R.mapPos[ms[0].id]; if (p0) R.mapScroll.scrollTo({ left: Math.max(0, p0.x - 60), behavior: G.reduce ? 'auto' : 'smooth' }); } };
+        b.onclick = function () { V.setOpen(name, !open); st.popSeg = name; g.track('ui', { what: open ? 'seg_close' : 'seg_open' }); g.render(); if (!open) { var p0 = R.mapPos && R.mapPos[ms[0].id]; if (p0) R.mapScroll.scrollTo({ left: Math.max(0, p0.x - 60), behavior: G.reduce ? 'auto' : 'smooth' }); } };
         mapEl.appendChild(b);
       });
       // side chains
@@ -243,7 +244,7 @@
       placeTip(b);
     }
     g.wire = function (b, t) {
-      b.addEventListener('click', function (e) { if (e.target.classList.contains('cell')) return; g.go(t.id); });
+      b.addEventListener('click', function (e) { if (e.target.classList.contains('cell')) return; g.track('ui', { what: b.closest('.rail') ? 'go_rail' : 'go_map' }); g.go(t.id); });
       b.addEventListener('mouseenter', function () { showTip(t, b); });
       b.addEventListener('mouseleave', function () { tip.hidden = true; });
       b.addEventListener('focus', function () { showTip(t, b); });

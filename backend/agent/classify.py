@@ -7,10 +7,11 @@
 import collections
 import json
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .. import config, store
+from .. import config, store, usage
 from ..engines import EngineError, OutOfCalls, get_engine, resolve_name
 from . import investigate, tools
 
@@ -242,6 +243,7 @@ class Classifier:
             if not batch:
                 break
             payload = json.dumps(build_input(conn, chat, rows, batch), ensure_ascii=False)
+            began = time.time()
             try:
                 output = self.call(SYSTEM, payload, SCHEMA, engine)
             except OutOfCalls:
@@ -256,7 +258,10 @@ class Classifier:
                         )
             total += done
             self.status["turns"] += done
+            usage.record(conn, "classify", turns=len(batch), done=done, seconds=time.time() - began)
             self.rt.bump()
+        if total:
+            usage.note_chat(conn, chat_id)
         return total
 
     def step(self, conn) -> bool:
@@ -271,7 +276,7 @@ class Classifier:
         else:
             return False
         self.status["running"] = chat_id
-        did = True
+        did, stopped = True, None
         try:
             if chat_id is not None:
                 self.classify_chat(conn, chat_id)
@@ -279,12 +284,16 @@ class Classifier:
             else:
                 did = self.checker.step(conn)
         except OutOfCalls:
-            pass
+            stopped = "limit"
         except EngineError as exc:
             # 로그인이 풀렸거나 한도에 걸렸을 수 있어요. 계속 두드리지 않고 멈춰요
             self.status.update(error=str(exc)[:200], paused=True)
+            stopped = "engine"
         except Exception as exc:
             self.status["error"] = str(exc)[:200]
+            stopped = "other"
+        if stopped:
+            usage.record(conn, "stop", where="classify" if chat_id is not None else "check", why=stopped)
         self.status["running"] = None
         if did:
             self.rt.bump()

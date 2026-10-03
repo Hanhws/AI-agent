@@ -106,6 +106,18 @@ CREATE TABLE IF NOT EXISTS sync_state(
   offset INTEGER NOT NULL,
   state_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS usage(
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  day TEXT NOT NULL,
+  name TEXT NOT NULL,
+  fields_json TEXT NOT NULL,
+  share INTEGER NOT NULL DEFAULT 0,
+  sent INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS settings(
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 """
 
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
@@ -122,7 +134,7 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4   # 4: usage · settings (사용 기록, backend/usage.py)
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 
 
@@ -561,6 +573,18 @@ def set_sync(conn, path, *, source, size, mtime, offset, state) -> None:
         " ON CONFLICT(path) DO UPDATE SET size = excluded.size, mtime = excluded.mtime,"
         " offset = excluded.offset, state_json = excluded.state_json",
         (str(path), source, size, mtime, offset, json.dumps(state, ensure_ascii=False)),
+    )
+
+
+def setting(conn, key, default=None):
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(conn, key, value) -> None:
+    conn.execute(
+        "INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
     )
 
 

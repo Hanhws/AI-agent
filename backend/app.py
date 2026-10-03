@@ -5,7 +5,7 @@
 """
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
-from . import assemble, config, sources, store
+from . import assemble, config, sources, store, usage
 from .agent import trace
 from .engines import describe_engine
 from .runtime import Runtime
@@ -91,6 +91,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
     @app.post("/sources/cursor/connect")
     def cursor_connect():
         result = sources.connect_cursor()
+        usage.record(db(), "connect", cursor=bool(result["ok"]))
         rt.bump()
         return jsonify(result), (200 if result["ok"] else 409)
 
@@ -124,8 +125,11 @@ def create_app(db_path=None, engine="auto") -> Flask:
         try:
             chats = exports.read(request.get_data())
         except exports.BadExport as exc:
+            usage.record(db(), "import", ok=False)
             return jsonify(error=str(exc)), 400
         result = exports.ingest(db(), chats)
+        usage.record(db(), "import", ok=True, turns=result["turns"],
+                     **{site: sum(1 for c in chats if c["site"] == site) for site in ("claude", "chatgpt")})
         rt.bump()
         return jsonify(chats=result["chats"], turns=result["turns"])
 
@@ -171,6 +175,36 @@ def create_app(db_path=None, engine="auto") -> Flask:
                 abort(400)
         rt.bump()
         return jsonify(ok=True)
+
+    # ----- 사용 기록 (backend/usage.py) -----
+    @app.get("/usage/state")
+    def usage_state():
+        return jsonify(usage.state(db()))
+
+    @app.get("/usage/recent")
+    def usage_recent():
+        """보내는 것 보기: 서버로 가는 모양 그대로."""
+        return jsonify(events=usage.recent(db()))
+
+    @app.post("/usage/consent")
+    def usage_consent():
+        body = request.get_json() or {}
+        if body.get("forget") is True:
+            return jsonify(usage.forget(db()))
+        if not isinstance(body.get("share"), bool):
+            abort(400)
+        state = usage.consent(db(), body["share"])
+        rt.sender.poke()
+        return jsonify(state)
+
+    @app.post("/usage")
+    def usage_record():
+        """화면에서 누른 것. 화면이 적을 수 있는 종류는 둘뿐이에요."""
+        body = request.get_json() or {}
+        if body.get("name") not in ("ui", "item"):
+            abort(400)
+        fields = body.get("fields") if isinstance(body.get("fields"), dict) else {}
+        return jsonify(ok=usage.record(db(), body["name"], fields))
 
     @app.post("/classify")
     def classify():

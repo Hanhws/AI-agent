@@ -8,7 +8,8 @@
      search(q)           지난 대화 찾기를 저장소에 맡길 때. [{id, snip}]의 Promise
      statusBits(V)       머리줄 상태 글에 더할 조각들
      insertLabel         수정 모음 창의 실행 버튼 글 (기본 ‘입력창에 넣기’)
-     nudgeClass          한마디 카드 자리 (nudge-web · nudge-app · nudge-vs) */
+     nudgeClass          한마디 카드 자리 (nudge-web · nudge-app · nudge-vs)
+     track(name, fields) 사용 기록에 적을 것(누른 것 · 한마디의 처리). 이름과 칸은 backend/usage_schema.py의 표에 있는 것만 */
 (function (G) {
   'use strict';
   var el = G.el, fname = G.fname;
@@ -29,6 +30,7 @@
     document.addEventListener('click', function (e) { if (!g.pop.hidden && !g.pop.contains(e.target)) g.pop.hidden = true; });
     g.render = function () { g.cache = {}; g.tip.hidden = true; if (g.hooks.render) g.hooks.render(); };
     g.go = function (id) { var t = g.byId[id]; if (t && g.hooks.go) g.hooks.go(t); };
+    g.track = function (name, fields) { if (g.hooks.track) g.hooks.track(name, fields || {}); };
     ['model', 'map', 'side', 'nudge', 'rail'].forEach(function (k) { if (G[k]) G[k](g); });
     return g;
   };
