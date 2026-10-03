@@ -120,16 +120,26 @@ def send(event):
         return False
 
 
-def spool(event):
+def _append(name, record):
     try:
         HOME.mkdir(parents=True, exist_ok=True)
-        path = HOME / "spool.jsonl"
+        path = HOME / name
         if path.exists() and path.stat().st_size > MAX_SPOOL:
             return
         with open(path, "a", encoding="utf-8") as out:
-            out.write(json.dumps(event, ensure_ascii=False) + "\n")
+            out.write(json.dumps(record, ensure_ascii=False) + "\n")
     except OSError:
         pass
+
+
+def spool(event):
+    _append("spool.jsonl", event)
+
+
+def keep_raw(payload):
+    """GADAK_DEBUG=1 일 때만. 도구가 실제로 무엇을 넘기는지 확인하려고 원본을 남겨요."""
+    if isinstance(payload, dict):
+        _append("raw.jsonl", {k: v for k, v in payload.items() if k != "user_email"})
 
 
 def main():
@@ -140,6 +150,8 @@ def main():
         payload = json.load(sys.stdin)
     except ValueError:
         return 0
+    if os.environ.get("GADAK_DEBUG") == "1":
+        keep_raw(payload)
     event = normalize(payload)
     if event and not send(event):
         spool(event)

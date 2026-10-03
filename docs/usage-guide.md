@@ -12,7 +12,7 @@
 | 내가 쓰는 것 | 입구 | 엔진 | 추가 비용 | 상태 |
 |---|---|---|---|---|
 | Claude 구독(Pro · Max) + VS Code의 Claude Code | Claude Code hook (4-1) | Claude 구독 엔진 (3-1) | 없음 | 기록까지 됨 |
-| Claude 구독 + Cursor | Cursor hook (4-2) | Claude 구독 엔진 (3-1) | 없음 | 기록까지 됨 (모의 입력으로 확인) |
+| Claude 구독 + Cursor | Cursor hook (4-2) | Claude 구독 엔진 (3-1) | 없음 | 설치까지 됨 (실제 Cursor 대화는 확인 중) |
 | Claude 구독 + Claude 웹 · 데스크톱 앱 | 크롬 확장 · 데스크톱 MCP · 불러오기 | Claude 구독 엔진 (3-1) | 없음 | 예정 (10/7~10/10) |
 | ChatGPT 구독만 | 크롬 확장 · 불러오기 | 따로 필요 (3-3) | 엔진에 따라 | 예정 (10/7~10/9) |
 | Anthropic API 키가 있음 | 위 입구 아무거나 | API 키 엔진 (3-2) | 쓴 만큼 | 예정 |
@@ -94,18 +94,29 @@ curl http://127.0.0.1:7311/projects
 
 읽는 것은 내 질문, 마지막 답변, Edit · Write로 바뀐 파일의 전 · 후예요. 끄려면 넣었던 `hooks` 항목을 지워요.
 
-### 4-2. Cursor — 모의 입력으로만 확인
+### 4-2. Cursor — 설치는 명령 한 번
 
-Claude Code와 같아요. 명령과 넣는 곳만 달라요.
+1. 백엔드를 켜 둬요 (2장).
+2. 가닥을 쓸 프로젝트 폴더에 hook을 붙여요. 그 프로젝트의 `.cursor/hooks.json`과 `.cursor/hooks/gadak.sh`가 생겨요.
 
 ```bash
-python3 cursor-hooks/install.py cursor
+python3 cursor-hooks/install.py cursor --project /내/프로젝트/폴더
 ```
 
-- 한 프로젝트에서만: 그 프로젝트의 `.cursor/hooks.json`
-- 모든 프로젝트에서: `~/.cursor/hooks.json`
+3. Cursor에서 그 폴더를 열고 Agent에 질문을 하나 보내요. Cursor는 `hooks.json`이 저장되면 바로 다시 읽어요.
+4. 들어왔는지 확인해요.
 
-이 코드를 만든 PC에 Cursor가 없어서, Cursor 공식 문서의 입력 형식대로 만든 모의 입력으로만 확인했어요. 실제 Cursor에서 처음 붙일 때 안 되는 점이 있으면 알려 주세요. Cursor Cloud Agent에서는 일부 hook이 돌지 않으니 로컬 Agent에서 써요.
+```bash
+curl http://127.0.0.1:7311/projects
+```
+
+- 모든 프로젝트에 붙이려면 `--project 폴더` 대신 `--user`를 써요 (`~/.cursor/`에 생겨요).
+- 이미 `hooks.json`이 있으면 덮어쓰지 않고, 합칠 내용을 화면에 보여 줘요.
+- 안 들어오면 Cursor의 Customize → Hooks 탭과 Hooks 출력 채널에서 hook이 돌았는지 봐요.
+- 끄려면 `.cursor/hooks.json`에서 가닥 항목을 지워요.
+- Cursor Cloud Agent에서는 일부 hook이 돌지 않으니 로컬 Agent에서 써요.
+
+Cursor 3.22에서 설치하고, Cursor가 부르는 방식 그대로 실행기를 돌려 보는 데까지 확인했어요. 실제 Agent 대화가 들어오는지는 확인 중이에요. `--debug`를 붙여 설치하면 Cursor가 넘긴 원본 입력이 `~/.gadak/raw.jsonl`에도 남아서, 안 맞는 곳을 찾을 때 써요.
 
 ### 4-3. ChatGPT · Claude 웹 (크롬 확장) — 예정 10/8~10/9
 

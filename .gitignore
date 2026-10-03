@@ -5,6 +5,10 @@ node_modules/
 __pycache__/
 .venv/
 VENV/
+
+# 내 PC에서만 쓰는 Cursor hook 설정 (cursor-hooks/install.py 가 만듦)
+.cursor/hooks.json
+.cursor/hooks/
 .DS_Store
 *.vsix
 
