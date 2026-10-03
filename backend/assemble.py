@@ -35,7 +35,7 @@ def ingest_event(conn, event):
 
     message_ref = event.get("message_ref")
     with conn:
-        store.upsert_chat(conn, project=event.get("project"), chat_id=chat_id, site=site)
+        store.upsert_chat(conn, project=event.get("project"), chat_id=chat_id, site=site, cwd=event.get("cwd"))
         if kind == "prompt":
             ref = message_ref or "auto-" + uuid.uuid4().hex[:12]
             row = store.upsert_turn(conn, chat_id=chat_id, message_ref=ref, user=event.get("text") or "")

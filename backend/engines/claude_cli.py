@@ -29,6 +29,8 @@ class ClaudeCliEngine:
     def _env(self) -> dict:
         env = {k: v for k, v in os.environ.items() if k not in _DROP_ENV}
         env[INTERNAL_ENV] = "1"
+        # 분류에는 긴 생각이 필요 없어요. 켜 두면 턴 6개에 50초 넘게 걸리고 출력 토큰을 8배 써요 (10/3 측정: 52초 → 10초)
+        env["MAX_THINKING_TOKENS"] = "0"
         return env
 
     def _cwd(self):

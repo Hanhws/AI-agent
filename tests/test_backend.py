@@ -41,15 +41,13 @@ class BackendTest(unittest.TestCase):
         self.assertEqual(turn["user"], "식 이름만 바꿔 줘. score를 rating으로.")
         self.assertIn("선 굵기", turn["ai"])
         self.assertEqual(turn["messageRef"], "gen-1")
-        self.assertEqual(turn["files"], [
-            "/Users/demo/dev/nba-analysis/model.py", "/Users/demo/dev/nba-analysis/plot.py",
-        ])
+        self.assertEqual(turn["files"], ["model.py", "plot.py"])  # 작업 폴더 기준 경로로 보여요
 
     def test_claude_code_events_become_one_turn(self):
         self.send(events("claude_code_payloads.json"))
         (turn,) = self.view()["chats"][0]["turns"]
         self.assertEqual((turn["user"], turn["ai"]), ("alpha를 0.5로 낮춰 줘", "alpha를 0.5로 낮췄어요."))
-        self.assertEqual(turn["files"], ["/Users/demo/dev/nba-analysis/model.py"])
+        self.assertEqual(turn["files"], ["model.py"])
 
     def test_resending_the_same_events_does_not_duplicate(self):
         batch = events("cursor_payloads.json")
@@ -70,7 +68,7 @@ class BackendTest(unittest.TestCase):
         prompt, edit = events("claude_code_payloads.json")[:2]
         self.send([prompt, dict(edit, message_ref=None)])
         (turn,) = self.view()["chats"][0]["turns"]
-        self.assertEqual(turn["files"], ["/Users/demo/dev/nba-analysis/model.py"])
+        self.assertEqual(turn["files"], ["model.py"])
 
     def test_turns_endpoint_overwrites_the_same_message(self):
         body = {

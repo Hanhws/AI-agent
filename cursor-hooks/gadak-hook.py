@@ -47,6 +47,7 @@ def from_cursor(p):
     event = {
         "site": "cursor",
         "project": _project(roots[0]) if roots else None,
+        "cwd": roots[0] if roots else None,
         "chat_id": p.get("conversation_id"),
         "message_ref": p.get("generation_id"),
         "kind": kind,
@@ -81,6 +82,7 @@ def from_claude_code(p):
     event = {
         "site": "claude-code",
         "project": _project(p.get("cwd")),
+        "cwd": p.get("cwd"),
         "chat_id": p.get("session_id"),
         "message_ref": p.get("prompt_id") or p.get("user_prompt_id"),
     }
