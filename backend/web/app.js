@@ -229,7 +229,8 @@
   }
   function usageBlock() {
     var u = S.usage, on = u.share === 'yes', d = el('div', 'src');
-    d.appendChild(el('span', 'k' + (on ? ' on' : ''), on ? '보내는 중 · 보낸 기록 ' + u.sent + '개' : '보내지 않아요'));
+    var failing = on && u.error;   // 서버에 닿지 못했어요. 기록은 PC에 남아 있다가 다음 차례에 다시 가요
+    d.appendChild(el('span', 'k' + (on && !failing ? ' on' : ''), failing ? '보내지 못하고 있어요 · 다음에 다시 보내요' : (on ? '보내는 중 · 보낸 기록 ' + u.sent + '개' : '보내지 않아요')));
     d.appendChild(el('span', 't', '사용 기록 보내기'));
     d.appendChild(el('span', 'w', USAGE_NOTE));
     var seen = el('div'), row = el('div', 'row');

@@ -180,7 +180,8 @@ GADAK_SERVER_TOKEN=정한-암호 ./.venv/bin/python -m server.app     # http://1
 ```
 
 - 가닥이 이 서버로 보내게 하려면 `backend/.env`에 `GADAK_COLLECT_URL=http://127.0.0.1:7321`처럼 적어요. 비워 두면 묻지도 보내지도 않아요.
-- 인터넷에 올릴 때는 `GADAK_SERVER_HOST=0.0.0.0`, 그곳이 정해 주는 `PORT`, 지워지지 않는 자리의 `GADAK_SERVER_DB`를 정하고, https 주소를 써요. 아직 올리지 않았어요(10/7 배포 때).
+- 인터넷에 올릴 때는 지워지지 않는 자리의 `GADAK_SERVER_DB`와 통계 암호 `GADAK_SERVER_TOKEN`을 정하고, https 주소를 써요. 10/4에 PythonAnywhere 무료 계정에 올렸어요(웹 앱의 WSGI 파일에서 `server.app.create_app()`을 부르는 방식). 주소와 암호는 저장소에 적지 않고 각자 PC의 `서버-정보.local.md`에 둬요.
+- 보내기가 안 되면 찾은 곳의 ‘사용 기록 보내기’에 ‘보내지 못하고 있어요’가 보여요. 기록은 PC에 남아 있다가 다음 차례에 다시 가요.
 
 ## 7. 안 될 때
 

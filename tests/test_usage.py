@@ -51,6 +51,9 @@ class UsageTest(unittest.TestCase):
         self.base = Path(self.tmp.name)
         self.conn = store.connect(self.base / "gadak.db")
         self.addCleanup(self.conn.close)
+        none = mock.patch.object(config, "COLLECT_URL", "")   # 이 PC의 backend/.env에 서버 주소가 있어도 시험은 따로 돌아요
+        none.start()
+        self.addCleanup(none.stop)
 
     def serve(self):
         """받는 서버를 빈 포트에 잠깐 띄워요."""
@@ -112,6 +115,13 @@ class UsageTest(unittest.TestCase):
             gone = usage.forget(self.conn)
         self.assertEqual((gone["deleted"], gone["share"]), (None, "no"))
         self.assertIsNotNone(store.setting(self.conn, "usage.install"))         # 나중에 다시 지워 달라고 할 수 있게 남겨요
+
+    def test_https_checks_stay_on(self):
+        """인증서를 더 읽을 뿐, 확인을 끄지 않아요."""
+        import ssl
+        context = usage.tls()
+        self.assertEqual((context.verify_mode, context.check_hostname), (ssl.CERT_REQUIRED, True))
+        self.assertIs(usage.tls(), context)
 
     def test_what_is_sent_has_no_names_titles_or_paths(self):
         with self.conn:

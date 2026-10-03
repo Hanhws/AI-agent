@@ -179,7 +179,8 @@ def create_app(db_path=None, engine="auto") -> Flask:
     # ----- 사용 기록 (backend/usage.py) -----
     @app.get("/usage/state")
     def usage_state():
-        return jsonify(usage.state(db()))
+        # error: 보내려다 실패했으면 그 까닭의 이름. 다음 차례에 다시 보내요
+        return jsonify(dict(usage.state(db()), error=rt.sender.status["error"]))
 
     @app.get("/usage/recent")
     def usage_recent():

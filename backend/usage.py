@@ -10,6 +10,8 @@
 """
 import hashlib
 import json
+import ssl
+import subprocess
 import sys
 import threading
 import urllib.request
@@ -85,12 +87,36 @@ def recent(conn, limit=30) -> list:
     return [dict(_event(r), share=bool(r["share"]), sent=bool(r["sent"])) for r in rows]
 
 
+MAC_ROOTS = ("/usr/bin/security", "find-certificate", "-a", "-p", "/System/Library/Keychains/SystemRootCertificates.keychain")
+_tls = None
+
+
+def tls() -> ssl.SSLContext:
+    """https 서버의 인증서를 확인하는 설정.
+
+    python.org에서 받은 macOS용 파이썬은 인증서 묶음 없이 깔려서, 그대로 두면 어떤 https 서버에도 못 보내요.
+    그럴 때만 macOS가 믿는 인증서를 읽어 더해요. 확인을 끄는 것이 아니에요: 만료됐거나 주소가 다른 인증서는 그대로 막혀요.
+    """
+    global _tls
+    if _tls is None:
+        context = ssl.create_default_context()
+        if sys.platform == "darwin" and not context.get_ca_certs():
+            try:
+                roots = subprocess.run(MAC_ROOTS, capture_output=True, text=True, timeout=10).stdout
+                if roots:
+                    context.load_verify_locations(cadata=roots)
+            except (OSError, subprocess.SubprocessError, ssl.SSLError):
+                pass   # 못 읽었으면 보내기가 실패하고, 화면의 찾은 곳에 ‘보내지 못하고 있어요’로 보여요
+        _tls = context
+    return _tls
+
+
 def _post(path, body) -> dict:
     request = urllib.request.Request(
         config.COLLECT_URL + path, data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json", "User-Agent": "gadak"}, method="POST",
     )
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+    with urllib.request.urlopen(request, timeout=TIMEOUT, context=tls()) as response:
         return json.load(response)
 
 
