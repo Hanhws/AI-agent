@@ -27,7 +27,7 @@
     function finish(it) { g.setItem(it.id, 'done'); if (st.nudge === it.id) st.nudge = null; }
     function insert(text, label, done) {
       if (g.hooks.insert) g.hooks.insert(text, label, done);
-      else { try { navigator.clipboard.writeText(text).then(done, done); } catch (e) { done(); } }
+      else G.copy(text).then(done);
     }
     g.act = function (it, anchor) {
       if (st.typing) return;
@@ -49,7 +49,7 @@
       if (P.prompt) { var a = el('button', 'btn sm primary', P.btn); a.type = 'button'; a.onclick = function () { pop.hidden = true; insert(P.prompt, KIND[it.kind].label, function () { finish(it); g.render(); }); }; row.appendChild(a); }
       else { var cp = el('button', 'btn sm primary', '새 창에 붙일 글 복사'); cp.type = 'button'; cp.onclick = function () {
         var ok = function () { finish(it); pop.hidden = true; g.flashToast('복사했어요. 새 창 첫 메시지에 붙여 넣으면 돼요.'); g.render(); };
-        try { navigator.clipboard.writeText(P.text).then(ok, ok); } catch (e) { ok(); } }; row.appendChild(cp); }
+        G.copy(P.text).then(ok); }; row.appendChild(cp); }
       pop.appendChild(row);
       g.placePop(anchor);
     }

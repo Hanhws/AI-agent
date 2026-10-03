@@ -6,6 +6,12 @@
   G.reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   G.el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   G.fname = function (f) { return typeof f === 'string' ? f : f.n; };
+  /* 글을 클립보드에 담아요. 가닥 앱(macOS) 안에서는 앱에 맡기고(mac/Gadak.swift), 그 밖에서는 브라우저 기능으로. 안 돼도 이어 가요 */
+  G.copy = function (text) {
+    var native = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.gadak;
+    if (native) { native.postMessage({ copy: text }); return Promise.resolve(); }
+    try { return navigator.clipboard.writeText(text).then(null, function () {}); } catch (e) { return Promise.resolve(); }
+  };
 
   var MARK = { strokes: [[36,122,64,122],[62,122,90,122],[88,122,116,122],[114,122,142,122],[140,122,166,122],[100,122,116,100],[116,100,132,80],[132,80,154,80]],
     nodes: [{ x: 48, y: 122, r: 9, k: 'main' }, { x: 100, y: 122, r: 9, k: 'main' }, { x: 154, y: 80, r: 7, k: 'spur' }, { x: 154, y: 122, r: 10, k: 'now' }] };

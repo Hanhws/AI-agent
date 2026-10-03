@@ -231,7 +231,7 @@
   /* ---------- 실행: 가닥 창은 대화 창의 입력창을 건드릴 수 없어서 클립보드에 담아요 ---------- */
   function copyOut(text, label, done) {
     var ok = function () { g.flashToast('복사했어요. 대화 창에 붙여 넣으면 돼요.'); done(); };
-    try { navigator.clipboard.writeText(text).then(ok, ok); } catch (e) { ok(); }
+    G.copy(text).then(ok);
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 

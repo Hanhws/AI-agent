@@ -12,6 +12,9 @@ VENV/
 .DS_Store
 *.vsix
 
+# python -m backend.macapp 이 만든 앱 (내 PC의 경로가 들어 있어요)
+dist/
+
 # 설문 원자료. 응답자에게 "익명이며 과제 분석에만 써요"라고 안내했으므로 공개 저장소에 올리지 않음
 docs/survey/*.xlsx
 

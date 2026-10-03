@@ -20,7 +20,7 @@ alwaysApply: true
 - 이모지 · 그라데이션 · 반짝이 아이콘 금지
 
 ## 코드
-- `shared/ui/`는 모든 입구(크롬 확장 · MCP · VS Code · Cursor)가 같이 써요. 입구별 차이는 `extension/content/sites/*`, `cursor-hooks/`(Cursor · Claude Code 어댑터), `mcp/`, `backend/sources/`(내 PC의 기록 읽기), `backend/web/`(가닥 창)에만 둬요. 입구마다 다른 동작은 `shared/ui/view.js` 머리말의 hooks로 넘겨요.
+- `shared/ui/`는 모든 입구(크롬 확장 · MCP · VS Code · Cursor)가 같이 써요. 입구별 차이는 `extension/content/sites/*`, `cursor-hooks/`(Cursor · Claude Code 어댑터), `mcp/`, `backend/sources/`(내 PC의 기록 읽기), `backend/web/`(가닥 창), `mac/`(macOS 앱의 겉: 창 · Dock · 메뉴)에만 둬요. 입구마다 다른 동작은 `shared/ui/view.js` 머리말의 hooks로 넘겨요.
 - 화면을 고치면 가닥 창을 `?demo`(만든 예시)와 `?demo=example&scen=u1`(각자 PC의 실제 예시)로 열어 `screenshots/`와 나란히 비교해요.
 - 사용자가 설정하지 않아도 돌아야 해요. 켜면 알아서 찾고 읽어요(`backend/sources/`). 다른 프로그램의 설정을 고치는 일(Cursor hook 연결)만 사용자가 한 번 눌러요.
 - 에이전트는 2단이에요. 매 턴 분류 1회(`backend/agent/classify.py`) + 조건이 걸린 턴만 도구 루프(`backend/agent/investigate.py`). 2단이 돈 턴은 판단 기록을 남겨요. README 3-1.
