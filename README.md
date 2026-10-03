@@ -8,6 +8,8 @@
 
 **10/3 갱신** — 구현 결정 다섯 가지(2단 에이전트 · 입구 넷 모두 · 배포 웹 데모 · workflow 둘 · 승인한 종류만 자동 실행)를 반영했어요. 어디가 바뀌었는지는 `CHANGES.md`에 기존 → 변경으로 정리했어요. `docs/schema.md` · `docs/agent-prompt.md`는 아직 그대로이고, 거기에 필요한 변경은 `CHANGES.md`에 제안으로 적어 뒀어요.
 
+**10/3 갱신 (2) · 켜면 알아서** — `가닥.command`를 더블클릭하면 가닥이 이 PC에서 LLM 사용 기록을 찾아 읽고(Claude Code · Codex는 알아서, Cursor는 한 번 연결, 웹 · 데스크톱 앱은 내보내기 파일), 보는 대화부터 정리해서 가닥 창에 노선도로 보여 줘요. 화면은 프로토타입의 노선도 카드 · 레일 · 목록 · 한마디를 `shared/ui/`로 옮긴 것이에요. 바뀐 곳은 `CHANGES.md` 6번, 쓰는 법은 `docs/usage-guide.md`.
+
 ---
 
 ## 0. 먼저 읽기
@@ -17,6 +19,7 @@
 가닥/
 ├─ README.md                    ← 이 문서. 전체 맥락 + 구현 명세
 ├─ CHANGES.md                   ← README에서 바뀐 곳 (기존 → 변경, 조원 확인용)
+├─ 가닥.command                 ← 더블클릭하면 가닥이 켜져요 (macOS). 쓰는 법은 docs/usage-guide.md
 ├─ CLAUDE.md                    ← Claude Code가 자동으로 읽는 작업 규칙
 ├─ .cursor/rules/gadak.mdc      ← Cursor가 자동으로 읽는 작업 규칙 (내용은 CLAUDE.md와 같음)
 ├─ prototype/
@@ -24,7 +27,8 @@
 │  └─ symbol.html               ← 심볼 시안 A · B · C (A 채택)
 ├─ screenshots/                 ← 프로토타입 주요 화면 16장 (1440×900)
 ├─ data/
-│  └─ example_conversations.json← 프로토타입 예시 데이터 전체 (실제 대화 58턴 포함, 평가 정답 라벨로도 씀)
+│  ├─ example_conversations.json← 프로토타입 예시 데이터 전체 (실제 대화 58턴 포함, 평가 정답 라벨로도 씀)
+│  └─ demo_conversations.json   ← 만든 예시 대화 (공개용 · 배포 웹 데모와 `?demo`에서 씀)
 ├─ docs/
 │  ├─ schema.md                 ← 데이터 계약 · API · DB 테이블 · 입구별 원천 데이터
 │  ├─ agent-prompt.md           ← 분류 에이전트 프롬프트 · 출력 JSON · 예시 · 비용 · 평가
@@ -37,7 +41,7 @@
 │     ├─ 설문응답_2026-10-01.xlsx← 원자료 (16명). 저장소에는 올리지 않음
 │     └─ 설문분석.md            ← 분석과 가닥에 반영한 것
 ├─ archive/                     ← ‘갈래’ 시절 자료 (전달 문서, 캔버스, 옛 프로토타입, 이름 비교 이미지)
-└─ backend/ · cursor-hooks/ · tests/ ← 구현 (10/3부터. 구조는 5-1)
+└─ backend/ · shared/ui/ · cursor-hooks/ · tests/ ← 구현 (10/3부터. 구조는 5-1)
 ```
 
 **공개 저장소에 없는 파일** (10/3): `prototype/index.html` · `data/example_conversations.json` · `screenshots/` · `archive/`의 갈래 프로토타입과 화면 캔버스 · `docs/agent-prompt.examples.md` · 설문 원자료. 실제 대화나 응답이 들어 있어서 올리지 않아요. 팀원끼리 따로 주고받아 위 자리에 그대로 두면 돼요. `.gitignore`에 들어 있어서 실수로 올라가지 않아요.
@@ -235,7 +239,7 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 |---|---|---|---|---|---|
 | **웹** | claude.ai · chatgpt.com (+ Gemini) | 콘텐츠 스크립트가 DOM을 읽고 MutationObserver로 새 메시지 감지. 로그인한 탭을 그대로 읽어 별도 로그인 없음 | 채팅 옆 **세로 레일** | 채팅 위 **가로 노선도 카드** + 오른쪽 목록 | — (가장 완전한 입구) |
 | **데스크톱 앱** | Claude 데스크톱 | MCP 서버. Claude가 답할 때마다 `record_turn` 도구로 기록을 넘김 (추가 API 비용 0) | Claude 창 가장자리의 **얇은 띠 창**(44px): 심볼 · 세로 미니 노선 · 할 일 수 | 노선도 **창** (자체 제목줄 “가닥 창 · 띠를 누르면 접혀요”) | 앱 화면 스크롤 · 입력. 역을 누르면 메시지 내용을 팝업으로. `record_turn` 호출은 Claude 재량이라 빠지는 턴이 있을 수 있음 |
-| **VS Code** | Claude Code (· Codex · Gemini CLI) | **Claude Code 공식 hooks**(`.claude/settings.json`, 10/3): `UserPromptSubmit`(질문) · `Stop`(답변, `last_assistant_message`) · `PostToolUse`(Edit · Write 파일 수정) · `SessionStart`(새 세션). 세션 파일(`~/.claude/projects/<proj>/<session>.jsonl`) 감시는 쓰지 않음. Codex는 `~/.codex/sessions/rollout-*.jsonl` + `notify`, Gemini CLI는 `~/.gemini/tmp/<hash>/chats/` | 하단 **상태 표시줄** 미니 노선 `●─○─● 04 최종 모델 확정 · 할 일 2` | 터미널 위 가로 노선도 패널 | 터미널 스크롤. 실행 버튼은 `terminal.sendText`로 터미널에 입력 |
+| **VS Code** | Claude Code (· Codex · Gemini CLI) | **세션 파일 읽기**(10/3 저녁): `~/.claude/projects/<proj>/<session>.jsonl`에서 새로 붙은 줄만 읽음. 설정을 건드리지 않고 지난 대화까지 읽힘. 승인한 종류의 자동 실행에는 **공식 hooks**(`.claude/settings.json`: `UserPromptSubmit` · `Stop` · `PostToolUse` · `SessionStart`)를 같이 씀. Codex는 `~/.codex/sessions/…/rollout-*.jsonl`(같은 방식으로 읽음), Gemini CLI는 `~/.gemini/tmp/<hash>/chats/` | 하단 **상태 표시줄** 미니 노선 `●─○─● 04 최종 모델 확정 · 할 일 2` | 터미널 위 가로 노선도 패널 | 터미널 스크롤. 실행 버튼은 `terminal.sendText`로 터미널에 입력 |
 | **Cursor** ★ | Cursor Agent 채팅 | **Cursor hooks** (`~/.cursor/hooks.json` 또는 `.cursor/hooks.json`): `beforeSubmitPrompt`(질문) · `afterAgentResponse`(답변) · `afterFileEdit`(파일 수정) · `stop`(끝남 · 자동 실행) · `sessionStart`(새 대화 · 맥락 넣기) · 모든 hook의 `conversation_id` · `transcript_path` | 하단 상태 표시줄 미니 노선 | **편집기 아래** 가로 노선도 (편집기 30% · 노선도 나머지) | Agent 패널 스크롤 · 입력. 실행 버튼은 **클립보드에 담아** 붙여 넣게 함. 승인한 종류는 `stop` hook으로 직접 보냄 |
 
 - 우선순위: **ChatGPT 웹 → Cursor → Claude 웹 → Claude 데스크톱 MCP → VS Code(Claude Code)**. ChatGPT가 주력 11명, Cursor는 교수님 강조. 발표에서 보여 주는 비중은 이 순서 그대로예요.
@@ -245,8 +249,9 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 - Cursor Cloud Agent에서는 `afterAgentResponse` · `stop` hook이 안 돈다는 버그 보고가 있어요. 로컬 Agent 기준으로 만들어요. 공식 문서에 따르면 Cloud Agent에서는 `sessionStart`도 돌지 않아요.
 - VS Code/Cursor 상태 표시줄(StatusBarItem)은 **텍스트와 codicon만** 돼요. 프로토타입의 SVG 미니 노선 대신 `●─○─●` 같은 문자로 그려요.
 - 여러 LLM을 묶는 ‘비교 갈래’는 만들지 않아요(불편 근거 없음). 기록이 한 저장소에 모이니 같은 프로젝트의 ChatGPT 대화와 Claude 대화가 한 노선도에 놓이는 정도만 지원해요. 발표에서는 “가닥은 서비스를 가리지 않는다” 한 줄.
-- **구현 1차 화면 (10/3)**: Cursor · VS Code · 데스크톱 앱에서는 표의 접힌 · 펼친 모양(상태 표시줄, 편집기 아래 패널, 띠 창)을 바로 만들지 않고, 백엔드가 내주는 **로컬 웹 페이지**(`http://127.0.0.1:7311`)에 같은 노선도 카드를 띄워요. Cursor 안의 브라우저 탭이나 옆 창에 두고 써요. 표의 모양은 디자인 목표로 그대로 두고, 여유가 있을 때 확장(.vsix)과 띠 창으로 옮겨요. 웹 입구는 표 그대로(레일 + 카드)예요.
-- **불러오기 (다섯 번째 경로, 10/3)**: ChatGPT · Claude의 대화 내보내기 파일을 `/import`로 올리면 같은 노선도가 그려져요. 내 PC의 가닥에서 측정(3-4의 B)에 쓰고, 실시간 입구가 못 읽은 대화를 채워요. 배포 웹 데모에서는 쓰지 않아요.
+- **켜면 알아서 (10/3 저녁)**: 사용자가 입구마다 설정하지 않아요. 가닥을 켜면 이 PC에서 무엇을 쓰는지 찾아서(`backend/sources/`) 읽을 수 있는 것을 읽어요. ① 기록 파일이 PC에 남는 것(Claude Code · Codex)은 알아서, 지난 대화까지. ② Cursor는 가닥 창에서 ‘연결’ 한 번(사용자 hook을 붙임), 그 뒤 대화부터. ③ 대화가 서버에 있는 것(웹 · 데스크톱 앱의 채팅)은 내보내기 파일을 넣거나, 크롬 확장 · MCP가 생기면 그쪽으로. 무엇을 찾았는지는 가닥 창의 ‘찾은 곳’에 보여요.
+- **구현 1차 화면 (10/3)**: Cursor · VS Code · 데스크톱 앱에서는 표의 접힌 · 펼친 모양(상태 표시줄, 편집기 아래 패널, 띠 창)을 바로 만들지 않고, 백엔드가 내주는 **로컬 웹 페이지**(`http://127.0.0.1:7311`, ‘가닥 창’)에 같은 노선도 카드를 띄워요. 가닥 창은 왼쪽에 프로젝트 · 대화 목록, 위에 노선도 카드, 아래에 그 대화(읽기 전용)와 레일이 있는 모양이에요(프로토타입 웹 입구에서 브라우저 틀과 입력창을 뺀 것). Cursor 안의 브라우저 탭이나 옆 창에 두고 써요. 표의 모양은 디자인 목표로 그대로 두고, 여유가 있을 때 확장(.vsix)과 띠 창으로 옮겨요. 웹 입구는 표 그대로(레일 + 카드)예요.
+- **불러오기 (다섯 번째 경로, 10/3)**: ChatGPT · Claude의 대화 내보내기 파일을 `/import`로 올리면 같은 노선도가 그려져요(가닥 창의 찾은 곳 → 파일 고르기). 내 PC의 가닥에서 측정(3-4의 B)에 쓰고, 실시간 입구가 못 읽은 대화를 채워요. 배포 웹 데모에서는 쓰지 않아요.
 
 **입구별 실행 방법** (3-2의 ‘승인한 종류만 자동 실행’)
 
@@ -264,9 +269,10 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 ```
 [claude.ai / chatgpt.com]──콘텐츠 스크립트──┐
 [Claude 데스크톱]──MCP record_turn─────────┤
-[VS Code · Claude Code]──공식 hooks───────┼──► 백엔드 (Python · Flask, 로컬 127.0.0.1:7311)
+[Claude Code · Codex]──세션 파일 읽기──────┼──► 백엔드 (Python · Flask, 로컬 127.0.0.1:7311)
 [Cursor Agent]──hooks.json → gadak-hook.py─┘        ├─ agent/ : 1단 분류(매 턴 LLM 1회) + 2단 확인(조건부 도구 루프) + 판단 기록
                                                      ├─ search/ : 문자열 + 임베딩 (repeat · 찾기)
+                                                     ├─ sources/ : 내 PC의 기록 찾기 · 읽기 (켜면 알아서)
                                                      └─ store.py : SQLite
         ◄── 노선도 · 할 일 · 한마디 데이터 ── 각 입구의 화면 (shared/ui, 프로토타입에서 옮김)
             웹: Shadow DOM에 레일 + 카드 · Cursor · VS Code · 데스크톱 앱: 로컬 웹 페이지(같은 백엔드가 내줌)
@@ -277,7 +283,9 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 
 **10/3에 더한 구현 규칙**
 - **턴 중복 방지**: 같은 `chat.id` + `messageRef`가 다시 오면(새로고침 · hook 재실행) 새 역을 만들지 않고 덮어써요.
-- **화면 갱신**: 로컬 웹 페이지는 1~2초마다 `/view`를 다시 불러와요(폴링). 웹 확장은 `/turns` 응답을 받아 바로 그려요.
+- **화면 갱신**: 로컬 웹 페이지는 1.5초마다 `/status`의 변경 번호(rev)를 보고, 바뀌었을 때만 `/view`를 다시 불러와요. 웹 확장은 `/turns` 응답을 받아 바로 그려요.
+- **기록 읽기 (10/3 저녁)**: `backend/sources/`가 기록 파일을 찾아, 지난번 이후로 붙은 줄만 2.5초마다 읽어요. 읽는 곳마다 파일 형식만 다르고(`claude_code.py` · `codex.py` · `exports.py`), 저장소에 옮기는 방법은 하나예요(`sync.py`). 가닥이 꺼져 있던 동안 hook이 쌓아 둔 이벤트도 켤 때 같이 넣어요.
+- **보는 대화부터 정리 (10/3 저녁)**: 지난 대화를 한꺼번에 분류하지 않아요. 화면에 보이는 대화와 새로 끝난 턴만 줄을 세워 하나씩 분류하고, 한 대화의 턴을 8개씩 묶어 한 번에 물어요(구독 한도 · 시간). 화면에는 원문의 앞부분만 보내고(질문 600자 · 답 700자), 전체는 역을 열 때 받아요.
 - **hook 스크립트 하나**: Cursor와 Claude Code가 `cursor-hooks/gadak-hook.py`를 같이 써요. 받은 JSON 모양만 어댑터 둘로 맞춰요.
 - **hook 이벤트는 `/events`로**: hook은 질문 · 파일 수정 · 답변을 따로따로 보내요. 백엔드가 같은 대화 · 같은 질문끼리 모아 Turn 하나로 만들어요. 완성된 턴을 보내는 입구(웹 확장 · 불러오기)는 `/turns`.
 - **엔진**: 가닥이 판단에 쓰는 LLM은 `backend/engines/`에서 갈아 끼워요. 지금은 Claude 구독 엔진(`claude_cli`)과 엔진 없음(`none`). 고르는 법은 `docs/usage-guide.md`.
@@ -289,16 +297,17 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 ```
 gadak/
 ├─ README.md · CHANGES.md · CLAUDE.md · .cursor/rules/gadak.mdc
+├─ 가닥.command          더블클릭으로 켜기 (처음이면 .venv를 만들고 backend.launch를 돌림)
 ├─ prototype/            지금 이 프로토타입 (화면 기준점, 수정 금지에 가깝게)
 ├─ docs/                 schema · agent-prompt · design · survey
-├─ data/                 example_conversations.json
+├─ data/                 example_conversations.json (각자 PC) · demo_conversations.json (만든 예시)
 ├─ shared/ui/            ★ 모든 입구가 같이 쓰는 화면 (prototype에서 분리)
-│  ├─ tokens.css · gadak.css
-│  ├─ map.js             가로 노선도 (renderMap)
+│  ├─ tokens.css · gadak.css   docs/design의 값을 그대로 옮긴 것
+│  ├─ map.js             노선도 카드 · 가로 노선도 (mountDrawer · renderMap) · 툴팁
 │  ├─ rail.js            세로 레일 (renderRail)
 │  ├─ side.js            할 일 · 정한 것 · 산출물 · 찾기
-│  ├─ nudge.js           한마디 카드
-│  ├─ view.js            buildView: 구간 · 곁길 묶음 · 지금 위치 계산
+│  ├─ nudge.js           한마디 카드 · 실행 창 · 토스트
+│  ├─ view.js            buildView: 구간 · 곁길 묶음 · 지금 위치 · 할 일 장부 계산. 입구마다 다른 동작은 hooks로
 │  └─ mark.js            심볼 A와 애니메이션
 ├─ extension/            크롬 확장 (Manifest V3)
 │  ├─ manifest.json
@@ -306,10 +315,14 @@ gadak/
 │  ├─ content/mount.js   Shadow DOM에 레일 · 노선도 카드 붙이기
 │  └─ background.js      백엔드와 통신
 ├─ backend/              Flask
-│  ├─ app.py             /events · /turns · /projects/:id/view · /search · /files · /items · /import · /trace · 로컬 웹 페이지(/)
+│  ├─ launch.py          프로그램처럼 켜기: 서버 + 기록 읽기 + 정리 + 가닥 창. `--install-app`은 ~/Applications/가닥.app
+│  ├─ runtime.py         켜져 있는 동안 도는 것(읽기 · 정리 스레드)과 변경 번호
+│  ├─ app.py             /events · /turns · /projects/:id/view · /search · /items · /import · /status · /sources · /classify · 로컬 웹 페이지(/) — /files · /trace는 아직
+│  ├─ web/               가닥 창(로컬 웹 페이지): index.html · app.js · app.css. shared/ui를 그대로 쓰고 이 입구만의 것만
+│  ├─ sources/           내 PC의 기록 찾기 · 읽기: claude_code.py · codex.py · exports.py(내보내기 파일) · sync.py
 │  ├─ assemble.py        hook 이벤트를 Turn 하나로 모음
 │  ├─ engines/           판단에 쓰는 LLM: claude_cli(Claude 구독) · none
-│  ├─ agent/classify.py  1단: 매 턴 분류, LLM 호출 1회 (agent-prompt.md)
+│  ├─ agent/classify.py  1단: 분류. 한 대화의 밀린 턴을 8개씩 묶어 LLM 호출 1회 (prompts/classify.txt)
 │  ├─ agent/investigate.py  2단: 조건이 걸린 턴만 도는 도구 루프
 │  ├─ agent/tools.py     2단 도구 넷 (get_request · get_diff · search_decisions · list_open_items)
 │  ├─ agent/trace.py     판단 기록 저장
@@ -326,7 +339,7 @@ gadak/
 │  ├─ hooks.json         Cursor용 틀
 │  ├─ claude-settings.json  Claude Code용 틀
 │  └─ install.py         두 틀에 내 PC 경로를 채워 보여 줌 (파일은 안 건드림)
-├─ tests/                hook · 백엔드 테스트 (python -m unittest discover -s tests)
+├─ tests/                hook · 백엔드 · 기록 읽기 · 분류 · 켜기 테스트 (python -m unittest discover -s tests)
 └─ eval/                 분류 정확도 평가 (정답: data/example_conversations.json의 u1)
 ```
 
@@ -556,6 +569,7 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 | 10/13 화 | 제출 | 폼에 링크 등록 |
 
 - 10/14 리허설 · 10/15 발표
+- **진행 (10/3 밤)**: 10/3 항목은 끝났고, 뒤 날짜에서 당겨 온 것이 있어요 — 1단 분류와 화면(가닥 창 · `shared/ui`)은 10/4에서, Claude Code 읽기와 불러오기는 10/7에서. 남은 확인: 실제 Cursor 대화, 실제 내보내기 파일. 2단(할 일 · 한마디 찾아내기)은 일정대로 10/5~6이라 지금은 ‘할 일’이 비어 있어요.
 - **밀릴 때**: 10/10 기능 동결 때까지 안 된 입구는 불러오기 화면으로 대신 시연해요.
 - **기획 담당 쪽 병행**: 두 업무의 전 · 후 flowchart 초안(10/8까지) · 측정 참가자 2~3명과 과제(10/11) · 프롬프트를 role · goal · backstory 형식으로 정리 · 자동 실행을 켜고 끄는 문구(11장)
 
@@ -571,10 +585,10 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 |---|---|
 | 확장 프로그램이 ‘앱’으로 인정되는지 | **인정됨 (10/3 확인).** Slack 문의는 하지 않아요. 배포 웹 데모(예시 재생)는 교수님이 링크로 바로 볼 수 있게 그대로 같이 내요 |
 | 영문 표기 | 미정 (7-2 참고) |
-| 분류용 LLM · 엔진 | **Claude로 정함**(10/3). 가닥이 판단에 쓰는 LLM(엔진)은 사용자가 가진 것에 맞춰 골라요. ① **Claude 구독(Pro · Max)만 있으면** 내 PC의 Claude Code(`claude -p`)를 엔진으로 써요. API 키도 추가 비용도 없고, 구독 한도를 같이 써요. 구현 담당이 Pro 구독만 있어서 개발 기본값이에요(10/3 측정: 한 번 호출에 3~8초). 설정은 `docs/usage-guide.md`. ② **Anthropic API 키가 있으면** 키로 직접 호출해요(예정). 1단을 어느 모델로 돌릴지는 u1 정확도를 재서 정해요. 배포 웹 데모는 **미리 분류해 둔 예시만 보여 줘요**(10/3 결정). 서버에서는 구독을 쓸 수 없고 API 키는 쓰지 않기로 해서, 그 자리에서 분류하는 기능은 넣지 않아요 |
+| 분류용 LLM · 엔진 | **Claude로 정함**(10/3). 가닥이 판단에 쓰는 LLM(엔진)은 사용자가 가진 것에 맞춰 골라요. ① **Claude 구독(Pro · Max)만 있으면** 내 PC의 Claude Code(`claude -p`)를 엔진으로 써요. API 키도 추가 비용도 없고, 구독 한도를 같이 써요. 구현 담당이 Pro 구독만 있어서 개발 기본값이에요(10/3 측정: 턴 6~8개를 한 번에 물어 약 10초. Claude Code의 긴 생각을 꺼야 해요 — 켜 두면 50초 넘게 걸림). 설정은 `docs/usage-guide.md`. ② **Anthropic API 키가 있으면** 키로 직접 호출해요(예정). 1단을 어느 모델로 돌릴지는 u1 정확도를 재서 정해요. 배포 웹 데모는 **미리 분류해 둔 예시만 보여 줘요**(10/3 결정). 서버에서는 구독을 쓸 수 없고 API 키는 쓰지 않기로 해서, 그 자리에서 분류하는 기능은 넣지 않아요 |
 | 개인정보 | **저장은 내 PC(로컬 SQLite), 분류할 때만 그 턴이 LLM API로 나가요**(10/3 · ‘로컬 처리’라고 쓰지 않음). 사이트별 켜기 · 끄기, ‘읽지 않을 대화’ 지정. 대화 원문 저장은 로컬 SQLite에만. 배포 웹 데모는 대화를 올리는 기능이 없어서 방문자의 대화를 받지 않아요 |
 | 사이트 화면 구조 변경 | DOM 읽기는 사이트별 파일로 격리. 셀렉터는 상수로 모아 둠 |
-| Claude Code · Codex · Gemini CLI 기록 형식 | **10/3**: Claude Code는 공식 hooks로 읽어서 해당 없음. Codex · Gemini CLI는 그대로 — 공식 약속이 아님, 버전 확인 코드 필요 |
+| Claude Code · Codex · Gemini CLI 기록 형식 | **10/3 저녁**: 지난 대화를 알아서 읽으려고 Claude Code · Codex 세션 파일을 다시 읽어요. 공식 약속이 아니라서 모르는 줄은 건너뛰게 만들었고, 형식이 바뀌어 안 읽히면 공식 hooks(이미 있음)로 받아요. Gemini CLI는 아직 |
 | Cursor Cloud Agent | hook 일부가 안 돎 → 로컬 Agent 기준 |
 | ChatGPT 데스크톱 · 모바일 | 읽을 수 없음 → 발표에서 한계로 |
 | 판단 기록(5단계) 화면 | 노선도 카드에서는 그대로 뺌. **10/3**: 2단이 돈 턴의 판단 기록을 저장해 별도 로그 페이지(`/trace`)에서 봄. 시연 · 발표에서 에이전트 동작의 근거로 |
@@ -617,6 +631,10 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 | 10/3 | 분류용 LLM은 Claude. 엔진은 고를 수 있게: Claude 구독(Claude Code) · API 키 | 사용자마다 가진 LLM 이용 형태가 달라요. 구현 담당은 Pro 구독만 있어요. 모델은 u1 정확도로 정해요 |
 | 10/3 | 확장 프로그램도 ‘앱’으로 인정됨을 확인. Slack 문의는 안 함 | 과제 요건 확인 |
 | 10/3 | 실명과 실제 대화가 든 파일을 공개 저장소에서 뺌 | 저장소가 공개라서. 파일은 각자 PC에 그대로 둬요 |
+| 10/3 | 쓰는 법을 ‘켜면 알아서’로: 더블클릭으로 켜면 기록을 찾아 읽고, 정리해서 가닥 창에 보여 줌 | 명령을 여러 번 치는 방식은 불편하다는 구현 담당의 사용 경험. 교수님 목표 “실제로 사용할 수 있는 AI tool” |
+| 10/3 | Claude Code(· Codex)는 세션 파일을 읽음. 같은 날 오전의 ‘공식 hooks만’ 결정을 고침 | hook은 붙인 뒤의 대화만 받아요. 지난 대화까지 알아서 읽으려면 기록 파일이 필요해요. hook은 자동 실행용으로 남겨요 |
+| 10/3 | 지난 대화는 보는 대화부터, 턴을 묶어서 분류 | 구독 한도와 시간. 대화 90개 · 508턴을 턴마다 부르면 한 시간이 넘어요 |
+| 10/3 | 정함(dec)은 ‘사용자가 골랐는가’를 먼저 묻고 아니면 버림 | Haiku가 글 칸을 채우는 버릇으로 거의 모든 턴에 정함을 붙였어요(9턴 중 7 → 3) |
 
 ---
 
@@ -653,6 +671,8 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 | 한마디 | 할 일 중 하나를 카드로 먼저 알려 주는 것 |
 | 숨은 가지 | 고쳐 쓰기 · 재생성으로 화면에서 사라진 이전 판 |
 | 산출물 판 | 같은 파일의 v1 · v2 · … · 최신 |
+| 가닥 창 | 가닥을 켜면 뜨는 로컬 웹 페이지. 프로젝트 · 대화 목록 + 노선도 카드 + 그 대화(읽기 전용) + 레일 |
+| 찾은 곳 | 가닥이 이 PC에서 찾은 LLM 사용 기록과 읽는 방법(알아서 · 연결 · 파일) |
 | 입구 | 가닥이 붙는 곳: 웹 · 데스크톱 앱 · VS Code · Cursor |
 | 레일 · 띠 창 · 상태 표시줄 | 입구별 접힌 모양 |
 | 1단 · 2단 | 1단은 매 턴 분류(LLM 1회), 2단은 조건이 걸린 턴만 도는 도구 루프 |
