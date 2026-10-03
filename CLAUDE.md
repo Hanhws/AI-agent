@@ -14,7 +14,9 @@
 - 이모지 · 그라데이션 · 반짝이 아이콘 금지
 
 ## 코드
-- `shared/ui/`는 모든 입구(크롬 확장 · MCP · VS Code · Cursor)가 같이 써요. 입구별 차이는 `extension/content/sites/*`, `vscode/src/readers/*`, `cursor-hooks/`에만 둬요.
+- `shared/ui/`는 모든 입구(크롬 확장 · MCP · VS Code · Cursor)가 같이 써요. 입구별 차이는 `extension/content/sites/*`, `cursor-hooks/`(Cursor · Claude Code 어댑터), `mcp/`에만 둬요.
+- 에이전트는 2단이에요. 매 턴 분류 1회(`backend/agent/classify.py`) + 조건이 걸린 턴만 도구 루프(`backend/agent/investigate.py`). 2단이 돈 턴은 판단 기록을 남겨요. README 3-1.
+- 가닥이 직접 보내는 건 사용자가 승인한 종류(요청 외 변경 되돌리기 · 이어 가기 요약)뿐이에요. 그 밖에는 글을 넣어 주기만 해요. README 3-2.
 - 사이트 DOM 셀렉터는 사이트별 파일 위쪽 상수로 모아요.
 - API 키는 `.env`에만. `.env`와 대화 원문이 든 DB는 커밋하지 않아요.
 - 커밋: `feat:` `fix:` `docs:` `refactor:` + 한 줄 한국어. `main`에 직접 push하지 않아요.
