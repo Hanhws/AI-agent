@@ -12,6 +12,10 @@ class EngineError(RuntimeError):
     pass
 
 
+class OutOfCalls(EngineError):
+    """이번에 켠 동안 쓸 호출 수(GADAK_MAX_CALLS)를 다 썼어요. 턴 탓이 아니라서 실패로 세지 않아요."""
+
+
 def resolve_name(name=None) -> str:
     name = (name or config.ENGINE).lower()
     if name != "auto":

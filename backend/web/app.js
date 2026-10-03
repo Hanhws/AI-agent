@@ -143,12 +143,15 @@
     else if (s.classify.error) { text = s.classify.error; hot = true; }
     else if (s.classify.engine === 'none') text = '정리 엔진이 없어서 제목이 임시예요. docs/usage-guide.md 3번을 봐 주세요.';
     else if (s.classify.running) text = '보는 대화부터 정리하고 있어요 · 호출 ' + s.classify.calls + '번';
+    else if (s.classify.checking) text = '놓친 일이 있는지 확인하고 있어요 · 호출 ' + s.classify.calls + '번';
     else text = '켜 두면 새 대화를 알아서 읽어요' + (s.classify.calls ? ' · 정리 호출 ' + s.classify.calls + '번' : '');
     f.appendChild(el('div', 'state' + (hot ? ' hot' : ''), text));
     if (S.demo) return;
     var row = el('div', 'row');
     R.srcBtn = el('button', 'btn sm', '찾은 곳'); R.srcBtn.type = 'button'; R.srcBtn.onclick = toggleSources; row.appendChild(R.srcBtn);
     if (s && s.classify.paused) { var again = el('button', 'btn sm', '정리 다시'); again.type = 'button'; again.onclick = function () { api('classify', 'POST', { pause: false }).then(tick); }; row.appendChild(again); }
+    // 2단이 어떤 도구로 무엇을 보고 결론 냈는지는 노선도 카드에 넣지 않고 별도 페이지에서 봐요 (README 3-1)
+    var log = el('button', 'btn sm', '판단 기록'); log.type = 'button'; log.onclick = function () { window.open('trace', '_blank'); }; row.appendChild(log);
     var quit = el('button', 'btn sm', '끄기'); quit.type = 'button'; quit.onclick = quitApp; row.appendChild(quit);
     f.appendChild(row);
   }
@@ -271,7 +274,7 @@
     if (S.demo || S.off || !S.status || S.status.classify.engine === 'none' || S.status.classify.paused) return;
     var ids = [], now = Date.now();
     g.SC.chats.forEach(function (c) {
-      if (!c.pending || S.asked[c.id] > now - 30000) return;
+      if (!(c.pending || c.checks) || S.asked[c.id] > now - 30000) return;  // 분류할 턴이나 2단이 확인할 턴이 남은 대화
       var seen = c === g.ACT || (st.scope === 'all' && c.turns.some(function (t) { return V.sIdx[t.id] != null && V.isOpen(V.sIdx[t.id]); }));
       if (seen) { ids.push(c.id); S.asked[c.id] = now; }
     });

@@ -28,5 +28,9 @@ DB_PATH = Path(os.environ.get("GADAK_DB", HOME / "gadak.db")).expanduser()
 # auto | claude_cli | none  (docs/usage-guide.md)
 ENGINE = os.environ.get("GADAK_ENGINE", "auto")
 ENGINE_MODEL = os.environ.get("GADAK_ENGINE_MODEL", "haiku")
-# 한 번 켠 동안 정리(분류)에 쓰는 LLM 호출 수의 한도. 구독 한도를 모르는 사이에 다 쓰지 않게 해요
+# 한 번 켠 동안 정리(1단 분류 + 2단 확인)에 쓰는 LLM 호출 수의 한도. 구독 한도를 모르는 사이에 다 쓰지 않게 해요
 MAX_CALLS = int(os.environ.get("GADAK_MAX_CALLS", "150"))
+# 2단(확인)이 한 턴에서 엔진에 묻는 걸음 수의 한도 (README 3-1: 초깃값 5)
+MAX_STEPS = int(os.environ.get("GADAK_MAX_STEPS", "5"))
+# 2단에 쓸 모델. 비우면 1단과 같은 모델
+CHECK_MODEL = os.environ.get("GADAK_CHECK_MODEL") or ENGINE_MODEL

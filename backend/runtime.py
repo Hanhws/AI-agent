@@ -60,6 +60,7 @@ class Runtime:
             self.classifier.status["error"] = str(exc)[:200]
         sync, classify = self.syncer.status, dict(self.classifier.status)
         classify["queued"] = len(self.classifier.queue)
+        classify["checkQueued"] = len(self.classifier.checker.queue)   # 2단을 기다리는 대화
         return {
             "rev": self.rev,
             "sync": {k: sync.get(k) for k in ("phase", "done", "total", "scans", "error")},

@@ -2,6 +2,8 @@
 
 테이블과 필드 이름은 docs/schema.md를 따라요. edits · item_states · sync_state 테이블과
 turns의 state · classified, chats의 via · cwd는 10/3에 더한 것이에요 (CHANGES.md 4번).
+agent_runs 테이블과 turns의 look · checked는 2단(확인)을 붙이며 더했어요 (CHANGES.md 8번).
+parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 """
 import json
 import sqlite3
@@ -42,6 +44,8 @@ CREATE TABLE IF NOT EXISTS turns(
   created_at TEXT NOT NULL,
   state TEXT NOT NULL DEFAULT 'open',
   classified INTEGER NOT NULL DEFAULT 0,
+  look TEXT,
+  checked INTEGER NOT NULL DEFAULT 0,
   UNIQUE(chat_id, message_ref)
 );
 CREATE TABLE IF NOT EXISTS parts(
@@ -68,10 +72,31 @@ CREATE TABLE IF NOT EXISTS edits(
   new TEXT,
   PRIMARY KEY(turn_id, idx)
 );
+CREATE TABLE IF NOT EXISTS items(
+  id TEXT PRIMARY KEY,
+  turn_id TEXT NOT NULL REFERENCES turns(id),
+  kind TEXT NOT NULL,
+  text TEXT NOT NULL,
+  why TEXT,
+  btn TEXT,
+  prompt TEXT,
+  effect TEXT,
+  pop_json TEXT,
+  at TEXT,
+  state TEXT NOT NULL DEFAULT 'open',
+  created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS item_states(
   id TEXT PRIMARY KEY,
   state TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS agent_runs(
+  id TEXT PRIMARY KEY,
+  turn_id TEXT NOT NULL REFERENCES turns(id),
+  trigger TEXT NOT NULL,
+  steps_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sync_state(
   path TEXT PRIMARY KEY,
@@ -84,7 +109,10 @@ CREATE TABLE IF NOT EXISTS sync_state(
 """
 
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
-ADDED_COLUMNS = {"chats": {"via": "TEXT", "cwd": "TEXT"}}
+ADDED_COLUMNS = {
+    "chats": {"via": "TEXT", "cwd": "TEXT"},
+    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0"},
+}
 
 NO_PROJECT = "_none"
 TITLE_LEN = 16
@@ -93,7 +121,8 @@ AI_HEAD = 4000
 CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
-SCHEMA_VERSION = 2
+MISSING, MAYBE_MISSING = 1, 2   # parts.open
+SCHEMA_VERSION = 3
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 
 
@@ -278,19 +307,73 @@ def add_file(conn, turn_id, name, url=None) -> None:
 
 
 def set_classification(conn, turn_id, *, title, depth, seg=None, topic=None, dec=None, ret=False,
-                       ref=None, parts=None) -> None:
-    """1단 분류 결과를 역에 적어요 (backend/agent/classify.py)."""
+                       ref=None, parts=None, look=None) -> None:
+    """1단 분류 결과를 역에 적어요 (backend/agent/classify.py). look은 2단이 확인할 까닭들이에요."""
     conn.execute(
-        "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, ret = ?, ref = ?, classified = 1"
-        " WHERE id = ?",
-        (title, depth, seg, topic, dec, 1 if ret else 0, ref, turn_id),
+        "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, ret = ?, ref = ?, classified = 1,"
+        " look = ?, checked = 0 WHERE id = ?",
+        (title, depth, seg, topic, dec, 1 if ret else 0, ref, ",".join(look) if look else None, turn_id),
     )
     conn.execute("DELETE FROM parts WHERE turn_id = ?", (turn_id,))
     for idx, part in enumerate(parts or []):
         conn.execute(
             "INSERT INTO parts(turn_id, idx, t, type, open, target) VALUES(?, ?, ?, ?, ?, ?)",
-            (turn_id, idx, part["t"], part["type"], 1 if part.get("open") else 0, part.get("target")),
+            (turn_id, idx, part["t"], part["type"], int(part.get("open") or 0), part.get("target")),
         )
+
+
+def waiting_checks(conn, chat_id) -> list:
+    """2단이 아직 확인하지 않은 턴. 지금에 가까운 턴부터."""
+    return conn.execute(
+        "SELECT * FROM turns WHERE chat_id = ? AND classified = 1 AND checked = 0 AND look IS NOT NULL"
+        " ORDER BY seq DESC", (chat_id,),
+    ).fetchall()
+
+
+def set_checked(conn, turn_id, value) -> None:
+    """2단 확인을 마쳤으면 1, 거듭 실패해 그만두면 -1."""
+    conn.execute("UPDATE turns SET checked = ? WHERE id = ?", (value, turn_id))
+
+
+def confirm_missing(conn, turn_id, missing) -> None:
+    """1단이 빠진 것 같다고 본 요청 중 2단이 확인한 것만 빠짐(1)으로, 나머지는 답함(0)으로 적어요."""
+    conn.execute(
+        "UPDATE parts SET open = CASE WHEN idx IN (%s) THEN %d ELSE 0 END WHERE turn_id = ?"
+        % (",".join(str(int(i)) for i in missing) or "NULL", MISSING),
+        (turn_id,),
+    )
+
+
+def set_items(conn, turn_id, items) -> list:
+    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요."""
+    conn.execute("DELETE FROM items WHERE turn_id = ?", (turn_id,))
+    ids = []
+    for n, item in enumerate(items):
+        item_id = f"{turn_id}:{n}"
+        pop = item.get("pop")
+        conn.execute(
+            "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
+            " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
+            (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
+             item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
+             item_id, now()),
+        )
+        ids.append(item_id)
+    return ids
+
+
+def turn_items(conn, turn_id) -> list:
+    """docs/schema.md의 Item 모양 (상태는 빼고). 화면은 상태를 itemStates로 받아요."""
+    out = []
+    for r in conn.execute("SELECT * FROM items WHERE turn_id = ? ORDER BY rowid", (turn_id,)):
+        item = {"id": r["id"], "kind": r["kind"], "text": r["text"], "why": r["why"] or "", "btn": r["btn"] or ""}
+        for key in ("prompt", "effect", "at"):
+            if r[key]:
+                item[key] = r[key]
+        if r["pop_json"]:
+            item["pop"] = json.loads(r["pop_json"])
+        out.append(item)
+    return out
 
 
 def give_up_classification(conn, turn_id) -> None:
@@ -310,7 +393,7 @@ def _clip(text, limit):
     return text if limit is None or len(text) <= limit else text[:limit].rstrip() + "…"
 
 
-def _shown_name(name, cwd):
+def shown_name(name, cwd):
     """산출물 이름. 작업 폴더 안의 파일은 폴더 기준 경로로, 밖의 파일은 이름만."""
     if cwd and name.startswith(cwd.rstrip("/") + "/"):
         return name[len(cwd.rstrip("/")) + 1:]
@@ -333,7 +416,7 @@ def turn_public(conn, row, clip=False, cwd=None) -> dict:
     if row["ret"]:
         turn["ret"] = True
     files = [
-        {"n": _shown_name(r["name"], cwd), "u": r["url"]} if r["url"] else _shown_name(r["name"], cwd)
+        {"n": shown_name(r["name"], cwd), "u": r["url"]} if r["url"] else shown_name(r["name"], cwd)
         for r in conn.execute("SELECT name, url FROM files WHERE turn_id = ? ORDER BY rowid", (row["id"],))
     ]
     if files:
@@ -341,13 +424,16 @@ def turn_public(conn, row, clip=False, cwd=None) -> dict:
     parts = []
     for r in conn.execute("SELECT t, type, open, target FROM parts WHERE turn_id = ? ORDER BY idx", (row["id"],)):
         part = {"t": r["t"], "type": r["type"]}
-        if r["open"]:
+        if r["open"] == MISSING:      # 1단의 후보(2)는 2단이 확인하기 전까지 보이지 않아요
             part["open"] = True
         if r["target"]:
             part["target"] = r["target"]
         parts.append(part)
     if parts:
         turn["parts"] = parts
+    todo = turn_items(conn, row["id"])
+    if todo:
+        turn["todo"] = todo
     return turn
 
 
@@ -358,7 +444,7 @@ def turn_full(conn, turn_id):
     return turn_public(conn, row, cwd=row["cwd"]) if row else None
 
 
-def _display_date(created_at: str) -> str:
+def display_date(created_at: str) -> str:
     day = datetime.fromisoformat(created_at).astimezone()
     today = datetime.now().astimezone().date()
     return "오늘" if day.date() == today else f"{day.month}/{day.day}"
@@ -400,7 +486,7 @@ def view(conn, project_id, scope="all", chat_id=None):
         entry = {
             "id": chat["id"],
             "title": chat["title"] or turns[0]["title"],
-            "date": _display_date(chat["created_at"]),
+            "date": display_date(chat["created_at"]),
             "site": chat["site"],
             "turns": [turn_public(conn, t, clip=True, cwd=chat["cwd"]) for t in turns],
         }
@@ -409,6 +495,9 @@ def view(conn, project_id, scope="all", chat_id=None):
         pending = sum(1 for t in turns if t["classified"] == 0)
         if pending:
             entry["pending"] = pending
+        checks = sum(1 for t in turns if t["look"] and t["checked"] == 0 and t["classified"] == 1)
+        if checks:
+            entry["checks"] = checks      # 2단이 아직 확인하지 않은 턴
         if chat["id"] == active_id:
             entry["active"] = True
         out.append(entry)
@@ -450,6 +539,7 @@ def search(conn, project_id, query, limit=40) -> list:
 
 
 def set_item_state(conn, item_id, state) -> bool:
+    """빠진 요청(<turnId>:p<n>)은 items에 줄이 없어서, 상태는 item_states 하나에 모아요. items.state는 같이 맞춰 둬요."""
     if state not in ITEM_STATES:
         return False
     conn.execute(
@@ -457,6 +547,7 @@ def set_item_state(conn, item_id, state) -> bool:
         " ON CONFLICT(id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at",
         (item_id, state, now()),
     )
+    conn.execute("UPDATE items SET state = ? WHERE id = ?", (state, item_id))
     return True
 
 

@@ -6,6 +6,7 @@
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
 from . import assemble, config, sources, store
+from .agent import trace
 from .engines import describe_engine
 from .runtime import Runtime
 from .sources import exports
@@ -53,6 +54,11 @@ def create_app(db_path=None, engine="auto") -> Flask:
     @app.get("/")
     def index():
         return send_from_directory(WEB_DIR, "index.html", max_age=0)
+
+    @app.get("/trace")
+    def trace_page():
+        """판단 기록: 2단이 어떤 도구를 어떤 순서로 썼고 무엇을 보고 결론 냈는지 (README 3-1)."""
+        return send_from_directory(WEB_DIR, "trace.html", max_age=0)
 
     @app.get("/web/<path:name>")
     def web_file(name):
@@ -146,6 +152,16 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if data is None:
             abort(404)
         return jsonify(turn=data)
+
+    @app.get("/turns/<turn_id>/trace")
+    def turn_trace(turn_id):
+        return jsonify(runs=trace.runs(db(), turn_id=turn_id))
+
+    @app.get("/runs")
+    def runs():
+        """판단 기록 목록. 최근 것부터, project를 주면 그 프로젝트만."""
+        limit = min(max(request.args.get("limit", 60, type=int), 1), 300)
+        return jsonify(runs=trace.runs(db(), project_id=request.args.get("project") or None, limit=limit))
 
     @app.patch("/items/<path:item_id>")
     def item(item_id):

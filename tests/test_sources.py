@@ -69,7 +69,7 @@ LINES = [
 
 def shown_date(value) -> str:
     """화면에 보이는 날짜 (시험을 돌리는 곳의 시간대와 오늘 날짜에 따라 달라져요)."""
-    return store._display_date(store.norm_ts(value))
+    return store.display_date(store.norm_ts(value))
 
 
 def jsonl(lines) -> str:
