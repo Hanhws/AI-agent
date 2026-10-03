@@ -8,6 +8,7 @@
 - **안 고친 것**: 화면 디자인 · 표기 규칙 · 문구, `prototype/`, `docs/design/`, `data/`, 데이터 필드 이름, 한마디 10종의 정의, README 6~9장(데이터 계약 요약 · 디자인 명세 · 상호작용 명세 · 코드 지도)
 - **아직 안 고친 파일**: `docs/schema.md` · `docs/agent-prompt.md`. 기획 담당의 영역이라 4번에 제안으로만 적었어요. 다만 `docs/agent-prompt.md` 3장의 예시는 실제 대화 인용이라 팀 내부 파일로 옮겼어요.
 - **10/3 밤에 더한 것**: 쓰는 법을 ‘켜면 알아서’로 바꾸고 화면(가닥 창)을 만들었어요. 맨 아래 **6번**에 따로 모았어요. 프롬프트 파일과 화면 문구에 확인받을 것이 있어요.
+- **커밋별로 보기**: 10/3에 올린 커밋 10개가 무엇을 바꿨는지는 맨 아래 **7번**에 있어요.
 
 ## 1. 결정 다섯 가지
 
@@ -177,3 +178,20 @@ README 장 번호 순서예요.
 - 실제 내보내기 파일 (알려진 형식대로 만든 파일로만 시험했어요)
 - Claude Code에서 hook과 세션 파일을 같이 켰을 때 같은 턴으로 합쳐지는지
 - Windows (macOS에서만 돌려 봤어요)
+
+## 7. 10/3에 올린 커밋 — 무엇이 바뀌었나
+
+`docs/readme-1003`에 이어 올린 커밋 10개예요(오래된 것부터). 코드 · 문서 53개 파일이 바뀌었어요. 확인할 것은 위 1~6번에 있고, 여기는 찾아보기용이에요.
+
+| 커밋 | 무엇 | 바뀐 곳 |
+|---|---|---|
+| `f627c8b` | 백엔드 뼈대(Flask · SQLite). hook 이벤트를 턴 하나로 모으는 `/events`, 완성된 턴을 받는 `/turns`, 노선도용 `/projects/:id/view`. Cursor · Claude Code가 같이 쓰는 hook. Claude 구독 엔진(API 키 없이 내 PC의 Claude Code로 분류) | `backend/` · `cursor-hooks/` · `docs/usage-guide.md` · `tests/` |
+| `5c291d7` | 실제 대화가 든 파일의 추적을 멈춤. 파일은 각자 PC에 그대로 둬요 | `prototype/index.html` · `data/example_conversations.json` · `screenshots/` · `archive/` 일부 |
+| `dcb811c` | `docs/readme-1003`(README 변경)을 작업 브랜치에 합침 | — |
+| `c05919d` | Cursor 프로젝트에 hook을 명령 한 번으로 붙이기(`install.py cursor --project 폴더` / `--user`). 있는 설정은 덮어쓰지 않아요. `--debug`면 hook이 받은 원본을 `~/.gadak/raw.jsonl`에 남겨요(계정 이메일은 뺌) | `cursor-hooks/install.py` · `cursor-hooks/gadak-hook.py` · `tests/test_install.py` |
+| `b5f6c51` | 한글 폴더 이름의 프로젝트를 조회하지 못하던 문제. macOS가 한글을 자모가 풀린 형태로 넘겨서 이름이 달랐어요. 저장 · 조회 모두 NFC로 맞춰요 | `backend/store.py` · `cursor-hooks/gadak-hook.py` |
+| `4f1dc60` | 배포 웹 데모는 API 키 없이 미리 분류해 둔 예시만 보여 주기로 함(1번 표 3행, 2번의 11장) | `README.md` · `CHANGES.md` · `docs/usage-guide.md` |
+| `edcdb5d` | 내 PC의 대화 기록(Claude Code · Codex 세션 파일, 내보내기 파일)을 알아서 찾아 읽고, 보는 대화부터 턴 8개씩 묶어 정리. 분류 프롬프트 `backend/prompts/classify.txt` 새로 만듦(6번 확인 항목) | `backend/sources/` · `backend/agent/classify.py` · `backend/prompts/` · `backend/store.py` |
+| `0eebd0c` | 가닥 창. 프로토타입 화면을 `shared/ui/`로 옮겨 로컬 웹 페이지(`http://127.0.0.1:7311`)에 띄움 | `shared/ui/` · `backend/web/` · `data/demo_conversations.json` |
+| `cefc1f5` | 더블클릭으로 켜기. `가닥.command`가 백엔드를 켜고 가닥 창을 열어요 | `가닥.command` · `backend/launch.py` · `backend/runtime.py` |
+| `88b7ec0` | 쓰는 법을 ‘켜면 알아서’로 고침(6번) | `README.md` · `CHANGES.md` · `docs/usage-guide.md` · `CLAUDE.md` · `.cursor/rules/gadak.mdc` |
