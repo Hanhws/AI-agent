@@ -6,8 +6,10 @@
   var G = window.Gadak, el = G.el, fname = G.fname;
   var params = new URLSearchParams(location.search);
   var S = { demo: params.has('demo'), scen: params.get('scen'), projects: [], project: null, chat: null, reset: true,
-    rev: -1, status: null, asked: {}, full: {}, bottom: true, goto: null, sources: null, off: false, usage: null };
+    rev: -1, status: null, asked: {}, full: {}, bottom: true, goto: null, sources: null, off: false, usage: null,
+    findQ: '', found: null };
   var POLL = 1500, FILES_SHOWN = 8;
+  var SITES = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini' };
   // 가닥 창은 시스템 설정(밝게 · 어둡게)을 따라가요. 주소에 ?theme=light · dark 를 붙이면 고정돼요
   if (/^(light|dark)$/.test(params.get('theme') || '')) document.documentElement.dataset.theme = params.get('theme');
 
@@ -36,6 +38,11 @@
     var brand = el('div', 'brand'), logo = el('button', 'logo'); logo.type = 'button'; logo.setAttribute('aria-label', '가닥 심볼 다시 재생');
     var mark = G.makeMark(26, 10); logo.appendChild(mark.svg); logo.appendChild(el('b', null, '가닥')); logo.onclick = function () { G.playMark(mark); };
     brand.appendChild(logo); bar.appendChild(brand);
+    var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';
+    R.find.setAttribute('aria-label', '모든 대화에서 찾기');
+    R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
+    R.find.addEventListener('keydown', function (e) { if (e.key === 'Escape') { R.find.value = ''; setFind(''); } });
+    fw.appendChild(R.find); bar.appendChild(fw);
     R.lists = el('div', 'lists'); bar.appendChild(R.lists);
     R.foot = el('div', 'foot'); bar.appendChild(R.foot);
     var main = el('div', 'sitemain'); site.appendChild(main);
@@ -77,6 +84,7 @@
   }
   function renderLists() {
     var host = R.lists, keep = host.scrollTop; host.innerHTML = ''; R.citems = {};
+    if (S.findQ) { renderFound(host); host.scrollTop = keep; return; }
     if (g.SC.chats.length) {
       host.appendChild(el('h6', null, g.SC.project ? '프로젝트 · ' + g.SC.project : '최근 대화'));
       g.SC.chats.slice().reverse().forEach(function (c) {
@@ -89,6 +97,56 @@
       others.forEach(function (p) { citem(host, p.name, S.demo ? '' : String(p.chats), false, function () { openProject(p.id); }); });
     }
     host.scrollTop = keep;
+  }
+
+  /* ---------- 대화 찾기: 프로젝트를 가리지 않고 모든 대화에서. 제목 · 프로젝트 · 쓴 곳이 맞는 대화가 먼저, 그다음 글이 맞는 대화 ---------- */
+  var findTimer = null;
+  function setFind(q) {
+    S.findQ = q; clearTimeout(findTimer);
+    if (!q) { S.found = null; renderLists(); return; }
+    findTimer = setTimeout(function () {
+      var asked = S.demo ? Promise.resolve(findDemo(q)) : api('chats/search?q=' + encodeURIComponent(q)).then(function (d) { return d.chats; });
+      asked.then(function (hits) { if (S.findQ !== q) return; S.found = hits || []; renderLists(); }, function () {});
+    }, 180);
+    if (!S.found) renderLists();
+  }
+  function renderFound(host) {
+    var hits = S.found;
+    host.appendChild(el('h6', null, hits ? '찾은 대화 ' + hits.length + '개' : '찾는 중이에요…'));
+    if (hits && !hits.length) { host.appendChild(el('div', 'lempty', '찾은 대화가 없어요.')); return; }
+    (hits || []).forEach(function (h) {
+      var b = el('button', 'fitem' + (g.ACT && h.id === g.ACT.id ? ' on' : '')); b.type = 'button'; b.title = h.title;
+      var t = el('span', 't'); t.appendChild(el('span', null, h.title)); t.appendChild(el('small', null, h.date)); b.appendChild(t);
+      b.appendChild(el('span', 'w', (h.project.id === '_none' ? '' : h.project.name + ' · ') + (SITES[h.site] || h.site)));
+      if (h.snip) b.appendChild(el('span', 's', h.snip));
+      b.onclick = function () { openFound(h); };
+      host.appendChild(b);
+    });
+  }
+  function openFound(h) {
+    if (g.ACT && h.id === g.ACT.id && S.project === h.project.id) { if (h.turn && g.byId[h.turn]) go(g.byId[h.turn]); return; }
+    S.project = h.project.id; S.chat = h.id; S.goto = h.turn || null; S.reset = true; S.bottom = !h.turn; S.keepScope = 'chat'; load();
+  }
+  /* 예시(?demo)에는 백엔드가 없어서 화면에 실린 글에서 찾아요 */
+  function findDemo(q) {
+    var d = S.demoData, n = q.toLowerCase(), out = [];
+    if (!d) return out;
+    function has(x) { return x && x.toLowerCase().indexOf(n) >= 0; }
+    Object.keys(d.scenarios).forEach(function (k) {
+      var sc = d.scenarios[k];
+      sc.chats.forEach(function (c) {
+        var named = has(c.title) || has(sc.name) || has(SITES[c.site]);
+        var t = c.turns.filter(function (x) { return has(x.dec) || has(x.title) || has(x.user) || has(x.ai); })[0];
+        if (!named && !t) return;
+        var h = { id: c.id, title: c.title, site: c.site, date: c.date, project: { id: k, name: sc.name }, named: named };
+        if (t) {
+          var src = [t.dec, t.title, t.user, t.ai].filter(has)[0], i = src.toLowerCase().indexOf(n);
+          h.turn = t.id; h.snip = (i > 24 ? '…' : '') + src.slice(Math.max(0, i - 24), i + q.length + 36) + (i + q.length + 36 < src.length ? '…' : '');
+        }
+        out.push(h);
+      });
+    });
+    return out.sort(function (a, b) { return (b.named ? 1 : 0) - (a.named ? 1 : 0); });
   }
 
   /* 그 대화의 글. 가닥은 대답하지 않아요: 읽기만 하고 입력창은 없어요 */
@@ -362,6 +420,8 @@
   g.load({ chats: [] }, true);
   g.render();
   window.addEventListener('resize', function () { requestAnimationFrame(function () { g.render(); }); });
-  if (S.demo) load().then(function () { g.reveal(); });
-  else { S.timer = setInterval(tick, POLL); tick().then(function () { g.reveal(); loadUsage(); if (params.get('panel') === 'sources') toggleSources(); }); }
+  // 주소에 ?find=찾는 말 을 붙이면 그 말로 찾은 채로 열려요
+  function startFind() { var q = (params.get('find') || '').trim(); if (q) { R.find.value = q; setFind(q); } }
+  if (S.demo) load().then(function () { g.reveal(); startFind(); });
+  else { S.timer = setInterval(tick, POLL); tick().then(function () { g.reveal(); loadUsage(); if (params.get('panel') === 'sources') toggleSources(); startFind(); }); }
 })();

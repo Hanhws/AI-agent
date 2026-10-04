@@ -97,7 +97,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
     @app.get("/health")
     def health():
         extension_here()
-        return jsonify(ok=True, app="gadak", engine=describe_engine())
+        return jsonify(ok=True, app="gadak", engine=describe_engine(), code=config.CODE)
 
     @app.get("/status")
     def status():
@@ -179,6 +179,11 @@ def create_app(db_path=None, engine="auto") -> Flask:
     @app.get("/projects/<project_id>/search")
     def search(project_id):
         return jsonify(hits=store.search(db(), project_id, request.args.get("q", "")))
+
+    @app.get("/chats/search")
+    def find_chats():
+        """모든 프로젝트의 대화에서 찾기 (가닥 창 왼쪽의 ‘대화 찾기’)."""
+        return jsonify(chats=store.find_chats(db(), request.args.get("q", "")))
 
     @app.get("/turns/<turn_id>")
     def turn(turn_id):

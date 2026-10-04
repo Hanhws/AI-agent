@@ -113,6 +113,31 @@ class AppTest(unittest.TestCase):
         self.assertEqual(self.client.get("/projects/환율 알리미/search?q=").get_json()["hits"], [])
         self.assertEqual(self.client.get("/projects/환율 알리미/search?q=100%25").get_json()["hits"], [])
 
+    def test_finding_chats_across_projects(self):
+        self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · Cursor
+        self.event("prompt", "n1", project="nba-analysis", chat_id="conv-2", text="알리미 프로젝트처럼 Ridge로 예측해 줘")
+        self.event("answer", "n1", project="nba-analysis", chat_id="conv-2", text="임계값 없이 alpha만 정하면 돼요.")
+        raw = json.dumps(CHATGPT_EXPORT, ensure_ascii=False).encode("utf-8")       # (프로젝트 없음) · ChatGPT · 발표 대본
+        self.client.post("/import", data=raw, content_type="application/json")
+
+        def find(q):
+            return self.client.get("/chats/search", query_string={"q": q}).get_json()["chats"]
+
+        both = find("임계값")                                      # 두 프로젝트의 글에서
+        self.assertEqual({h["id"] for h in both}, {"conv-1", "conv-2"})
+        for hit in both:
+            self.assertIn("임계값", hit["snip"])
+            self.assertEqual(self.client.get(f"/turns/{hit['turn']}").status_code, 200)
+        # 이름(프로젝트 · 제목 · 쓴 곳)이 맞는 대화가 글만 맞는 대화보다 먼저. 더 최근 대화여도 뒤로 가요
+        self.assertEqual([(h["id"], h["project"]["name"], "turn" in h) for h in find("알리미")],
+                         [("conv-1", "환율 알리미", False), ("conv-2", "nba-analysis", True)])
+        self.assertEqual([(h["id"], h["title"], h["site"]) for h in find("chatgpt")], [("conv-gpt-1", "발표 대본", "chatgpt")])
+        self.assertEqual([h["id"] for h in find("대본")], ["conv-gpt-1"])
+        self.assertEqual([h["id"] for h in find("RIDGE")], ["conv-2"])           # 영문은 대소문자를 가리지 않아요
+        self.assertEqual(find(""), [])
+        self.assertEqual(find("100%"), [])
+        self.assertEqual(find("프로젝트 없음"), [])                  # 프로젝트가 없는 대화의 자리 이름으로는 찾지 않아요
+
     def test_item_state_is_kept(self):
         self.turn()
         turn_id = self.view()["chats"][0]["turns"][0]["id"]

@@ -551,12 +551,78 @@ def view(conn, project_id, scope="all", chat_id=None):
     return {"project": {"id": project["id"], "name": project["name"]}, "chats": out, "itemStates": states}
 
 
+SITE_NAMES = {"claude-code": "Claude Code", "codex": "Codex", "cursor": "Cursor", "chatgpt": "ChatGPT",
+              "claude": "Claude", "gemini": "Gemini"}
+FIND_TURNS = 400          # 글이 맞는 턴은 이만큼만 훑어요 (최근 것부터)
+
+
+def _like(query) -> str:
+    return "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+
+def _snip(sources, query) -> str:
+    """찾는 말이 든 글의 그 둘레만. 정한 것 · 제목 · 질문 · 답 차례로 먼저 맞는 것을 써요."""
+    needle = query.lower()
+    source = next((s for s in sources if s and needle in s.lower()), None) or next((s for s in sources if s), "")
+    at = source.lower().find(needle)
+    if at < 0:
+        snip = source[:60]
+    else:
+        end = at + len(query) + 36
+        snip = ("…" if at > 24 else "") + source[max(0, at - 24):end] + ("…" if end < len(source) else "")
+    return " ".join(snip.split())
+
+
+def find_chats(conn, query, limit=40) -> list:
+    """모든 프로젝트의 대화에서 찾아요 (가닥 창 왼쪽의 ‘대화 찾기’).
+    대화 제목 · 프로젝트 이름 · 쓴 곳(ChatGPT …)이 맞는 대화가 먼저, 그다음 글이 맞는 대화. 그 안에서는 최근에 쓴 대화가 위로."""
+    query = (query or "").strip()
+    if not query:
+        return []
+    like, needle = _like(query), query.lower()
+    sites = [site for site, name in SITE_NAMES.items() if needle in name.lower()]
+    hits = {}
+    for row in conn.execute(
+        "SELECT t.id, t.chat_id, t.title, t.user, t.ai, t.dec FROM turns t"
+        " WHERE t.title LIKE ? ESCAPE '\\' OR t.user LIKE ? ESCAPE '\\' OR t.ai LIKE ? ESCAPE '\\'"
+        " OR t.dec LIKE ? ESCAPE '\\' ORDER BY (t.dec IS NULL), t.created_at DESC, t.seq DESC LIMIT ?",
+        (like, like, like, like, FIND_TURNS),
+    ):
+        hits.setdefault(row["chat_id"], row)             # 대화마다 가장 먼저 맞은 턴 하나
+    out = []
+    for chat in conn.execute(
+        "SELECT c.id, c.title, c.site, c.created_at, c.project_id, p.name AS project,"
+        " (SELECT MAX(t.created_at) FROM turns t WHERE t.chat_id = c.id) AS last,"
+        " (SELECT t.title FROM turns t WHERE t.chat_id = c.id ORDER BY t.seq LIMIT 1) AS first"
+        " FROM chats c JOIN projects p ON p.id = c.project_id"
+    ):
+        if chat["last"] is None:
+            continue                                     # 턴이 없는 대화는 화면에도 없어요
+        title = chat["title"] or chat["first"]
+        named = needle in (title or "").lower() or chat["site"] in sites or (
+            chat["project_id"] != NO_PROJECT and needle in chat["project"].lower())
+        hit = hits.get(chat["id"])
+        if not named and hit is None:
+            continue
+        entry = {"id": chat["id"], "title": title, "site": chat["site"], "date": display_date(chat["last"]),
+                 "project": {"id": chat["project_id"], "name": chat["project"]}, "named": named, "last": chat["last"]}
+        if hit is not None:
+            entry["turn"] = hit["id"]
+            entry["snip"] = _snip((hit["dec"], hit["title"], hit["user"], hit["ai"]), query)
+        out.append(entry)
+    out.sort(key=lambda e: e["last"], reverse=True)
+    out.sort(key=lambda e: not e["named"])               # 이름이 맞는 대화가 먼저 (차례는 그대로)
+    for entry in out:
+        del entry["named"], entry["last"]
+    return out[:limit]
+
+
 def search(conn, project_id, query, limit=40) -> list:
     """지난 대화에서 찾기. 정한 것이 먼저, 그다음 최근 순 (README 7-9)."""
     query = (query or "").strip()
     if not query:
         return []
-    like = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    like = _like(query)
     rows = conn.execute(
         "SELECT DISTINCT t.id, t.title, t.user, t.ai, t.dec, t.created_at, t.seq FROM turns t"
         " JOIN chats c ON c.id = t.chat_id LEFT JOIN files f ON f.turn_id = t.id"
@@ -565,20 +631,7 @@ def search(conn, project_id, query, limit=40) -> list:
         " ORDER BY (t.dec IS NULL), t.created_at DESC, t.seq DESC LIMIT ?",
         (project_key(project_id), like, like, like, like, like, limit),
     ).fetchall()
-    needle, hits = query.lower(), []
-    for row in rows:
-        source = next(
-            (s for s in (row["dec"], row["title"], row["user"], row["ai"]) if s and needle in s.lower()),
-            row["title"],
-        )
-        at = source.lower().find(needle)
-        if at < 0:
-            snip = source[:60]
-        else:
-            end = at + len(query) + 36
-            snip = ("…" if at > 24 else "") + source[max(0, at - 24):end] + ("…" if end < len(source) else "")
-        hits.append({"id": row["id"], "snip": " ".join(snip.split())})
-    return hits
+    return [{"id": row["id"], "snip": _snip((row["dec"], row["title"], row["user"], row["ai"]), query)} for row in rows]
 
 
 def set_item_state(conn, item_id, state) -> bool:

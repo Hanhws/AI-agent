@@ -40,11 +40,44 @@ class LaunchTest(unittest.TestCase):
     def test_the_app_is_told_where_the_window_is(self):
         """가닥 앱은 백엔드가 말해 주는 주소를 듣고 화면을 띄워요. 이미 켜진 가닥이 있으면 거기에 붙어요."""
         out = io.StringIO()
-        with mock.patch.object(launch, "running", return_value=True), \
+        same = {"app": "gadak", "code": launch.config.CODE}
+        with mock.patch.object(launch, "health", return_value=same), mock.patch.object(launch, "stop_old") as stop, \
                 mock.patch.object(launch, "open_window") as window, contextlib.redirect_stdout(out):
             self.assertEqual(launch.main(["--shell", "--parent", "123"]), 0)
         self.assertEqual(out.getvalue().strip(), f"GADAK_READY {launch.URL} attached")
         window.assert_not_called()          # 창은 앱이 띄워요
+        stop.assert_not_called()            # 같은 코드면 그대로 둬요
+
+    def test_a_running_copy_with_old_code_is_replaced(self):
+        """코드를 고친 뒤에도 뒤에서 돌던 예전 가닥에 붙으면 새 기능이 없어요. 끄고 지금 코드로 다시 켜요."""
+        for old in ({"app": "gadak"}, {"app": "gadak", "code": "1"}):       # 표시가 없던 때의 가닥 · 다른 때의 코드
+            with mock.patch.object(launch, "health", return_value=old), \
+                    mock.patch.object(launch, "stop_old", return_value=True) as stop, \
+                    mock.patch.object(launch, "serve", return_value=0) as serve, contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(launch.main(["--shell", "--parent", "123"]), 0)
+            stop.assert_called_once_with()
+            serve.assert_called_once_with(window=False, shell=True, parent=123)
+
+    def test_an_old_copy_that_will_not_stop_is_kept(self):
+        out = io.StringIO()
+        with mock.patch.object(launch, "health", return_value={"app": "gadak"}), \
+                mock.patch.object(launch, "stop_old", return_value=False), \
+                mock.patch.object(launch, "serve") as serve, contextlib.redirect_stdout(out):
+            self.assertEqual(launch.main(["--shell"]), 0)
+        self.assertEqual(out.getvalue().strip(), f"GADAK_READY {launch.URL} attached")
+        serve.assert_not_called()
+
+    def test_stopping_an_old_copy_asks_it_to_quit_and_waits(self):
+        answers = iter([True, True, False])
+        with mock.patch.object(launch.urllib.request, "urlopen") as asked, \
+                mock.patch.object(launch, "running", side_effect=lambda: next(answers)), \
+                mock.patch.object(launch.time, "sleep"):
+            self.assertTrue(launch.stop_old())
+        request = asked.call_args[0][0]
+        self.assertEqual((request.full_url, request.get_method()), (launch.URL + "/quit", "POST"))
+        with mock.patch.object(launch.urllib.request, "urlopen", side_effect=OSError), \
+                mock.patch.object(launch, "running", return_value=True), mock.patch.object(launch.time, "sleep"):
+            self.assertFalse(launch.stop_old(wait=0.01))
 
     def test_parent_number(self):
         self.assertEqual(launch._number_after(["--shell", "--parent", "4321"], "--parent"), 4321)

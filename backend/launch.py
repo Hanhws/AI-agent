@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import urllib.request
 import webbrowser
 from pathlib import Path
@@ -31,13 +32,34 @@ MAC_BROWSERS = ("Google Chrome", "Microsoft Edge", "Brave Browser", "Chromium")
 BROWSER_COMMANDS = ("google-chrome", "chromium", "chromium-browser", "microsoft-edge", "msedge", "chrome")
 
 
-def running() -> bool:
-    """이 주소에 떠 있는 것이 가닥인지 봐요."""
+def health():
+    """이 주소에 떠 있는 것이 가닥이면 그 상태를, 아니면 None을 돌려줘요."""
     try:
         with urllib.request.urlopen(URL + "/health", timeout=1.5) as response:
-            return json.load(response).get("app") == "gadak"
+            state = json.load(response)
     except Exception:
-        return False
+        return None
+    return state if isinstance(state, dict) and state.get("app") == "gadak" else None
+
+
+def running() -> bool:
+    """이 주소에 떠 있는 것이 가닥인지 봐요."""
+    return health() is not None
+
+
+def stop_old(wait=8.0) -> bool:
+    """예전 코드로 켜져 있는 가닥을 꺼요(화면의 ‘끄기’와 같은 길). 꺼졌으면 True."""
+    request = urllib.request.Request(URL + "/quit", data=b"{}", headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(request, timeout=3).read()
+    except Exception:
+        pass
+    end = time.time() + wait
+    while time.time() < end:
+        if not running():
+            return True
+        time.sleep(0.2)
+    return False
 
 
 def window_command():
@@ -67,6 +89,7 @@ def open_window() -> None:
 
 
 READY = "GADAK_READY"  # 가닥 앱이 이 말을 듣고 화면을 띄워요 (mac/Gadak.swift의 listen)
+BIND_TRIES = 6
 
 
 def serve(window=True, shell=False, parent=None) -> int:
@@ -77,9 +100,14 @@ def serve(window=True, shell=False, parent=None) -> int:
     logging.getLogger("werkzeug").setLevel(logging.ERROR)  # 화면이 1.5초마다 묻는 기록으로 창이 넘치지 않게
     app = create_app()
     rt = app.config["GADAK"]
-    try:
-        server = make_server(config.HOST, config.PORT, app, threaded=True)
-    except OSError:
+    server = None
+    for _ in range(BIND_TRIES):       # 방금 끈 예전 가닥이 포트를 놓는 데 잠깐 걸릴 수 있어요
+        try:
+            server = make_server(config.HOST, config.PORT, app, threaded=True)
+            break
+        except OSError:
+            time.sleep(0.5)
+    if server is None:
         print(f"{config.PORT}번 포트를 다른 프로그램이 쓰고 있어요. GADAK_PORT로 다른 번호를 정해 주세요.")
         return 1
     rt.on_quit = server.shutdown
@@ -116,8 +144,14 @@ def main(argv) -> int:
         return macapp.main(["--install"] + [a for a in argv if not a.startswith("--")])
     shell = "--shell" in argv
     window = not shell and "--no-window" not in argv and os.environ.get("GADAK_NO_WINDOW") != "1"
-    if running():
-        # 이미 켜져 있는 가닥이 있으면 하나 더 켜지 않아요. 앱에는 그 주소에 붙으라고 알려요
+    state = health()
+    if state is not None and state.get("code") != config.CODE and stop_old():
+        # 켜져 있던 가닥이 예전 코드예요(코드를 고친 뒤에도 뒤에서 계속 돌던 것). 끄고 지금 코드로 다시 켜요
+        if not shell:
+            print("켜져 있던 가닥이 예전 코드라서 끄고 다시 켜요.")
+        state = None
+    if state is not None:
+        # 같은 코드의 가닥이 이미 켜져 있으면 하나 더 켜지 않아요. 앱에는 그 주소에 붙으라고 알려요
         print(f"{READY} {URL} attached" if shell else f"가닥이 이미 켜져 있어요: {URL}", flush=True)
         if window:
             open_window()

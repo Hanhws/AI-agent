@@ -36,5 +36,17 @@ MAX_STEPS = int(os.environ.get("GADAK_MAX_STEPS", "5"))
 COLLECT_URL = os.environ.get("GADAK_COLLECT_URL", "").rstrip("/")
 SEND_EVERY = int(os.environ.get("GADAK_SEND_EVERY", "300"))   # 초. 사용 기록을 보내는 간격
 VERSION = "0.1.0"
+
+
+def _code_stamp() -> str:
+    """이 폴더에 있는 가닥 코드를 마지막으로 고친 때. 켜져 있는 가닥이 예전 코드인지 알아보는 데 써요 (launch.py)."""
+    newest = 0.0
+    for pattern in ("backend/**/*.py", "backend/prompts/*.txt"):
+        for path in ROOT.glob(pattern):
+            newest = max(newest, path.stat().st_mtime)
+    return str(int(newest))
+
+
+CODE = _code_stamp()   # 이 프로세스가 켜질 때의 코드
 # 2단에 쓸 모델. 비우면 1단과 같은 모델
 CHECK_MODEL = os.environ.get("GADAK_CHECK_MODEL") or ENGINE_MODEL

@@ -60,6 +60,19 @@ button.citem:hover { background: var(--viewport); }
 button.citem.on:hover { background: var(--bubble); }
 .sitebar .lists { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin: 0 -4px; padding: 0 4px; }
 .sitebar .foot { display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 0; border-top: 1px solid var(--line); }
+
+/* 대화 찾기 */
+.sitebar .findwrap { padding: 0 2px 8px; }
+.sitebar .findwrap .qin { background: var(--surface); }
+.sitebar .lists .lempty { padding: 6px 8px; }
+.fitem { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 13px; text-align: left; color: var(--fg2); line-height: 1.35; cursor: pointer; }
+.fitem:hover { background: var(--viewport); }
+.fitem.on, .fitem.on:hover { background: var(--bubble); color: var(--fg); }
+.fitem .t { display: flex; justify-content: space-between; gap: 8px; }
+.fitem .t span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fitem .t small { color: var(--faint); font-size: 11px; flex: none; }
+.fitem .w { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fitem .s { font-size: 12px; line-height: 1.45; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .sitebar .foot .state { font-size: 11.5px; line-height: 1.5; color: var(--faint); }
 .sitebar .foot .state.hot { color: var(--accent); }
 .sitebar .foot .row { display: flex; flex-wrap: wrap; gap: 6px; }
