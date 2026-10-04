@@ -3,19 +3,23 @@
 실행: python -m backend.launch   (프로그램처럼: 대화 기록 읽기 · 정리 · 화면까지)
       python -m backend.app      (서버만. 기록 읽기와 정리는 돌지 않아요)
 """
+import time
+
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
 from . import assemble, config, sources, store, usage
 from .agent import trace
 from .engines import describe_engine
 from .runtime import Runtime
-from .sources import exports
+from .sources import exports, pages
 
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 UPLOAD_TYPES = {"application/zip", "application/json", "application/octet-stream"}
 WEB_DIR = config.ROOT / "backend" / "web"
 UI_DIR = config.ROOT / "shared" / "ui"
 DEMO_FILE = "demo_conversations.json"
+EXTENSION_HEADER = "X-Gadak-Extension"   # 크롬 확장이 요청마다 붙이는 자기 버전 (extension/background.js)
+EXTENSION_NOTE_EVERY = 60                # 초. 확장이 다녀간 때는 이 간격으로만 적어요
 
 
 def create_app(db_path=None, engine="auto") -> Flask:
@@ -47,8 +51,22 @@ def create_app(db_path=None, engine="auto") -> Flask:
                 abort(415)
 
     @app.errorhandler(assemble.BadEvent)
+    @app.errorhandler(pages.BadPage)
     def bad_event(exc):
         return jsonify(error=str(exc)), 400
+
+    @app.errorhandler(pages.Elsewhere)
+    def page_elsewhere(exc):
+        return jsonify(error=str(exc)), 409
+
+    def extension_here():
+        """크롬 확장이 다녀갔어요. 찾은 곳에 ‘연결됨’으로 보이게 마지막 때를 적어 둬요."""
+        version = request.headers.get(EXTENSION_HEADER)
+        if version and time.time() - rt.extension_noted > EXTENSION_NOTE_EVERY:
+            rt.extension_noted = time.time()
+            conn = db()
+            with conn:
+                pages.note_seen(conn, version)
 
     # ----- 화면 (로컬 웹 페이지) -----
     @app.get("/")
@@ -78,6 +96,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
     # ----- 상태 -----
     @app.get("/health")
     def health():
+        extension_here()
         return jsonify(ok=True, app="gadak", engine=describe_engine())
 
     @app.get("/status")
@@ -86,7 +105,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
 
     @app.get("/sources")
     def source_list():
-        return jsonify(sources=sources.detect(store.site_counts(db())))
+        return jsonify(sources=sources.detect(store.site_counts(db()), pages.status(db())))
 
     @app.post("/sources/cursor/connect")
     def cursor_connect():
@@ -119,6 +138,17 @@ def create_app(db_path=None, engine="auto") -> Flask:
         rt.classifier.request(body["chat"]["id"])
         rt.bump()
         return jsonify(turn=turn, items=[], nudge=None)
+
+    @app.post("/pages")
+    def page_in():
+        """크롬 확장이 지금 열린 대화 화면을 통째로 보내요. 저장소의 역과 맞추는 건 backend/sources/pages.py."""
+        extension_here()
+        result = pages.ingest(db(), request.get_json())
+        if result["live"]:
+            rt.classifier.request(result["chat"])     # 방금 끝난 턴만 바로 정리해요. 열어 본 지난 대화는 볼 때
+        if result["new"] or result["changed"]:
+            rt.bump()
+        return jsonify(result)
 
     @app.post("/import")
     def import_file():

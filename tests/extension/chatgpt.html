@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>환율 알림 봇</title>
+</head>
+<body>
+<nav><a href="/c/aaaaaaaa-1111-4111-8111-111111111111">환율 알림 봇</a></nav>
+<main><div id="thread"></div></main>
+<form><div id="composer"><button data-testid="send-button">Send</button></div></form>
+<script src="/harness.js"></script>
+<script>
+/* chatgpt.com 화면을 흉내 낸 것. 대화는 만든 것이에요 (환율 알림 봇). */
+(function () {
+  'use strict';
+  var A = 'aaaaaaaa-1111-4111-8111-111111111111', B = 'bbbbbbbb-2222-4222-8222-222222222222', C = 'cccccccc-3333-4333-8333-333333333333';
+  var thread = document.getElementById('thread'), composer = document.getElementById('composer');
+
+  function turn(role, id, content) {
+    var art = document.createElement('article');
+    art.setAttribute('data-testid', 'conversation-turn'); art.setAttribute('data-turn', role);
+    art.innerHTML = '<h6 class="sr-only">' + (role === 'user' ? 'You said:' : 'ChatGPT said:') + '</h6>' +
+      '<div data-message-author-role="' + role + '" data-message-id="' + id + '">' +
+      (role === 'user' ? '<div class="bubble"><div class="whitespace-pre-wrap"></div></div>' : '<div class="markdown prose"></div>') +
+      '</div><div class="actions"><button aria-label="Copy">Copy</button><button>Good response</button></div>';
+    var box = art.querySelector(role === 'user' ? '.whitespace-pre-wrap' : '.markdown');
+    if (role === 'user') box.textContent = content; else box.innerHTML = content;
+    thread.appendChild(art);
+    return box;
+  }
+  /* 답이 조금씩 오는 것. marked면 사이트의 ‘오는 중’ 표시(멈춤 버튼 · result-streaming)가 같이 있어요 */
+  function stream(box, words, from, every, marked, then) {
+    var p = document.createElement('p'), stop = null; box.appendChild(p);
+    if (marked) {
+      box.classList.add('result-streaming');
+      stop = document.createElement('button'); stop.setAttribute('data-testid', 'stop-button'); stop.textContent = 'Stop'; composer.appendChild(stop);
+    }
+    words.forEach(function (w, i) { H.at(from + i * every, function () { p.appendChild(document.createTextNode(w)); }); });
+    H.at(from + words.length * every, function () { if (marked) { box.classList.remove('result-streaming'); stop.remove(); } if (then) then(); });
+  }
+
+  var RICH = '<p>좋아요. <strong>세 단계</strong>로 나눌게요.</p>' +
+    '<ol><li>환율 가져오기</li><li><p>목표가와 비교</p></li><li>알림 보내기</li></ol>' +
+    '<pre><div class="head"><div>python</div><button>Copy code</button></div><div class="overflow-y-auto"><code class="hljs language-python">def check(rate):\n    return rate &gt;= 1380\n</code></div></pre>' +
+    '<p>식으로는 <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>r</mi><mo>≥</mo><mn>1380</mn></mrow><annotation encoding="application/x-tex">r \\ge 1380</annotation></semantics></math></span><span class="katex-html" aria-hidden="true">r≥1380</span></span> 이에요.</p>' +
+    '<table><thead><tr><th>단계</th><th>할 일</th></tr></thead><tbody><tr><td>1</td><td>가져오기</td></tr></tbody></table>';
+  var RICH_TEXT = '좋아요. 세 단계로 나눌게요.\n\n1. 환율 가져오기\n2. 목표가와 비교\n3. 알림 보내기\n\n' +
+    '```python\ndef check(rate):\n    return rate >= 1380\n```\n\n식으로는 $r \\ge 1380$ 이에요.\n\n단계 | 할 일\n1 | 가져오기';
+  var Q1 = '환율 알림 봇을 만들고 싶어.\n  목표가는 1,380원이야', Q2 = '하루에 한 번만 알려 줘';
+  var A2 = '<p>하루 한 번, 오전 9시에 확인하게 할게요.</p>', A2_TEXT = '하루 한 번, 오전 9시에 확인하게 할게요.';
+  var WORDS3 = ['텔레그램', '으로 ', '보낼게요. ', '토큰은 ', '.env에 ', '두세요.'], A3_TEXT = '텔레그램으로 보낼게요. 토큰은 .env에 두세요.';
+
+  turn('user', 'u1', Q1); turn('assistant', 'a1', RICH);
+  turn('user', 'u2', Q2); turn('assistant', 'a2', A2);
+
+  H.load(['/ext/content/text.js', '/ext/content/sites/chatgpt.js', '/ext/content/reader.js']);
+
+  // 1. 지켜보는 동안 새 질문이 오고 답이 조금씩 와요 (사이트의 ‘오는 중’ 표시가 있음)
+  H.at(4000, function () { turn('user', 'u3', '알림은 어디로 보내?'); stream(turn('assistant', 'a3', ''), WORDS3, 250, 700, true); });
+  // 2. 사이트가 제목을 나중에 바꿔요
+  H.at(12000, function () { document.title = '환율 봇 설계'; });
+  // 3. 다른 대화로 옮겨요. 주소가 먼저 바뀌고 화면은 5초 뒤에 따라와요
+  H.at(16000, function () { history.pushState({}, '', '/c/' + B); });
+  H.at(21000, function () { thread.innerHTML = ''; document.title = '발표 대본'; turn('user', 'ub1', '대본을 써 줘'); turn('assistant', 'ab1', '<p>3분 대본이에요.</p>'); });
+  // 4. 주소만 바뀌고 화면은 끝까지 그대로예요 (같은 내용의 다른 대화)
+  H.at(28000, function () { history.pushState({}, '', '/c/' + C); });
+  // 5. ‘오는 중’ 표시가 없는(사이트가 화면을 바꿔 표시를 못 찾는) 답
+  H.at(44000, function () { turn('user', 'uc2', '더 짧게'); stream(turn('assistant', 'ac2', ''), ['1분', '으로 ', '줄였', '어요.'], 200, 600, false); });
+  // 6. 가닥이 꺼져 있는 동안 생긴 턴은 가닥이 켜지면 가요
+  H.at(56000, function () { H.state.mode = 'off'; turn('user', 'uc3', '표로도'); turn('assistant', 'ac3', '<p>표예요.</p>'); });
+  H.at(62000, function () { H.state.mode = 'on'; });
+  // 7. 팝업에서 읽기를 끄면 보내지 않아요
+  H.at(84000, function () { H.setReading(false); turn('user', 'uc4', '읽지 마'); turn('assistant', 'ac4', '<p>네.</p>'); });
+
+  H.at(87000, function () {
+    var P = H.posts.map(H.brief), old = [['u1', Q1, null, false, false], ['u2', Q2, null, false, false]];
+    H.eq('보낸 횟수', P.length, 9);
+    H.eq('처음 읽기: 있는 그대로, 지난 턴으로', P[0], { chat: A, title: '환율 알림 봇', project: null, sure: false,
+      turns: [['u1', Q1, RICH_TEXT, false, false], ['u2', Q2, A2_TEXT, false, false]] });
+    H.check('새 질문은 답이 오는 중에 한 번', P[1] && P[1].turns.length === 3 && P[1].turns[2][0] === 'u3' && P[1].turns[2][3] === true && P[1].turns[2][4] === true
+      && typeof P[1].turns[2][2] === 'string' && A3_TEXT.indexOf(P[1].turns[2][2]) === 0 && P[1].turns[2][2] !== A3_TEXT, P[1]);
+    H.eq('이미 보낸 답은 다시 싣지 않음', P[1] && P[1].turns.slice(0, 2), old);
+    H.eq('답이 다 오면 한 번 더', P[2], { chat: A, title: '환율 알림 봇', project: null, sure: false,
+      turns: old.concat([['u3', '알림은 어디로 보내?', A3_TEXT, true, false]]) });
+    H.check('표시가 사라지면 바로 끝으로 봄', H.posts[2] && H.posts[2].at < 9600, H.posts[2] && H.posts[2].at);
+    H.eq('제목이 바뀌면 제목만', P[3], { chat: A, title: '환율 봇 설계', project: null, sure: false,
+      turns: old.concat([['u3', '알림은 어디로 보내?', null, true, false]]) });
+    H.eq('다른 대화: 화면이 따라온 뒤에 읽음', P[4], { chat: B, title: '발표 대본', project: null, sure: false, turns: [['ub1', '대본을 써 줘', '3분 대본이에요.', false, false]] });
+    H.check('앞 대화의 화면을 새 대화로 보내지 않음', H.posts[4] && H.posts[4].at > 21000 && !P.some(function (p) { return p.chat === B && p.turns.some(function (t) { return t[0] === 'u1'; }); }), P[4]);
+    H.eq('화면이 오래 그대로면 같은 내용으로 보고 보냄(sure)', P[5], { chat: C, title: '발표 대본', project: null, sure: true, turns: [['ub1', '대본을 써 줘', '3분 대본이에요.', false, false]] });
+    H.check('8초는 기다림', H.posts[5] && H.posts[5].at > 36000, H.posts[5] && H.posts[5].at);
+    H.check('표시가 없어도 오는 중으로 봄', P[6] && P[6].turns.length === 2 && P[6].turns[1][0] === 'uc2' && P[6].turns[1][3] === true && P[6].turns[1][4] === true, P[6]);
+    H.eq('글이 멈추면 끝으로 봄', P[7] && P[7].turns[1], ['uc2', '더 짧게', '1분으로 줄였어요.', true, false]);
+    H.check('가닥이 꺼져 있으면 기다렸다가', H.posts[8] && H.posts[8].at > 62000, H.posts[8] && H.posts[8].at);
+    H.eq('켜지면 그동안의 턴을 보냄', P[8] && P[8].turns[2], ['uc3', '표로도', '표예요.', true, false]);
+    H.check('읽기를 끄면 보내지 않음', !P.some(function (p) { return p.turns.some(function (t) { return t[0] === 'uc4'; }); }), null);
+
+    H.eq('팝업: 읽기 끔', H.ask('state').status, 'paused');
+    var d = H.ask('diag'), text = JSON.stringify(d);
+    H.check('진단에는 글이 없음', d && d.outline.length > 5 && !/환율|대본|표예요|읽지 마|줄였|보낼게요/.test(text), text.slice(0, 500));
+    H.check('진단에 뼈대와 개수가 있음', d && d.counts.message === 8 && d.page === '/c/:id' && /data-message-author-role=user/.test(text), d && [d.counts, d.page]);
+
+    var site = GadakRead.site;
+    history.pushState({}, '', '/c/' + A + '?temporary-chat=true'); H.eq('임시 채팅은 읽지 않음', site.chatId(), null);
+    history.pushState({}, '', '/'); H.eq('대화가 아닌 화면', site.chatId(), null);
+    history.pushState({}, '', '/share/' + A); H.eq('공유 링크', site.chatId(), null);
+    history.pushState({}, '', '/g/g-p-67a1b2c3d4e5f6a7-my-report/c/' + A);
+    H.eq('프로젝트 안의 대화', [site.chatId(), site.project()], [A, 'my report']);
+    document.title = 'ChatGPT'; H.eq('제목이 아직 없음', site.title(), null);
+    H.finish();
+  });
+})();
+</script>
+</body>
+</html>

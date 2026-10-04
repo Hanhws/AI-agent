@@ -3,7 +3,8 @@
 사용자가 무엇으로 LLM을 쓰는지 찾아서, 내 PC에 기록이 남는 것은 알아서 읽어요.
 - auto    기록 파일이 내 PC에 있어요. 켜 두면 읽어요 (Claude Code · Codex)
 - connect 한 번 연결하면 그 뒤로 읽어요 (Cursor hook)
-- file    대화가 서버에 있어요. 내보내기 파일을 넣어야 해요 (웹 · 데스크톱 앱 채팅)
+- extension 크롬 확장을 한 번 넣으면, 크롬에서 연 대화를 그 뒤로 읽어요 (Claude · ChatGPT 웹)
+- file    대화가 서버에 있어요. 내보내기 파일을 넣어야 해요 (지난 대화 한꺼번에 · 데스크톱 앱 채팅)
 """
 import contextlib
 import importlib.util
@@ -11,9 +12,10 @@ import io
 import os
 from pathlib import Path
 
-from .. import config
+from .. import config, store
 
 APP_DIRS = (Path("/Applications"), Path.home() / "Applications")
+BROWSERS = ("Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser", "Arc", "Whale")   # 크롬 확장을 넣을 수 있는 것
 
 
 def _app(name) -> bool:
@@ -46,10 +48,10 @@ def connect_cursor() -> dict:
     return {"ok": bool(done)}
 
 
-def detect(counts=None) -> list:
-    """무엇을 찾았고 어떻게 읽는지. counts는 저장소에 들어온 대화 수(site별)."""
+def detect(counts=None, extension=None) -> list:
+    """무엇을 찾았고 어떻게 읽는지. counts는 저장소에 들어온 대화 수(site별), extension은 pages.status()."""
     from . import claude_code, codex
-    counts = counts or {}
+    counts, extension = counts or {}, extension or {}
     rows = []
     for reader in (claude_code, codex):
         files = len(reader.session_files())
@@ -62,9 +64,17 @@ def detect(counts=None) -> list:
         "found": _app("Cursor") or cursor_home().is_dir(), "connected": cursor_connected(),
         "chats": counts.get("cursor", 0),
     })
+    seen = extension.get("seen")
+    rows.append({
+        "key": "extension", "name": "Claude · ChatGPT 웹", "where": "크롬 확장", "mode": "extension",
+        "found": any(_app(name) for name in BROWSERS), "connected": bool(seen),
+        "seen": store.display_date(seen) if seen else None, "chats": extension.get("chats", 0),
+        "folder": str(config.ROOT / "extension"),
+    })
     rows.append({
         "key": "export", "name": "Claude · ChatGPT 웹과 데스크톱 앱", "where": "채팅", "mode": "file",
         "found": True, "apps": [name for name in ("Claude", "ChatGPT") if _app(name)],
-        "chats": counts.get("claude", 0) + counts.get("chatgpt", 0),
+        # 확장이 읽은 대화는 위 줄에서 세요
+        "chats": max(0, counts.get("claude", 0) + counts.get("chatgpt", 0) - extension.get("chats", 0)),
     })
     return rows

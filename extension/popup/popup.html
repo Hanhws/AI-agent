@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>가닥</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <!-- 심볼 A: 본선 + 위로 빠지는 지선 + 보통 역 하나 + 빨갛게 채운 ‘지금’ (README 7-12) -->
+    <svg viewBox="20 56 164 92" width="34" height="19" aria-hidden="true">
+      <path d="M36 122H166M100 122L132 80H154" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="100" cy="122" r="13" fill="var(--surface)" stroke="currentColor" stroke-width="10"/>
+      <circle cx="154" cy="122" r="16" fill="var(--accent)"/>
+    </svg>
+    <b>가닥</b>
+  </header>
+  <p id="app" class="line">가닥을 찾는 중이에요…</p>
+  <p id="tab" class="line"></p>
+  <label class="toggle"><input type="checkbox" id="reading" checked> <span>이 브라우저에서 대화 읽기</span></label>
+  <p class="note">읽은 대화는 내 PC의 가닥으로만 가요.</p>
+  <div class="row">
+    <button id="diag" class="btn" type="button">진단 복사</button>
+    <span id="done" class="note"></span>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

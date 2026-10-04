@@ -217,6 +217,17 @@ def set_chat_title(conn, chat_id, title) -> None:
     conn.execute("UPDATE chats SET title = ? WHERE id = ?", (title, chat_id))
 
 
+def move_chat(conn, chat_id, project) -> bool:
+    """프로젝트 없이 들어온 대화의 프로젝트를 나중에 알게 되면 그쪽으로 옮겨요. 옮겼으면 True."""
+    project = project_key(project)
+    row = chat_row(conn, chat_id)
+    if not project or row is None or row["project_id"] != NO_PROJECT:
+        return False
+    conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (project, project))
+    conn.execute("UPDATE chats SET project_id = ? WHERE id = ?", (project, chat_id))
+    return True
+
+
 def find_turn(conn, chat_id, message_ref):
     return conn.execute(
         "SELECT * FROM turns WHERE chat_id = ? AND message_ref = ?", (chat_id, message_ref)
@@ -332,6 +343,26 @@ def set_classification(conn, turn_id, *, title, depth, seg=None, topic=None, dec
             "INSERT INTO parts(turn_id, idx, t, type, open, target) VALUES(?, ?, ?, ?, ?, ?)",
             (turn_id, idx, part["t"], part["type"], int(part.get("open") or 0), part.get("target")),
         )
+
+
+def reset_classification(conn, turn_id) -> None:
+    """답이 달라진 턴은 분류 전으로 돌려요. 그 턴에서 나눈 요청과 만든 할 일도 지워요 (다시 정리하면 새로 생겨요)."""
+    conn.execute("UPDATE turns SET classified = 0, look = NULL, checked = 0 WHERE id = ?", (turn_id,))
+    conn.execute("DELETE FROM parts WHERE turn_id = ?", (turn_id,))
+    conn.execute("DELETE FROM items WHERE turn_id = ?", (turn_id,))
+
+
+def put_in_order(conn, chat_id, turn_ids) -> bool:
+    """이 역들이 주어진 차례로 놓이게 해요. 이 역들이 쓰던 자리(seq)만 서로 바꾸고 다른 역은 그대로 둬요.
+    바꾼 것이 있으면 True."""
+    have = {r["id"]: r["seq"] for r in conn.execute("SELECT id, seq FROM turns WHERE chat_id = ?", (chat_id,))}
+    seqs = [have[turn_id] for turn_id in turn_ids]
+    if seqs == sorted(seqs):
+        return False
+    for turn_id, seq in zip(turn_ids, sorted(seqs)):
+        if have[turn_id] != seq:
+            conn.execute("UPDATE turns SET seq = ? WHERE id = ?", (seq, turn_id))
+    return True
 
 
 def waiting_checks(conn, chat_id) -> list:

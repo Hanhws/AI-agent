@@ -97,7 +97,7 @@
     var ts = g.activeTurns(), V = g.buildView('chat');
     if (!ts.length) {
       var e = el('div', 'empty-chat'); e.appendChild(el('b', null, '아직 잡힌 가닥이 없어요.'));
-      e.appendChild(el('span', null, S.demo ? '대화를 시작하면 여기에 흐름이 그려져요.' : 'Claude Code · Codex · Cursor로 대화하면 여기에 흐름이 그려져요. 웹과 앱의 대화는 ‘찾은 곳’에서 불러와요.'));
+      e.appendChild(el('span', null, S.demo ? '대화를 시작하면 여기에 흐름이 그려져요.' : 'Claude Code · Codex · Cursor로 대화하면 여기에 흐름이 그려져요. 웹과 앱의 대화는 ‘찾은 곳’에서 이어요.'));
       R.thread.appendChild(e); return;
     }
     ts.forEach(function (t) {
@@ -182,9 +182,15 @@
         w = s.connected ? s.where + ' · 새 대화부터 읽어요' : s.where + ' · 연결하면 Cursor의 hooks.json에 가닥을 더해요';
         if (s.found && !s.connected) { btn = el('button', 'btn sm primary', '연결'); btn.onclick = function () {
           api('sources/cursor/connect', 'POST').then(function (r) { g.flashToast(r.ok ? 'Cursor를 연결했어요. 새 대화부터 읽어요.' : r.reason); return api('sources'); }).then(function (x) { S.sources = x.sources; renderSources(); }); }; }
+      } else if (s.mode === 'extension') {
+        k = s.connected ? '연결됨 · 대화 ' + s.chats + '개' : '크롬 확장을 넣으면 그 뒤로 알아서 읽어요';
+        w = s.connected ? s.where + ' · 크롬에서 연 대화를 알아서 읽어요 · 마지막 연결 ' + s.seen
+          : s.where + ' · 크롬 주소창에 chrome://extensions → 개발자 모드 켜기 → ‘압축해제된 확장 프로그램을 로드합니다’에서 가닥의 extension 폴더를 골라요.';
+        if (!s.connected) { btn = el('button', 'btn sm primary', '폴더 경로 복사'); btn.onclick = function () {
+          G.copy(s.folder).then(function () { g.flashToast('복사했어요. 폴더 고르는 창에서 ⌘⇧G를 누르고 붙여 넣으면 돼요.'); }); }; }
       } else {
         k = '파일로 불러와요' + (s.chats ? ' · 대화 ' + s.chats + '개' : '');
-        w = '대화가 서버에 있어서 이 PC에서 바로 읽을 수 없어요. 각 서비스의 설정 → 데이터 내보내기로 받은 파일(zip · json)을 넣어 주세요.';
+        w = '한 번도 열지 않은 지난 대화를 한꺼번에 넣을 때, 데스크톱 앱의 대화를 넣을 때 써요. 각 서비스의 설정 → 데이터 내보내기로 받은 파일(zip · json)을 넣어 주세요.';
         btn = el('button', 'btn sm primary', '파일 고르기'); btn.onclick = function () { R.file.value = ''; R.file.click(); };
       }
       d.appendChild(el('span', 'k' + ((s.mode === 'auto' && s.found) || s.connected ? ' on' : ''), k));

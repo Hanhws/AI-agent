@@ -140,7 +140,8 @@ class AppTest(unittest.TestCase):
     def test_sources_and_connecting_cursor(self):
         rows = self.client.get("/sources").get_json()["sources"]
         self.assertEqual([(r["key"], r["mode"]) for r in rows],
-                         [("claude-code", "auto"), ("codex", "auto"), ("cursor", "connect"), ("export", "file")])
+                         [("claude-code", "auto"), ("codex", "auto"), ("cursor", "connect"),
+                          ("extension", "extension"), ("export", "file")])
         self.assertFalse(rows[2]["connected"])
         done = self.client.post("/sources/cursor/connect", json={})
         self.assertEqual((done.status_code, done.get_json()), (200, {"ok": True}))

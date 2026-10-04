@@ -30,6 +30,7 @@ class Runtime:
         self.classifier = Classifier(self, engine)
         self.sender = usage.Sender(self)   # 동의한 사용 기록을 가닥 팀 서버로 (서버 주소가 없으면 쉬어요)
         self.via = "browser"               # 가닥 앱이 켰으면 "app" (launch.py)
+        self.extension_noted = 0.0         # 크롬 확장이 다녀간 것을 저장소에 마지막으로 적은 때
 
     def connect(self):
         return store.connect(self.db_path)
