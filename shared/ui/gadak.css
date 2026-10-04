@@ -168,6 +168,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .litem.new { animation: rise .4s ease-out; }
 /* 승인한 종류의 자동 실행: 켠 종류 줄 · 켜는 칸 */
 .lauto { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; border: 1px dashed var(--line); border-radius: 9px; font-size: 12.5px; color: var(--fg2); }
+.lauto.on { border-style: solid; color: var(--fg); }
 .pop label.auto { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg); cursor: pointer; }
 .pop label.auto input { accent-color: var(--fg); margin: 0; }
 .lsum { font-size: 12px; color: var(--muted); line-height: 1.5; }

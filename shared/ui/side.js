@@ -124,12 +124,13 @@
     }
     /* 사용자가 ‘앞으로는 알아서’를 켠 종류. 여기서 다시 꺼요 (README 3-2: 종류별로 다시 끌 수 있어요) */
     function renderAuto(host) {
-      var on = Object.keys(G.AUTO).filter(function (k) { return g.SC.auto && g.SC.auto[k]; });
-      if (!on.length || !g.hooks.setAuto) return;
+      if (!g.hooks.setAuto) return;
       var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '가닥이 알아서 보내는 것'));
-      on.forEach(function (k) {
-        var r = el('div', 'lauto'); r.appendChild(el('span', null, KIND[k].label));
-        var b = el('button', 'linkbtn', '끄기'); b.type = 'button'; b.onclick = function () { g.hooks.setAuto(k, false); }; r.appendChild(b);
+      Object.keys(G.AUTO).forEach(function (k) {
+        var on = !!(g.SC.auto && g.SC.auto[k]);
+        var r = el('div', 'lauto' + (on ? ' on' : '')); r.title = G.AUTO[k];
+        r.appendChild(el('span', null, KIND[k].label + (on ? ' · 켜짐' : ' · 꺼짐')));
+        var b = el('button', 'linkbtn', on ? '끄기' : '켜기'); b.type = 'button'; b.onclick = function () { g.hooks.setAuto(k, !on); }; r.appendChild(b);
         grp.appendChild(r);
       });
       host.appendChild(grp);
