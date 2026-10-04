@@ -1,5 +1,5 @@
 /* 확장 아이콘을 누르면 뜨는 작은 창: 가닥이 켜져 있는지, 이 탭에서 무엇을 읽었는지, 읽기 켜고 끄기.
-   문구는 기획 담당 확인 전이에요 (CHANGES.md 11번). */
+   문구는 기획 담당 확인 전이에요 (docs/changes-detail.md 11번). */
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };

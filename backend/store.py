@@ -1,8 +1,8 @@
 """SQLite 저장소.
 
 테이블과 필드 이름은 docs/schema.md를 따라요. edits · item_states · sync_state 테이블과
-turns의 state · classified, chats의 via · cwd는 10/3에 더한 것이에요 (CHANGES.md 4번).
-agent_runs 테이블과 turns의 look · checked는 2단(확인)을 붙이며 더했어요 (CHANGES.md 8번).
+turns의 state · classified, chats의 via · cwd는 10/3에 더한 것이에요 (docs/changes-detail.md 4번).
+agent_runs 테이블과 turns의 look · checked는 2단(확인)을 붙이며 더했어요 (docs/changes-detail.md 8번).
 auto_log는 가닥이 직접 보낸 것의 기록이에요 (승인한 종류의 자동 실행 · backend/auto.py).
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 """
