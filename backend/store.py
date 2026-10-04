@@ -4,6 +4,7 @@
 turns의 state · classified, chats의 via · cwd는 10/3에 더한 것이에요 (docs/changes-detail.md 4번).
 agent_runs 테이블과 turns의 look · checked는 2단(확인)을 붙이며 더했어요 (docs/changes-detail.md 8번).
 auto_log는 가닥이 직접 보낸 것의 기록이에요 (승인한 종류의 자동 실행 · backend/auto.py).
+chats.hidden은 사용자가 목록에서 뺀 대화예요(1). 읽어 둔 글은 그대로 두고, 화면 · 찾기 · 정리에서만 빠져요.
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 """
 import json
@@ -26,7 +27,8 @@ CREATE TABLE IF NOT EXISTS chats(
   site TEXT NOT NULL,
   created_at TEXT NOT NULL,
   via TEXT,
-  cwd TEXT
+  cwd TEXT,
+  hidden INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS turns(
   id TEXT PRIMARY KEY,
@@ -131,7 +133,7 @@ CREATE TABLE IF NOT EXISTS auto_log(
 
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
 ADDED_COLUMNS = {
-    "chats": {"via": "TEXT", "cwd": "TEXT"},
+    "chats": {"via": "TEXT", "cwd": "TEXT", "hidden": "INTEGER NOT NULL DEFAULT 0"},
     "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0"},
 }
 
@@ -143,7 +145,7 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 5   # 4: usage · settings (사용 기록, backend/usage.py) · 5: auto_log (자동 실행, backend/auto.py)
+SCHEMA_VERSION = 6   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화)
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 
 
@@ -235,6 +237,38 @@ def move_chat(conn, chat_id, project) -> bool:
     conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (project, project))
     conn.execute("UPDATE chats SET project_id = ? WHERE id = ?", (project, chat_id))
     return True
+
+
+def set_hidden(conn, chat_ids, hidden=True) -> list:
+    """대화를 목록에서 빼거나 되돌려요. 읽어 둔 글은 지우지 않아요: 화면 · 찾기 · 정리 · 자동 실행에서만 빠져요.
+    그 대화가 이어져도 다시 나타나지 않아요. 바뀐 대화의 id를 돌려줘요."""
+    value, changed = (1 if hidden else 0), []
+    for chat_id in chat_ids:
+        if conn.execute("UPDATE chats SET hidden = ? WHERE id = ? AND hidden != ?", (value, chat_id, value)).rowcount:
+            changed.append(chat_id)
+    return changed
+
+
+def visible_chat_ids(conn, project_id) -> list:
+    return [r["id"] for r in conn.execute(
+        "SELECT id FROM chats WHERE project_id = ? AND hidden = 0", (project_key(project_id),))]
+
+
+def hidden_count(conn) -> int:
+    return conn.execute("SELECT COUNT(*) FROM chats WHERE hidden = 1").fetchone()[0]
+
+
+def hidden_chats(conn) -> list:
+    """목록에서 뺀 대화들 (최근에 쓴 것부터). 되돌릴 때 알아볼 수 있게 제목 · 프로젝트 · 쓴 곳만."""
+    rows = conn.execute(
+        "SELECT c.id, c.title, c.site, c.created_at, c.project_id, p.name AS project,"
+        " (SELECT MAX(t.created_at) FROM turns t WHERE t.chat_id = c.id) AS last,"
+        " (SELECT t.title FROM turns t WHERE t.chat_id = c.id ORDER BY t.seq LIMIT 1) AS first"
+        " FROM chats c JOIN projects p ON p.id = c.project_id WHERE c.hidden = 1 ORDER BY last DESC, c.rowid DESC"
+    )
+    return [{"id": r["id"], "title": r["title"] or r["first"] or "(질문 없음)", "site": r["site"],
+             "date": display_date(r["last"] or r["created_at"]),
+             "project": {"id": r["project_id"], "name": r["project"]}} for r in rows]
 
 
 def find_turn(conn, chat_id, message_ref):
@@ -378,7 +412,7 @@ def waiting_checks(conn, chat_id) -> list:
     """2단이 아직 확인하지 않은 턴. 지금에 가까운 턴부터."""
     return conn.execute(
         "SELECT * FROM turns WHERE chat_id = ? AND classified = 1 AND checked = 0 AND look IS NOT NULL"
-        " ORDER BY seq DESC", (chat_id,),
+        " AND (SELECT hidden FROM chats WHERE id = turns.chat_id) = 0 ORDER BY seq DESC", (chat_id,),
     ).fetchall()
 
 
@@ -536,8 +570,8 @@ def projects(conn) -> list:
     """최근에 쓴 프로젝트가 위로 와요."""
     rows = conn.execute(
         "SELECT p.id, p.name, COUNT(DISTINCT c.id) AS chats, COUNT(t.id) AS turns, MAX(t.created_at) AS last"
-        " FROM projects p LEFT JOIN chats c ON c.project_id = p.id LEFT JOIN turns t ON t.chat_id = c.id"
-        " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"
+        " FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0 LEFT JOIN turns t ON t.chat_id = c.id"
+        " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"      # 대화를 다 뺀 프로젝트는 목록에 없어요
     )
     return [dict(r) for r in rows]
 
@@ -549,11 +583,11 @@ def view(conn, project_id, scope="all", chat_id=None):
     if project is None:
         return None
     chats = conn.execute(
-        "SELECT * FROM chats WHERE project_id = ? ORDER BY created_at, rowid", (project_id,)
+        "SELECT * FROM chats WHERE project_id = ? AND hidden = 0 ORDER BY created_at, rowid", (project_id,)
     ).fetchall()
     last = conn.execute(
         "SELECT t.chat_id FROM turns t JOIN chats c ON c.id = t.chat_id"
-        " WHERE c.project_id = ? ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1", (project_id,)
+        " WHERE c.project_id = ? AND c.hidden = 0 ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1", (project_id,)
     ).fetchone()
     known = {c["id"] for c in chats}
     active_id = chat_id if chat_id in known else (last["chat_id"] if last else None)
@@ -637,7 +671,7 @@ def find_chats(conn, query, limit=40) -> list:
         "SELECT c.id, c.title, c.site, c.created_at, c.project_id, p.name AS project,"
         " (SELECT MAX(t.created_at) FROM turns t WHERE t.chat_id = c.id) AS last,"
         " (SELECT t.title FROM turns t WHERE t.chat_id = c.id ORDER BY t.seq LIMIT 1) AS first"
-        " FROM chats c JOIN projects p ON p.id = c.project_id"
+        " FROM chats c JOIN projects p ON p.id = c.project_id WHERE c.hidden = 0"
     ):
         if chat["last"] is None:
             continue                                     # 턴이 없는 대화는 화면에도 없어요
@@ -669,7 +703,7 @@ def search(conn, project_id, query, limit=40) -> list:
     rows = conn.execute(
         "SELECT DISTINCT t.id, t.title, t.user, t.ai, t.dec, t.created_at, t.seq FROM turns t"
         " JOIN chats c ON c.id = t.chat_id LEFT JOIN files f ON f.turn_id = t.id"
-        " WHERE c.project_id = ? AND (t.title LIKE ? ESCAPE '\\' OR t.user LIKE ? ESCAPE '\\'"
+        " WHERE c.project_id = ? AND c.hidden = 0 AND (t.title LIKE ? ESCAPE '\\' OR t.user LIKE ? ESCAPE '\\'"
         " OR t.ai LIKE ? ESCAPE '\\' OR t.dec LIKE ? ESCAPE '\\' OR f.name LIKE ? ESCAPE '\\')"
         " ORDER BY (t.dec IS NULL), t.created_at DESC, t.seq DESC LIMIT ?",
         (project_key(project_id), like, like, like, like, like, limit),

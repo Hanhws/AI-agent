@@ -7,7 +7,7 @@
   var params = new URLSearchParams(location.search);
   var S = { demo: params.has('demo'), scen: params.get('scen'), projects: [], project: null, chat: null, reset: true,
     rev: -1, status: null, asked: {}, full: {}, bottom: true, goto: null, sources: null, off: false, usage: null,
-    findQ: '', found: null };
+    findQ: '', found: null, hiddenCount: 0, hiddenOpen: false, hiddenList: null };
   var POLL = 1500, FILES_SHOWN = 8;
   var SITES = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini' };
   // 가닥 창은 시스템 설정(밝게 · 어둡게)을 따라가요. 주소에 ?theme=light · dark 를 붙이면 고정돼요
@@ -77,10 +77,17 @@
     askClassify(V);
   }
 
-  function citem(host, title, small, on, click) {
+  /* x = { title, run }을 주면 줄 오른쪽에 ×가 생겨요 (목록에서 빼기). 줄에 마우스를 올리면 보여요 */
+  function citem(host, title, small, on, click, x) {
+    var row = el('div', 'crow');
     var d = el('button', 'citem' + (on ? ' on' : '')); d.type = 'button'; d.title = title;
     d.appendChild(el('span', null, title)); if (small) d.appendChild(el('small', null, small));
-    d.onclick = click; host.appendChild(d); return d;
+    d.onclick = click; row.appendChild(d);
+    if (x && !S.demo) {
+      var b = el('button', 'cx', '×'); b.type = 'button'; b.title = x.title; b.setAttribute('aria-label', x.title);
+      b.onclick = function (e) { e.stopPropagation(); x.run(); }; row.appendChild(b);
+    }
+    host.appendChild(row); return d;
   }
   function renderLists() {
     var host = R.lists, keep = host.scrollTop; host.innerHTML = ''; R.citems = {};
@@ -88,15 +95,60 @@
     if (g.SC.chats.length) {
       host.appendChild(el('h6', null, g.SC.project ? '프로젝트 · ' + g.SC.project : '최근 대화'));
       g.SC.chats.slice().reverse().forEach(function (c) {
-        R.citems[c.id] = citem(host, c.title, c.date, c === g.ACT, function () { openChat(c.id); });
+        R.citems[c.id] = citem(host, c.title, c.date, c === g.ACT, function () { openChat(c.id); },
+          { title: '이 대화를 목록에서 빼기', run: function () { hideChats([c.id], '대화를 목록에서 뺐어요.'); } });
       });
     }
     var others = S.projects.filter(function (p) { return p.id !== S.project; });
     if (others.length) {
       host.appendChild(el('h6', null, S.demo ? '다른 예시' : '다른 프로젝트'));
-      others.forEach(function (p) { citem(host, p.name, S.demo ? '' : String(p.chats), false, function () { openProject(p.id); }); });
+      others.forEach(function (p) {
+        citem(host, p.name, S.demo ? '' : String(p.chats), false, function () { openProject(p.id); },
+          { title: '이 프로젝트의 대화를 모두 목록에서 빼기', run: function () { hideProject(p); } });
+      });
     }
+    renderHidden(host);
     host.scrollTop = keep;
+  }
+
+  /* ---------- 목록에서 빼기: 필요 없는 대화를 목록 · 찾기 · 정리에서 빼요. 읽어 둔 글은 이 PC에 남고, 되돌릴 수 있어요 ---------- */
+  function afterHiding(r, msg) {
+    S.hiddenList = null;
+    if (!r.ids.length) return;
+    g.flashToast(msg, { label: '되돌리기', run: function () { restore(r.ids); } });
+    if (g.ACT && r.ids.indexOf(g.ACT.id) >= 0) { S.chat = null; S.reset = true; S.bottom = true; }
+    load();
+  }
+  function hideChats(ids, msg) { api('chats/hidden', 'POST', { ids: ids, hidden: true }).then(function (r) { afterHiding(r, msg); }); }
+  function hideProject(p) {
+    api('projects/' + encodeURIComponent(p.id) + '/hide', 'POST').then(function (r) { afterHiding(r, '‘' + p.name + '’의 대화 ' + r.ids.length + '개를 목록에서 뺐어요.'); });
+  }
+  function restore(ids) {
+    api('chats/hidden', 'POST', { ids: ids, hidden: false }).then(function (r) {
+      S.hiddenList = null; if (!r.hidden) S.hiddenOpen = false;
+      g.flashToast('대화 ' + r.ids.length + '개를 목록으로 되돌렸어요.');
+      load();
+    });
+  }
+  function renderHidden(host) {
+    if (S.demo || !S.hiddenCount) return;
+    var head = el('button', 'hhead', '뺀 대화 ' + S.hiddenCount + '개 · ' + (S.hiddenOpen ? '접기' : '보기')); head.type = 'button';
+    head.onclick = function () { S.hiddenOpen = !S.hiddenOpen; renderLists(); };
+    host.appendChild(head);
+    if (!S.hiddenOpen) return;
+    if (!S.hiddenList) { api('chats/hidden').then(function (d) { S.hiddenList = d.chats; renderLists(); }); return; }
+    S.hiddenList.forEach(function (c) {
+      var b = el('button', 'fitem'); b.type = 'button'; b.title = '누르면 목록으로 되돌려요';
+      var t = el('span', 't'); t.appendChild(el('span', null, c.title)); t.appendChild(el('small', null, '되돌리기')); b.appendChild(t);
+      b.appendChild(el('span', 'w', (c.project.id === '_none' ? '' : c.project.name + ' · ') + (SITES[c.site] || c.site) + ' · ' + c.date));
+      b.onclick = function () { restore([c.id]); };
+      host.appendChild(b);
+    });
+    if (S.hiddenList.length > 1) {
+      var all = el('button', 'linkbtn hall', '모두 되돌리기'); all.type = 'button';
+      all.onclick = function () { restore(S.hiddenList.map(function (c) { return c.id; })); };
+      host.appendChild(all);
+    }
   }
 
   /* ---------- 대화 찾기: 프로젝트를 가리지 않고 모든 대화에서. 제목 · 프로젝트 · 쓴 곳이 맞는 대화가 먼저, 그다음 글이 맞는 대화 ---------- */
@@ -394,6 +446,7 @@
     if (S.demo) return loadDemo();
     return api('projects').then(function (d) {
       S.projects = d.projects;
+      if (S.hiddenCount !== (d.hidden || 0)) { S.hiddenCount = d.hidden || 0; S.hiddenList = null; }
       if (!S.projects.some(function (p) { return p.id === S.project; })) { S.project = S.projects.length ? S.projects[0].id : null; S.chat = null; S.reset = true; }
       if (!S.project) { show({ chats: [] }); return; }
       return api('projects/' + encodeURIComponent(S.project) + '/view' + (S.chat ? '?chat=' + encodeURIComponent(S.chat) : '')).then(function (v) {

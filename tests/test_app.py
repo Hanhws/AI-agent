@@ -139,6 +139,46 @@ class AppTest(unittest.TestCase):
         self.assertEqual(find("100%"), [])
         self.assertEqual(find("프로젝트 없음"), [])                  # 프로젝트가 없는 대화의 자리 이름으로는 찾지 않아요
 
+    def test_taking_chats_off_the_list_and_putting_them_back(self):
+        self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · conv-1
+        self.event("prompt", "h1", chat_id="conv-1b", text="알림 문구를 다듬어 줘")     # 같은 프로젝트의 다른 대화
+        self.event("prompt", "n1", project="nba-analysis", chat_id="conv-2", text="임계값 없이 Ridge로")
+        before = self.client.get("/status").get_json()["rev"]
+
+        def projects():
+            data = self.client.get("/projects").get_json()
+            return {p["id"]: p["chats"] for p in data["projects"]}, data["hidden"]
+
+        def find(q):
+            return [h["id"] for h in self.client.get("/chats/search", query_string={"q": q}).get_json()["chats"]]
+
+        off = self.client.post("/chats/hidden", json={"ids": ["conv-1", "no-such-chat"], "hidden": True}).get_json()
+        self.assertEqual(off, {"ids": ["conv-1"], "hidden": 1})
+        self.assertGreater(self.client.get("/status").get_json()["rev"], before)
+        self.assertEqual(projects(), ({"환율 알리미": 1, "nba-analysis": 1}, 1))
+        self.assertEqual([c["id"] for c in self.view()["chats"]], ["conv-1b"])
+        self.assertEqual(find("임계값"), ["conv-2"])                                  # 찾기에도 안 나와요
+        self.assertEqual(self.client.get("/projects/환율 알리미/search?q=임계값").get_json()["hits"], [])
+        hidden = self.client.get("/chats/hidden").get_json()["chats"]
+        self.assertEqual([(c["id"], c["project"]["name"], c["site"]) for c in hidden], [("conv-1", "환율 알리미", "cursor")])
+        # 뺀 대화가 이어져도 다시 나타나지 않고, 읽어 둔 글은 그대로 있어요
+        self.turn("g2", "그럼 1,380원으로 하자", "정했어요.")
+        self.assertEqual([c["id"] for c in self.view()["chats"]], ["conv-1b"])
+        conn = self.rt.connect()
+        self.addCleanup(conn.close)
+        self.assertEqual(len(store.chat_turns(conn, "conv-1")), 2)
+
+        # 프로젝트째로 빼면 그 프로젝트가 목록에서 사라지고, 돌려받은 id로 그대로 되돌려요
+        gone = self.client.post("/projects/환율 알리미/hide", json={}).get_json()
+        self.assertEqual(gone, {"ids": ["conv-1b"], "hidden": 2})
+        self.assertEqual(projects(), ({"nba-analysis": 1}, 2))
+        back = self.client.post("/chats/hidden", json={"ids": gone["ids"] + off["ids"], "hidden": False}).get_json()
+        self.assertEqual((sorted(back["ids"]), back["hidden"]), (["conv-1", "conv-1b"], 0))
+        self.assertEqual(projects(), ({"환율 알리미": 2, "nba-analysis": 1}, 0))
+        self.assertEqual(sorted(find("임계값")), ["conv-1", "conv-2"])
+        for bad in ({"ids": "conv-1", "hidden": True}, {"ids": ["conv-1"]}, {"ids": [1], "hidden": True}):
+            self.assertEqual(self.client.post("/chats/hidden", json=bad).status_code, 400)
+
     def test_item_state_is_kept(self):
         self.turn()
         turn_id = self.view()["chats"][0]["turns"][0]["id"]

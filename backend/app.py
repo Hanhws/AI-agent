@@ -179,7 +179,35 @@ def create_app(db_path=None, engine="auto") -> Flask:
     # ----- 화면이 읽는 것 -----
     @app.get("/projects")
     def projects():
-        return jsonify(projects=store.projects(db()))
+        return jsonify(projects=store.projects(db()), hidden=store.hidden_count(db()))
+
+    # ----- 목록에서 빼기 · 되돌리기: 읽어 둔 글은 지우지 않고, 화면 · 찾기 · 정리에서만 빠져요 -----
+    @app.get("/chats/hidden")
+    def hidden_list():
+        return jsonify(chats=store.hidden_chats(db()))
+
+    @app.post("/chats/hidden")
+    def hidden_set():
+        body = request.get_json() or {}
+        ids, hidden = body.get("ids"), body.get("hidden")
+        if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids) or not isinstance(hidden, bool):
+            abort(400)
+        conn = db()
+        with conn:
+            changed = store.set_hidden(conn, ids[:1000], hidden)
+        if changed:
+            rt.bump()
+        return jsonify(ids=changed, hidden=store.hidden_count(conn))
+
+    @app.post("/projects/<project_id>/hide")
+    def project_hide(project_id):
+        """그 프로젝트에서 지금 보이는 대화를 모두 빼요. 뺀 대화의 id를 돌려줘서 바로 되돌릴 수 있어요."""
+        conn = db()
+        with conn:
+            changed = store.set_hidden(conn, store.visible_chat_ids(conn, project_id), True)
+        if changed:
+            rt.bump()
+        return jsonify(ids=changed, hidden=store.hidden_count(conn))
 
     @app.get("/projects/<project_id>/view")
     def view(project_id):

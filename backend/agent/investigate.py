@@ -91,14 +91,14 @@ def handoff_due(conn, chat) -> bool:
     if chat is None or chat["project_id"] == store.NO_PROJECT:
         return False
     newer = conn.execute(
-        "SELECT 1 FROM chats WHERE project_id = ? AND id != ? AND created_at > ? LIMIT 1",
+        "SELECT 1 FROM chats WHERE project_id = ? AND id != ? AND created_at > ? AND hidden = 0 LIMIT 1",
         (chat["project_id"], chat["id"], chat["created_at"]),
     ).fetchone()
     if newer:
         return False
     return conn.execute(
         "SELECT 1 FROM turns t JOIN chats c ON c.id = t.chat_id"
-        " WHERE c.project_id = ? AND c.id != ? AND c.created_at <= ? AND t.dec IS NOT NULL LIMIT 1",
+        " WHERE c.project_id = ? AND c.id != ? AND c.created_at <= ? AND c.hidden = 0 AND t.dec IS NOT NULL LIMIT 1",
         (chat["project_id"], chat["id"], chat["created_at"]),
     ).fetchone() is not None
 
@@ -121,7 +121,7 @@ def triggers(conn, chat, rows, row, parts, wide) -> list:
 def earlier_chats(conn, chat) -> list:
     rows = conn.execute(
         "SELECT c.title, c.created_at, COUNT(t.id) AS turns, COUNT(t.dec) AS decisions FROM chats c"
-        " LEFT JOIN turns t ON t.chat_id = c.id WHERE c.project_id = ? AND c.id != ? AND c.created_at <= ?"
+        " LEFT JOIN turns t ON t.chat_id = c.id WHERE c.project_id = ? AND c.id != ? AND c.created_at <= ? AND c.hidden = 0"
         " GROUP BY c.id ORDER BY c.created_at DESC LIMIT ?",
         (chat["project_id"], chat["id"], chat["created_at"], EARLIER_CHATS),
     ).fetchall()
@@ -307,12 +307,12 @@ def handoff_item(ctx, use, why):
     conn, chat = ctx.conn, ctx.chat
     decisions = conn.execute(
         "SELECT t.id, t.dec, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
-        " JOIN chats c ON c.id = t.chat_id WHERE t.id IN (%s) AND c.project_id = ? AND c.id != ?"
+        " JOIN chats c ON c.id = t.chat_id WHERE t.id IN (%s) AND c.project_id = ? AND c.id != ? AND c.hidden = 0"
         " AND t.dec IS NOT NULL ORDER BY c.created_at, t.seq" % ",".join("?" * len(ids)),
         ids + [chat["project_id"], chat["id"]],
     ).fetchall()
     wanted = set(ids)
-    leftovers = [i for i in tools.open_items(conn, "c.project_id = ? AND c.id != ?", [chat["project_id"], chat["id"]])
+    leftovers = [i for i in tools.open_items(conn, "c.project_id = ? AND c.id != ? AND c.hidden = 0", [chat["project_id"], chat["id"]])
                  if i["id"] in wanted]
     if not decisions and not leftovers:
         return None

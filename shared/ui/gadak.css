@@ -166,6 +166,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .litem.done.sg .mk { background: var(--fg2); border-style: solid; border-color: var(--fg2); }
 .litem.later .mk { border-color: var(--ring); }
 .litem.new { animation: rise .4s ease-out; }
+.toast.act { pointer-events: auto; }
+.toast .tact { margin-left: 12px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
 /* 승인한 종류의 자동 실행: 켠 종류 줄 · 켜는 칸 */
 .lauto { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; border: 1px dashed var(--line); border-radius: 9px; font-size: 12.5px; color: var(--fg2); }
 .lauto.on { border-style: solid; color: var(--fg); }

@@ -234,8 +234,8 @@ class Classifier:
         """그 대화의 밀린 턴을 CHUNK개씩 분류해요. 분류한 턴 수를 돌려줘요."""
         engine = self.engine()
         chat = store.chat_row(conn, chat_id)
-        if engine is None or chat is None:
-            return 0
+        if engine is None or chat is None or chat["hidden"]:
+            return 0                     # 목록에서 뺀 대화에는 정리 호출을 쓰지 않아요
         total = 0
         while not self.status["paused"]:
             rows = store.chat_turns(conn, chat_id)

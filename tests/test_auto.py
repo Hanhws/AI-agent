@@ -98,6 +98,19 @@ class StopTest(Base):
         self.assertLess(time.time() - began, 1)
         self.assertEqual(self.stop(again=True, wait=10), {"send": None})       # 도구가 ‘이어진 턴’이라고 알려 줄 때도
 
+    def test_a_chat_taken_off_the_list_is_left_alone(self):
+        self.begin()
+        with self.conn:
+            store.set_hidden(self.conn, [CHAT])
+        self.clf.request(CHAT)
+        self.run_worker()
+        self.assertEqual(self.engine.calls, [])                                # 정리 호출도 쓰지 않아요
+        self.assertEqual(self.stop(wait=5), {"send": None})
+        with self.conn:
+            store.set_hidden(self.conn, [CHAT], False)
+        self.run_worker_after_request()
+        self.assertEqual(self.stop()["send"], auto.SENT_BY + REVERT)           # 되돌리면 전처럼 돌아요
+
     def test_without_an_engine_it_does_not_wait(self):
         self.begin()
         self.rt.classifier = type(self.clf)(self.rt, None)
@@ -145,6 +158,12 @@ class StartTest(Base):
         self.assertEqual((note["kind"], note["sent"], note["state"], note["text"]),
                          ("handoff", "auto", "done", "지난 대화에서 정한 것 2개를 이 대화에 붙였어요"))
         self.assertEqual(note["pop"]["text"], context)
+
+    def test_decisions_from_a_chat_taken_off_the_list_are_not_carried_over(self):
+        self.begin()
+        with self.conn:
+            store.set_hidden(self.conn, ["old"])
+        self.assertEqual(self.started(), {"context": None})
 
     def test_when_it_stays_quiet(self):
         self.begin(on=False)

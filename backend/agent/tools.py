@@ -89,7 +89,7 @@ class Context:
     def scope(self):
         if self.only_chat:
             return "c.id = ?", [self.chat["id"]]
-        return "c.project_id = ?", [self.chat["project_id"]]
+        return "c.project_id = ? AND c.hidden = 0", [self.chat["project_id"]]    # 목록에서 뺀 대화는 찾아보지 않아요
 
     def turn(self, arg):
         if arg is None or str(arg).strip() in ("", "this", "지금"):

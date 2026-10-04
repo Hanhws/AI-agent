@@ -39,7 +39,7 @@ def save(conn, turn_id, triggers, result, engine=None) -> str:
 
 def runs(conn, turn_id=None, project_id=None, limit=50) -> list:
     """최근 것부터. n은 노선도의 역 번호와 같아요(본류 역을 센 수, 곁길은 갈라진 역의 번호)."""
-    where, values = [], []
+    where, values = ["c.hidden = 0"], []     # 목록에서 뺀 대화의 기록은 보이지 않아요
     if turn_id:
         where.append("r.turn_id = ?")
         values.append(turn_id)

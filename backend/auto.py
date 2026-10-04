@@ -83,6 +83,9 @@ def on_stop(rt, conn, body) -> dict:
     nothing = {"send": None}
     if not isinstance(chat_id, str) or not chat_id or body.get("again") is True or not state(conn)["unasked"]:
         return nothing
+    chat = store.chat_row(conn, chat_id)
+    if chat is not None and chat["hidden"]:
+        return nothing                  # 목록에서 뺀 대화에는 끼어들지 않아요
     clf = rt.classifier
     if clf.engine() is None or clf.status["paused"]:
         return nothing                  # 정리가 돌지 않으면 기다려도 한마디가 생기지 않아요
@@ -120,7 +123,7 @@ def on_start(conn, body) -> dict:
         return nothing                  # 이미 시작한 대화거나, 이미 넣었어요
     decisions = conn.execute(
         "SELECT t.id, t.dec, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
-        " JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ? AND c.id != ? AND t.dec IS NOT NULL"
+        " JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ? AND c.id != ? AND c.hidden = 0 AND t.dec IS NOT NULL"
         " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", (project, chat_id, HANDOFF_MAX),
     ).fetchall()
     if not decisions:

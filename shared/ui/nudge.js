@@ -84,6 +84,12 @@
       if (top + h > window.innerHeight - 12) top = Math.max(12, r.top - h - 8);
       pop.style.left = left + 'px'; pop.style.top = top + 'px';
     };
-    g.flashToast = function (msg) { if (!R.toastEl) return; R.toastEl.textContent = msg; R.toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { R.toastEl.hidden = true; }, 2600); };
+    /* act = { label, run }을 주면 알림 안에 누를 수 있는 글(되돌리기 같은 것)이 붙고, 조금 더 오래 떠 있어요 */
+    g.flashToast = function (msg, act) {
+      if (!R.toastEl) return;
+      R.toastEl.textContent = msg; R.toastEl.classList.toggle('act', !!act);
+      if (act) { var b = el('button', 'tact', act.label); b.type = 'button'; b.onclick = function () { R.toastEl.hidden = true; act.run(); }; R.toastEl.appendChild(b); }
+      R.toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { R.toastEl.hidden = true; }, act ? 7000 : 2600);
+    };
   };
 })(window.Gadak = window.Gadak || {});

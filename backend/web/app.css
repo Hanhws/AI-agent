@@ -61,6 +61,16 @@ button.citem.on:hover { background: var(--bubble); }
 .sitebar .lists { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin: 0 -4px; padding: 0 4px; }
 .sitebar .foot { display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 0; border-top: 1px solid var(--line); }
 
+/* 목록에서 빼기: 줄에 마우스를 올리면 ×가 보여요 */
+.crow { position: relative; }
+.crow .cx { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: var(--side); color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer; opacity: 0; }
+.crow:hover .cx, .crow .cx:focus-visible { opacity: 1; }
+.crow .cx:hover { background: var(--line); color: var(--fg); }
+.crow:has(.cx):hover .citem small { visibility: hidden; }   /* ×와 날짜가 겹치지 않게 */
+.sitebar .hhead { margin: 12px 8px 4px; padding: 0; border: 0; background: transparent; font: inherit; font-size: 11px; letter-spacing: 0.06em; color: var(--faint); text-align: left; cursor: pointer; }
+.sitebar .hhead:hover { color: var(--fg2); }
+.sitebar .hall { align-self: flex-start; margin: 4px 8px; }
+
 /* 대화 찾기 */
 .sitebar .findwrap { padding: 0 2px 8px; }
 .sitebar .findwrap .qin { background: var(--surface); }
