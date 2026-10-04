@@ -128,6 +128,12 @@ class MacAppTest(unittest.TestCase):
             self.assertEqual(target, old)
             self.assertEqual(sorted(p.name for p in target.rglob("*") if p.is_file()), ["Info.plist"])
 
+    def test_the_app_is_built_from_all_its_swift_files(self):
+        self.assertEqual(macapp.APP_SOURCES, ("Gadak.swift", "Float.swift", "FloatCheck.swift"))   # 창 · 메뉴 / 떠 있는 버튼 / 그 확인
+        for name in macapp.APP_SOURCES:
+            self.assertTrue((macapp.SOURCES / name).is_file(), name)
+        self.assertIn("@main", (macapp.SOURCES / "Gadak.swift").read_text(encoding="utf-8"))   # 파일이 여럿이라 시작하는 곳을 적어 둬요
+
     def test_without_swift_it_says_what_to_do(self):
         with mock.patch.object(macapp.shutil, "which", return_value=None), mock.patch.object(macapp.sys, "platform", "darwin"):
             with self.assertRaises(macapp.BuildError) as caught:

@@ -490,6 +490,10 @@
     }).catch(function () {});
   }
 
+  /* 가닥 앱의 떠 있는 버튼이 부르는 것 (mac/Float.swift): 그 대화의 그 역을 열기 · 대화 찾기 칸으로 가기 */
+  window.gadakOpen = function (h) { if (!S.demo && h && h.chat) openFound({ id: h.chat, project: { id: h.project }, turn: h.turn }); };
+  window.gadakFind = function () { R.find.focus(); R.find.select(); };
+
   mount();
   g.load({ chats: [] }, true);
   g.render();

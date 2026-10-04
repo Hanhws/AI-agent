@@ -2,6 +2,7 @@
 //
 // 이 파일은 앱의 겉(창 · Dock 아이콘 · 메뉴)만 맡아요. 화면은 백엔드가 내주는 가닥 창을 그대로 보여 주고,
 // 켜지면 백엔드(python -m backend.launch --shell)를 뒤에서 돌리고, 끄면 같이 꺼요.
+// 다른 앱 위에 떠 있는 가닥 버튼은 mac/Float.swift 에 있어요.
 //
 // 만들기: python -m backend.macapp  (README 5-1)
 // 어디의 백엔드를 어떤 파이썬으로 돌릴지는 Info.plist의 GadakRoot · GadakPython · GadakPath에 적혀 있어요.
@@ -39,12 +40,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var watch: Timer?               // 붙어 있는 가닥이 살아 있는지 보는 시계
     var misses = 0
 
+    var float: FloatController?     // 떠 있는 가닥 버튼. 숨겨 뒀으면 nil
+    var floatItem: NSMenuItem?
+
     // MARK: 켜기
 
     func applicationDidFinishLaunching(_ note: Notification) {
         buildMenu()
         buildWindow()
+        // 떠 있는 버튼은 처음에는 켜져 있어요. 보기 메뉴나 버튼의 오른쪽 클릭에서 숨기면 다음에도 숨겨 둬요
+        let wanted = UserDefaults.standard.object(forKey: "GadakFloat") as? Bool ?? true
+        setFloat(wanted && env["GADAK_FLOAT"] != "0", remember: false)
         startBackend()
+    }
+
+    // MARK: 떠 있는 버튼 (mac/Float.swift)
+
+    func setFloat(_ on: Bool, remember: Bool = true) {
+        if on, float == nil {
+            let made = FloatController(app: self)
+            float = made
+            made.show()
+            if let address = url { made.ready(address) }
+        } else if !on, let old = float {
+            old.close()
+            float = nil
+        }
+        floatItem?.state = float == nil ? .off : .on
+        if remember { UserDefaults.standard.set(on, forKey: "GadakFloat") }
+    }
+
+    @objc func toggleFloat(_ sender: Any?) { setFloat(float == nil) }
+
+    /// 가닥 창을 앞으로 가져와요. script가 있으면 화면에서 그 일을 해요(그 역 열기 · 찾기 칸으로 가기)
+    func showMain(script: String? = nil) {
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        if let script = script, url != nil { webView.evaluateJavaScript(script, completionHandler: nil) }
     }
 
     func buildWindow() {
@@ -147,6 +179,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             ours = !(words.count >= 3 && words[2] == "attached")
             webView.load(URLRequest(url: address))
             if !ours { watchAttached() }
+            float?.ready(address)
+            if let folder = env["GADAK_FLOAT_SNAPSHOT"], !folder.isEmpty {     // 확인용 (mac/FloatCheck.swift)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [self] in float?.selfTest(folder) }
+            }
             return
         }
     }
@@ -195,7 +231,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     // MARK: 끄기
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// 버튼이 떠 있는 동안에는 창을 닫아도 가닥이 계속 돌아요(버튼으로 다시 열어요). 버튼을 숨겼으면 창을 닫을 때 꺼져요.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { float == nil }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { window.makeKeyAndOrderFront(nil) }
@@ -204,7 +241,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func windowWillClose(_ note: Notification) {
         guard let closed = note.object as? NSWindow else { return }
-        if closed === window { NSApp.terminate(nil) } else { extra.removeAll { $0 === closed } }
+        if closed === window { if float == nil { NSApp.terminate(nil) } } else { extra.removeAll { $0 === closed } }
     }
 
     func applicationWillTerminate(_ note: Notification) {
@@ -362,6 +399,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             item("붙여넣기", #selector(NSText.paste(_:)), "v"),
             item("전체 선택", #selector(NSText.selectAll(_:)), "a"),
         ])
+        let floating = item("떠 있는 버튼", #selector(toggleFloat(_:)))
+        floating.target = self
+        floatItem = floating
         menu("보기", [
             item("다시 읽기", #selector(reloadPage(_:)), "r"),
             item("뒤로", #selector(pageBack(_:)), "["),
@@ -370,6 +410,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             item("실제 크기", #selector(zoomReset(_:)), "0"),
             item("확대", #selector(zoomIn(_:)), "+"),
             item("축소", #selector(zoomOut(_:)), "-"),
+            .separator(),
+            floating,
         ])
         let windows = menu("윈도우", [
             item("최소화", #selector(NSWindow.performMiniaturize(_:)), "m"),
@@ -382,25 +424,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 }
 
-let app = NSApplication.shared
-let delegate = AppDelegate()
-app.delegate = delegate
-app.setActivationPolicy(.regular)
+// 파일이 여럿(Gadak.swift · Float.swift …)이라 시작하는 곳을 이렇게 적어요
+@main
+enum GadakApp {
+    static let delegate = AppDelegate()
+    static var terminated: DispatchSourceSignal?
 
-// kill로 끄라고 해도 백엔드를 같이 끄고 나가요
-signal(SIGTERM, SIG_IGN)
-let terminated = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
-terminated.setEventHandler { NSApp.terminate(nil) }
-terminated.resume()
+    static func main() {
+        let app = NSApplication.shared
+        app.delegate = delegate
+        app.setActivationPolicy(.regular)
 
-if env["GADAK_DEBUG"] == "1" {
-    // 화면 쪽 요청(새 창 · 파일 고르기 · 바깥 링크)을 이 앱이 받는지 확인해요
-    for name in ["webView:createWebViewWithConfiguration:forNavigationAction:windowFeatures:",
-                 "webView:runOpenPanelWithParameters:initiatedByFrame:completionHandler:",
-                 "webView:decidePolicyForNavigationAction:decisionHandler:",
-                 "webView:didFinishNavigation:", "webView:didFailProvisionalNavigation:withError:"] {
-        print("GADAK_DEBUG responds \(delegate.responds(to: Selector((name)))) \(name)")
+        // kill로 끄라고 해도 백엔드를 같이 끄고 나가요
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        source.setEventHandler { NSApp.terminate(nil) }
+        source.resume()
+        terminated = source
+
+        if env["GADAK_DEBUG"] == "1" {
+            // 화면 쪽 요청(새 창 · 파일 고르기 · 바깥 링크)을 이 앱이 받는지 확인해요
+            for name in ["webView:createWebViewWithConfiguration:forNavigationAction:windowFeatures:",
+                         "webView:runOpenPanelWithParameters:initiatedByFrame:completionHandler:",
+                         "webView:decidePolicyForNavigationAction:decisionHandler:",
+                         "webView:didFinishNavigation:", "webView:didFailProvisionalNavigation:withError:"] {
+                print("GADAK_DEBUG responds \(delegate.responds(to: Selector((name)))) \(name)")
+            }
+            fflush(stdout)
+        }
+        app.run()
     }
-    fflush(stdout)
 }
-app.run()

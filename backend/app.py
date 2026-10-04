@@ -8,7 +8,7 @@ import time
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
 from . import assemble, auto, config, sources, store, usage
-from .agent import trace
+from .agent import tools, trace
 from .engines import describe_engine
 from .runtime import Runtime
 from .sources import exports, pages
@@ -78,6 +78,11 @@ def create_app(db_path=None, engine="auto") -> Flask:
         """판단 기록: 2단이 어떤 도구를 어떤 순서로 썼고 무엇을 보고 결론 냈는지 (README 3-1)."""
         return send_from_directory(WEB_DIR, "trace.html", max_age=0)
 
+    @app.get("/strip")
+    def strip_page():
+        """떠 있는 가닥 버튼이 펼치는 노선도 창 (mac/Float.swift). 가닥 창의 노선도 카드만 따로 띄운 것이에요."""
+        return send_from_directory(WEB_DIR, "strip.html", max_age=0)
+
     @app.get("/web/<path:name>")
     def web_file(name):
         return send_from_directory(WEB_DIR, name, max_age=0)
@@ -102,6 +107,16 @@ def create_app(db_path=None, engine="auto") -> Flask:
     @app.get("/status")
     def status():
         return jsonify(rt.status())
+
+    @app.get("/float")
+    def float_state():
+        """떠 있는 버튼이 묻는 것: 지금 쓰는 대화(가장 최근에 턴이 온 대화)와, 거기 열려 있는 할 일 수."""
+        chat = store.now_chat(db())
+        if chat is None:
+            return jsonify(rev=rt.rev, chat=None, todo=0)
+        todo = sum(1 for i in tools.open_items(db(), "c.id = ?", [chat["id"]]) if i["state"] == "open")
+        return jsonify(rev=rt.rev, todo=todo,
+                       chat={"id": chat["id"], "title": chat["title"], "project": chat["project_id"]})
 
     @app.get("/sources")
     def source_list():

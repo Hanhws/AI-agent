@@ -5,7 +5,7 @@ python -m backend.macapp --install         만들어 응용 프로그램 폴더�
 python -m backend.macapp --install 폴더    그 폴더에 넣어요
 python -m backend.macapp --install --open  넣고 바로 켜요 (‘가닥 설치.command’가 이렇게 불러요)
 
-앱의 겉은 mac/Gadak.swift 이고, 켜지면 이 저장소의 백엔드(python -m backend.launch --shell)를 뒤에서 돌려요.
+앱의 겉은 mac/Gadak.swift(창 · 메뉴)와 mac/Float.swift(떠 있는 버튼)이고, 켜지면 이 저장소의 백엔드(python -m backend.launch --shell)를 뒤에서 돌려요.
 그래서 앱은 이 폴더와 이 폴더의 .venv를 가리켜요. 폴더를 옮기면 다시 만들어 주세요.
 Swift 컴파일러(Xcode 명령어 도구: xcode-select --install)가 있어야 해요.
 """
@@ -26,6 +26,7 @@ BUNDLE_ID = "local.gadak.app"
 VERSION = "0.1.0"
 MIN_MACOS = "12.0"
 SOURCES = config.ROOT / "mac"
+APP_SOURCES = ("Gadak.swift", "Float.swift", "FloatCheck.swift")     # 창 · 메뉴 · 백엔드 켜기 / 떠 있는 버튼 / 그 버튼을 스스로 확인
 DIST = config.ROOT / "dist"
 
 
@@ -92,8 +93,8 @@ def build(out=None) -> Path:
     target = f"{platform.machine()}-apple-macos{MIN_MACOS}"
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
-        _run([swiftc, "-O", "-swift-version", "5", "-target", target, "-o", str(work / EXECUTABLE),
-              str(SOURCES / "Gadak.swift")], "앱 컴파일")
+        _run([swiftc, "-O", "-swift-version", "5", "-parse-as-library", "-target", target, "-o", str(work / EXECUTABLE),
+              *(str(SOURCES / name) for name in APP_SOURCES)], "앱 컴파일")
         _run([swiftc, "-O", "-swift-version", "5", "-o", str(work / "icon"), str(SOURCES / "icon.swift")], "아이콘 도구 컴파일")
         _run([str(work / "icon"), str(work / "AppIcon.iconset")], "아이콘 그리기")
         _run(["iconutil", "-c", "icns", str(work / "AppIcon.iconset"), "-o", str(work / "AppIcon.icns")], "아이콘 묶기")

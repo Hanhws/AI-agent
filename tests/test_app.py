@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
 import zipfile
@@ -178,6 +179,47 @@ class AppTest(unittest.TestCase):
         self.assertEqual(sorted(find("임계값")), ["conv-1", "conv-2"])
         for bad in ({"ids": "conv-1", "hidden": True}, {"ids": ["conv-1"]}, {"ids": [1], "hidden": True}):
             self.assertEqual(self.client.post("/chats/hidden", json=bad).status_code, 400)
+
+    def test_the_floating_button_asks_about_the_chat_in_use(self):
+        self.assertEqual(self.client.get("/float").get_json(), {"rev": self.rt.rev, "chat": None, "todo": 0})
+        self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · conv-1
+        self.event("prompt", "n1", project="nba-analysis", chat_id="conv-2", text="Ridge로 해 줘")
+        now = self.client.get("/float").get_json()
+        self.assertEqual((now["chat"]["id"], now["chat"]["project"], now["todo"]), ("conv-2", "nba-analysis", 0))
+        self.assertEqual(now["rev"], self.client.get("/status").get_json()["rev"])
+
+        conn = self.rt.connect()
+        self.addCleanup(conn.close)
+        with conn:
+            ids = store.set_items(conn, store.chat_turns(conn, "conv-2")[0]["id"],
+                                  [{"kind": "unasked", "text": "요청하지 않은 파일도 바뀌었어요"}])
+        self.assertEqual(self.client.get("/float").get_json()["todo"], 1)
+        self.client.patch(f"/items/{ids[0]}", json={"state": "later"})                # 나중에로 미룬 것은 세지 않아요
+        self.assertEqual(self.client.get("/float").get_json()["todo"], 0)
+        self.client.post("/chats/hidden", json={"ids": ["conv-2"], "hidden": True})   # 목록에서 뺀 대화는 건너뛰어요
+        self.assertEqual(self.client.get("/float").get_json()["chat"]["id"], "conv-1")
+
+    def test_the_strip_page_is_the_map_card_alone(self):
+        with self.client.get("/strip") as page:
+            html = page.get_data(as_text=True)
+        for path in ("ui/tokens.css", "ui/gadak.css", "ui/mark.js", "ui/view.js", "ui/map.js", "ui/side.js", "ui/nudge.js",
+                     "web/strip.css", "web/strip.js"):
+            self.assertIn(path, html)
+            with self.client.get("/" + path) as response:
+                self.assertEqual(response.status_code, 200, path)
+        self.assertNotIn("<textarea", html)       # 가닥은 대답하지 않아요
+        self.assertNotIn("ui/rail.js", html)      # 레일은 없고 노선도 카드만
+        # 떠 있는 버튼(mac/Float.swift)의 여섯 가지가 이 화면과 가닥 창이 아는 이름인지
+        swift = (ROOT / "mac" / "Float.swift").read_text(encoding="utf-8")
+        keys = re.findall(r'FloatAction\(key: "(\w+)"', swift)
+        self.assertEqual(len(keys), 6)
+        script = (ROOT / "backend" / "web" / "strip.js").read_text(encoding="utf-8")
+        tabs = set(re.findall(r"(\w+): 1", re.search(r"TABS = \{([^}]*)\}", script).group(1)))
+        self.assertEqual(set(keys) - {"map", "find", "window"}, tabs)
+        window = (ROOT / "backend" / "web" / "app.js").read_text(encoding="utf-8")
+        for name in ("gadakStrip", "gadakFind", "gadakOpen"):
+            self.assertIn("window." + name, swift)
+            self.assertIn("window." + name + " = ", script if name == "gadakStrip" else window)
 
     def test_item_state_is_kept(self):
         self.turn()

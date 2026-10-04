@@ -487,6 +487,14 @@ def chat_row(conn, chat_id):
     return conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
 
 
+def now_chat(conn):
+    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None."""
+    return conn.execute(
+        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0"
+        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1"
+    ).fetchone()
+
+
 def chat_turns(conn, chat_id) -> list:
     return conn.execute("SELECT * FROM turns WHERE chat_id = ? ORDER BY seq", (chat_id,)).fetchall()
 
