@@ -84,11 +84,14 @@ class UnknownPayloadTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    def run_main(self, payload, sent=True, env=None):
+    def run_main(self, payload, sent=True, env=None, answer=None, args=()):
+        """answer: 가닥이 자동 실행 물음(/auto/…)에 주는 답. None이면 가닥이 꺼져 있는 것."""
         stdout = io.StringIO()
         with mock.patch.object(hook.sys, "stdin", io.StringIO(json.dumps(payload))), \
                 mock.patch.object(hook.sys, "stdout", stdout), \
+                mock.patch.object(hook.sys, "argv", ["gadak-hook.py", *args]), \
                 mock.patch.object(hook, "send", return_value=sent) as send, \
+                mock.patch.object(hook, "ask", return_value=answer) as self.asked, \
                 mock.patch.dict(hook.os.environ, env or {}, clear=False):
             code = hook.main()
         return code, stdout.getvalue(), send
@@ -115,6 +118,47 @@ class MainTest(unittest.TestCase):
             lines = (Path(tmp) / "spool.jsonl").read_text(encoding="utf-8").splitlines()
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(lines[0])["kind"], "answer")
+
+    def test_cursor_stop_hands_back_what_gadak_wants_to_send(self):
+        stop = load("cursor_payloads.json")[4]
+        code, out, send = self.run_main(stop, answer={"send": "notify.py는 원래대로 되돌려 줘."})
+        self.assertEqual((code, json.loads(out)), (0, {"followup_message": "notify.py는 원래대로 되돌려 줘."}))
+        send.assert_called_once()                       # 턴이 끝났다는 것도 그대로 알려요
+        path, body, timeout = self.asked.call_args[0]
+        self.assertEqual((path, body["site"], body["chat_id"], body["message_ref"], body["again"]),
+                         ("/auto/stop", "cursor", "conv-demo-1", "gen-1", False))
+        self.assertGreater(timeout, body["wait"])       # 가닥이 기다리는 동안 hook도 기다려 줘요
+        # 가닥이 보낸 글 때문에 이어진 턴에는 다시 보내지 않게 알려요
+        self.run_main(dict(stop, loop_count=1), answer={"send": None})
+        self.assertTrue(self.asked.call_args[0][1]["again"])
+
+    def test_claude_code_stop_blocks_with_the_request(self):
+        stop = next(p for p in load("claude_code_payloads.json") if p["hook_event_name"] == "Stop")
+        code, out, send = self.run_main(stop, answer={"send": "되돌려 줘."}, args=["--auto"])
+        self.assertEqual(json.loads(out), {"decision": "block", "reason": "되돌려 줘."})
+        send.assert_not_called()                        # --auto: 대화는 기록 파일로 읽으니 이벤트는 안 보내요
+        self.assertEqual(self.asked.call_args[0][1]["message_ref"], stop["prompt_id"])
+        self.run_main(dict(stop, stop_hook_active=True), answer={"send": None}, args=["--auto"])
+        self.assertTrue(self.asked.call_args[0][1]["again"])
+
+    def test_a_new_chat_gets_the_summary_as_context(self):
+        summary = "지난 대화에서 정한 것\n1. 텔레그램 봇"
+        cursor = {"hook_event_name": "sessionStart", "conversation_id": "conv-2",
+                  "workspace_roots": ["/Users/demo/dev/nba-analysis"]}
+        _, out, _ = self.run_main(cursor, answer={"context": summary})
+        self.assertEqual(json.loads(out), {"additional_context": summary})
+        self.assertEqual(self.asked.call_args[0][:2], ("/auto/start", {
+            "site": "cursor", "chat_id": "conv-2", "project": "nba-analysis", "source": None}))
+        claude = {"hook_event_name": "SessionStart", "session_id": "sess-2", "cwd": "/x/nba-analysis", "source": "startup"}
+        _, out, _ = self.run_main(claude, answer={"context": summary}, args=["--auto"])
+        self.assertEqual(json.loads(out), {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": summary}})
+
+    def test_nothing_to_send_prints_nothing(self):
+        stop = next(p for p in load("claude_code_payloads.json") if p["hook_event_name"] == "Stop")
+        for answer in (None, {"send": None}, {"send": ""}):        # 가닥이 꺼져 있음 · 보낼 것 없음
+            self.assertEqual(self.run_main(stop, answer=answer, args=["--auto"])[1], "")
+        self.assertEqual(self.run_main({"hook_event_name": "SessionStart", "session_id": "s", "cwd": "/x/p"},
+                                       answer={"context": None})[1], "")
 
     def test_broken_input_does_not_fail(self):
         with mock.patch.object(hook.sys, "stdin", io.StringIO("not json")):

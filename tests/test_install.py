@@ -37,7 +37,7 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(config["version"], 1)
         self.assertEqual(set(config["hooks"]),
-                         {"beforeSubmitPrompt", "afterAgentResponse", "afterFileEdit", "stop"})
+                         {"beforeSubmitPrompt", "afterAgentResponse", "afterFileEdit", "stop", "sessionStart"})
         self.assertEqual(config["hooks"]["stop"], [{"command": "sh .cursor/hooks/gadak.sh"}])
         self.assertIn(str(install.HOOK), launcher)
         self.assertNotIn("GADAK_DEBUG", launcher)

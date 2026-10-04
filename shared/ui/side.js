@@ -112,7 +112,7 @@
     /* ---------- 할 일 장부 ---------- */
     function renderLedger(host) {
       var all = g.allItems(), led = el('div', 'led'); host.appendChild(led);
-      if (!all.length) { led.appendChild(el('div', 'lempty', '아직 없어요. 빠진 요청이나 다음 할 일이 생기면 가닥이 여기 모아요.')); return; }
+      if (!all.length) led.appendChild(el('div', 'lempty', '아직 없어요. 빠진 요청이나 다음 할 일이 생기면 가닥이 여기 모아요.'));
       [['miss', '놓친 일'], ['sug', '제안']].forEach(function (gr) {
         var list = all.filter(function (i) { return KIND[i.kind].g === gr[0]; });
         if (!list.length) return;
@@ -120,6 +120,19 @@
         list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
         led.appendChild(grp);
       });
+      renderAuto(led);
+    }
+    /* 사용자가 ‘앞으로는 알아서’를 켠 종류. 여기서 다시 꺼요 (README 3-2: 종류별로 다시 끌 수 있어요) */
+    function renderAuto(host) {
+      var on = Object.keys(G.AUTO).filter(function (k) { return g.SC.auto && g.SC.auto[k]; });
+      if (!on.length || !g.hooks.setAuto) return;
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '가닥이 알아서 보내는 것'));
+      on.forEach(function (k) {
+        var r = el('div', 'lauto'); r.appendChild(el('span', null, KIND[k].label));
+        var b = el('button', 'linkbtn', '끄기'); b.type = 'button'; b.onclick = function () { g.hooks.setAuto(k, false); }; r.appendChild(b);
+        grp.appendChild(r);
+      });
+      host.appendChild(grp);
     }
     function ledgerItem(it) {
       var s = g.stateOf(it), sg = KIND[it.kind].g === 'sug';
@@ -127,7 +140,7 @@
       d.appendChild(el('span', 'mk'));
       var body = el('div'); d.appendChild(body);
       var at = it.at && g.byId[it.at] ? g.byId[it.at] : it.t;
-      body.appendChild(el('div', 'k', (it.t ? g.numLabel(at) + ' · ' : '') + KIND[it.kind].label));
+      body.appendChild(el('div', 'k', (it.t ? g.numLabel(at) + ' · ' : '') + KIND[it.kind].label + (it.sent === 'auto' ? ' · 가닥이 보냄' : '')));
       var t = el('div', 't', it.text); body.appendChild(t);
       if (it.t && s !== 'done') { t.classList.add('lk'); t.onclick = function () { g.go(at.id); }; }
       if (s !== 'done') {

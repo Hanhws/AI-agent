@@ -9,7 +9,9 @@
      statusBits(V)       머리줄 상태 글에 더할 조각들
      insertLabel         수정 모음 창의 실행 버튼 글 (기본 ‘입력창에 넣기’)
      nudgeClass          한마디 카드 자리 (nudge-web · nudge-app · nudge-vs)
-     track(name, fields) 사용 기록에 적을 것(누른 것 · 한마디의 처리). 이름과 칸은 backend/usage_schema.py의 표에 있는 것만 */
+     track(name, fields) 사용 기록에 적을 것(누른 것 · 한마디의 처리). 이름과 칸은 backend/usage_schema.py의 표에 있는 것만
+     setAuto(kind, on)   ‘앞으로는 알아서’를 켜고 끔 (승인한 종류의 자동 실행, README 3-2). 이 hook이 없는 입구에서는 그 칸을 안 보여요.
+                         지금 켜져 있는 종류는 SC.auto = {unasked, handoff}, 가닥이 직접 보낸 한마디는 item.sent = 'auto' */
 (function (G) {
   'use strict';
   var el = G.el, fname = G.fname;
@@ -18,6 +20,12 @@
     missing: { g: 'miss', label: '빠진 요청', p: 1 }, yours: { g: 'miss', label: '내가 할 일', p: 2 }, open: { g: 'miss', label: '끝나지 않은 곁길', p: 3 },
     unasked: { g: 'miss', label: '요청 외 변경', p: 1 }, branch: { g: 'miss', label: '숨은 가지', p: 2 },
     check: { g: 'sug', label: '이해 확인', p: 4 }, topic: { g: 'sug', label: '주제 전환', p: 4 }, repeat: { g: 'sug', label: '반복 질문', p: 4 }, handoff: { g: 'sug', label: '이어 가기', p: 5 }, next: { g: 'sug', label: '다음 할 일', p: 6 }
+  };
+
+  /* 가닥이 직접 보낼 수 있는 종류는 둘뿐이에요 (README 3-2). 값은 켤 때 보여 주는 설명 */
+  G.AUTO = {
+    unasked: '이런 요청 외 변경은 다음부터 가닥이 바로 되돌려 달라고 보내요. 할 일 목록에서 끌 수 있어요.',
+    handoff: '같은 프로젝트의 새 대화에는 다음부터 가닥이 시작할 때 요약을 넣어요. 할 일 목록에서 끌 수 있어요.'
   };
 
   G.create = function (hooks) {

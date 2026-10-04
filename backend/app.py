@@ -7,7 +7,7 @@ import time
 
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
-from . import assemble, config, sources, store, usage
+from . import assemble, auto, config, sources, store, usage
 from .agent import trace
 from .engines import describe_engine
 from .runtime import Runtime
@@ -114,6 +114,19 @@ def create_app(db_path=None, engine="auto") -> Flask:
         rt.bump()
         return jsonify(result), (200 if result["ok"] else 409)
 
+    @app.post("/sources/claude-code/connect")
+    def claude_connect():
+        """자동 실행에 쓸 hook 둘(Stop · SessionStart)을 Claude Code 설정에 더해요. 사용자가 눌렀을 때만."""
+        result = sources.connect_claude()
+        rt.bump()
+        return jsonify(result), (200 if result["ok"] else 409)
+
+    @app.post("/sources/claude-code/disconnect")
+    def claude_disconnect():
+        result = sources.disconnect_claude()
+        rt.bump()
+        return jsonify(result), (200 if result["ok"] else 409)
+
     @app.post("/quit")
     def quit_app():
         rt.quit()
@@ -210,6 +223,34 @@ def create_app(db_path=None, engine="auto") -> Flask:
                 abort(400)
         rt.bump()
         return jsonify(ok=True)
+
+    # ----- 승인한 종류의 자동 실행 (backend/auto.py) -----
+    @app.get("/auto")
+    def auto_state():
+        return jsonify(auto=auto.state(db()), ways=sources.auto_ways())
+
+    @app.post("/auto")
+    def auto_set():
+        """종류별 ‘앞으로는 알아서’를 켜고 꺼요. 화면에서 사용자가 눌렀을 때만 불러요."""
+        body = request.get_json() or {}
+        if body.get("kind") not in auto.KINDS or not isinstance(body.get("on"), bool):
+            abort(400)
+        state = auto.set_enabled(db(), body["kind"], body["on"])
+        rt.bump()
+        return jsonify(auto=state, ways=sources.auto_ways())
+
+    @app.post("/auto/stop")
+    def auto_stop():
+        """턴이 끝났을 때 hook이 물어요: 이어서 보낼 글이 있나요? (확인이 끝날 때까지 기다릴 수 있어요)"""
+        return jsonify(auto.on_stop(rt, db(), request.get_json() or {}))
+
+    @app.post("/auto/start")
+    def auto_start():
+        """새 대화가 시작될 때 hook이 물어요: 넣을 요약이 있나요?"""
+        result = auto.on_start(db(), request.get_json() or {})
+        if result["context"]:
+            rt.bump()
+        return jsonify(result)
 
     # ----- 사용 기록 (backend/usage.py) -----
     @app.get("/usage/state")

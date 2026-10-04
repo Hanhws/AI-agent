@@ -110,7 +110,8 @@ def triggers(conn, chat, rows, row, parts, wide) -> list:
         look.append("missing")
     if wide and conn.execute("SELECT 1 FROM files WHERE turn_id = ? LIMIT 1", (row["id"],)).fetchone():
         look.append("unasked")
-    if rows and row["seq"] == rows[0]["seq"] and handoff_due(conn, chat):
+    # 가닥이 시작할 때 이미 요약을 넣은 대화(승인한 자동 실행)에는 다시 권하지 않아요
+    if rows and row["seq"] == rows[0]["seq"] and handoff_due(conn, chat) and not store.auto_sent(conn, chat["id"], "handoff"):
         look.append("handoff")
     return look
 
@@ -278,6 +279,26 @@ def unasked_item(ctx, path, pairs, raw, why) -> dict:
     }
 
 
+def handoff_summary(decisions, leftovers) -> str:
+    """이어 가기 요약의 글. 한마디의 ‘요약 붙이기’와, 승인한 자동 실행이 새 대화에 넣는 글이 같아요."""
+    lines = []
+    if decisions:
+        chats = {d["chat_id"] for d in decisions}
+        if len(chats) == 1:
+            first = decisions[0]
+            lines.append(f"지난 대화({store.display_date(first['created_at'])} {first['chat_title']})에서 정한 것")
+            lines += [f"{n}. {d['dec']}" for n, d in enumerate(decisions, 1)]
+        else:
+            lines.append("지난 대화에서 정한 것")
+            lines += [f"{n}. {d['dec']} ({store.display_date(d['created_at'])} {d['chat_title']})"
+                      for n, d in enumerate(decisions, 1)]
+    if leftovers:
+        lines.append("아직 남은 일")
+        lines += [f"- {i['text']}" for i in leftovers]
+    lines.append("이 결정을 그대로 두고 이어서 진행해 줘." if decisions else "이 일을 이어서 진행해 줘.")
+    return "\n".join(lines)
+
+
 def handoff_item(ctx, use, why):
     """지난 대화에서 정한 것 · 남은 일 중 엔진이 고른 것으로 이어 가기 요약을 만들어요. 고른 게 없으면 None."""
     ids = [u for u in (use or []) if isinstance(u, str)][:30]
@@ -295,22 +316,7 @@ def handoff_item(ctx, use, why):
                  if i["id"] in wanted]
     if not decisions and not leftovers:
         return None
-    lines = []
-    if decisions:
-        chats = {d["chat_id"] for d in decisions}
-        if len(chats) == 1:
-            first = decisions[0]
-            lines.append(f"지난 대화({store.display_date(first['created_at'])} {first['chat_title']})에서 정한 것")
-            lines += [f"{n}. {d['dec']}" for n, d in enumerate(decisions, 1)]
-        else:
-            lines.append("지난 대화에서 정한 것")
-            lines += [f"{n}. {d['dec']} ({store.display_date(d['created_at'])} {d['chat_title']})"
-                      for n, d in enumerate(decisions, 1)]
-    if leftovers:
-        lines.append("아직 남은 일")
-        lines += [f"- {i['text']}" for i in leftovers]
-    lines.append("이 결정을 그대로 두고 이어서 진행해 줘." if decisions else "이 일을 이어서 진행해 줘.")
-    summary = "\n".join(lines)
+    summary = handoff_summary(decisions, leftovers)
     if decisions and leftovers:
         text = f"지난 대화에서 정한 것 {len(decisions)}개와 남은 일 {len(leftovers)}개를 이 대화에 붙일까요?"
     elif decisions:

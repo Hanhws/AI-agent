@@ -3,6 +3,7 @@
 테이블과 필드 이름은 docs/schema.md를 따라요. edits · item_states · sync_state 테이블과
 turns의 state · classified, chats의 via · cwd는 10/3에 더한 것이에요 (CHANGES.md 4번).
 agent_runs 테이블과 turns의 look · checked는 2단(확인)을 붙이며 더했어요 (CHANGES.md 8번).
+auto_log는 가닥이 직접 보낸 것의 기록이에요 (승인한 종류의 자동 실행 · backend/auto.py).
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 """
 import json
@@ -118,6 +119,14 @@ CREATE TABLE IF NOT EXISTS settings(
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS auto_log(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id TEXT NOT NULL,
+  item_id TEXT,
+  kind TEXT NOT NULL,
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 """
 
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
@@ -134,7 +143,7 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 4   # 4: usage · settings (사용 기록, backend/usage.py)
+SCHEMA_VERSION = 5   # 4: usage · settings (사용 기록, backend/usage.py) · 5: auto_log (자동 실행, backend/auto.py)
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 
 
@@ -405,11 +414,27 @@ def set_items(conn, turn_id, items) -> list:
     return ids
 
 
+def log_auto(conn, chat_id, kind, text, item_id=None) -> None:
+    """가닥이 직접 보낸 것을 남겨요. 한마디를 보낸 것이면 그 id를, 새 대화에 넣은 요약이면 대화만 적어요."""
+    conn.execute("INSERT INTO auto_log(chat_id, item_id, kind, text, created_at) VALUES(?, ?, ?, ?, ?)",
+                 (chat_id, item_id, kind, text, now()))
+
+
+def auto_sent(conn, chat_id, kind=None) -> list:
+    """그 대화에서 가닥이 직접 보낸 것들 (오래된 순)."""
+    if kind is None:
+        return conn.execute("SELECT * FROM auto_log WHERE chat_id = ? ORDER BY id", (chat_id,)).fetchall()
+    return conn.execute("SELECT * FROM auto_log WHERE chat_id = ? AND kind = ? ORDER BY id", (chat_id, kind)).fetchall()
+
+
 def turn_items(conn, turn_id) -> list:
-    """docs/schema.md의 Item 모양 (상태는 빼고). 화면은 상태를 itemStates로 받아요."""
+    """docs/schema.md의 Item 모양 (상태는 빼고). 화면은 상태를 itemStates로 받아요. 가닥이 직접 보낸 것은 sent = auto."""
     out = []
+    sent = {r["item_id"] for r in conn.execute("SELECT item_id FROM auto_log WHERE item_id LIKE ?", (turn_id + ":%",))}
     for r in conn.execute("SELECT * FROM items WHERE turn_id = ? ORDER BY rowid", (turn_id,)):
         item = {"id": r["id"], "kind": r["kind"], "text": r["text"], "why": r["why"] or "", "btn": r["btn"] or ""}
+        if r["id"] in sent:
+            item["sent"] = "auto"
         for key in ("prompt", "effect", "at"):
             if r[key]:
                 item[key] = r[key]
@@ -487,6 +512,20 @@ def turn_full(conn, turn_id):
     return turn_public(conn, row, cwd=row["cwd"]) if row else None
 
 
+AUTO_KINDS = ("unasked", "handoff")   # 가닥이 직접 보낼 수 있는 종류는 이 둘뿐이에요 (README 3-2)
+
+
+def handoff_note(text) -> dict:
+    """가닥이 새 대화에 넣은 이어 가기 요약을 할 일 장부에 보이는 모양으로. 이미 한 일이라 ‘done’이에요."""
+    count = sum(1 for line in text.splitlines() if line[:1].isdigit() and ". " in line[:5])
+    return {
+        "kind": "handoff", "text": f"지난 대화에서 정한 것 {count}개를 이 대화에 붙였어요",
+        "why": "같은 프로젝트의 새 대화라서, 시작할 때 가닥이 넣었어요.", "btn": "요약 보기",
+        "pop": {"title": "이어 가기 요약", "text": text, "note": "새 대화가 시작될 때 가닥이 넣은 글이에요."},
+        "state": "done", "sent": "auto",
+    }
+
+
 def display_date(created_at: str) -> str:
     day = datetime.fromisoformat(created_at).astimezone()
     today = datetime.now().astimezone().date()
@@ -543,12 +582,16 @@ def view(conn, project_id, scope="all", chat_id=None):
             entry["checks"] = checks      # 2단이 아직 확인하지 않은 턴
         if chat["id"] == active_id:
             entry["active"] = True
+        for sent in auto_sent(conn, chat["id"], "handoff"):
+            if sent["item_id"] is None:      # 새 대화가 시작될 때 넣은 요약: 한마디 없이 보낸 것이라 첫 역에 달아 보여 줘요
+                entry["turns"][0].setdefault("todo", []).append(handoff_note(sent["text"]))
         out.append(entry)
     states = {
         r["id"]: r["state"] for r in conn.execute("SELECT id, state FROM item_states")
         if r["id"].split(":")[0] in turn_ids
     }
-    return {"project": {"id": project["id"], "name": project["name"]}, "chats": out, "itemStates": states}
+    auto = {kind: setting(conn, "auto." + kind) == "1" for kind in AUTO_KINDS}
+    return {"project": {"id": project["id"], "name": project["name"]}, "chats": out, "itemStates": states, "auto": auto}
 
 
 SITE_NAMES = {"claude-code": "Claude Code", "codex": "Codex", "cursor": "Cursor", "chatgpt": "ChatGPT",

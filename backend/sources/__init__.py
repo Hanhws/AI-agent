@@ -9,7 +9,9 @@
 import contextlib
 import importlib.util
 import io
+import json
 import os
+import shlex
 from pathlib import Path
 
 from .. import config, store
@@ -48,6 +50,87 @@ def connect_cursor() -> dict:
     return {"ok": bool(done)}
 
 
+CLAUDE_HOOK_EVENTS = (("Stop", 60), ("SessionStart", 10))    # (이벤트, hook을 기다려 주는 초)
+HOOK_MARK = "gadak-hook.py"
+
+
+def claude_settings() -> Path:
+    return Path(os.environ.get("GADAK_CLAUDE_SETTINGS", Path.home() / ".claude" / "settings.json")).expanduser()
+
+
+def _claude_hook_command() -> str:
+    # --auto: 대화는 기록 파일로 읽고 있으니 hook은 자동 실행만 맡아요 (같은 턴이 두 번 들어오지 않게)
+    return f"python3 {shlex.quote(str(config.ROOT / 'cursor-hooks' / 'gadak-hook.py'))} --auto"
+
+
+def _read_claude_settings():
+    """설정을 읽어요. 파일이 없으면 빈 설정, 읽을 수 없는 모양이면 None."""
+    path = claude_settings()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("hooks", {}), dict):
+        return None
+    if any(not isinstance(v, list) for v in data.get("hooks", {}).values()):
+        return None
+    return data
+
+
+def _is_ours(entry) -> bool:
+    return HOOK_MARK in json.dumps(entry, ensure_ascii=False)
+
+
+def claude_connected() -> bool:
+    data = _read_claude_settings()
+    hooks = (data or {}).get("hooks", {})
+    return all(any(_is_ours(e) for e in hooks.get(event, [])) for event, _ in CLAUDE_HOOK_EVENTS)
+
+
+def connect_claude() -> dict:
+    """Claude Code의 사용자 설정에 가닥 hook 둘을 더해요. 있던 설정은 그대로 두고, 고치기 전의 파일을 옆에 남겨요."""
+    path, data = claude_settings(), _read_claude_settings()
+    if data is None:
+        return {"ok": False, "reason": "Claude Code 설정 파일을 읽지 못해서 건드리지 않았어요. docs/usage-guide.md 4-1을 봐 주세요."}
+    if claude_connected():
+        return {"ok": True, "already": True}
+    hooks = data.setdefault("hooks", {})
+    for event, timeout in CLAUDE_HOOK_EVENTS:
+        entries = hooks.setdefault(event, [])
+        if not any(_is_ours(e) for e in entries):
+            entries.append({"hooks": [{"type": "command", "command": _claude_hook_command(), "timeout": timeout}]})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        path.with_name(path.name + ".gadak-backup").write_bytes(path.read_bytes())
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return {"ok": True}
+
+
+def disconnect_claude() -> dict:
+    """가닥이 더한 hook만 떼요."""
+    path, data = claude_settings(), _read_claude_settings()
+    if data is None:
+        return {"ok": False, "reason": "Claude Code 설정 파일을 읽지 못해서 건드리지 않았어요."}
+    hooks = data.get("hooks", {})
+    if not any(_is_ours(e) for entries in hooks.values() for e in entries):
+        return {"ok": True, "already": True}
+    for event in list(hooks):
+        hooks[event] = [e for e in hooks[event] if not _is_ours(e)]
+        if not hooks[event]:
+            del hooks[event]
+    if not hooks:
+        data.pop("hooks", None)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return {"ok": True}
+
+
+def auto_ways() -> dict:
+    """가닥이 직접 보낼 수 있는 길이 붙어 있는 입구 (승인한 종류의 자동 실행 · backend/auto.py)."""
+    return {"claude-code": claude_connected(), "cursor": cursor_connected()}
+
+
 def detect(counts=None, extension=None) -> list:
     """무엇을 찾았고 어떻게 읽는지. counts는 저장소에 들어온 대화 수(site별), extension은 pages.status()."""
     from . import claude_code, codex
@@ -59,6 +142,8 @@ def detect(counts=None, extension=None) -> list:
             "key": reader.KEY, "name": reader.NAME, "where": reader.WHERE, "mode": "auto",
             "found": files > 0, "files": files, "chats": counts.get(reader.SITE, 0),
         })
+        if reader.KEY == "claude-code":
+            rows[-1]["hooks"] = claude_connected()     # 자동 실행에 쓰는 hook이 붙어 있는지
     rows.append({
         "key": "cursor", "name": "Cursor", "where": "Agent 채팅", "mode": "connect",
         "found": _app("Cursor") or cursor_home().is_dir(), "connected": cursor_connected(),

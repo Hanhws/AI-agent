@@ -15,11 +15,11 @@
 
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    nudgeClass: 'nudge-web', statusBits: statusBits, track: track,
+    nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto,
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
-  if (S.demo) delete g.hooks.search;  // 예시는 화면에 실린 글에서 바로 찾아요
+  if (S.demo) { delete g.hooks.search; delete g.hooks.setAuto; }  // 예시는 화면에 실린 글에서 바로 찾고, 가닥이 보낼 곳도 없어요
   var st = g.st, R = g.R;
 
   /* 사용 기록: 무엇을 눌렀는지만 적어요(글은 안 적어요). 적을 수 있는 이름과 칸은 backend/usage_schema.py에 다 있어요 */
@@ -235,6 +235,14 @@
       if (s.mode === 'auto') {
         k = s.found ? '알아서 읽는 중 · 대화 ' + s.chats + '개' : '기록을 찾지 못했어요';
         w = s.where + (s.found ? ' · 기록 파일 ' + s.files + '개' : '');
+        if (s.key === 'claude-code' && s.found) {
+          // ‘앞으로는 알아서’를 켠 것을 가닥이 직접 보내려면 Claude Code 설정에 hook 둘을 더해야 해요. 눌렀을 때만 고쳐요
+          w += s.hooks ? ' · 가닥이 직접 보낼 수 있어요(자동 실행 연결됨)' : ' · ‘앞으로는 알아서’를 켠 것을 가닥이 직접 보내려면 연결해요. Claude Code 설정에 hook 둘을 더해요';
+          btn = el('button', 'btn sm' + (s.hooks ? '' : ' primary'), s.hooks ? '자동 실행 끊기' : '자동 실행 연결'); btn.onclick = function () {
+            api('sources/claude-code/' + (s.hooks ? 'disconnect' : 'connect'), 'POST').then(function (r) {
+              g.flashToast(!r.ok ? r.reason : (s.hooks ? 'Claude Code에서 가닥 hook을 뗐어요.' : '연결했어요. 새로 여는 Claude Code 대화부터 가닥이 직접 보낼 수 있어요.'));
+              return api('sources'); }).then(function (x) { S.sources = x.sources; renderSources(); }); };
+        }
       } else if (s.mode === 'connect') {
         k = s.connected ? '연결됨 · 대화 ' + s.chats + '개' : (s.found ? '한 번 연결하면 그 뒤로 알아서 읽어요' : '설치된 것을 찾지 못했어요');
         w = s.connected ? s.where + ' · 새 대화부터 읽어요' : s.where + ' · 연결하면 Cursor의 hooks.json에 가닥을 더해요';
@@ -359,6 +367,19 @@
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 
+  /* ---------- 승인한 종류의 자동 실행: ‘앞으로는 알아서’를 켜고 꺼요. 실제로 보내는 건 그 도구에 붙인 hook이에요 (README 3-2) ---------- */
+  function setAuto(kind, on) {
+    api('auto', 'POST', { kind: kind, on: on }).then(function (r) {
+      g.SC.auto = r.auto;
+      var name = G.KIND[kind].label, site = g.ACT && g.ACT.site, way = r.ways ? r.ways[site] : true;
+      if (!on) g.flashToast('‘' + name + '’은 다시 물어보고 보낼게요.');
+      else if (way === false) g.flashToast('켰어요. 가닥이 직접 보내려면 ‘찾은 곳’에서 ' + (SITES[site] || site) + '를 연결해 주세요.');
+      else if (way === undefined) g.flashToast('켰어요. 가닥이 직접 보낼 수 있는 곳은 지금 Claude Code와 Cursor예요.');
+      else g.flashToast('다음부터 ‘' + name + '’은 가닥이 바로 보내요.');
+      g.render();
+    }, function () { g.flashToast('바꾸지 못했어요.'); });
+  }
+
   /* ---------- 데이터 ---------- */
   function openProject(id) { if (id === S.project) return; track('ui', { what: 'open_project' }); S.project = id; S.chat = null; S.reset = true; S.bottom = true; S.keepScope = null; load(); }
   function openChat(id) { if (g.ACT && id === g.ACT.id) return; track('ui', { what: 'open_chat' }); S.chat = id; S.reset = true; S.bottom = !S.goto; S.keepScope = st.scope; load(); }
@@ -377,7 +398,7 @@
       if (!S.project) { show({ chats: [] }); return; }
       return api('projects/' + encodeURIComponent(S.project) + '/view' + (S.chat ? '?chat=' + encodeURIComponent(S.chat) : '')).then(function (v) {
         var real = v.project.id !== '_none';  // 프로젝트 · 폴더가 없는 대화는 대화별로만 봐요
-        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates });
+        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto });
       });
     });
   }
@@ -411,7 +432,7 @@
       renderFoot();
     }, function () {
       // 백엔드가 없는 곳(배포 웹 데모)에서는 예시를 보여 줘요
-      if (!S.status && !S.demo) { S.demo = true; delete g.hooks.search; clearInterval(S.timer); S.reset = true; return load(); }
+      if (!S.status && !S.demo) { S.demo = true; delete g.hooks.search; delete g.hooks.setAuto; clearInterval(S.timer); S.reset = true; return load(); }
       S.off = true; renderFoot();
     }).catch(function () {});
   }

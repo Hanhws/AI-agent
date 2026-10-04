@@ -46,9 +46,19 @@
       if (P.text) pop.appendChild(el('pre', null, P.text));
       if (P.diff) { var d = el('div', 'diff'); P.diff.forEach(function (l) { d.appendChild(el('div', l[0], l[1])); }); pop.appendChild(d); }
       if (P.note) pop.appendChild(el('div', 'note', P.note));
+      // 승인한 종류만 자동 실행: 한 번 직접 보내면서 ‘앞으로는 알아서’를 켤 수 있어요 (README 3-2)
+      var auto = null, was = !!(g.SC.auto && g.SC.auto[it.kind]);
+      if (P.prompt && g.hooks.setAuto && G.AUTO[it.kind]) {
+        var lab = el('label', 'auto'); auto = el('input'); auto.type = 'checkbox'; auto.checked = was;
+        lab.appendChild(auto); lab.appendChild(el('span', null, '앞으로는 알아서')); pop.appendChild(lab);
+        pop.appendChild(el('div', 'note', G.AUTO[it.kind]));
+      }
       var row = el('div', 'row');
       var c = el('button', 'btn sm', '닫기'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
-      if (P.prompt) { var a = el('button', 'btn sm primary', P.btn); a.type = 'button'; a.onclick = function () { pop.hidden = true; insert(P.prompt, KIND[it.kind].label, function () { finish(it); g.render(); }); }; row.appendChild(a); }
+      if (P.prompt) { var a = el('button', 'btn sm primary', P.btn); a.type = 'button'; a.onclick = function () {
+        pop.hidden = true;
+        if (auto && auto.checked !== was) g.hooks.setAuto(it.kind, auto.checked);
+        insert(P.prompt, KIND[it.kind].label, function () { finish(it); g.render(); }); }; row.appendChild(a); }
       else { var cp = el('button', 'btn sm primary', '새 창에 붙일 글 복사'); cp.type = 'button'; cp.onclick = function () {
         var ok = function () { finish(it); pop.hidden = true; g.flashToast('복사했어요. 새 창 첫 메시지에 붙여 넣으면 돼요.'); g.render(); };
         G.copy(P.text).then(ok); }; row.appendChild(cp); }

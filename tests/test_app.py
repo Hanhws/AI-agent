@@ -23,6 +23,7 @@ class AppTest(unittest.TestCase):
         self.cursor_home = base / "cursor"
         env = mock.patch.dict(os.environ, {
             "GADAK_CLAUDE_PROJECTS": str(base / "claude"), "GADAK_CODEX_HOME": str(base / "codex"),
+            "GADAK_CLAUDE_SETTINGS": str(base / "claude-settings.json"),
             "GADAK_CURSOR_HOME": str(self.cursor_home),
         })
         env.start()

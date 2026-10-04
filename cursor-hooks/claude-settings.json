@@ -10,7 +10,10 @@
       }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "__GADAK_HOOK__" }] }
+      { "hooks": [{ "type": "command", "command": "__GADAK_HOOK__", "timeout": 60 }] }
+    ],
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "__GADAK_HOOK__", "timeout": 10 }] }
     ]
   }
 }

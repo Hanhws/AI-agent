@@ -26,6 +26,7 @@ class PagesTest(unittest.TestCase):
         base = Path(self.tmp.name)
         env = mock.patch.dict(os.environ, {
             "GADAK_CLAUDE_PROJECTS": str(base / "claude"), "GADAK_CODEX_HOME": str(base / "codex"),
+            "GADAK_CLAUDE_SETTINGS": str(base / "claude-settings.json"),
             "GADAK_CURSOR_HOME": str(base / "cursor"),
         })
         env.start()
