@@ -16,6 +16,8 @@
    true인 턴: “B안으로 하자”, “이름은 이걸로 확정”, (제안을 듣고) “응 그걸로 해 줘”.
    false인 턴: “고쳐 줘”, “올려 줘”, “다음에 뭐 해?”. 작업이 끝났다는 것은 확정이 아니야. 대부분의 턴은 false야.
    chose가 false면 dec는 null.
+   dec가 있으면 dec_note에, 이 대화를 못 본 사람이 읽어도 알 수 있게 무엇을 어떻게 정했는지 한 문장(60자 안팎)으로 풀어 써.
+   “1번 방식”, “현 스타일”처럼 앞 대화를 가리키는 말 대신 그 내용을 써. dec가 null이면 dec_note도 null.
    주제가 완전히 바뀌면 topic에 새 주제 이름.
 3) 붙일 자리 — title을 12자 안팎 명사구로. 질문형이면 “~냐”, “~할까”처럼 짧게.
    이 턴부터 큰 단계가 바뀌면 seg에 구간 이름(2~6자).
@@ -27,5 +29,5 @@
 id는 받은 값을 그대로 써. 받은 턴마다 빠짐없이 하나씩 출력해.
 
 출력 형식(JSON만):
-{"turns":[{"id":"","title":"","depth":0,"seg":null,"topic":null,"chose":false,"dec":null,"ref":null,
+{"turns":[{"id":"","title":"","depth":0,"seg":null,"topic":null,"chose":false,"dec":null,"dec_note":null,"ref":null,
  "parts":[{"t":"","type":"q|task|rev","target":null,"open":false}],"wide":false}]}

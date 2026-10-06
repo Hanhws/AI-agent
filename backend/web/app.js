@@ -15,11 +15,11 @@
 
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto,
+    nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
-  if (S.demo) { delete g.hooks.search; delete g.hooks.setAuto; }  // 예시는 화면에 실린 글에서 바로 찾고, 가닥이 보낼 곳도 없어요
+  if (S.demo) { delete g.hooks.search; delete g.hooks.setAuto; delete g.hooks.handoff; }  // 예시는 화면에 실린 글에서 바로 찾고, 가닥이 보낼 곳도 없어요
   var st = g.st, R = g.R;
 
   /* 사용 기록: 무엇을 눌렀는지만 적어요(글은 안 적어요). 적을 수 있는 이름과 칸은 backend/usage_schema.py에 다 있어요 */
@@ -425,6 +425,15 @@
     track('ui', { what: 'copy' });
     G.copy(text).then(ok);
   }
+  function handoff() {
+    if (!g.ACT) return;
+    g.flashToast('다음 대화에 붙일 요약을 쓰고 있어요…');
+    api('chats/' + encodeURIComponent(g.ACT.id) + '/handoff').then(function (r) {
+      if (!r.text) { g.flashToast('아직 정한 것도 남은 일도 없어요.'); return; }
+      track('ui', { what: 'copy' });
+      G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
+    }, function () { g.flashToast('요약을 만들지 못했어요.'); });
+  }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 
   /* ---------- 승인한 종류의 자동 실행: ‘앞으로는 알아서’를 켜고 꺼요. 실제로 보내는 건 그 도구에 붙인 hook이에요 (README 3-2) ---------- */
@@ -495,7 +504,7 @@
       renderFoot();
     }, function () {
       // 백엔드가 없는 곳(배포 웹 데모)에서는 예시를 보여 줘요
-      if (!S.status && !S.demo) { S.demo = true; delete g.hooks.search; delete g.hooks.setAuto; clearInterval(S.timer); S.reset = true; return load(); }
+      if (!S.status && !S.demo) { S.demo = true; delete g.hooks.search; delete g.hooks.setAuto; delete g.hooks.handoff; clearInterval(S.timer); S.reset = true; return load(); }
       S.off = true; renderFoot();
     }).catch(function () {});
   }

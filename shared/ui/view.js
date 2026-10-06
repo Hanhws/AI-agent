@@ -10,6 +10,7 @@
      insertLabel         수정 모음 창의 실행 버튼 글 (기본 ‘입력창에 넣기’)
      nudgeClass          한마디 카드 자리 (nudge-web · nudge-app · nudge-vs)
      track(name, fields) 사용 기록에 적을 것(누른 것 · 한마디의 처리). 이름과 칸은 backend/usage_schema.py의 표에 있는 것만
+     handoff()           노선도 끝 ‘환승하기’를 눌렀을 때 (이 대화까지의 요약을 다음 대화에 붙이게). 없으면 그 표시를 안 그려요
      setAuto(kind, on)   ‘앞으로는 알아서’를 켜고 끔 (승인한 종류의 자동 실행, README 3-2). 이 hook이 없는 입구에서는 그 칸을 안 보여요.
                          지금 켜져 있는 종류는 SC.auto = {unasked, handoff}, 가닥이 직접 보낸 한마디는 item.sent = 'auto' */
 (function (G) {

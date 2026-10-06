@@ -122,7 +122,7 @@ def on_start(conn, body) -> dict:
     if store.chat_turns(conn, chat_id) or store.auto_sent(conn, chat_id, "handoff"):
         return nothing                  # 이미 시작한 대화거나, 이미 넣었어요
     decisions = conn.execute(
-        "SELECT t.id, t.dec, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
+        "SELECT t.id, t.dec, t.dec_note, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
         " JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ? AND c.id != ? AND c.hidden = 0 AND t.dec IS NOT NULL"
         " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", (project, chat_id, HANDOFF_MAX),
     ).fetchall()

@@ -127,6 +127,37 @@ class AppTest(unittest.TestCase):
         self.assertEqual(self.client.get("/projects/환율 알리미/search?q=").get_json()["hits"], [])
         self.assertEqual(self.client.get("/projects/환율 알리미/search?q=100%25").get_json()["hits"], [])
 
+    def test_transfer_copies_this_chats_decisions(self):
+        self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")
+        self.assertIsNone(self.client.get("/chats/conv-1/handoff").get_json()["text"])
+        self.turn("g2", "그럼 임계값 1,380원으로 하자", "정했어요.")
+        conn = self.rt.connect()
+        turn_id = store.chat_turns(conn, "conv-1")[1]["id"]
+        with conn:
+            store.set_classification(conn, turn_id, title="임계값 정함", depth=0, dec="임계값 1,380원",
+                                     dec_note="알림 임계값을 1,380원으로 정함")
+            for kind, text in (("unasked", "launch.json이 새로 생겼어요"), ("next", "알림 문구 다듬기")):
+                conn.execute("INSERT INTO items(id, turn_id, kind, text, state, created_at) VALUES(?, ?, ?, ?, 'open', '')",
+                             (kind, turn_id, kind, text))
+        text = self.client.get("/chats/conv-1/handoff").get_json()["text"]   # 엔진 없이: 풀어 쓴 정함 · 할 일만
+        self.assertIn("1. 알림 임계값을 1,380원으로 정함", text)
+        self.assertIn("알림 문구 다듬기", text)
+        self.assertNotIn("launch.json", text)
+        self.assertEqual(self.client.get("/chats/nope/handoff").status_code, 404)
+
+        from backend.agent import handoff
+        from backend.engines import EngineError
+        seen = {}
+        def call(system, payload, schema):
+            seen["payload"] = json.loads(payload)
+            return {"text": "이전 대화에서 이어서 해요."}
+        self.assertEqual(handoff.write(conn, "conv-1", call), "이전 대화에서 이어서 해요.")
+        self.assertEqual(seen["payload"]["route"][1]["dec"], "알림 임계값을 1,380원으로 정함")
+        def broken(*_):
+            raise EngineError("x")
+        self.assertIn("1. 알림 임계값", handoff.write(conn, "conv-1", broken))   # 엔진이 실패하면 늘어놓은 글로
+        conn.close()
+
     def test_finding_chats_across_projects(self):
         self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · Cursor
         self.event("prompt", "n1", project="nba-analysis", chat_id="conv-2", text="알리미 프로젝트처럼 Ridge로 예측해 줘")

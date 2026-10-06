@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS auto_log(
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
 ADDED_COLUMNS = {
     "chats": {"via": "TEXT", "cwd": "TEXT", "hidden": "INTEGER NOT NULL DEFAULT 0"},
-    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0"},
+    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0", "dec_note": "TEXT"},
 }
 
 NO_PROJECT = "_none"
@@ -147,7 +147,7 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 7   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화) · 7: scratch 폴더 대화 묶기
+SCHEMA_VERSION = 8   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화) · 7: scratch 폴더 대화 묶기 · 8: turns.dec_note
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 
 
@@ -386,12 +386,12 @@ def add_file(conn, turn_id, name, url=None) -> None:
 
 
 def set_classification(conn, turn_id, *, title, depth, seg=None, topic=None, dec=None, ret=False,
-                       ref=None, parts=None, look=None) -> None:
+                       ref=None, parts=None, look=None, dec_note=None) -> None:
     """1단 분류 결과를 역에 적어요 (backend/agent/classify.py). look은 2단이 확인할 까닭들이에요."""
     conn.execute(
-        "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, ret = ?, ref = ?, classified = 1,"
+        "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, dec_note = ?, ret = ?, ref = ?, classified = 1,"
         " look = ?, checked = 0 WHERE id = ?",
-        (title, depth, seg, topic, dec, 1 if ret else 0, ref, ",".join(look) if look else None, turn_id),
+        (title, depth, seg, topic, dec, dec_note, 1 if ret else 0, ref, ",".join(look) if look else None, turn_id),
     )
     conn.execute("DELETE FROM parts WHERE turn_id = ?", (turn_id,))
     for idx, part in enumerate(parts or []):

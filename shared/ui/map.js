@@ -103,9 +103,9 @@
         if (segX[V.sIdx[m.id]] == null) segX[V.sIdx[m.id]] = x - 8;
         pos[m.id] = { x: x, y: Y0 };
       });
-      var lastM = pos[mains[mains.length - 1].id];
-      var need = lastM.x + (tail ? step * tail : 0) + Math.max(pad, step / 2 + 16);
-      var cL = pos[mains[0].id].x - step / 2, cR = lastM.x + (tail ? step * tail : 0) + step / 2;
+      var lastM = pos[mains[mains.length - 1].id], xfer = g.hooks.handoff && st.scope === 'chat' ? step / 2 + 64 : 0;   // 지금 역 이름 칸 바깥에 둬요
+      var need = lastM.x + (tail ? step * tail : 0) + xfer + Math.max(pad, step / 2 + 16);
+      var cL = pos[mains[0].id].x - step / 2, cR = lastM.x + (tail ? step * tail : 0) + xfer + step / 2;
       var shift = need < W ? Math.max(0, W / 2 - (cL + cR) / 2) : 0;
       if (shift > 0) mains.forEach(function (m) { pos[m.id].x += shift; });
       lastM = pos[mains[mains.length - 1].id];
@@ -189,6 +189,17 @@
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
       });
+      // 환승하기: 노선 끝에서 다음 대화로 가는 검은 막대 + 열린 꺾쇠 (전체 지도의 환승과 같은 모양). 누르면 요약을 복사해요
+      if (xfer) {
+        var x0 = lastM.x + (tail ? step * tail : 0) + step / 2, x1 = x0 + 52;
+        path('M ' + x0 + ' ' + Y0 + ' H ' + x1, 'var(--fg)', 4).setAttribute('class', 'xfer');
+        path('M ' + (x1 - 9) + ' ' + (Y0 - 9) + ' L ' + (x1 + 1) + ' ' + Y0 + ' L ' + (x1 - 9) + ' ' + (Y0 + 9), 'var(--fg)', 4).setAttribute('class', 'xfer');
+        var xb = el('button', 'xfer-btn'); xb.type = 'button'; xb.style.left = x0 + 'px'; xb.style.top = (Y0 - 18) + 'px'; xb.style.width = (x1 - x0 + 8) + 'px';
+        xb.setAttribute('aria-label', '환승하기: 다음 대화에 붙일 요약 복사');
+        xb.onclick = function () { g.hooks.handoff(); };
+        mapEl.appendChild(xb);
+        var xl = el('div', 'lbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);
+      }
       // reference arcs (U3 repeats, cross-chat refs) as faint curves under the line
       V.vis.forEach(function (t) {
         if (!t.ref || !pos[t.ref] || !pos[t.id] || t.depth > 0) return;

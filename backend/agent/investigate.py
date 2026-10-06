@@ -279,6 +279,11 @@ def unasked_item(ctx, path, pairs, raw, why) -> dict:
     }
 
 
+def _said(decision) -> str:
+    """정한 것: 풀어 쓴 문장이 있으면 그걸로 (역 이름은 대화 밖에서 읽으면 뜻이 흐려요)."""
+    return (decision["dec_note"] if "dec_note" in decision.keys() else None) or decision["dec"]
+
+
 def handoff_summary(decisions, leftovers) -> str:
     """이어 가기 요약의 글. 한마디의 ‘요약 붙이기’와, 승인한 자동 실행이 새 대화에 넣는 글이 같아요."""
     lines = []
@@ -287,10 +292,10 @@ def handoff_summary(decisions, leftovers) -> str:
         if len(chats) == 1:
             first = decisions[0]
             lines.append(f"지난 대화({store.display_date(first['created_at'])} {first['chat_title']})에서 정한 것")
-            lines += [f"{n}. {d['dec']}" for n, d in enumerate(decisions, 1)]
+            lines += [f"{n}. {_said(d)}" for n, d in enumerate(decisions, 1)]
         else:
             lines.append("지난 대화에서 정한 것")
-            lines += [f"{n}. {d['dec']} ({store.display_date(d['created_at'])} {d['chat_title']})"
+            lines += [f"{n}. {_said(d)} ({store.display_date(d['created_at'])} {d['chat_title']})"
                       for n, d in enumerate(decisions, 1)]
     if leftovers:
         lines.append("아직 남은 일")
@@ -306,7 +311,7 @@ def handoff_item(ctx, use, why):
         return None
     conn, chat = ctx.conn, ctx.chat
     decisions = conn.execute(
-        "SELECT t.id, t.dec, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
+        "SELECT t.id, t.dec, t.dec_note, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
         " JOIN chats c ON c.id = t.chat_id WHERE t.id IN (%s) AND c.project_id = ? AND c.id != ? AND c.hidden = 0"
         " AND t.dec IS NOT NULL ORDER BY c.created_at, t.seq" % ",".join("?" * len(ids)),
         ids + [chat["project_id"], chat["id"]],

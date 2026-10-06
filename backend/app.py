@@ -8,7 +8,7 @@ import time
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
 from . import assemble, auto, config, sources, store, usage
-from .agent import tools, trace
+from .agent import handoff, tools, trace
 from .engines import describe_engine
 from .runtime import Runtime
 from .sources import exports, pages
@@ -249,6 +249,15 @@ def create_app(db_path=None, engine="auto") -> Flask:
     def find_chats():
         """모든 프로젝트의 대화에서 찾기 (가닥 창 왼쪽의 ‘대화 찾기’)."""
         return jsonify(chats=store.find_chats(db(), request.args.get("q", "")))
+
+    @app.get("/chats/<chat_id>/handoff")
+    def chat_handoff(chat_id):
+        """노선도 끝의 ‘환승하기’: 다음 대화에 붙일 글 (보내지 않고 복사만). 엔진이 쓰는 동안 몇 초 걸려요."""
+        conn = db()
+        if store.chat_row(conn, chat_id) is None:
+            abort(404)
+        call = rt.classifier.call if rt.classifier.engine() else None
+        return jsonify(text=handoff.write(conn, chat_id, call))
 
     @app.get("/turns/<turn_id>")
     def turn(turn_id):

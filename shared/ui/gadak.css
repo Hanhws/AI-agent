@@ -77,6 +77,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .map-empty b { color: var(--fg2); font-weight: 600; }
 .map-empty .hint { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 13px; color: var(--muted); }
 .cnt { position: absolute; font-size: 11px; color: var(--faint); transform: translateY(-50%); pointer-events: none; }
+.xfer-btn { position: absolute; height: 36px; padding: 0; border: 0; background: none; cursor: pointer; }
+.xfer-btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .alt-l { position: absolute; font-size: 11px; color: var(--muted); transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; }
 
 .st { position: absolute; padding: 0; border-radius: 50%; box-sizing: border-box; cursor: pointer; background: var(--surface); transform: translate(-50%, -50%); transition: box-shadow .25s, transform .2s; }

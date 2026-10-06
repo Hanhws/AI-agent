@@ -24,7 +24,7 @@ SCHEMA = {
         "type": "object",
         "properties": {
             "id": {"type": "string"}, "title": {"type": "string"}, "depth": {"type": "integer", "enum": [0, 1, 2]},
-            "seg": _TEXT, "topic": _TEXT, "chose": {"type": "boolean"}, "dec": _TEXT, "ref": _TEXT,
+            "seg": _TEXT, "topic": _TEXT, "chose": {"type": "boolean"}, "dec": _TEXT, "dec_note": _TEXT, "ref": _TEXT,
             "parts": {"type": "array", "items": {
                 "type": "object",
                 "properties": {"t": {"type": "string"}, "type": {"type": "string", "enum": ["q", "task", "rev"]},
@@ -33,7 +33,7 @@ SCHEMA = {
             }},
             "wide": {"type": "boolean"},
         },
-        "required": ["id", "title", "depth", "seg", "topic", "chose", "dec", "ref", "parts", "wide"],
+        "required": ["id", "title", "depth", "seg", "topic", "chose", "dec", "dec_note", "ref", "parts", "wide"],
         "additionalProperties": False,
     }}},
     "required": ["turns"], "additionalProperties": False,
@@ -44,6 +44,7 @@ USER_CLIP = 500           # 질문은 앞부분
 AI_HEAD, AI_TAIL = 220, 220   # 답은 앞과 끝 (결론은 끝에 있어요)
 STATE_MAINS, STATE_DECISIONS = 12, 8
 TITLE_MAX, SEG_MAX, DEC_MAX, PART_MAX = 18, 12, 40, 60   # 역 라벨은 두 줄(12자 안팎)까지 보여요
+DEC_NOTE_MAX = 120        # 정한 것을 풀어 쓴 한 문장 (이어 가기 요약에 써요)
 MAX_TRIES = 2
 STALE = 600               # 답이 끝났다는 표시 없이 이만큼(초) 지난 턴은 끝난 것으로 봐요
 
@@ -167,11 +168,13 @@ def apply_output(conn, rows, batch, output) -> int:
                 parts.append({"t": text, "type": part["type"], "target": earlier(part.get("target")),
                               "open": store.MAYBE_MISSING if part.get("open") is True else 0})
         parts = parts if len(parts) >= 2 else None    # 요청이 하나면 나누지 않아요 (빠질 것도 없어요)
+        chose = item.get("chose", True)
+        dec = _word(item.get("dec"), DEC_MAX) if chose else None
         store.set_classification(
             conn, row["id"], title=title, depth=depth,
             seg=_word(item.get("seg"), SEG_MAX), topic=_word(item.get("topic"), SEG_MAX),
             # 글 칸은 비워 두라고 해도 채우는 버릇이 있어서, 골랐는지(chose)를 먼저 묻고 아니면 정함을 버려요
-            dec=_word(item.get("dec"), DEC_MAX) if item.get("chose", True) else None,
+            dec=dec, dec_note=_word(item.get("dec_note"), DEC_NOTE_MAX) if dec else None,
             ret=(depth == 0 and previous > 0), ref=earlier(item.get("ref")),
             parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True),
         )
