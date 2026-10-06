@@ -733,6 +733,8 @@ Claude Code가 없는 사람은 정리를 못 했어요. Anthropic API 키로도
 - [ ] 확인 뒤 `docs/schema.md`에 넣을 것 (제안): Turn의 `gist?: string[]`, `POST /classify`의 `gist`
 - 새 프롬프트로 다시 잰 값은 예전 프롬프트와 실행 사이의 흔들림 안이었어요(README 3-5의 Haiku 4번 중 2번이 새 프롬프트)
 
+**PR #5와 겹치는 곳 (10/6 밤에 봄)**: 같은 날 올라온 PR #5(전체 지도 · 디자인 통일)가 같은 자리를 고쳤어요 — 분류 출력에 `dec_note`(정한 것을 풀어 쓴 한 문장)를 더하고, `backend/prompts/classify.txt` · `backend/store.py`(저장소 판 번호 7 · 8) · `classify.py` · `investigate.py` · `app.py`를 고쳤어요. 이쪽의 `gist`(판 번호 7)와 다섯 파일에서 부딪혀요. 둘 다 살리면 되는 충돌이에요(칸 둘을 다 받고, 판 번호는 9로). 어느 쪽 코드가 먼저 돈 저장소에서도 열이 빠지지 않게, 번호가 이미 높아도 필요한 열을 채우도록 해 뒀어요(`backend/store.py`의 `_add_columns`).
+
 **아직 확인하지 못한 것**: 실제 긴 답에서 간추림이 쓸 만한지(평가 대화의 답은 짧아요), 화면.
 
 ## 20. 10/6 — 지난 결정 다시 꺼내기 (‘생각 못 한 방법 추천’의 첫 판 · 꺼 둠)

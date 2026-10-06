@@ -32,6 +32,21 @@ class BackendTest(unittest.TestCase):
     def view(self, project="nba-analysis"):
         return self.client.get(f"/projects/{project}/view").get_json()
 
+    def test_a_store_whose_number_was_raised_elsewhere_still_gets_our_columns(self):
+        """조원의 가지와 이 가지가 저장소 판 번호를 따로 올려요. 번호가 이미 높아도 이 코드가 쓰는 열은 있어야 해요."""
+        from backend import store
+        path = Path(self.tmp.name) / "other.db"
+        conn = store.connect(path)
+        conn.execute("ALTER TABLE turns DROP COLUMN gist")                 # 이 열이 생기기 전의 저장소처럼
+        conn.execute(f"PRAGMA user_version = {store.SCHEMA_VERSION + 1}")  # 다른 코드가 번호를 먼저 올려 둔 것처럼
+        conn.commit()
+        conn.close()
+        store._checked.discard(str(path))                                  # 가닥을 다시 켠 것처럼
+        conn = store.connect(path)
+        self.addCleanup(conn.close)
+        self.assertIn("gist", {r["name"] for r in conn.execute("PRAGMA table_info(turns)")})
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], store.SCHEMA_VERSION + 1)   # 번호는 낮추지 않아요
+
     def test_cursor_events_become_one_turn(self):
         self.send(events("cursor_payloads.json"))
         chats = self.view()["chats"]

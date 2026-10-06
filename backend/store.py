@@ -149,6 +149,7 @@ ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
 SCHEMA_VERSION = 7   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화) · 7: turns.gist (답 간추림)
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
+_checked = set()           # 이 프로세스에서 열 확인을 마친 저장소
 
 
 def now() -> str:
@@ -179,6 +180,12 @@ def connect(db_path) -> sqlite3.Connection:
     if conn.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
         with _setup:
             _create(conn)
+    elif str(path) not in _checked:
+        # 판 번호가 이미 높은 저장소예요(다른 가지의 코드가 먼저 올려 뒀을 수 있어요). 번호만 믿지 않고, 이 코드가 쓰는 열이 있는지 봐요
+        with _setup:
+            _add_columns(conn)
+            conn.commit()
+    _checked.add(str(path))
     return conn
 
 
@@ -187,13 +194,17 @@ def _create(conn) -> None:
         return
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
+    _add_columns(conn)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.commit()
+
+
+def _add_columns(conn) -> None:
     for table, columns in ADDED_COLUMNS.items():
         have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
         for name, kind in columns.items():
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
-    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-    conn.commit()
 
 
 def provisional_title(text: str) -> str:
