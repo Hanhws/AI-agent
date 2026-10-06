@@ -45,7 +45,19 @@ def write(conn, chat_id, call=None):
         "last": {"user": (last["user"] or "")[:LAST_USER], "ai": (last["ai"] or "")[-LAST_AI:]},
     }, ensure_ascii=False)
     try:
-        text = (call(SYSTEM, payload, SCHEMA).get("text") or "").strip()
+        text = _unwrap((call(SYSTEM, payload, SCHEMA).get("text") or "").strip())
     except EngineError:
         return plain
     return text or plain
+
+
+def _unwrap(text):
+    """엔진이 text 칸 안에 {"text": …}를 한 번 더 감싸 넣기도 해요(10/6 실제로 봄). 벗겨서 글만 남겨요."""
+    if text.startswith("{"):
+        try:
+            inner = json.loads(text)
+        except ValueError:
+            return text
+        if isinstance(inner, dict) and isinstance(inner.get("text"), str):
+            return inner["text"].strip()
+    return text

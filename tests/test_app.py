@@ -152,6 +152,8 @@ class AppTest(unittest.TestCase):
             seen["payload"] = json.loads(payload)
             return {"text": "이전 대화에서 이어서 해요."}
         self.assertEqual(handoff.write(conn, "conv-1", call), "이전 대화에서 이어서 해요.")
+        wrapped = lambda *_: {"text": json.dumps({"text": "이어서 해요.\n■ 정한 것"}, ensure_ascii=False)}
+        self.assertEqual(handoff.write(conn, "conv-1", wrapped), "이어서 해요.\n■ 정한 것")   # 한 번 더 감싼 JSON은 벗겨요
         self.assertEqual(seen["payload"]["route"][1]["dec"], "알림 임계값을 1,380원으로 정함")
         def broken(*_):
             raise EngineError("x")
