@@ -8,6 +8,9 @@ import Cocoa
 import WebKit
 
 extension FloatController {
+    /// 확인을 시작할 때 사용자가 쓰고 있던 앱. ‘다른 앱을 쓰는 중’을 흉내 낼 때 앞자리를 여기에 돌려줘요
+    fileprivate static var userApp: NSRunningApplication?
+
     /// 버튼들이 든 창을 그림으로. backdrop이 있으면 그 색 위에 올리고, 화면 밖으로 나간 쪽(보이지 않는 쪽)은 검게 칠해요
     func picture(over backdrop: NSColor?) -> NSBitmapImageRep? {
         let view = panel.contentView!
@@ -57,6 +60,11 @@ extension FloatController {
         func note(_ text: String) { print("GADAK_FLOAT \(text)"); fflush(stdout) }
         func later(_ seconds: Double, _ work: @escaping () -> Void) { DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work) }
         let kept = (edge, along, screenIndex)
+        let mine = NSRunningApplication.current
+        let front = NSWorkspace.shared.frontmostApplication
+        FloatController.userApp = front != mine ? front : NSWorkspace.shared.runningApplications.first {
+            $0.bundleIdentifier == "com.apple.finder"
+        }
         testing = true
         monitors.forEach { NSEvent.removeMonitor($0) }      // 확인하는 동안 진짜 클릭에 접히지 않게
         monitors = []
@@ -248,7 +256,7 @@ extension FloatController {
                                             let front = NSApp.isActive && app?.window.isKeyWindow == true
                                             tap("fold") { [self] _ in
                                                 note("overlay clicks firstClick=\(first > before + 20) heights=\(before)→\(first)→\(second) key=\(keyBefore)→\(keyAfter) appActive=\(activeBefore) station=\(opened) windowCameFront=\(front) fold=\(overlay?.isVisible != true)")
-                                                NSApp.terminate(nil)
+                                                escape(note, later)
                                             }
                                         }
                                     }
@@ -256,6 +264,31 @@ extension FloatController {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// 노선도 창을 다시 띄우고, 누르지 않은 채 Esc만 눌러 봐요: 뜨자마자 글쇠를 이 창이 받고 있어야 닫혀요.
+    /// 다른 앱을 쓰는 중에도 그런지 보려고, 먼저 앞자리를 쓰던 앱에 돌려줘요. 가닥이 앞으로 나오면 안 돼요(쓰던 앱이 그대로 앞).
+    fileprivate func escape(_ note: @escaping (String) -> Void, _ later: @escaping (Double, @escaping () -> Void) -> Void) {
+        func front() -> pid_t? { NSWorkspace.shared.frontmostApplication?.processIdentifier }
+        FloatController.userApp?.activate(options: [])
+        later(1.2) { [self] in
+            let behind = !NSRunningApplication.current.isActive, before = front()
+            showOverlay("map")
+            later(0.5) { [self] in
+                let key = overlay?.isKeyWindow == true && NSApp.keyWindow === overlay
+                let stayed = !NSRunningApplication.current.isActive && front() == before && app?.window.isKeyWindow != true
+                if let window = overlay, let event = NSEvent.keyEvent(
+                    with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+                    isARepeat: false, keyCode: 53) {
+                    NSApp.sendEvent(event)
+                }
+                later(0.5) { [self] in
+                    note("overlay esc gadakBehind=\(behind) keyOnOpen=\(key) gadakStayedBehind=\(stayed) closed=\(overlay?.isVisible != true) keyAfter=\(overlay?.isKeyWindow == true) frontAppSame=\(front() == before)")
+                    NSApp.terminate(nil)
                 }
             }
         }

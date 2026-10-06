@@ -216,12 +216,18 @@ final class SatelliteView: DiscView {
 /// 다른 앱 위에 떠 있고, 눌러도 가닥이 앞으로 나오지 않는 투명한 창
 final class FloatPanel: NSPanel {
     var keyable = false
+    var onEscape: (() -> Void)?          // 이 창이 글쇠를 받는 동안 Esc를 누르면
     override var canBecomeKey: Bool { keyable }
     override var canBecomeMain: Bool { false }
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, event.keyCode == 53, let close = onEscape { return close() }    // esc
+        super.sendEvent(event)
+    }
 }
 
 /// 노선도 창의 화면. 가닥이 앞에 있지 않아도 첫 클릭부터 눌리고(안 그러면 첫 클릭은 창을 깨우는 데만 쓰여요),
-/// 누르면 창이 글쇠를 받아서 찾기 칸에 글을 칠 수 있어요.
+/// 창이 글쇠를 받아서 찾기 칸에 글을 칠 수 있어요.
 final class StripWebView: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var needsPanelToBecomeKey: Bool { true }
@@ -310,12 +316,8 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if let other = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: { [weak self] _ in self?.clickedAway() }) {
             monitors.append(other)
         }
-        if let mine = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown], handler: { [weak self] event in
+        if let mine = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown], handler: { [weak self] event in
             guard let self = self else { return event }
-            if event.type == .keyDown {
-                if event.keyCode == 53, self.overlay?.isVisible == true, event.window === self.overlay { self.closeOverlay(); return nil }   // esc
-                return event
-            }
             if event.window !== self.panel { self.clickedAway() }
             return event
         }) {
@@ -633,6 +635,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             view.setValue(false, forKey: "drawsBackground")       // 카드 둘레가 비쳐 보이게
             view.navigationDelegate = self
             made.contentView = view
+            made.onEscape = { [weak self] in self?.closeOverlay() }
             overlay = made
             web = view
         }
@@ -649,6 +652,10 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         shown = tab
         overlay?.orderFrontRegardless()
         panel.orderFrontRegardless()         // 가닥 버튼이 노선도 창 위에
+        // 뜨자마자 글쇠는 이 창이 받아요: 누르지 않아도 Esc로 닫히고, 찾기 칸에 바로 칠 수 있어요.
+        // 가닥을 앞으로 가져오지는 않아요(쓰던 앱의 창은 그대로 앞에 있어요). 닫으면 글쇠는 쓰던 앱으로 돌아가요.
+        overlay?.makeKey()
+        if let view = web, overlay?.firstResponder !== view { overlay?.makeFirstResponder(view) }
     }
 
     func closeOverlay() {
