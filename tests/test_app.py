@@ -155,6 +155,7 @@ class AppTest(unittest.TestCase):
         wrapped = lambda *_: {"text": json.dumps({"text": "이어서 해요.\n■ 정한 것"}, ensure_ascii=False)}
         self.assertEqual(handoff.write(conn, "conv-1", wrapped), "이어서 해요.\n■ 정한 것")   # 한 번 더 감싼 JSON은 벗겨요
         self.assertEqual(seen["payload"]["route"][1]["dec"], "알림 임계값을 1,380원으로 정함")
+        self.assertEqual([t["n"] for t in seen["payload"]["turns"]], [1])   # 마지막 턴은 last로 따로, 앞 턴은 답 끝부분만
         def broken(*_):
             raise EngineError("x")
         self.assertIn("1. 알림 임계값", handoff.write(conn, "conv-1", broken))   # 엔진이 실패하면 늘어놓은 글로

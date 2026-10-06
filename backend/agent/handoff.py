@@ -1,7 +1,7 @@
 """노선도 끝의 ‘환승하기’: 이 대화까지를 다음 대화에 붙일 글로 써요. 가닥은 보내지 않고 복사만 해요(README 3-2).
 
-엔진이 있으면 정리된 기록(역 제목 · 풀어 쓴 정함 · 남은 일 · 바뀐 파일 · 마지막 턴)만 읽혀서 쓰게 해요. 대화 원문을
-통째로 넣지 않아서 긴 대화도 한 번에 몇천 토큰이에요. 엔진이 없거나 실패하면 정한 것 · 남은 일을 그대로 늘어놔요.
+엔진이 있으면 정리된 기록(역 제목 · 풀어 쓴 정함 · 남은 일 · 바뀐 파일)과 고른 턴 몇 개(최근 본류 · 정함이 나온 턴)의
+답 끝부분만 읽혀서 쓰게 해요. 대화 원문을 통째로 넣지 않아서 긴 대화도 한 번에 1만 토큰 안팎이에요. 엔진이 없거나 실패하면 정한 것 · 남은 일을 그대로 늘어놔요.
 프롬프트는 prompts/handoff.txt.
 """
 import json
@@ -15,6 +15,7 @@ SYSTEM = (config.ROOT / "backend" / "prompts" / "handoff.txt").read_text(encodin
 SCHEMA = {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"], "additionalProperties": False}
 TASKS = ("missing", "yours", "open", "next")   # 다음 대화에서 할 일. 요청 외 변경 · 제안 같은 알림은 빼요
 ROUTE_MAX, FILES_MAX, LAST_USER, LAST_AI = 80, 30, 1500, 2500
+RECENT, DECIDED, TURN_USER, TURN_AI = 4, 6, 300, 1000   # 무엇을 만들었고 무엇을 남겼는지는 답의 끝에 있어요
 
 
 def write(conn, chat_id, call=None):
@@ -36,12 +37,15 @@ def write(conn, chat_id, call=None):
         " UNION SELECT DISTINCT f.name FROM files f JOIN turns t ON t.id = f.turn_id WHERE t.chat_id = ?", (chat_id, chat_id),
     )][-FILES_MAX:]
     last = turns[-1]
+    picked = [t for t in turns if t["depth"] == 0][-RECENT - 1:] + [t for t in turns if t["dec"]][-DECIDED:]
+    picked = sorted({t["seq"]: t for t in picked if t["seq"] != last["seq"]}.values(), key=lambda t: t["seq"])
     payload = json.dumps({
         "chat": {"title": chat["title"], "folder": chat["cwd"], "started": store.display_date(chat["created_at"])},
         "route": [{"n": t["seq"], "side": t["depth"] > 0, "title": t["title"], "dec": t["dec_note"] or t["dec"]}
                   for t in turns[-ROUTE_MAX:]],
         "left": [i["text"] for i in leftovers],
         "files": files,
+        "turns": [{"n": t["seq"], "user": (t["user"] or "")[:TURN_USER], "ai": (t["ai"] or "")[-TURN_AI:]} for t in picked],
         "last": {"user": (last["user"] or "")[:LAST_USER], "ai": (last["ai"] or "")[-LAST_AI:]},
     }, ensure_ascii=False)
     try:
