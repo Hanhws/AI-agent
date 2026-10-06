@@ -733,7 +733,7 @@ Claude Code가 없는 사람은 정리를 못 했어요. Anthropic API 키로도
 - [ ] 확인 뒤 `docs/schema.md`에 넣을 것 (제안): Turn의 `gist?: string[]`, `POST /classify`의 `gist`
 - 새 프롬프트로 다시 잰 값은 예전 프롬프트와 실행 사이의 흔들림 안이었어요(README 3-5의 Haiku 4번 중 2번이 새 프롬프트)
 
-**PR #5와 합침 (10/7 0시)**: 아래처럼 겹쳐서, 둘 다 살리는 쪽으로 합쳤어요(이 PC의 `docs/readme-1003`에만 있고 아직 올리지 않았어요). 분류 출력과 프롬프트는 `dec_note`와 `gist`를 같이 받고, 저장소 판 번호는 9, `/engine`과 `/map` · `/chats/:id/handoff`가 같이 있어요. 조원의 환승하기 요약(`backend/agent/handoff.py`)은 엔진이 형식 대신 글로 답했을 때도 정한 것 · 남은 일을 그대로 늘어놓게 한 줄 고쳤어요. ‘지난 결정 다시 꺼내기’가 보내는 글에는 풀어 쓴 문장(`dec_note`)이 있으면 그걸 써요. 합친 코드로 테스트 214개가 통과하고, dmg도 다시 만들었어요.
+**PR #5와 합침 (10/7 0시)**: 아래처럼 겹쳐서, 둘 다 살리는 쪽으로 합쳤어요(`docs/readme-1003`). 분류 출력과 프롬프트는 `dec_note`와 `gist`를 같이 받고, 저장소 판 번호는 9, `/engine`과 `/map` · `/chats/:id/handoff`가 같이 있어요. 조원의 환승하기 요약(`backend/agent/handoff.py`)은 엔진이 형식 대신 글로 답했을 때도 정한 것 · 남은 일을 그대로 늘어놓게 한 줄 고쳤어요. ‘지난 결정 다시 꺼내기’가 보내는 글에는 풀어 쓴 문장(`dec_note`)이 있으면 그걸 써요. 합친 코드로 테스트 214개가 통과하고, dmg도 다시 만들었어요.
 
 **겹쳤던 곳**: 같은 날 올라온 PR #5(전체 지도 · 디자인 통일)가 같은 자리를 고쳤어요 — 분류 출력에 `dec_note`(정한 것을 풀어 쓴 한 문장)를 더하고, `backend/prompts/classify.txt` · `backend/store.py`(저장소 판 번호 7 · 8) · `classify.py` · `investigate.py` · `app.py`를 고쳤어요. 이쪽의 `gist`(판 번호 7)와 다섯 파일에서 부딪혀요. 둘 다 살리면 되는 충돌이에요(칸 둘을 다 받고, 판 번호는 9로). 어느 쪽 코드가 먼저 돈 저장소에서도 열이 빠지지 않게, 번호가 이미 높아도 필요한 열을 채우도록 해 뒀어요(`backend/store.py`의 `_add_columns`).
 
