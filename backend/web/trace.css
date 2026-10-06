@@ -1,0 +1,47 @@
+/* 판단 기록 페이지. 색 · 글꼴은 shared/ui/tokens.css 그대로, 버튼은 gadak.css의 .btn. 빨강은 할 일(한마디)에만 써요. */
+html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); }
+.trace { max-width: 760px; margin: 0 auto; padding: 28px 16px 64px; display: flex; flex-direction: column; gap: 14px; }
+.trace .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.trace .brand { display: flex; align-items: center; gap: 10px; }
+.trace .brand svg { display: block; overflow: visible; }
+.trace .brand b { font-family: var(--display); font-size: 20px; line-height: 1; }
+.trace .brand span { font-size: 14px; color: var(--muted); }
+.trace .top a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+.trace .lead { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.trace .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--faint); }
+.trace .bar a { color: var(--fg2); }
+.trace select { height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg2); font: inherit; font-size: 12.5px; padding: 0 8px; max-width: 100%; }
+
+.run { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.run .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.run .head b { font-size: 14.5px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.run .head small { font-size: 11.5px; color: var(--faint); }
+.run .why { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 11.5px; color: var(--faint); }
+.run .chip { padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg2); background: var(--bg); }
+
+.steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; }
+.steps .no { grid-row: span 3; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--fg); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin-top: 1px; box-sizing: border-box; }
+.steps .what { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; font-size: 13px; }
+.steps .what b { font-weight: 600; }
+.steps .what code { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.steps .what .saw { color: var(--fg2); }
+.steps .think { font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.steps details { font-size: 12px; color: var(--faint); }
+.steps summary { cursor: pointer; list-style: none; display: inline-block; }
+.steps summary::-webkit-details-marker { display: none; }
+.steps summary:hover { color: var(--fg2); }
+.steps pre { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--bubble); font-family: var(--mono); font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg2); max-height: 320px; overflow: auto; }
+
+.end { border-top: 1px dashed var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.end .think { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.end .got { display: flex; gap: 8px; align-items: baseline; line-height: 1.5; }
+.end .got .mk { flex: none; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--ring); box-sizing: border-box; transform: translateY(1px); }
+.end .got.todo .mk { border-color: var(--accent); }
+.end .got .k { flex: none; color: var(--faint); font-size: 12px; }
+.end .got.drop { color: var(--muted); }
+.end .none { color: var(--muted); }
+.end .meta { font-size: 11.5px; color: var(--faint); }
+
+.empty { margin: 10vh auto 0; text-align: center; color: var(--faint); font-size: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; line-height: 1.6; }
+.empty b { font-family: var(--display); font-size: 22px; color: var(--fg2); font-weight: 600; }

@@ -34,6 +34,7 @@
 | `seg` | string | | 이 턴부터 새 구간(섹션)이 시작되면 구간 이름 |
 | `topic` | string | | 주제 전환 감지 결과 (한 창 몰아쓰기). 승인 뒤에만 구간이 됨 |
 | `dec` | string | | 이 턴에서 정한 것 한 줄 → 빨간 테두리 역 |
+| `dec_note` | string | | 정한 것을 대화 밖에서도 읽히게 풀어 쓴 한 문장. 이어 가기 요약에 씀 (저장소에만, 화면에는 안 실음) |
 | `ret` | bool | | 곁길에서 본류로 돌아온 첫 턴 |
 | `ref` | string | | 다시 이야기한 이전 턴 id (다른 대화도 가능) |
 | `files` | (string \| {n, u})[] | | 이 턴에서 나온 · 바뀐 산출물. `n` 이름, `u` 링크 |
@@ -124,7 +125,7 @@
 ```
 projects(id, name)
 chats(id, project_id, title, site, created_at)
-turns(id, chat_id, seq, depth, title, seg, topic, dec, ret, ref, user, ai, message_ref, created_at)
+turns(id, chat_id, seq, depth, title, seg, topic, dec, dec_note, ret, ref, user, ai, message_ref, created_at)
 parts(turn_id, idx, t, type, open, target)
 files(turn_id, name, url, base_name)
 alts(turn_id, idx, user, ai, dec)

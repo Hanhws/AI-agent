@@ -1,0 +1,8 @@
+/* 떠 있는 가닥 버튼이 펼치는 노선도 창. 카드 모양은 shared/ui/gadak.css 그대로이고, 여기는 틀만 있어요. */
+html, body { margin: 0; background: transparent; }
+body { color: var(--fg); font-family: var(--body); font-size: 15px; overflow: hidden; }
+.strip { position: relative; padding: 6px 16px 26px; }          /* 아래는 그림자 자리 */
+.strip .drawer { margin: 0; box-shadow: var(--shadow), 0 0 0 1px var(--line); }
+.strip .none { padding: 18px 20px 20px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+.strip .none b { display: block; font-family: var(--display); font-size: 17px; color: var(--fg2); margin-bottom: 2px; }
+.strip .toast { bottom: 40px; }

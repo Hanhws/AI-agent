@@ -1,0 +1,35 @@
+[
+  {
+    "conversation_id": "conv-demo-1", "generation_id": "gen-1", "model": "auto",
+    "hook_event_name": "beforeSubmitPrompt", "cursor_version": "2.0.0",
+    "workspace_roots": ["/Users/demo/dev/nba-analysis"], "user_email": "demo@example.com",
+    "transcript_path": null,
+    "prompt": "식 이름만 바꿔 줘. score를 rating으로.", "attachments": []
+  },
+  {
+    "conversation_id": "conv-demo-1", "generation_id": "gen-1", "model": "auto",
+    "hook_event_name": "afterFileEdit", "cursor_version": "2.0.0",
+    "workspace_roots": ["/Users/demo/dev/nba-analysis"], "user_email": "demo@example.com",
+    "file_path": "/Users/demo/dev/nba-analysis/model.py",
+    "edits": [{ "old_string": "def score(", "new_string": "def rating(" }]
+  },
+  {
+    "conversation_id": "conv-demo-1", "generation_id": "gen-1", "model": "auto",
+    "hook_event_name": "afterFileEdit", "cursor_version": "2.0.0",
+    "workspace_roots": ["/Users/demo/dev/nba-analysis"], "user_email": "demo@example.com",
+    "file_path": "/Users/demo/dev/nba-analysis/plot.py",
+    "edits": [{ "old_string": "linewidth=2", "new_string": "linewidth=1" }]
+  },
+  {
+    "conversation_id": "conv-demo-1", "generation_id": "gen-1", "model": "auto",
+    "hook_event_name": "afterAgentResponse", "cursor_version": "2.0.0",
+    "workspace_roots": ["/Users/demo/dev/nba-analysis"], "user_email": "demo@example.com",
+    "text": "score를 rating으로 바꿨어요. 그래프 선 굵기도 조금 다듬었어요."
+  },
+  {
+    "conversation_id": "conv-demo-1", "generation_id": "gen-1", "model": "auto",
+    "hook_event_name": "stop", "cursor_version": "2.0.0",
+    "workspace_roots": ["/Users/demo/dev/nba-analysis"], "user_email": "demo@example.com",
+    "status": "completed", "loop_count": 0
+  }
+]
