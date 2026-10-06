@@ -355,6 +355,9 @@ class Investigator:
             self._engine = type(base)(model=model)
         return self._engine
 
+    def forget_engine(self) -> None:
+        self._engine = None
+
     def request(self, chat_id, front=True) -> None:
         if not chat_id:
             return

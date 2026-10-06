@@ -68,6 +68,7 @@ class AppTest(unittest.TestCase):
             for t in turns:
                 self.assertIn(t["depth"], (0, 1, 2))
                 self.assertTrue(t["title"] and t["user"] and t["ai"])
+                self.assertTrue(1 <= len(t["gist"]) <= 4 and all(isinstance(line, str) and 0 < len(line) <= 70 for line in t["gist"]))
                 self.assertTrue(t.get("ref") is None or t["ref"] in ids)
                 for part in t.get("parts", []):
                     self.assertIn(part["type"], ("q", "task", "rev"))
@@ -275,6 +276,10 @@ class AppTest(unittest.TestCase):
         self.assertEqual((status["queued"], status["paused"]), (1, False))
         self.assertTrue(self.client.post("/classify", json={"pause": True}).get_json()["paused"])
         self.assertFalse(self.client.post("/classify", json={"pause": False}).get_json()["paused"])
+        # 화면이 턴을 접어 보여 줄 때: 예전에 정리한 턴에도 답 간추림을 채워 달라고 해요
+        self.rt.classifier.queue.clear()
+        status = self.client.post("/classify", json={"chats": ["conv-1"], "gist": True}).get_json()
+        self.assertEqual((status["queued"], self.rt.classifier.gist_wanted), (1, {"conv-1"}))
 
 
 if __name__ == "__main__":

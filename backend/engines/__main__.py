@@ -1,7 +1,7 @@
 """엔진 확인.
 
-python -m backend.engines          어떤 엔진이 잡혔는지, 로그인 상태
-python -m backend.engines --ping   실제로 한 번 불러 봐요 (구독 사용량을 조금 써요)
+python -m backend.engines          어떤 엔진이 잡혔는지, 로그인 · 키 상태 (모델은 부르지 않아요)
+python -m backend.engines --ping   실제로 한 번 불러 봐요 (구독 사용량을, API 키 엔진이면 돈을 조금 써요)
 """
 import json
 import sys

@@ -9,10 +9,12 @@ import shutil
 import subprocess
 
 from .. import config
-from . import EngineError
+from . import BadOutput, EngineError
 
 # 이 표시가 있으면 가닥 hook이 엔진 자신의 호출을 다시 읽지 않아요 (cursor-hooks/gadak-hook.py)
 INTERNAL_ENV = "GADAK_INTERNAL"
+
+ASK_TRIES = 2     # 형식을 따르지 않은 답은 이만큼까지 다시 물어요
 
 # 구독 로그인으로 돌리려고 빼는 변수. API 키가 있으면 Claude Code가 그 키로 과금해요
 _DROP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
@@ -25,6 +27,7 @@ class ClaudeCliEngine:
         self.bin = shutil.which("claude")
         self.model = model or config.ENGINE_MODEL
         self.timeout = timeout
+        self.last = None      # 마지막 호출의 토큰 수와 값 (정확도 평가가 봐요). 구독에서는 내는 돈이 아니라 API로 쳤을 때의 값이에요
 
     def _env(self) -> dict:
         env = {k: v for k, v in os.environ.items() if k not in _DROP_ENV}
@@ -71,17 +74,34 @@ class ClaudeCliEngine:
             "--system-prompt", system,
             "--json-schema", json.dumps(schema, ensure_ascii=False),
         ]
-        try:
-            out = subprocess.run(
-                cmd, input=prompt, capture_output=True, text=True,
-                env=self._env(), cwd=self._cwd(), timeout=self.timeout,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise EngineError(f"Claude Code가 {self.timeout}초 안에 답하지 않았어요") from exc
-        try:
-            result = json.loads(out.stdout)
-        except ValueError as exc:
-            raise EngineError(f"Claude Code 출력을 읽지 못했어요: {(out.stdout or out.stderr)[:200]}") from exc
-        if result.get("is_error") or "structured_output" not in result:
-            raise EngineError(str(result.get("result") or result)[:300])
+        if "haiku" not in self.model.lower():
+            # 큰 모델은 생각을 끌 수 없어요. 분류에는 가장 낮은 단계면 돼요 (10/6: sonnet이 한 번에 30초~2분 넘게 걸렸어요)
+            cmd += ["--effort", "low"]
+        for attempt in range(ASK_TRIES):
+            try:
+                out = subprocess.run(
+                    cmd, input=prompt, capture_output=True, text=True,
+                    env=self._env(), cwd=self._cwd(), timeout=self.timeout,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise EngineError(f"Claude Code가 {self.timeout}초 안에 답하지 않았어요") from exc
+            try:
+                result = json.loads(out.stdout)
+            except ValueError as exc:
+                raise EngineError(f"Claude Code 출력을 읽지 못했어요: {(out.stdout or out.stderr)[:200]}") from exc
+            if result.get("is_error"):
+                said = str(result.get("result") or result)
+                if "not logged in" in said.lower() or "/login" in said:
+                    raise EngineError("Claude Code에 로그인되어 있지 않아요. 터미널에서 claude를 켜고 /login 하거나, API 키를 넣어 주세요.")
+                raise EngineError(said[:300])                                    # 사용 한도 같은 것
+            if "structured_output" in result:
+                break
+            # 모델이 형식을 따르지 않고 글로 답했어요 (대화 글에 지시처럼 보이는 문장이 있을 때 가끔). 한 번 더 물어요
+        else:
+            raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요: " + str(result.get("result") or "")[:120])
+        used = result.get("usage") if isinstance(result.get("usage"), dict) else {}
+        self.last = {
+            "input_tokens": sum(used.get(k) or 0 for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")),
+            "output_tokens": used.get("output_tokens") or 0, "cost": result.get("total_cost_usd"),
+        }
         return result["structured_output"]

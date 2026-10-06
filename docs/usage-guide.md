@@ -49,7 +49,7 @@
 
 ## 3. 엔진 고르기
 
-엔진은 가닥이 대화를 정리할 때 쓰는 LLM이에요. `backend/.env`에서 정해요(`backend/.env.example`을 복사). 기본값 `auto`는 Claude Code가 깔려 있으면 Claude 구독 엔진을, 없으면 ‘엔진 없이’를 골라요.
+엔진은 가닥이 대화를 정리할 때 쓰는 LLM이에요. 기본값 `auto`는 이 차례로 골라요: **Claude Code가 깔려 있으면 Claude 구독 엔진 → 없고 API 키를 넣어 뒀으면 API 키 엔진 → 둘 다 없으면 ‘엔진 없이’.** 직접 정하려면 `backend/.env`에 `GADAK_ENGINE`을 적어요(`backend/.env.example`을 복사).
 
 ### 3-1. Claude 구독 엔진 (`claude_cli`) — Pro · Max 구독만 있을 때
 
@@ -75,9 +75,25 @@
 - Claude Code 2.1.267에서 확인했어요. 버전이 바뀌면 동작이 달라질 수 있어요.
 - 모델은 `GADAK_ENGINE_MODEL`로 바꿔요 (`haiku` · `sonnet` · `opus`, 기본 `haiku`).
 
-### 3-2. API 키 엔진 — 예정
+### 3-2. API 키 엔진 (`anthropic_api`) — Claude Code가 없을 때
 
-Anthropic API 키로 직접 불러요. 쓴 만큼 과금되고, 배포한 가닥에서도 쓸 수 있어요. 아직 만들지 않았어요.
+Anthropic API 키로 직접 불러요. **쓴 만큼 그 키로 돈이 나가요.** Haiku로 턴 8개를 한 번에 물으면 한 번에 1~2센트쯤이에요(10/6에 58턴 대화로 잰 값: 턴 하나에 0.3센트 안팎).
+
+- **키는 macOS 키체인에 넣어요.** `.env` 같은 파일에 적지 않아요. 가닥은 키를 받으면 맞는 키인지 한 번 확인하고(돈이 들지 않는 요청), 맞으면 로그인 키체인에 ‘가닥 · Anthropic API 키’로 넣어요. 틀린 키는 넣지 않아요.
+- 화면에는 키의 끝 네 글자만 보여요. 키는 Anthropic으로만 가고, 가닥 팀 서버로는 가지 않아요.
+- **키를 넣는 화면은 아직 없어요**(프론트 담당이 만드는 중). 그 전에는 가닥을 켜 둔 채 터미널에서 이렇게 넣어요.
+
+```bash
+curl -s -X POST http://127.0.0.1:7311/engine/key -H 'Content-Type: application/json' -d '{"key":"sk-ant-…"}'
+curl -s http://127.0.0.1:7311/engine                      # 지금 엔진, 키가 있는지(끝 네 글자), 무엇이 필요한지
+curl -s -X DELETE http://127.0.0.1:7311/engine/key        # 키 지우기
+```
+
+- 키가 틀렸거나 못 쓰게 되면 가닥 창 왼쪽 아래 상태 줄에 “API 키가 맞지 않아요. 키를 다시 넣어 주세요.”가 떠요. 한도 · 크레딧 · 인터넷 문제도 그 줄에 한 줄로 나와요.
+- 모델은 구독 엔진과 같이 `GADAK_ENGINE_MODEL`로 정해요(`haiku` → Claude Haiku 4.5, `sonnet` → Claude Sonnet 5.5, `opus` → Claude Opus 5.5).
+- Claude Code가 깔려 있으면 키를 넣어도 구독 엔진이 먼저예요. 키를 쓰게 하려면 `backend/.env`에 `GADAK_ENGINE=anthropic_api`.
+- 키체인이 없는 운영체제(Windows · Linux)에서는 키를 저장하지 않아요. 환경 변수 `ANTHROPIC_API_KEY`가 있으면 그것을 써요.
+- **실제 API로는 아직 불러 보지 못했어요**(구현 담당에게 API 키가 없어요). SDK를 가짜로 바꿔 끼운 테스트로만 확인했어요.
 
 ### 3-3. 엔진 없이 (`none`) — ChatGPT 구독만 있을 때
 

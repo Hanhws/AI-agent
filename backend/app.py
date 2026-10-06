@@ -7,7 +7,7 @@ import time
 
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
-from . import assemble, auto, config, sources, store, usage
+from . import assemble, auto, config, engines, sources, store, usage
 from .agent import tools, trace
 from .engines import describe_engine
 from .runtime import Runtime
@@ -117,6 +117,35 @@ def create_app(db_path=None, engine="auto") -> Flask:
         todo = sum(1 for i in tools.open_items(db(), "c.id = ?", [chat["id"]]) if i["state"] == "open")
         return jsonify(rev=rt.rev, todo=todo,
                        chat={"id": chat["id"], "title": chat["title"], "project": chat["project_id"]})
+
+    # ----- 엔진: 무엇으로 정리하는지, API 키 넣기 · 지우기 (backend/engines) -----
+    def engine_info():
+        try:
+            rt.classifier.engine()                   # 아직 고르지 않았으면 지금 골라요
+        except Exception as exc:
+            rt.classifier.status["error"] = str(exc)[:200]
+        return engines.overview(rt.classifier.status)
+
+    @app.get("/engine")
+    def engine_state():
+        """정리에 쓰는 엔진과, 없으면 무엇이 필요한지(need). 키는 끝 네 글자만 보여 줘요."""
+        return jsonify(engine_info())
+
+    @app.post("/engine/key")
+    def engine_key_set():
+        """Anthropic API 키를 확인하고(돈이 들지 않는 요청으로) macOS 키체인에 넣어요. 틀린 키는 넣지 않아요."""
+        result = engines.set_key((request.get_json() or {}).get("key"))
+        if result["ok"]:
+            rt.classifier.reset_engine()
+            rt.bump()
+        return jsonify(dict(result, engine=engine_info())), (200 if result["ok"] else 400)
+
+    @app.delete("/engine/key")
+    def engine_key_delete():
+        removed = engines.keys.delete()
+        rt.classifier.reset_engine()
+        rt.bump()
+        return jsonify(ok=True, removed=removed, engine=engine_info())
 
     @app.get("/sources")
     def source_list():
@@ -333,7 +362,10 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if "pause" in body:
             rt.classifier.pause() if body["pause"] else rt.classifier.resume()
         for chat_id in body.get("chats") or []:
-            rt.classifier.request(chat_id, front=True)
+            if body.get("gist") is True:
+                rt.classifier.want_gist(chat_id)       # 예전에 정리한 턴에도 답 간추림을 채워요 (화면이 턴을 접어 보여 줄 때)
+            else:
+                rt.classifier.request(chat_id, front=True)
         return jsonify(rt.status()["classify"])
 
     return app
