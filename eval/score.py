@@ -13,7 +13,7 @@
 - items 정밀도   가닥이 만든 한마디 중 정답에도 있는 것(같은 턴 · 같은 종류)의 비율. 1에서 빼면 쓸데없는 한마디 비율.
                  빠진 요청(parts.open)도 한마디로 세요. 새 대화를 열 때의 제안(startTodo)은 그 대화의 첫 턴에 단 것으로 봐요.
 """
-MADE = ("missing", "unasked", "handoff")      # 지금 가닥이 만드는 한마디의 종류 (backend/agent/investigate.py)
+MADE = ("missing", "unasked", "handoff")      # 지금 가닥이 만드는 한마디의 종류 (backend/agent/investigate.py). next는 꺼 둔 기능
 
 
 def _files(turn) -> list:

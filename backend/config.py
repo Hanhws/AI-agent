@@ -72,5 +72,8 @@ def _code_stamp() -> str:
 
 
 CODE = _code_stamp()   # 이 프로세스가 켜질 때의 코드
+# 지난 결정 다시 꺼내기(‘생각 못 한 방법 추천’): 사용자가 길을 물을 때, 전에 스스로 정한 것 중 쓸 만한 것을 한마디로 짚어요.
+# 쓸데없는 한마디가 늘 수 있어서 기본은 꺼 둬요. 정확도 평가(eval/)로 재 보고 켜요 (docs/changes-detail.md 20번)
+SUGGEST = os.environ.get("GADAK_SUGGEST", "0") == "1"
 # 2단에 쓸 모델. 비우면 1단과 같은 모델
 CHECK_MODEL = os.environ.get("GADAK_CHECK_MODEL") or ENGINE_MODEL

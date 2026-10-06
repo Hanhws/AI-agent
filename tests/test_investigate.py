@@ -2,8 +2,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from backend import store
+from backend import config, store
 from backend.agent import classify, investigate, tools, trace
 from backend.app import create_app
 from backend.engines import EngineError
@@ -292,6 +293,87 @@ class CheckTest(Base):
 
 
 class ToolsTest(Base):
+    # ----- 지난 결정 다시 꺼내기 (‘생각 못 한 방법 추천’ · 기본은 꺼 둠) -----
+
+    def past_and_now(self, engine, question="알림은 어떻게 보내는 게 좋을까?"):
+        """지난 대화에서 ‘텔레그램 봇’으로 정했고, 새 대화에서 방법을 물어요."""
+        self.start(engine)
+        self.chat("old", title="알림 봇 구상", created_at="2026-10-01T09:00:00+00:00")
+        old = self.turn("a1", "알림은 텔레그램으로 하자", "텔레그램 봇으로 정할게요.", chat_id="old")
+        with self.conn:
+            store.set_classification(self.conn, old, title="알림 채널", depth=0, dec="텔레그램 봇")
+        self.chat(created_at="2026-10-05T09:00:00+00:00")
+        self.turn("g1", "뼈대부터 만들어 줘")
+        now = self.turn("g2", question, "문자 · 메신저 · 메일이 있어요.")
+        return old, now
+
+    def test_suggestions_are_off_unless_turned_on(self):
+        old, now = self.past_and_now(Engine())
+        self.clf.request(CHAT)
+        self.run_worker()
+        self.assertIsNone(self.row(now)["look"])                           # 꺼 둔 동안에는 걸리지 않아요
+        self.assertEqual(self.engine.checks()[0][1]["trigger"], ["handoff"])   # 원래 하던 확인만
+
+    def test_a_past_decision_is_brought_back_when_the_user_asks_how(self):
+        def find(payload, schema):
+            self.assertIn("next", schema["properties"]["items"]["items"]["properties"]["kind"]["enum"])
+            return use("search_decisions", "알림")
+        # 지금에 가까운 턴(방법을 묻는 g2)부터 확인하고, 그다음 새 대화의 첫 턴(이어 가기)을 봐요
+        engine = Engine(steps=[find, lambda p, s: finish(item(
+            "next", text="아무 말", why="같은 알림 채널 이야기예요.", use=[p["steps"][0]["saw"]["decisions"][0]["id"], "t-없는-턴"])),
+            finish()])
+        with mock.patch.object(config, "SUGGEST", True):
+            old, now = self.past_and_now(engine)
+            self.clf.request(CHAT)
+            self.run_worker()
+        self.assertEqual(self.row(now)["look"], "suggest")
+        system = [c for c in engine.calls if c[0] == "check"]
+        made = store.turn_items(self.conn, now)
+        self.assertEqual(len(made), 1)
+        one = made[0]
+        self.assertEqual((one["kind"], one["at"], one["btn"]), ("next", old, "이 방법으로"))
+        self.assertEqual(one["text"], "전에 정한 것이 있어요: “텔레그램 봇”")            # 엔진의 말이 아니라 기록으로 만든 글
+        self.assertIn("- 텔레그램 봇 (10/1 알림 봇 구상)", one["pop"]["prompt"])
+        self.assertEqual(one["why"], "같은 알림 채널 이야기예요.")
+        run = trace.runs(self.conn, turn_id=now)[0]
+        self.assertEqual((run["trigger"], [s["tool"] for s in run["steps"]]), (["suggest"], ["search_decisions"]))
+        records = [(r["name"], json.loads(r["fields_json"])) for r in self.conn.execute("SELECT * FROM usage")]
+        self.assertIn(("item", {"kind": "next", "did": "made", "at": "auto"}), records)
+        self.assertEqual(len(system), 3)                                   # 이어 가기 1 + 다시 꺼내기 2
+
+    def test_a_suggestion_without_looking_or_about_a_fresh_decision_is_dropped(self):
+        with mock.patch.object(config, "SUGGEST", True):
+            # 찾아보지 않고 낸 결론
+            old, now = self.past_and_now(Engine())
+            ctx = tools.Context(self.conn, self.row(now))
+            blind = investigate.check(ctx, ["suggest"], lambda *_: finish(item("next", use=[old])))
+            self.assertEqual((blind["items"], blind["dropped"]), ([], [{"kind": "next", "why": "지난 결정을 찾아보지 않고 낸 결론이라 버렸어요"}]))
+            # 찾아봤지만 거기 없던 턴을 근거로 댐
+            answers = iter([use("search_decisions", "알림"), finish(item("next", use=[now]))])
+            other = investigate.check(ctx, ["suggest"], lambda *_: next(answers))
+            self.assertEqual(other["dropped"], [{"kind": "next", "why": "찾아본 결정이 아니거나 방금 정한 것이라 버렸어요"}])
+            # 길을 묻는 턴이 아닌데 낸 결론
+            answers = iter([use("search_decisions", "알림"), finish(item("next", use=[old]))])
+            wrong = investigate.check(ctx, ["handoff"], lambda *_: next(answers))
+            self.assertEqual(wrong["dropped"], [{"kind": "next", "why": "방법을 묻는 턴이 아니라 버렸어요"}])
+            # 같은 대화에서 방금(가까이) 정한 것은 다시 꺼내지 않아요
+            with self.conn:
+                first = store.chat_turns(self.conn, CHAT)[0]
+                store.set_classification(self.conn, first["id"], title="뼈대", depth=0, dec="함수 둘로 나눔")
+            answers = iter([use("search_decisions", "함수"), finish(item("next", use=[first["id"]]))])
+            near = investigate.check(ctx, ["suggest"], lambda *_: next(answers))
+            self.assertEqual((near["items"], len(near["dropped"])), ([], 1))
+
+    def test_only_turns_that_ask_how_with_something_decided_before_are_looked_at(self):
+        with mock.patch.object(config, "SUGGEST", True):
+            self.past_and_now(Engine(), question="임계값을 1,380원으로 바꿔 줘")      # 길을 묻지 않는 턴
+            self.clf.request(CHAT)
+            self.run_worker()
+            self.assertEqual([r["look"] for r in store.chat_turns(self.conn, CHAT)], ["handoff", None])
+        self.assertTrue(investigate.WONDERING.search("이건 어떻게 하지?"))
+        self.assertTrue(investigate.WONDERING.search("Which one should I pick?"))
+        self.assertFalse(investigate.WONDERING.search("임계값만 바꿔 줘"))
+
     def test_tools_read_within_the_project_only(self):
         self.start(Engine())
         self.chat("a", created_at="2026-10-01T00:00:00Z")
