@@ -12,6 +12,7 @@ import io
 import json
 import os
 import shlex
+import sys
 from pathlib import Path
 
 from .. import config, store
@@ -35,6 +36,21 @@ def cursor_connected() -> bool:
         return False
 
 
+MOVED = "가닥 앱을 응용 프로그램 폴더로 옮긴 뒤 다시 켜고 눌러 주세요. 지금 자리는 임시 자리라 연결해도 곧 끊겨요."
+
+
+def hook_runner() -> str:
+    """hook을 돌리는 명령. 가닥 앱 안에 묶인 백엔드는 자기 실행 파일로 돌려요: 파이썬이 없는 Mac에서도 돌아야 해서요."""
+    if config.FROZEN:
+        return f"{shlex.quote(sys.executable)} hook"
+    return f"python3 {shlex.quote(str(config.ROOT / 'cursor-hooks' / 'gadak-hook.py'))}"
+
+
+def on_the_move() -> bool:
+    """내려받은 앱을 옮기지 않고 켜면 macOS가 임시 자리에서 돌려요(켤 때마다 자리가 바뀜). 그 자리를 hook에 적으면 안 돼요."""
+    return config.FROZEN and ("/AppTranslocation/" in sys.executable or sys.executable.startswith("/Volumes/"))
+
+
 def connect_cursor() -> dict:
     """모든 Cursor 프로젝트에 가닥 hook을 붙여요. 이미 있는 hooks.json은 덮어쓰지 않아요."""
     base = cursor_home()
@@ -42,16 +58,18 @@ def connect_cursor() -> dict:
         return {"ok": True, "already": True}
     if (base / "hooks.json").exists():
         return {"ok": False, "reason": "쓰고 계신 hooks.json이 있어서 덮어쓰지 않았어요. docs/usage-guide.md 4-2를 봐 주세요."}
+    if on_the_move():
+        return {"ok": False, "reason": MOVED}
     spec = importlib.util.spec_from_file_location("gadak_install", config.ROOT / "cursor-hooks" / "install.py")
     install = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(install)
     with contextlib.redirect_stdout(io.StringIO()):
-        done = install.write_cursor(base, f"sh hooks/{install.LAUNCHER}")
+        done = install.write_cursor(base, f"sh hooks/{install.LAUNCHER}", runner=hook_runner() if config.FROZEN else None)
     return {"ok": bool(done)}
 
 
 CLAUDE_HOOK_EVENTS = (("Stop", 60), ("SessionStart", 10))    # (이벤트, hook을 기다려 주는 초)
-HOOK_MARK = "gadak-hook.py"
+HOOK_MARKS = ("gadak-hook.py", "gadak-backend")              # 가닥이 더한 hook을 알아보는 말 (스크립트 · 묶인 앱의 실행 파일)
 
 
 def claude_settings() -> Path:
@@ -60,7 +78,7 @@ def claude_settings() -> Path:
 
 def _claude_hook_command() -> str:
     # --auto: 대화는 기록 파일로 읽고 있으니 hook은 자동 실행만 맡아요 (같은 턴이 두 번 들어오지 않게)
-    return f"python3 {shlex.quote(str(config.ROOT / 'cursor-hooks' / 'gadak-hook.py'))} --auto"
+    return hook_runner() + " --auto"
 
 
 def _read_claude_settings():
@@ -80,7 +98,8 @@ def _read_claude_settings():
 
 
 def _is_ours(entry) -> bool:
-    return HOOK_MARK in json.dumps(entry, ensure_ascii=False)
+    text = json.dumps(entry, ensure_ascii=False)
+    return any(mark in text for mark in HOOK_MARKS)
 
 
 def claude_connected() -> bool:
@@ -96,6 +115,8 @@ def connect_claude() -> dict:
         return {"ok": False, "reason": "Claude Code 설정 파일을 읽지 못해서 건드리지 않았어요. docs/usage-guide.md 4-1을 봐 주세요."}
     if claude_connected():
         return {"ok": True, "already": True}
+    if on_the_move():
+        return {"ok": False, "reason": MOVED}
     hooks = data.setdefault("hooks", {})
     for event, timeout in CLAUDE_HOOK_EVENTS:
         entries = hooks.setdefault(event, [])

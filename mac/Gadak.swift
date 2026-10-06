@@ -5,8 +5,10 @@
 // 다른 앱 위에 떠 있는 가닥 버튼은 mac/Float.swift 에 있어요.
 //
 // 만들기: python -m backend.macapp  (README 5-1)
-// 어디의 백엔드를 어떤 파이썬으로 돌릴지는 Info.plist의 GadakRoot · GadakPython · GadakPath에 적혀 있어요.
-// 환경 변수 GADAK_ROOT · GADAK_PYTHON이 있으면 그쪽이 이겨요(시험할 때).
+// 백엔드를 찾는 차례
+//  1) 환경 변수 GADAK_ROOT · GADAK_PYTHON (시험할 때)
+//  2) 앱 안에 묶인 백엔드: Contents/Resources/backend/gadak-backend (남에게 건네는 앱 · python -m backend.macapp --bundle)
+//  3) Info.plist의 GadakRoot · GadakPython · GadakPath (내 PC의 저장소 폴더를 돌리는 앱 · ‘가닥 설치.command’)
 
 import Cocoa
 import WebKit
@@ -123,25 +125,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func searchPath() -> String {
         let home = NSHomeDirectory()
         let baked = (setting("GadakPath", "GADAK_PATH") ?? "").split(separator: ":").map(String.init)
-        let common = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        let common = ["\(home)/.local/bin", "\(home)/.claude/local", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.npm-global/bin",
+                      "\(home)/.bun/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
         var seen = Set<String>()
         return (baked + common).filter { seen.insert($0).inserted }.joined(separator: ":")
     }
 
+    /// 앱 안에 묶인 백엔드 (python -m backend.macapp --bundle 로 만든 앱에만 있어요)
+    func bundledBackend() -> URL? {
+        guard let found = Bundle.main.resourceURL?.appendingPathComponent("backend/gadak-backend"),
+              FileManager.default.isExecutableFile(atPath: found.path) else { return nil }
+        return found
+    }
+
     func startBackend() {
-        guard let root = setting("GadakRoot", "GADAK_ROOT"), let python = setting("GadakPython", "GADAK_PYTHON") else {
-            return fail("이 앱에 가닥 폴더가 적혀 있지 않아요.", "가닥 폴더에서 ‘가닥 설치.command’를 다시 실행해 주세요.")
-        }
-        let files = FileManager.default
-        guard files.fileExists(atPath: root + "/backend/launch.py"), files.isExecutableFile(atPath: python) else {
-            return fail("가닥 폴더를 찾지 못했어요.",
-                        "\(root)\n\n폴더를 옮기거나 이름을 바꿨다면, 그 폴더의 ‘가닥 설치.command’를 다시 실행해 주세요.")
-        }
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: python)
+        let files = FileManager.default
         // --parent: 이 앱이 강제로 꺼져도 백엔드가 혼자 남지 않게 해요
-        process.arguments = ["-u", "-m", "backend.launch", "--shell", "--parent", String(getpid())]
-        process.currentDirectoryURL = URL(fileURLWithPath: root)
+        let asked = ["--shell", "--parent", String(getpid())]
+        if env["GADAK_ROOT"] == nil, let bundled = bundledBackend() {
+            // 남에게 건네는 앱: 파이썬도 저장소 폴더도 필요 없어요
+            process.executableURL = bundled
+            process.arguments = asked
+            process.currentDirectoryURL = files.homeDirectoryForCurrentUser
+        } else {
+            guard let root = setting("GadakRoot", "GADAK_ROOT"), let python = setting("GadakPython", "GADAK_PYTHON") else {
+                return fail("이 앱에 가닥 폴더가 적혀 있지 않아요.", "가닥 폴더에서 ‘가닥 설치.command’를 다시 실행해 주세요.")
+            }
+            guard files.fileExists(atPath: root + "/backend/launch.py"), files.isExecutableFile(atPath: python) else {
+                return fail("가닥 폴더를 찾지 못했어요.",
+                            "\(root)\n\n폴더를 옮기거나 이름을 바꿨다면, 그 폴더의 ‘가닥 설치.command’를 다시 실행해 주세요.")
+            }
+            process.executableURL = URL(fileURLWithPath: python)
+            process.arguments = ["-u", "-m", "backend.launch"] + asked
+            process.currentDirectoryURL = URL(fileURLWithPath: root)
+        }
         var environment = env
         environment["PATH"] = searchPath()
         environment["PYTHONIOENCODING"] = "utf-8"
@@ -164,7 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             try process.run()
             backend = process
         } catch {
-            fail("파이썬을 실행하지 못했어요.", "\(python)\n\(error.localizedDescription)")
+            fail("가닥을 켜지 못했어요.", "\(process.executableURL?.path ?? "")\n\(error.localizedDescription)")
         }
     }
 
