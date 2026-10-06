@@ -191,6 +191,21 @@ class ClassifyTest(unittest.TestCase):
             store.reset_classification(self.conn, self.rows()[0]["id"])           # 답이 달라져 다시 분류할 턴은 간추림도 비워요
         self.assertIsNone(self.rows()[0]["gist"])
 
+    def test_the_decision_note_and_the_answer_summary_arrive_together(self):
+        """10/6에 따로 더한 두 칸(조원의 dec_note · 이쪽의 gist)이 한 호출에서 같이 와서 같이 적혀요."""
+        clf = self.start(lambda p: titled(p, t1={
+            "chose": True, "dec": "임계값 1,380원", "dec_note": "알림 임계값을 1,380원으로 정함", "gist": ["1,380원이 무난하다고 했어요"]}))
+        self.assertEqual(clf.classify_chat(self.conn, CHAT), 3)
+        first = self.rows()[0]
+        self.assertEqual((first["dec"], first["dec_note"], json.loads(first["gist"])),
+                         ("임계값 1,380원", "알림 임계값을 1,380원으로 정함", ["1,380원이 무난하다고 했어요"]))
+        required = classify.SCHEMA["properties"]["turns"]["items"]["required"]
+        self.assertTrue({"dec_note", "gist"} <= set(required))
+        for key in ('"dec_note":null', '"gist":[""]'):                     # 프롬프트의 출력 형식에도 둘 다
+            self.assertIn(key, classify.SYSTEM)
+        self.assertIsNone(self.rows()[1]["dec_note"])                      # 정함이 없으면 풀어 쓴 문장도 없어요
+        self.assertEqual(store.SCHEMA_VERSION, 9)
+
     def test_turns_classified_before_can_get_their_summary_later(self):
         """gist 칸이 생기기 전에 정리한 턴: 화면이 부탁하면 간추림만 채워요. 제목 · 정함 · 할 일은 그대로예요."""
         clf = self.start(lambda p: titled(p, t2={"chose": True, "dec": "임계값 1,380원"}))

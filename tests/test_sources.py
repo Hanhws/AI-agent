@@ -60,6 +60,7 @@ LINES = [
     {"type": "custom-title", "customTitle": "알림 봇", "sessionId": SESSION},
     {"type": "ai-title", "aiTitle": "나중에 온 자동 제목", "sessionId": SESSION},
     user("m5", "This session is being continued from a previous conversation…", isCompactSummary=True),
+    user("m6", "Below is a conversation log from a Claude Code coding session.", promptSource="sdk", turnOrigin="sdk"),
     {"type": "assistant", "sessionId": SESSION, "isApiErrorMessage": True,
      "message": {"model": "<synthetic>", "content": [text("오류가 났어요")], "stop_reason": "stop_sequence"}},
     user("p4", [{"type": "image", "source": {}}]),

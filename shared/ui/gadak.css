@@ -6,7 +6,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .mark .m-main { fill: var(--surface); stroke: var(--fg); }
 .mark .m-spur { fill: var(--surface); stroke: var(--ring); }
 .mark .m-now { fill: var(--accent); stroke: none; }
-.btn { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.btn { height: 30px; padding: 0 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .btn:hover { border-color: var(--ring); color: var(--fg); }
 .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
 .btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
@@ -24,9 +24,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .litem .t.lk { cursor: pointer; }
 .litem .t.lk:hover { color: var(--accent); }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.sq { width: 7px; height: 7px; background: var(--fg); display: inline-block; flex: none; }
+.sq { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); display: inline-block; flex: none; }   /* 산출물: 작은 검은 점 (전체 지도 · 한 줄 노선도와 같게) */
 /* ---------- 가닥: horizontal map drawer (web) ---------- */
-.drawer { flex: none; margin: 14px 16px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; z-index: 2; }
+.drawer { flex: none; margin: 14px 16px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden; z-index: 2; }
 .drawer[hidden] { display: none; }
 .dhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 12px 18px 0; }
 .dhead .mk { display: flex; align-items: center; gap: 8px; }
@@ -77,19 +77,22 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .map-empty b { color: var(--fg2); font-weight: 600; }
 .map-empty .hint { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 13px; color: var(--muted); }
 .cnt { position: absolute; font-size: 11px; color: var(--faint); transform: translateY(-50%); pointer-events: none; }
+.xfer-btn { position: absolute; height: 36px; padding: 0; border: 0; background: none; cursor: pointer; }
+.xfer-btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .alt-l { position: absolute; font-size: 11px; color: var(--muted); transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; }
 
 .st { position: absolute; padding: 0; border-radius: 50%; box-sizing: border-box; cursor: pointer; background: var(--surface); transform: translate(-50%, -50%); transition: box-shadow .25s, transform .2s; }
 .st:hover { transform: translate(-50%, -50%) scale(1.12); }
-.st.main { width: 16px; height: 16px; border: 3px solid var(--fg); }
-.st.dec { width: 20px; height: 20px; border: 4px solid var(--accent); }
+/* 역: 전체 지도의 문법. 굵은 노선 위의 검은 점, 정함은 더 큰 점(+ 굵은 역 이름), 지금만 빨강 */
+.st.main { width: 11px; height: 11px; border: 0; background: var(--fg); }
+.st.dec { width: 16px; height: 16px; border: 0; background: var(--fg); }
 .st.cur { width: 20px; height: 20px; border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
-.st.br { width: 12px; height: 12px; border: 2px solid var(--muted); }
+.st.br { width: 12px; height: 12px; border: 2.5px solid var(--fg); }
 .st.closed { width: 12px; height: 12px; border: 2px solid var(--ring); }
 .st.closed.l2 { width: 10px; height: 10px; border-color: var(--stem); }
 .st.br.cur, .st.l2.cur { width: 14px; height: 14px; border: 0; box-shadow: 0 0 0 5px var(--halo); }
-.st.tick { width: 8px; height: 8px; border: 2px solid var(--fg); }
-.st.tick.tdec { border-color: var(--accent); }
+.st.tick { width: 6px; height: 6px; border: 0; background: var(--fg); }
+.st.tick.tdec { width: 9px; height: 9px; }
 .st.tick.tcur { border: 0; background: var(--accent); box-shadow: 0 0 0 4px var(--halo); }
 .st.ghost { width: 9px; height: 9px; border: 1.5px dashed var(--ring); background: var(--surface); }
 .st.viewing, .cap.viewing { box-shadow: 0 0 0 6px var(--see); }
@@ -99,7 +102,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 
 .cap { position: absolute; transform: translate(-50%, -50%); box-sizing: border-box; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: box-shadow .25s; }
 .cap.main { border: 3px solid var(--fg); }
-.cap.dec { border: 4px solid var(--accent); }
+.cap.dec { border: 4px solid var(--fg); }
 .cap.cur { border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
 .cell { width: 6px; height: 6px; padding: 0; border-radius: 50%; box-sizing: border-box; border: 0; background: var(--fg); cursor: pointer; }
 .cap.cur .cell { background: var(--surface); }
@@ -109,6 +112,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .lbl { position: absolute; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; }
 .lbl .t { font-size: 13px; line-height: 18px; color: var(--fg2); text-wrap: balance; }
 .lbl .t.now { font-weight: 600; color: var(--fg); }
+.lbl .t.dec { font-weight: 700; color: var(--fg); }
 .lbl .f { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
 .lbl .d { font-size: 10.5px; color: var(--faint); }
 .seg { position: absolute; top: 4px; display: flex; align-items: baseline; gap: 6px; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; font-size: 11.5px; color: var(--faint); cursor: pointer; white-space: nowrap; }
@@ -121,7 +125,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 @keyframes popin { from { opacity: 0; transform: translate(-50%, -50%) scale(0.2); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 /* rail (web) */
 .rail { position: absolute; top: 0; bottom: 0; right: 8px; width: var(--railw); z-index: 1; }
-.rail .rline { position: absolute; left: calc(var(--rx) - 1px); width: 2px; background: var(--rail); }
+.rail .rline { position: absolute; left: calc(var(--rx) - 2.5px); width: 5px; border-radius: 3px; background: var(--route, var(--rail)); }   /* 레일도 프로젝트 색 노선 */
 .rail .vp { position: absolute; left: calc(var(--rx) - 17px); width: 34px; border-radius: 6px; background: var(--viewport); pointer-events: none; }
 .rail-toggle { position: absolute; left: calc(var(--rx) - 21px); top: 6px; width: 42px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .rail-toggle:hover { background: var(--viewport); }
@@ -129,7 +133,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .rail-toggle .cv { font-size: 9.5px; line-height: 1; color: var(--accent); font-weight: 600; }
 .rail .mark .m-main, .rail .mark .m-spur { fill: var(--surface); }
 .rail .st.main { width: 10px; height: 10px; border: 0; background: var(--fg); }
-.rail .st.dec { width: 10px; height: 10px; border: 2px solid var(--accent); }
+.rail .st.dec { width: 13px; height: 13px; border: 0; background: var(--fg); }
 .rail .st.cur { width: 14px; height: 14px; box-shadow: 0 0 0 5px var(--halo); }
 .rail .st.br, .rail .st.closed { width: 9px; height: 9px; border-width: 2px; }
 .rail .st.viewing, .rail .cap.viewing { box-shadow: 0 0 0 4px var(--see); }
@@ -139,7 +143,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .rail .cap.main .cell { background: var(--surface); }
 .rail .cap.dec { border-width: 2px; }
 .rail .cell { width: 4px; height: 4px; }
-.rail .fsq { position: absolute; width: 6px; height: 6px; background: var(--fg); transform: translateY(-50%); pointer-events: none; }
+.rail .fsq { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); transform: translateY(-50%); pointer-events: none; }
 .rail .tdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--surface); transform: translateY(-50%); pointer-events: none; }
 .rail-seam { position: absolute; left: calc(var(--rx) - 10px); width: 20px; height: 1px; background: var(--line); }
 .ptabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); }
@@ -177,7 +181,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .lempty { font-size: 13px; color: var(--faint); line-height: 1.6; padding: 6px 2px; }
 .revrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 9px; background: var(--bubble); font-size: 12.5px; color: var(--fg2); }
 /* nudge (가닥의 한마디) */
-.nudge { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 13px; animation: rise .35s ease-out; }
+.nudge { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 12px 14px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 13px; animation: rise .35s ease-out; }
 .nudge .who { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--faint); grid-column: 1 / 3; }
 .nudge .who b { color: var(--fg2); font-weight: 600; font-family: var(--display); font-size: 13px; }
 .nudge .x { grid-row: 1; grid-column: 3; border: 0; background: transparent; color: var(--faint); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; }
@@ -194,7 +198,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .tip .s { color: var(--tip-sub); }
 .tip .fl { display: flex; align-items: center; gap: 6px; color: var(--tip-sub); }
 .tip .fl i { width: 7px; height: 7px; background: var(--tip-fg); flex: none; }
-.pop { position: fixed; z-index: 21; width: min(380px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--fg); }
+.pop { position: fixed; z-index: 21; width: min(380px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--fg); }
 .pop b { font-size: 14px; }
 .pop pre { margin: 0; white-space: pre-wrap; font-family: var(--body); font-size: 13px; line-height: 1.6; padding: 10px 12px; border-radius: 8px; background: var(--bubble); }
 .pop .diff { font-family: var(--mono); font-size: 12px; line-height: 1.6; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }

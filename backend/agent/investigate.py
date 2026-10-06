@@ -319,6 +319,11 @@ def unasked_item(ctx, path, pairs, raw, why) -> dict:
     }
 
 
+def _said(decision) -> str:
+    """정한 것: 풀어 쓴 문장이 있으면 그걸로 (역 이름은 대화 밖에서 읽으면 뜻이 흐려요)."""
+    return (decision["dec_note"] if "dec_note" in decision.keys() else None) or decision["dec"]
+
+
 def suggest_item(ctx, use, why, seen):
     """지난 결정 다시 꺼내기. 엔진이 고른 결정 중 이번 걸음에 실제로 찾아본 것만 써요. 글은 엔진의 말이 아니라 기록으로 만들어요."""
     ids = [u for u in (use or []) if isinstance(u, str) and u in seen][:3]
@@ -326,7 +331,7 @@ def suggest_item(ctx, use, why, seen):
         return None
     where, values = ctx.scope()
     rows = ctx.conn.execute(
-        "SELECT t.id, t.seq, t.dec, t.chat_id, c.title AS chat_title, c.created_at FROM turns t JOIN chats c ON c.id = t.chat_id"
+        "SELECT t.id, t.seq, t.dec, t.dec_note, t.chat_id, c.title AS chat_title, c.created_at FROM turns t JOIN chats c ON c.id = t.chat_id"
         f" WHERE t.id IN (%s) AND t.dec IS NOT NULL AND {where} ORDER BY c.created_at DESC, t.seq DESC" % ",".join("?" * len(ids)),
         ids + values,
     ).fetchall()
@@ -342,7 +347,7 @@ def suggest_item(ctx, use, why, seen):
 
     first = kept[0]
     text = f"전에 정한 것이 있어요: “{first['dec']}”" + (f" 외 {len(kept) - 1}개" if len(kept) > 1 else "")
-    prompt = "전에 정한 대로 해 줘.\n" + "\n".join(f"- {r['dec']} ({origin(r)})" for r in kept)
+    prompt = "전에 정한 대로 해 줘.\n" + "\n".join(f"- {_said(r)} ({origin(r)})" for r in kept)
     return {
         "kind": "next", "text": text,
         "why": why or "방법을 묻고 있는데, 전에 스스로 정해 둔 것이 있어요.",
@@ -361,10 +366,10 @@ def handoff_summary(decisions, leftovers) -> str:
         if len(chats) == 1:
             first = decisions[0]
             lines.append(f"지난 대화({store.display_date(first['created_at'])} {first['chat_title']})에서 정한 것")
-            lines += [f"{n}. {d['dec']}" for n, d in enumerate(decisions, 1)]
+            lines += [f"{n}. {_said(d)}" for n, d in enumerate(decisions, 1)]
         else:
             lines.append("지난 대화에서 정한 것")
-            lines += [f"{n}. {d['dec']} ({store.display_date(d['created_at'])} {d['chat_title']})"
+            lines += [f"{n}. {_said(d)} ({store.display_date(d['created_at'])} {d['chat_title']})"
                       for n, d in enumerate(decisions, 1)]
     if leftovers:
         lines.append("아직 남은 일")
@@ -380,7 +385,7 @@ def handoff_item(ctx, use, why):
         return None
     conn, chat = ctx.conn, ctx.chat
     decisions = conn.execute(
-        "SELECT t.id, t.dec, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
+        "SELECT t.id, t.dec, t.dec_note, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
         " JOIN chats c ON c.id = t.chat_id WHERE t.id IN (%s) AND c.project_id = ? AND c.id != ? AND c.hidden = 0"
         " AND t.dec IS NOT NULL ORDER BY c.created_at, t.seq" % ",".join("?" * len(ids)),
         ids + [chat["project_id"], chat["id"]],

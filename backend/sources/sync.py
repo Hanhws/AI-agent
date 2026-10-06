@@ -5,17 +5,12 @@
 """
 import json
 import time
-from pathlib import Path
 
 from .. import assemble, store
 from . import claude_code, codex
 
 READERS = (claude_code, codex)
 INTERVAL = 2.5  # 초. 바뀐 파일이 있는지만 보는 거라 가벼워요
-
-
-def _project(cwd):
-    return store.project_key(Path(cwd).name) if cwd else None
 
 
 def apply_ops(conn, reader, chat_id, ops, state=None) -> dict:
@@ -26,7 +21,7 @@ def apply_ops(conn, reader, chat_id, ops, state=None) -> dict:
         if not any(op[0] == "prompt" for op in ops):
             return changed  # 아직 질문이 없는 대화예요. 제목은 state에 있으니 첫 질문과 같이 적어요
         store.upsert_chat(
-            conn, project=_project(state.get("cwd")), chat_id=chat_id, site=reader.SITE, title=state.get("title"),
+            conn, project=store.folder_project(state.get("cwd")), chat_id=chat_id, site=reader.SITE, title=state.get("title"),
             created_at=state.get("started"), via=state.get("via"), cwd=state.get("cwd"),
         )
     for op in ops:

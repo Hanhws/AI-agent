@@ -95,6 +95,18 @@ class AppTest(unittest.TestCase):
         self.assertNotIn("long", full)
         self.assertEqual(self.client.get("/turns/none").status_code, 404)
 
+    def test_the_map_page_and_its_data(self):
+        """전체 지도: /map이 열리고, /map/data에 오늘 한 대화가 오늘 날짜(마지막 칸)의 노선으로 실려요."""
+        self.assertEqual(self.client.get("/map").status_code, 200)
+        self.turn()
+        data = self.client.get("/map/data").get_json()
+        (project,) = data["projects"]
+        (chat,) = project["chats"]
+        self.assertEqual(project["name"], "환율 알리미")
+        # 대화가 오늘뿐이면 지도도 오늘 하루짜리예요 (90일 전부터 비워 두지 않아요)
+        self.assertEqual((data["today"], chat["from"], chat["to"], chat["active"]), (0, 0, 0, True))
+        self.assertEqual(chat["turns"][0]["day"], 0)
+
     def test_projects_list_recent_first(self):
         self.turn()
         self.event("prompt", project="nba-analysis", chat_id="conv-2", text="나중 질문")
@@ -115,6 +127,40 @@ class AppTest(unittest.TestCase):
         self.assertIn("임계값", hits[0]["snip"])
         self.assertEqual(self.client.get("/projects/환율 알리미/search?q=").get_json()["hits"], [])
         self.assertEqual(self.client.get("/projects/환율 알리미/search?q=100%25").get_json()["hits"], [])
+
+    def test_transfer_copies_this_chats_decisions(self):
+        self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")
+        self.assertIsNone(self.client.get("/chats/conv-1/handoff").get_json()["text"])
+        self.turn("g2", "그럼 임계값 1,380원으로 하자", "정했어요.")
+        conn = self.rt.connect()
+        turn_id = store.chat_turns(conn, "conv-1")[1]["id"]
+        with conn:
+            store.set_classification(conn, turn_id, title="임계값 정함", depth=0, dec="임계값 1,380원",
+                                     dec_note="알림 임계값을 1,380원으로 정함")
+            for kind, text in (("unasked", "launch.json이 새로 생겼어요"), ("next", "알림 문구 다듬기")):
+                conn.execute("INSERT INTO items(id, turn_id, kind, text, state, created_at) VALUES(?, ?, ?, ?, 'open', '')",
+                             (kind, turn_id, kind, text))
+        text = self.client.get("/chats/conv-1/handoff").get_json()["text"]   # 엔진 없이: 풀어 쓴 정함 · 할 일만
+        self.assertIn("1. 알림 임계값을 1,380원으로 정함", text)
+        self.assertIn("알림 문구 다듬기", text)
+        self.assertNotIn("launch.json", text)
+        self.assertEqual(self.client.get("/chats/nope/handoff").status_code, 404)
+
+        from backend.agent import handoff
+        from backend.engines import EngineError
+        seen = {}
+        def call(system, payload, schema):
+            seen["payload"] = json.loads(payload)
+            return {"text": "이전 대화에서 이어서 해요."}
+        self.assertEqual(handoff.write(conn, "conv-1", call), "이전 대화에서 이어서 해요.")
+        wrapped = lambda *_: {"text": json.dumps({"text": "이어서 해요.\n■ 정한 것"}, ensure_ascii=False)}
+        self.assertEqual(handoff.write(conn, "conv-1", wrapped), "이어서 해요.\n■ 정한 것")   # 한 번 더 감싼 JSON은 벗겨요
+        self.assertEqual(seen["payload"]["route"][1]["dec"], "알림 임계값을 1,380원으로 정함")
+        self.assertEqual([t["n"] for t in seen["payload"]["turns"]], [1])   # 마지막 턴은 last로 따로, 앞 턴은 답 끝부분만
+        def broken(*_):
+            raise EngineError("x")
+        self.assertIn("1. 알림 임계값", handoff.write(conn, "conv-1", broken))   # 엔진이 실패하면 늘어놓은 글로
+        conn.close()
 
     def test_finding_chats_across_projects(self):
         self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · Cursor

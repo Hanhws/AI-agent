@@ -13,7 +13,8 @@ import sqlite3
 import threading
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+import zlib
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCHEMA = """
@@ -136,10 +137,11 @@ CREATE TABLE IF NOT EXISTS auto_log(
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
 ADDED_COLUMNS = {
     "chats": {"via": "TEXT", "cwd": "TEXT", "hidden": "INTEGER NOT NULL DEFAULT 0"},
-    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0", "gist": "TEXT"},
+    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0", "gist": "TEXT", "dec_note": "TEXT"},
 }
 
 NO_PROJECT = "_none"
+LOOSE_PROJECT = "폴더 없는 대화"   # Claude 데스크톱이 폴더 없이 연 세션은 앱이 만든 임시 폴더(scratch-workspaces)에서 돌아요
 TITLE_LEN = 16
 MAX_AI = 20000            # 답이 아주 긴 턴은 앞 조금과 끝을 남겨요 (결론은 끝에 있어요)
 AI_HEAD = 4000
@@ -147,7 +149,9 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 7   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화) · 7: turns.gist (답 간추림)
+# 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화)
+# 7 · 8: 두 가지에서 따로 올린 번호예요 (turns.gist 답 간추림 / scratch 폴더 대화 묶기 · turns.dec_note). 9: 둘을 합침
+SCHEMA_VERSION = 9
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 _checked = set()           # 이 프로세스에서 열 확인을 마친 저장소
 
@@ -195,6 +199,10 @@ def _create(conn) -> None:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
     _add_columns(conn)
+    # 폴더 없이 연 데스크톱 대화(임시 폴더)는 한 프로젝트로 묶어요
+    if conn.execute("SELECT 1 FROM chats WHERE cwd LIKE '%/scratch-workspaces/%' LIMIT 1").fetchone():
+        conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (LOOSE_PROJECT, LOOSE_PROJECT))
+        conn.execute("UPDATE chats SET project_id = ? WHERE cwd LIKE '%/scratch-workspaces/%'", (LOOSE_PROJECT,))
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
@@ -213,6 +221,14 @@ def provisional_title(text: str) -> str:
     if not first:
         return "(질문 없음)"
     return first if len(first) <= TITLE_LEN else first[:TITLE_LEN] + "…"
+
+
+def folder_project(cwd):
+    """대화가 돈 폴더 → 프로젝트 이름. 임시 폴더에서 연 대화는 한 프로젝트로 묶어요."""
+    if not cwd:
+        return None
+    path = Path(cwd)
+    return LOOSE_PROJECT if "scratch-workspaces" in path.parts else project_key(path.name)
 
 
 def project_key(name):
@@ -386,13 +402,14 @@ def add_file(conn, turn_id, name, url=None) -> None:
 
 
 def set_classification(conn, turn_id, *, title, depth, seg=None, topic=None, dec=None, ret=False,
-                       ref=None, parts=None, look=None, gist=None) -> None:
+                       ref=None, parts=None, look=None, gist=None, dec_note=None) -> None:
     """1단 분류 결과를 역에 적어요 (backend/agent/classify.py). look은 2단이 확인할 까닭들이에요.
-    gist는 답을 간추린 줄들이에요. 없으면 빈 목록으로 적어 둬요(다시 묻지 않게)."""
+    gist는 답을 간추린 줄들이에요. 없으면 빈 목록으로 적어 둬요(다시 묻지 않게).
+    dec_note는 정한 것을 대화 밖에서도 읽히게 풀어 쓴 한 문장이에요 (이어 가기 요약에 써요)."""
     conn.execute(
-        "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, ret = ?, ref = ?, classified = 1,"
+        "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, dec_note = ?, ret = ?, ref = ?, classified = 1,"
         " look = ?, checked = 0, gist = ? WHERE id = ?",
-        (title, depth, seg, topic, dec, 1 if ret else 0, ref, ",".join(look) if look else None,
+        (title, depth, seg, topic, dec, dec_note, 1 if ret else 0, ref, ",".join(look) if look else None,
          json.dumps(list(gist or []), ensure_ascii=False), turn_id),
     )
     conn.execute("DELETE FROM parts WHERE turn_id = ?", (turn_id,))
@@ -611,7 +628,7 @@ def projects(conn) -> list:
         " FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0 LEFT JOIN turns t ON t.chat_id = c.id"
         " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"      # 대화를 다 뺀 프로젝트는 목록에 없어요
     )
-    return [dict(r) for r in rows]
+    return [{**dict(r), "color": project_color(r["id"])} for r in rows]   # 노선 색: 목록의 색 동그라미
 
 
 def view(conn, project_id, scope="all", chat_id=None):
@@ -663,7 +680,71 @@ def view(conn, project_id, scope="all", chat_id=None):
         if r["id"].split(":")[0] in turn_ids
     }
     auto = {kind: setting(conn, "auto." + kind) == "1" for kind in AUTO_KINDS}
-    return {"project": {"id": project["id"], "name": project["name"]}, "chats": out, "itemStates": states, "auto": auto}
+    return {"project": {"id": project["id"], "name": project["name"], "color": project_color(project["id"])},
+            "chats": out, "itemStates": states, "auto": auto}
+
+
+MAP_COLORS = ("#0039A6", "#FF6319", "#00933C", "#FCCC0A", "#B933AD", "#EE352E", "#6CBE45", "#00A1DE",
+              "#996633", "#4D5357", "#C2185B", "#00796B", "#5C6BC0", "#8C8C8C")   # 비녤리 지도의 노선 색
+MAP_LINKS = {"handoff": "이어 가기", "repeat": "지난 대화 참조"}   # 다른 대화를 근거(at)로 든 할 일 → 환승
+
+
+def project_color(project_id) -> str:
+    """프로젝트의 노선 색. 프로젝트 id로 정해서 가닥 창 노선도 · 레일 · 전체 지도가 늘 같은 색을 써요 (회색은 곁길 몫이라 빼요)."""
+    return MAP_COLORS[zlib.crc32(str(project_id).encode()) % (len(MAP_COLORS) - 1)]
+
+
+def map_data(conn, days=90, today=None) -> dict:
+    """전체 지도(backend/web/map.html)용: 최근 days일의 프로젝트 · 대화 · 턴을 날짜(시작일부터 센 번호)와 함께.
+    턴마다 정함 · 곁길 깊이 · 산출물 · 할 일을 싣고, 다른 대화를 근거로 든 할 일은 환승으로 이어요."""
+    local = lambda ts: datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().date()
+    today = today or datetime.now().astimezone().date()
+    # 지도는 첫 대화가 있는 날부터 (최대 days일 전까지). 대화가 오늘뿐이면 오늘 하루짜리 지도예요
+    first = conn.execute("SELECT MIN(t.created_at) FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0").fetchone()[0]
+    start = max(today - timedelta(days=days - 1), min(local(first), today) if first else today)
+    days = (today - start).days + 1
+    day = lambda ts: (local(ts) - start).days
+    states = {r["id"]: r["state"] for r in conn.execute("SELECT id, state FROM item_states")}
+    out, chat_of, links = [], {}, []
+    rows = conn.execute(
+        "SELECT p.id, p.name, MIN(t.created_at) AS first FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0"
+        " JOIN turns t ON t.chat_id = c.id GROUP BY p.id ORDER BY first"
+    ).fetchall()
+    for project in rows:
+        chats = []
+        for chat in conn.execute("SELECT * FROM chats WHERE project_id = ? AND hidden = 0 ORDER BY created_at, rowid",
+                                 (project["id"],)):
+            turns = []
+            for row in chat_turns(conn, chat["id"]):
+                d = day(row["created_at"])
+                if d < 0:
+                    continue                       # 지도보다 오래된 턴
+                chat_of[row["id"]] = chat["id"]
+                items = turn_items(conn, row["id"])
+                for item in items:
+                    if item["kind"] in MAP_LINKS and item.get("at"):
+                        links.append((item["at"], chat["id"], MAP_LINKS[item["kind"]]))
+                files = conn.execute("SELECT name FROM files WHERE turn_id = ? ORDER BY rowid", (row["id"],))
+                turns.append({
+                    "id": row["id"], "t": row["title"], "d": 1 if row["dec"] else 0, "side": min(row["depth"], 2), "day": min(d, days - 1),
+                    "f": [Path(r["name"]).name for r in files],
+                    "todo": [[item["text"], states.get(item["id"]) == "done"] for item in items],
+                })
+            if turns:
+                chats.append({"id": chat["id"], "title": chat["title"] or turns[0]["t"], "from": turns[0]["day"],
+                              "to": turns[-1]["day"], "active": False, "turns": turns})
+        if chats:
+            color = project_color(project["id"])
+            out.append({"id": project["id"], "name": project["name"], "color": color, **({"ink": "#111"} if color == "#FCCC0A" else {}),
+                        "chats": chats})
+    links = [[chat_of[at], chat, why] for at, chat, why in links if at in chat_of and chat_of[at] != chat]
+    # ‘지금’은 화면에 하나: 가장 최근에 턴이 온 대화만 (표기 규칙)
+    latest = conn.execute("SELECT t.chat_id FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0"
+                          " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1").fetchone()
+    for project in out:
+        for chat in project["chats"]:
+            chat["active"] = latest is not None and chat["id"] == latest["chat_id"]
+    return {"start": start.isoformat(), "today": days - 1, "projects": out, "links": links}
 
 
 SITE_NAMES = {"claude-code": "Claude Code", "codex": "Codex", "cursor": "Cursor", "chatgpt": "ChatGPT",

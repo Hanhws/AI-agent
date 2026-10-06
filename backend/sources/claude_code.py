@@ -79,6 +79,8 @@ def _is_human(line) -> bool:
         return False
     if line.get("isVisibleInTranscriptOnly") or line.get("sourceToolUseID") or "toolUseResult" in line:
         return False
+    if line.get("turnOrigin") == "sdk":
+        return False   # 프로그램이 보낸 질문 (예: 데스크톱 앱이 대화를 압축할 때 여는 요약 세션의 ‘Below is a conversation log…’)
     origin = line.get("origin")
     return not (isinstance(origin, dict) and origin.get("kind") not in (None, "human"))
 

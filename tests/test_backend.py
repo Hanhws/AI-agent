@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from backend import store
 from backend.app import create_app
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -118,6 +119,25 @@ class BackendTest(unittest.TestCase):
 
     def test_unknown_project_is_404(self):
         self.assertEqual(self.client.get("/projects/none/view").status_code, 404)
+
+
+
+class ScratchFolderTest(unittest.TestCase):
+    SCRATCH = "/Users/demo/Library/Application Support/Claude/scratch-workspaces/a/b/scratch-2026-10-06-a1a600"
+
+    def test_scratch_folders_become_one_project_even_in_an_old_db(self):
+        self.assertEqual(store.folder_project(self.SCRATCH), store.LOOSE_PROJECT)
+        self.assertEqual(store.folder_project("/Users/demo/dev/가닥"), "가닥")
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "gadak.db"
+            conn = store.connect(db)
+            store.upsert_chat(conn, project="scratch-2026-10-06-a1a600", chat_id="c1", site="claude-code", cwd=self.SCRATCH)
+            conn.execute("PRAGMA user_version = 6")
+            conn.commit()
+            conn.close()
+            conn = store.connect(db)   # 예전 DB를 다시 열면 옮겨져요
+            self.assertEqual(store.chat_row(conn, "c1")["project_id"], store.LOOSE_PROJECT)
+            conn.close()
 
 
 if __name__ == "__main__":
