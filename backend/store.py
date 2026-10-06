@@ -139,6 +139,7 @@ ADDED_COLUMNS = {
 }
 
 NO_PROJECT = "_none"
+LOOSE_PROJECT = "폴더 없는 대화"   # Claude 데스크톱이 폴더 없이 연 세션은 앱이 만든 임시 폴더(scratch-workspaces)에서 돌아요
 TITLE_LEN = 16
 MAX_AI = 20000            # 답이 아주 긴 턴은 앞 조금과 끝을 남겨요 (결론은 끝에 있어요)
 AI_HEAD = 4000
@@ -146,7 +147,7 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 6   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화)
+SCHEMA_VERSION = 7   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화) · 7: scratch 폴더 대화 묶기
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
 
 
@@ -191,6 +192,9 @@ def _create(conn) -> None:
         for name, kind in columns.items():
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+    if conn.execute("SELECT 1 FROM chats WHERE cwd LIKE '%/scratch-workspaces/%' LIMIT 1").fetchone():
+        conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (LOOSE_PROJECT, LOOSE_PROJECT))
+        conn.execute("UPDATE chats SET project_id = ? WHERE cwd LIKE '%/scratch-workspaces/%'", (LOOSE_PROJECT,))
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
@@ -201,6 +205,14 @@ def provisional_title(text: str) -> str:
     if not first:
         return "(질문 없음)"
     return first if len(first) <= TITLE_LEN else first[:TITLE_LEN] + "…"
+
+
+def folder_project(cwd):
+    """대화가 돈 폴더 → 프로젝트 이름. 임시 폴더에서 연 대화는 한 프로젝트로 묶어요."""
+    if not cwd:
+        return None
+    path = Path(cwd)
+    return LOOSE_PROJECT if "scratch-workspaces" in path.parts else project_key(path.name)
 
 
 def project_key(name):
