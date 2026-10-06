@@ -116,10 +116,11 @@
       var runs = [], runStart = mains[0];
       mains.forEach(function (m, i) { var nx = mains[i + 1]; if (!nx || (st.scope === 'all' && V.sIdx[nx.id] !== V.sIdx[m.id])) { runs.push([runStart, m]); runStart = nx; } });
       runs.forEach(function (r, i) {
-        path('M ' + pos[r[0].id].x + ' ' + Y0 + ' H ' + pos[r[1].id].x, 'var(--fg)', 4.5).setAttribute('class', 'trunk');
+        // 본선: 전체 지도처럼 프로젝트 색의 굵은 선 (색이 없으면 검정)
+        path('M ' + pos[r[0].id].x + ' ' + Y0 + ' H ' + pos[r[1].id].x, 'var(--route, var(--fg))', 10).setAttribute('class', 'trunk');
         if (i < runs.length - 1) path('M ' + (pos[r[1].id].x + 12) + ' ' + Y0 + ' H ' + (pos[runs[i + 1][0].id].x - 12), 'var(--ring)', 2.5, '0.1 7');
       });
-      if (tail) path('M ' + (lastM.x + 14) + ' ' + Y0 + ' H ' + (lastM.x + step * tail), 'var(--fg)', 3.5, '0.1 8');
+      if (tail) path('M ' + (lastM.x + 14) + ' ' + Y0 + ' H ' + (lastM.x + step * tail), 'var(--route, var(--fg))', 4, '0.1 8');
       // segment names
       if (multi) V.segs.forEach(function (name, s) {
         var ms = mains.filter(function (m) { return V.sIdx[m.id] === s; }); if (!ms.length) return;
@@ -139,8 +140,9 @@
         var l1 = nodes.filter(function (n) { return n.depth === 1; }), l2 = nodes.filter(function (n) { return n.depth >= 2; });
         var ax = pos[aid].x, run1 = (Y0 - L1) * 0.76, run2 = (L1 - L2) * 0.76;
         var s1 = ax + 18, g1 = Math.max(s1 + run1 + 16, ax + step * 0.62), g2 = g1 + 8 + run2 + 14;
-        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--ring)', 3);
-        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--stem)', 2.5);
+        // 곁길: 전체 지도처럼 굵은 회색 지선 (지금 가 있는 곁길은 진하게)
+        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 6);
+        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 5);
         function dot(list, level, y) {
           if (!list.length) return;
           var gx = level === 2 ? g2 : g1;
@@ -182,7 +184,7 @@
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
         if (!open) return;
         var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 20) + 'px'; l.style.width = (step - 14) + 'px';
-        l.appendChild(el('span', 't' + (k === 'cur' ? ' now' : ''), t.title));
+        l.appendChild(el('span', 't' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), t.title));   // 정함은 굵은 역 이름 (전체 지도처럼)
         var af = g.allFiles(t); if (af.length) { var f = el('span', 'f'); f.appendChild(el('span', 'sq')); var vmax = 0; af.forEach(function (fx) { vmax = Math.max(vmax, g.versionOf(t, fx).v); }); f.appendChild(document.createTextNode(String(af.length) + (vmax > 1 ? ' · v' + vmax : ''))); l.appendChild(f); }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);

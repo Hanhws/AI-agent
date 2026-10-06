@@ -1,26 +1,30 @@
 /* 가닥 디자인 토큰. 라이트(기본) · 다크(시스템 설정 또는 data-theme) · 개발 도구(VS Code · Cursor) 세 벌. */
 :root {
   --railw: 56px; --rx: 28px;
-  --bg: #FAF9F6; --surface: #FFFFFF; --fg: #141414; --fg2: #3F3F46; --muted: #6E6B66; --faint: #8F8B84;
-  --line: #E6E3DD; --bubble: #EFEDE8; --accent: #C8401A; --halo: #F6DDD4; --see: #E4E1DB;
-  --stem: #D6D2CB; --ring: #BDB9B2; --rail: #D9D5CE; --viewport: rgba(20,20,20,0.05); --flash: #FBEDE7;
-  --chrome: #ECEAE5; --side: #F4F2EE; --tip: #141414; --tip-fg: #F4F2EE; --tip-sub: #C9C5BE;
-  --shadow: 0 12px 32px rgba(20,20,20,0.08); --shadow-s: 0 4px 14px rgba(20,20,20,0.10);
-  --display: 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
-  --body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', 'IBM Plex Sans KR', ui-monospace, Menlo, monospace;
+  /* 바탕은 전체 지도처럼 흰 종이 + 중립 회색 (크림 · 베이지를 뺐어요). 글씨 대비는 작은 글씨까지 4.5 : 1 이상 */
+  --bg: #FFFFFF; --surface: #FFFFFF; --fg: #111111; --fg2: #3A3A3A; --muted: #5F5F5F; --faint: #767676;
+  --line: #E5E5E5; --bubble: #F2F2F2; --accent: #C8401A; --halo: #F6DDD4; --see: #E6E6E6;
+  --stem: #D0D0D0; --ring: #B5B5B5; --rail: #D6D6D6; --viewport: rgba(17,17,17,0.05); --flash: #FBEDE7;
+  --chrome: #EDEDED; --side: #F5F5F5; --tip: #111111; --tip-fg: #F5F5F5; --tip-sub: #BDBDBD;
+  --spur: #A7A9AC;   /* 곁길 지선 (전체 지도와 같은 회색) */
+  --radius: 4px;     /* 모서리는 작게 (지하철 표지판처럼 단정하게) */
+  --shadow: 0 6px 18px rgba(0,0,0,0.07); --shadow-s: 0 2px 8px rgba(0,0,0,0.08);
+  /* 글꼴은 SUIT 한 벌 (전체 지도와 같아요). 제목도 본문도 같은 글꼴, 굵기로만 나눠요 */
+  --display: SUIT, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --body: SUIT, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
-  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #3A3834;
-  --stem: #45433E; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
-  --chrome: #262420; --side: #1B1A17; --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750;
+  --bg: #121212; --surface: #181818; --fg: #F2F2F2; --fg2: #D4D4D4; --muted: #A6A6A6; --faint: #8F8F8F;
+  --line: #2E2E2E; --bubble: #242424; --accent: #F0704A; --halo: #4A2A20; --see: #333333;
+  --stem: #444444; --ring: #6A6A6A; --rail: #3C3C3C; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --chrome: #222222; --side: #151515; --tip: #F2F2F2; --tip-fg: #121212; --tip-sub: #5A5A5A;
   --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark } }
 :root[data-theme="dark"] {
-  --bg: #161513; --surface: #1F1E1B; --fg: #F1EFEA; --fg2: #D6D3CD; --muted: #A8A49D; --faint: #8A867E;
-  --line: #34322E; --bubble: #2A2825; --accent: #F0704A; --halo: #4A2A20; --see: #3A3834;
-  --stem: #45433E; --ring: #6A665F; --rail: #3E3C38; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
-  --chrome: #262420; --side: #1B1A17; --tip: #F1EFEA; --tip-fg: #161513; --tip-sub: #5A5750;
+  --bg: #121212; --surface: #181818; --fg: #F2F2F2; --fg2: #D4D4D4; --muted: #A6A6A6; --faint: #8F8F8F;
+  --line: #2E2E2E; --bubble: #242424; --accent: #F0704A; --halo: #4A2A20; --see: #333333;
+  --stem: #444444; --ring: #6A6A6A; --rail: #3C3C3C; --viewport: rgba(255,255,255,0.06); --flash: #3A2620;
+  --chrome: #222222; --side: #151515; --tip: #F2F2F2; --tip-fg: #121212; --tip-sub: #5A5A5A;
   --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark }
 
 

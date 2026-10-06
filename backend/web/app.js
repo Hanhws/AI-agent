@@ -33,11 +33,14 @@
   /* ---------- 틀 ---------- */
   function mount() {
     var shell = document.getElementById('shell'); shell.innerHTML = ''; R.root = shell;
+    // 맨 위 검은 머리띠: 전체 지도와 같은 지하철 표지판 띠 (심볼 · 가닥 · 전체 지도)
+    var brand = el('header', 'brand band'), logo = el('button', 'logo'); shell.appendChild(brand);
     var site = el('div', 'site'); shell.appendChild(site);
-    var bar = el('aside', 'sitebar'); site.appendChild(bar);
-    var brand = el('div', 'brand'), logo = el('button', 'logo'); logo.type = 'button'; logo.setAttribute('aria-label', '가닥 심볼 다시 재생');
+    var bar = el('aside', 'sitebar'); site.appendChild(bar); logo.type = 'button'; logo.setAttribute('aria-label', '가닥 심볼 다시 재생');
     var mark = G.makeMark(26, 10); logo.appendChild(mark.svg); logo.appendChild(el('b', null, '가닥')); logo.onclick = function () { G.playMark(mark); };
-    brand.appendChild(logo); bar.appendChild(brand);
+    brand.appendChild(logo);
+    // 전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 한눈에 (backend/web/map.html). 심볼 옆, 늘 보이는 자리에
+    var map = el('button', 'btn sm mapbtn', '전체 지도'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
     var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';
     R.find.setAttribute('aria-label', '모든 대화에서 찾기');
     R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
@@ -89,11 +92,15 @@
     }
     host.appendChild(row); return d;
   }
+  // 프로젝트 노선 색 동그라미: 왼쪽 목록 · 노선도 · 전체 지도가 같은 색 (store.project_color)
+  function pdot(color) { var i = el('i', 'pdot'); i.style.background = color; i.setAttribute('aria-hidden', 'true'); return i; }
   function renderLists() {
     var host = R.lists, keep = host.scrollTop; host.innerHTML = ''; R.citems = {};
     if (S.findQ) { renderFound(host); host.scrollTop = keep; return; }
     if (g.SC.chats.length) {
-      host.appendChild(el('h6', null, g.SC.project ? '프로젝트 · ' + g.SC.project : '최근 대화'));
+      var head = el('h6', null, g.SC.project ? '프로젝트 · ' + g.SC.project : '최근 대화'); host.appendChild(head);
+      var mine = S.projects.filter(function (p) { return p.id === S.project; })[0];
+      if (g.SC.project && mine && mine.color) head.prepend(pdot(mine.color));
       g.SC.chats.slice().reverse().forEach(function (c) {
         R.citems[c.id] = citem(host, c.title, c.date, c === g.ACT, function () { openChat(c.id); },
           { title: '이 대화를 목록에서 빼기', run: function () { hideChats([c.id], '대화를 목록에서 뺐어요.'); } });
@@ -103,8 +110,9 @@
     if (others.length) {
       host.appendChild(el('h6', null, S.demo ? '다른 예시' : '다른 프로젝트'));
       others.forEach(function (p) {
-        citem(host, p.name, S.demo ? '' : String(p.chats), false, function () { openProject(p.id); },
+        var d = citem(host, p.name, S.demo ? '' : String(p.chats), false, function () { openProject(p.id); },
           { title: '이 프로젝트의 대화를 모두 목록에서 빼기', run: function () { hideProject(p); } });
+        if (p.color) d.firstChild.prepend(pdot(p.color));
       });
     }
     renderHidden(host);
@@ -451,6 +459,8 @@
       if (!S.project) { show({ chats: [] }); return; }
       return api('projects/' + encodeURIComponent(S.project) + '/view' + (S.chat ? '?chat=' + encodeURIComponent(S.chat) : '')).then(function (v) {
         var real = v.project.id !== '_none';  // 프로젝트 · 폴더가 없는 대화는 대화별로만 봐요
+        // 노선 색: 전체 지도와 같은 프로젝트 색 (store.project_color). 노선도 카드 · 레일이 var(--route)로 써요
+        R.root.style.setProperty('--route', v.project.color || '');
         show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto });
       });
     });
@@ -489,6 +499,19 @@
       S.off = true; renderFoot();
     }).catch(function () {});
   }
+
+  /* ---------- 전체 지도: 가닥 창 위에 겹쳐 열어요 (backend/web/map.html). 지도에서 대화를 고르면 닫고 가닥 창에서 그 대화를 열어요 ---------- */
+  function openMap() {
+    if (R.mapFrame) return;
+    R.mapFrame = el('iframe', 'mapframe'); R.mapFrame.src = 'map'; R.mapFrame.title = '전체 지도';
+    document.body.appendChild(R.mapFrame); R.mapFrame.focus();
+  }
+  function closeMap() { if (R.mapFrame) { R.mapFrame.remove(); R.mapFrame = null; } }
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data || !R.mapFrame || e.source !== R.mapFrame.contentWindow) return;
+    if (e.data.gadakMap === 'close') closeMap();
+    if (e.data.gadakOpen) { closeMap(); window.gadakOpen(e.data.gadakOpen); }
+  });
 
   /* 가닥 앱의 떠 있는 버튼이 부르는 것 (mac/Float.swift): 그 대화의 그 역을 열기 · 대화 찾기 칸으로 가기 */
   window.gadakOpen = function (h) { if (!S.demo && h && h.chat) openFound({ id: h.chat, project: { id: h.project }, turn: h.turn }); };

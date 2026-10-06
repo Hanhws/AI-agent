@@ -83,6 +83,15 @@ def create_app(db_path=None, engine="auto") -> Flask:
         """떠 있는 가닥 버튼이 펼치는 노선도 창 (mac/Float.swift). 가닥 창의 노선도 카드만 따로 띄운 것이에요."""
         return send_from_directory(WEB_DIR, "strip.html", max_age=0)
 
+    @app.get("/map")
+    def map_page():
+        """전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 (쉰 날은 접어요). 노선을 누르면 한 줄 노선도."""
+        return send_from_directory(WEB_DIR, "map.html", max_age=0)
+
+    @app.get("/map/data")
+    def map_data():
+        return jsonify(store.map_data(db(), days=request.args.get("days", 90, type=int)))
+
     @app.get("/web/<path:name>")
     def web_file(name):
         return send_from_directory(WEB_DIR, name, max_age=0)

@@ -12,7 +12,8 @@ import sqlite3
 import threading
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+import zlib
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCHEMA = """
@@ -581,7 +582,7 @@ def projects(conn) -> list:
         " FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0 LEFT JOIN turns t ON t.chat_id = c.id"
         " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"      # 대화를 다 뺀 프로젝트는 목록에 없어요
     )
-    return [dict(r) for r in rows]
+    return [{**dict(r), "color": project_color(r["id"])} for r in rows]   # 노선 색: 목록의 색 동그라미
 
 
 def view(conn, project_id, scope="all", chat_id=None):
@@ -633,7 +634,71 @@ def view(conn, project_id, scope="all", chat_id=None):
         if r["id"].split(":")[0] in turn_ids
     }
     auto = {kind: setting(conn, "auto." + kind) == "1" for kind in AUTO_KINDS}
-    return {"project": {"id": project["id"], "name": project["name"]}, "chats": out, "itemStates": states, "auto": auto}
+    return {"project": {"id": project["id"], "name": project["name"], "color": project_color(project["id"])},
+            "chats": out, "itemStates": states, "auto": auto}
+
+
+MAP_COLORS = ("#0039A6", "#FF6319", "#00933C", "#FCCC0A", "#B933AD", "#EE352E", "#6CBE45", "#00A1DE",
+              "#996633", "#4D5357", "#C2185B", "#00796B", "#5C6BC0", "#8C8C8C")   # 비녤리 지도의 노선 색
+MAP_LINKS = {"handoff": "이어 가기", "repeat": "지난 대화 참조"}   # 다른 대화를 근거(at)로 든 할 일 → 환승
+
+
+def project_color(project_id) -> str:
+    """프로젝트의 노선 색. 프로젝트 id로 정해서 가닥 창 노선도 · 레일 · 전체 지도가 늘 같은 색을 써요 (회색은 곁길 몫이라 빼요)."""
+    return MAP_COLORS[zlib.crc32(str(project_id).encode()) % (len(MAP_COLORS) - 1)]
+
+
+def map_data(conn, days=90, today=None) -> dict:
+    """전체 지도(backend/web/map.html)용: 최근 days일의 프로젝트 · 대화 · 턴을 날짜(시작일부터 센 번호)와 함께.
+    턴마다 정함 · 곁길 깊이 · 산출물 · 할 일을 싣고, 다른 대화를 근거로 든 할 일은 환승으로 이어요."""
+    local = lambda ts: datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().date()
+    today = today or datetime.now().astimezone().date()
+    # 지도는 첫 대화가 있는 날부터 (최대 days일 전까지). 대화가 오늘뿐이면 오늘 하루짜리 지도예요
+    first = conn.execute("SELECT MIN(t.created_at) FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0").fetchone()[0]
+    start = max(today - timedelta(days=days - 1), min(local(first), today) if first else today)
+    days = (today - start).days + 1
+    day = lambda ts: (local(ts) - start).days
+    states = {r["id"]: r["state"] for r in conn.execute("SELECT id, state FROM item_states")}
+    out, chat_of, links = [], {}, []
+    rows = conn.execute(
+        "SELECT p.id, p.name, MIN(t.created_at) AS first FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0"
+        " JOIN turns t ON t.chat_id = c.id GROUP BY p.id ORDER BY first"
+    ).fetchall()
+    for project in rows:
+        chats = []
+        for chat in conn.execute("SELECT * FROM chats WHERE project_id = ? AND hidden = 0 ORDER BY created_at, rowid",
+                                 (project["id"],)):
+            turns = []
+            for row in chat_turns(conn, chat["id"]):
+                d = day(row["created_at"])
+                if d < 0:
+                    continue                       # 지도보다 오래된 턴
+                chat_of[row["id"]] = chat["id"]
+                items = turn_items(conn, row["id"])
+                for item in items:
+                    if item["kind"] in MAP_LINKS and item.get("at"):
+                        links.append((item["at"], chat["id"], MAP_LINKS[item["kind"]]))
+                files = conn.execute("SELECT name FROM files WHERE turn_id = ? ORDER BY rowid", (row["id"],))
+                turns.append({
+                    "id": row["id"], "t": row["title"], "d": 1 if row["dec"] else 0, "side": min(row["depth"], 2), "day": min(d, days - 1),
+                    "f": [Path(r["name"]).name for r in files],
+                    "todo": [[item["text"], states.get(item["id"]) == "done"] for item in items],
+                })
+            if turns:
+                chats.append({"id": chat["id"], "title": chat["title"] or turns[0]["t"], "from": turns[0]["day"],
+                              "to": turns[-1]["day"], "active": False, "turns": turns})
+        if chats:
+            color = project_color(project["id"])
+            out.append({"id": project["id"], "name": project["name"], "color": color, **({"ink": "#111"} if color == "#FCCC0A" else {}),
+                        "chats": chats})
+    links = [[chat_of[at], chat, why] for at, chat, why in links if at in chat_of and chat_of[at] != chat]
+    # ‘지금’은 화면에 하나: 가장 최근에 턴이 온 대화만 (표기 규칙)
+    latest = conn.execute("SELECT t.chat_id FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0"
+                          " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1").fetchone()
+    for project in out:
+        for chat in project["chats"]:
+            chat["active"] = latest is not None and chat["id"] == latest["chat_id"]
+    return {"start": start.isoformat(), "today": days - 1, "projects": out, "links": links}
 
 
 SITE_NAMES = {"claude-code": "Claude Code", "codex": "Codex", "cursor": "Cursor", "chatgpt": "ChatGPT",

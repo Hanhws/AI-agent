@@ -94,6 +94,18 @@ class AppTest(unittest.TestCase):
         self.assertNotIn("long", full)
         self.assertEqual(self.client.get("/turns/none").status_code, 404)
 
+    def test_the_map_page_and_its_data(self):
+        """전체 지도: /map이 열리고, /map/data에 오늘 한 대화가 오늘 날짜(마지막 칸)의 노선으로 실려요."""
+        self.assertEqual(self.client.get("/map").status_code, 200)
+        self.turn()
+        data = self.client.get("/map/data").get_json()
+        (project,) = data["projects"]
+        (chat,) = project["chats"]
+        self.assertEqual(project["name"], "환율 알리미")
+        # 대화가 오늘뿐이면 지도도 오늘 하루짜리예요 (90일 전부터 비워 두지 않아요)
+        self.assertEqual((data["today"], chat["from"], chat["to"], chat["active"]), (0, 0, 0, True))
+        self.assertEqual(chat["turns"][0]["day"], 0)
+
     def test_projects_list_recent_first(self):
         self.turn()
         self.event("prompt", project="nba-analysis", chat_id="conv-2", text="나중 질문")
