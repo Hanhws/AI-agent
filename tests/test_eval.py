@@ -113,6 +113,9 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual((items["made"], items["right"], items["precision"], items["gold"], items["gold_made_kinds"]), (3, 3, 1.0, 6, 3))
         self.assertEqual(items["by_kind"]["yours"], {"gold": 1, "made": 0, "right": 0})
         self.assertEqual(out["stats"]["calls"]["classify"], 2)                    # 대화마다 6턴 → 한 번씩
+        self.assertEqual([(t["turn"], t["trigger"], t["tools"], [i["kind"] for i in t["items"]], len(t["missing"])) for t in out["traces"]],
+                         [("b5", ["unasked"], ["get_diff"], ["unasked"], 0),
+                          ("b1", ["missing", "handoff"], ["get_request", "search_decisions"], ["handoff"], 1)])
         self.assertEqual(out["checks"]["ran"], 2)                                 # b1(빠진 요청 · 이어 가기) · b5(요청 외 변경)
         self.assertEqual((out["stats"]["tokens"], out["stats"]["cost_usd"]),
                          ({"in": 100 * sum(out["stats"]["calls"].values()), "out": 10 * sum(out["stats"]["calls"].values())},

@@ -122,7 +122,10 @@ def triggers(conn, chat, rows, row, parts, wide) -> list:
     # 가닥이 시작할 때 이미 요약을 넣은 대화(승인한 자동 실행)에는 다시 권하지 않아요
     if rows and row["seq"] == rows[0]["seq"] and handoff_due(conn, chat) and not store.auto_sent(conn, chat["id"], "handoff"):
         look.append("handoff")
-    if config.SUGGEST and WONDERING.search(row["user"] or "") and decided_before(conn, chat, row):
+    # 지난 결정 다시 꺼내기는 지금 하고 있는 턴(그 대화의 마지막 턴)에서만 봐요. 지나간 턴에 뒤늦게 권해 봐야 쓸 데가 없고,
+    # 지난 대화를 한꺼번에 정리할 때 턴마다 2단이 돌면 호출이 서너 배가 돼요 (10/7 평가: 9턴에 36번)
+    if (config.SUGGEST and rows and row["seq"] == rows[-1]["seq"] and WONDERING.search(row["user"] or "")
+            and decided_before(conn, chat, row)):
         look.append("suggest")
     return look
 

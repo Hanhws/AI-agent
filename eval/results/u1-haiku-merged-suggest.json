@@ -1,0 +1,115 @@
+{
+  "at": "20261007-0012",
+  "scenario": "u1",
+  "data": "example_conversations.json",
+  "excluded_ids": [
+    "g2",
+    "g3",
+    "g7"
+  ],
+  "check": true,
+  "suggest": true,
+  "seconds": 389.0,
+  "prompt": "1791299074",
+  "result": {
+    "turns": 55,
+    "excluded": 3,
+    "unread": 0,
+    "unlabeled": 7,
+    "depth": {
+      "right": 42,
+      "of": 55,
+      "acc": 0.7636,
+      "baseline": 0.8182,
+      "side": {
+        "gold": 10,
+        "said": 16,
+        "hit": 8,
+        "recall": 0.8,
+        "precision": 0.5
+      }
+    },
+    "dec": {
+      "gold": 10,
+      "said": 7,
+      "hit": 4,
+      "recall": 0.4,
+      "precision": 0.5714
+    },
+    "parts": {
+      "right": 47,
+      "of": 55,
+      "rate": 0.8545,
+      "split": {
+        "gold": 11,
+        "said": 17,
+        "hit": 10,
+        "same": 10
+      }
+    },
+    "items": {
+      "made": 2,
+      "right": 0,
+      "precision": 0.0,
+      "gold": 4,
+      "gold_made_kinds": 1,
+      "by_kind": {
+        "handoff": {
+          "gold": 1,
+          "made": 0,
+          "right": 0
+        },
+        "missing": {
+          "gold": 0,
+          "made": 1,
+          "right": 0
+        },
+        "next": {
+          "gold": 1,
+          "made": 1,
+          "right": 0
+        },
+        "open": {
+          "gold": 1,
+          "made": 0,
+          "right": 0
+        },
+        "yours": {
+          "gold": 1,
+          "made": 0,
+          "right": 0
+        }
+      }
+    }
+  },
+  "stats": {
+    "engine": "claude_cli",
+    "model": "haiku",
+    "calls": {
+      "classify": 10,
+      "check": 39
+    },
+    "seconds": {
+      "classify": 145.2,
+      "check": 243.6
+    },
+    "tokens": {
+      "in": 348395,
+      "out": 33573
+    },
+    "cost_usd": 0.8751
+  },
+  "checks": {
+    "ran": 11,
+    "waiting": 0,
+    "made": 1,
+    "missing": 1,
+    "dropped": 5,
+    "triggers": [
+      "handoff",
+      "missing",
+      "suggest"
+    ]
+  },
+  "error": null
+}

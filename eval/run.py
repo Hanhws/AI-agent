@@ -87,6 +87,11 @@ def run(scenario, engine, check=True, max_calls=120, say=None) -> dict:
                 runs = trace.runs(conn, limit=300)
                 unlabeled = [r["message_ref"] for r in conn.execute(
                     "SELECT message_ref FROM turns WHERE classified != 1 ORDER BY chat_id, seq")]
+                refs = {r["id"]: r["message_ref"] for r in conn.execute("SELECT id, message_ref FROM turns")}
+                # 2단이 턴마다 한 일 (어느 도구를 썼고 무엇을 만들고 버렸는지). 한마디의 글이 들어 있어서 내 PC에만 남겨요
+                traces = [{"turn": refs.get(r["turn"]["id"]), "trigger": r["trigger"], "tools": [s["tool"] for s in r["steps"]],
+                           "calls": r["calls"], "ended": r["ended"], "items": [{"kind": i["kind"], "text": i["text"]} for i in r["items"]],
+                           "missing": [m["t"] for m in r["missing"]], "dropped": r["dropped"]} for r in reversed(runs)]
                 waiting = sum(len(store.waiting_checks(conn, chat_id)) for chat_id in fed["chats"]) if check else 0
             finally:
                 conn.close()
@@ -95,6 +100,7 @@ def run(scenario, engine, check=True, max_calls=120, say=None) -> dict:
     return {
         "view": view, "stats": meter.stats(), "error": clf.status["error"],
         "unlabeled": unlabeled,           # 가닥이 분류하지 못한 턴 (정답 파일의 턴 id). 화면에는 임시 제목의 본류 역으로 보여요
+        "traces": traces,
         "checks": {"ran": len(runs), "waiting": waiting, "made": sum(len(r["items"]) for r in runs),
                    "missing": sum(len(r["missing"]) for r in runs), "dropped": sum(len(r["dropped"]) for r in runs),
                    "triggers": sorted({t for r in runs for t in r["trigger"]})},

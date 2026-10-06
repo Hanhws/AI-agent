@@ -131,8 +131,8 @@ def main(argv=None) -> int:
             (RESULTS / f"{label}.json").write_text(json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             LOCAL.mkdir(exist_ok=True)
             (LOCAL / f"{label}-{stamp}.json").write_text(
-                json.dumps(scoring.details(scenario, out["view"], exclude, out["unlabeled"]), ensure_ascii=False, indent=1) + "\n",
-                encoding="utf-8")
+                json.dumps({"turns": scoring.details(scenario, out["view"], exclude, out["unlabeled"]), "checks": out["traces"]},
+                           ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
             print(f"  남김: eval/results/{label}.json")
     return code
 

@@ -370,6 +370,14 @@ class ToolsTest(Base):
             self.clf.request(CHAT)
             self.run_worker()
             self.assertEqual([r["look"] for r in store.chat_turns(self.conn, CHAT)], ["handoff", None])
+        # 지나간 턴은 보지 않아요: 방법을 물은 뒤에 대화가 더 이어졌으면, 지난 대화를 정리할 때 그 턴에서 2단을 돌리지 않아요
+        with mock.patch.object(config, "SUGGEST", True):
+            self.chat("later", title="나중 대화", created_at="2026-10-06T09:00:00+00:00")
+            asked = self.turn("k1", "알림은 어떻게 보내는 게 좋을까?", chat_id="later")
+            self.turn("k2", "그럼 그렇게 해 줘", chat_id="later")
+            self.clf.request("later")
+            self.run_worker()
+            self.assertNotIn("suggest", self.row(asked)["look"] or "")
         self.assertTrue(investigate.WONDERING.search("이건 어떻게 하지?"))
         self.assertTrue(investigate.WONDERING.search("Which one should I pick?"))
         self.assertFalse(investigate.WONDERING.search("임계값만 바꿔 줘"))
