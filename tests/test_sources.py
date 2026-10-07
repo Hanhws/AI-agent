@@ -87,10 +87,11 @@ class SourcesTest(unittest.TestCase):
         self.codex_home = base / "codex"
         env = mock.patch.dict(os.environ, {
             "GADAK_CLAUDE_PROJECTS": str(base / "claude"), "GADAK_CODEX_HOME": str(self.codex_home),
-            "GADAK_CURSOR_HOME": str(base / "cursor"),
+            "GADAK_CURSOR_HOME": str(base / "cursor"), "GADAK_CLAUDE_DESKTOP_CONFIG": str(base / "desktop.json"),
         })
         env.start()
         self.addCleanup(env.stop)
+        self.desktop = base / "desktop.json"
         self.rt = Runtime(base / "home" / "gadak.db", engine=None)
         self.conn = self.rt.connect()
         self.addCleanup(self.conn.close)
@@ -122,6 +123,22 @@ class ClaudeCodeReaderTest(SourcesTest):
                          (SESSION, "알림 봇", "claude-code", "VS Code", shown_date("2026-10-01T02:00:00.000Z")))
         self.assertEqual([t.get("files") for t in chat["turns"]], [["rate.py"], ["main.py"], None])
         self.assertEqual(chat["pending"], 3)
+
+    def test_chat_follows_the_desktop_sidebar_group(self):
+        def group(assign):
+            scope = {"groups": [{"id": "cg-1", "name": "알림 묶음"}], "assignments": assign}
+            self.desktop.write_text(json.dumps({"preferences": {"epitaxyPrefs": {"dframe-group-scopes": {"a/b": scope}}}}),
+                                    encoding="utf-8")
+        self.session.write_text(jsonl(LINES), encoding="utf-8")
+        group({"code:local_" + SESSION: "cg-1"})
+        self.rt.syncer.scan_once(self.conn)
+        self.assertEqual(store.chat_row(self.conn, SESSION)["project_id"], "알림 묶음")
+        group({})                                             # 그룹에서 빼면 폴더 프로젝트로 돌아가요
+        self.rt.syncer.scan_once(self.conn)
+        self.assertEqual(store.chat_row(self.conn, SESSION)["project_id"], "환율 알리미")
+        self.desktop.write_text("{", encoding="utf-8")       # 못 읽으면 그대로 둬요
+        self.rt.syncer.scan_once(self.conn)
+        self.assertEqual(store.chat_row(self.conn, SESSION)["project_id"], "환율 알리미")
 
     def test_reads_only_what_was_added_since_last_time(self):
         self.session.write_text(jsonl(LINES[:4]), encoding="utf-8")

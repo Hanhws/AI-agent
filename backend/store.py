@@ -241,6 +241,14 @@ def set_chat_title(conn, chat_id, title) -> None:
     conn.execute("UPDATE chats SET title = ? WHERE id = ?", (title, chat_id))
 
 
+def set_chat_project(conn, chat_id, project) -> bool:
+    """대화를 그 프로젝트로 옮겨요 (사람이 나눈 그룹을 따라갈 때). 옮겼으면 True."""
+    project = project_key(project)
+    conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (project, project))
+    return conn.execute("UPDATE chats SET project_id = ? WHERE id = ? AND project_id != ?",
+                        (project, chat_id, project)).rowcount > 0
+
+
 def move_chat(conn, chat_id, project) -> bool:
     """프로젝트 없이 들어온 대화의 프로젝트를 나중에 알게 되면 그쪽으로 옮겨요. 옮겼으면 True."""
     project = project_key(project)

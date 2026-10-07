@@ -9,6 +9,8 @@ import re
 import zlib
 from pathlib import Path
 
+from .. import store
+
 KEY = "claude-code"
 SITE = "claude-code"
 NAME = "Claude Code"
@@ -179,5 +181,35 @@ def parse(lines, state) -> list:
     return ops
 
 
+def desktop_config() -> Path:
+    default = Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+    return Path(os.environ.get("GADAK_CLAUDE_DESKTOP_CONFIG", default)).expanduser()
+
+
+def desktop_groups():
+    """데스크톱 앱 Code 탭 사이드바에서 사람이 나눈 그룹. 세션 id → 그룹 이름.
+    공식 약속이 아닌 형식이라 못 읽으면 None (그때는 폴더대로 둬요)."""
+    try:
+        prefs = json.loads(desktop_config().read_text(encoding="utf-8"))["preferences"]["epitaxyPrefs"]
+        out = {}
+        for scope in (prefs.get("dframe-group-scopes") or {}).values():   # 계정마다 하나
+            names = {g["id"]: g["name"] for g in scope.get("groups") or [] if g.get("name")}
+            for session, group in (scope.get("assignments") or {}).items():
+                if session.startswith("code:local_") and group in names:
+                    out[session[len("code:local_"):]] = names[group]
+        return out
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
 def after_scan(conn) -> bool:
-    return False
+    """사이드바 그룹에 넣은 대화는 그 그룹 이름의 프로젝트로, 그룹에서 뺀 대화는 폴더 프로젝트로 돌려요."""
+    groups = desktop_groups()
+    if groups is None:
+        return False
+    moved = False
+    for row in conn.execute("SELECT id, project_id, cwd FROM chats WHERE site = ? AND cwd IS NOT NULL", (SITE,)).fetchall():
+        want = groups.get(row["id"]) or store.folder_project(row["cwd"])
+        if want and store.project_key(want) != row["project_id"]:
+            moved = store.set_chat_project(conn, row["id"], want) or moved
+    return moved
