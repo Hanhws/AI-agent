@@ -204,6 +204,27 @@ class CliTest(unittest.TestCase):
         for words in ("확인 시각", "호출 한도", "환율", "몇 시에"):                # 대화 글 · 길의 글은 숫자 파일에 남기지 않아요
             self.assertNotIn(words, text)
 
+    def test_a_stopped_run_can_be_picked_up_and_more_talks_added_to_the_same_sheet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sheet = Path(tmp) / "시트.csv"
+            patches = (mock.patch.object(cli, "get_engine", lambda name: Scout()), mock.patch.object(cli, "resolve_name", lambda name=None: "scout"),
+                       mock.patch.object(cli, "RESULTS", Path(tmp) / "results"), mock.patch.object(cli, "LOCAL", Path(tmp) / "local"))
+            with contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()):
+                for patch in patches:
+                    stack.enter_context(patch)
+                self.assertEqual(cli.main(["run", "--demo", "--model", "정답", "--max", "1", "--out", str(sheet)]), 0)           # 첫 갈림길만
+                first = cli.sheet_so_far(sheet)
+                self.assertEqual(cli.main(["run", "--demo", "--model", "정답", "--from", "2", "--append", "--out", str(sheet)]), 0)   # 둘째부터 이어서
+                both = cli.sheet_so_far(sheet)
+                self.assertEqual(cli.main(["run", "--demo", "--model", "정답", "--append", "--out", str(sheet)]), 0)             # 한 번 더: 번호를 이어 매겨요
+                more = cli.sheet_so_far(sheet)
+                saved = sorted(p.name for p in (Path(tmp) / "results").glob("*.json"))
+            self.assertEqual([(r[0], r[1]) for r in first], [("1", "a4")])
+            self.assertEqual([(r[0], r[1]) for r in both], [("1", "a4"), ("2", "b4"), ("2", "b4")])
+            self.assertEqual([(r[0], r[1]) for r in more[3:]], [("3", "a4"), ("4", "b4"), ("4", "b4")])
+            self.assertEqual(len(cli.read_sheet(sheet)), 4)                 # 길이 든 줄: 번호 · 턴 · 종류로 가려요
+            self.assertEqual(saved, ["앞길-demo-정답.json"])                 # 이어서 돈 것의 숫자는 남기지 않아요
+
     def test_without_the_example_file_it_says_how_to_try(self):
         with mock.patch.object(cli, "EXAMPLE", Path("없는 파일.json")), contextlib.redirect_stdout(io.StringIO()) as said:
             self.assertEqual(cli.main(["run"]), 2)

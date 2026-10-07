@@ -8,6 +8,8 @@
    python -m eval.ahead run --model haiku --tag haiku     앞길을 다른 모델로
    python -m eval.ahead run --db eval/local/u1.db         1단으로 정리한 기록을 남겨 두고, 다음부터는 그걸 다시 써요 (1단 호출을 아껴요)
    python -m eval.ahead run --records ~/.gadak/gadak.db   예시 대신 내가 쓰는 가닥의 기록에서 (읽기만 하고 복사본으로 돌려요. 1단은 건너뛰어요)
+   python -m eval.ahead run --db eval/local/u1.db --from 6 --append   멈춘 데서 이어서: 여섯째 갈림길부터 살피고 있던 시트 뒤에 붙여요
+   python -m eval.ahead run --scenario u4 --append        다른 대화의 길을 같은 시트에 더해요 (10개를 채울 때)
    → eval/local/앞길-시트.csv (길마다 한 줄) · eval/results/앞길-<시나리오>-<모델>.json (숫자만)
 2) 매기기 — 두 사람이 시트를 각자 복사해서, 서로 보지 않고 두 칸을 채워요
    쓸모   1 쓸 만해요 · 0 아니에요 (뻔해요 · 틀렸어요 · 이미 아는 거예요)
@@ -117,11 +119,13 @@ def snapshot(source, target) -> None:
         dst.close()
 
 
-def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=None, db=None, records=None) -> dict:
+def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=None, db=None, records=None,
+        start=1, number=0) -> dict:
     """시나리오를 1단으로 정리하고, 갈림길마다 앞길을 살펴요. 돌려주는 것: rows(시트 줄) · numbers(숫자만) · raw · error.
     engine은 앞길을 살피는 엔진, labeler는 1단(분류)에 쓸 엔진이에요(비우면 같은 엔진). 실제로 쓸 때도 둘의 모델이 달라요.
     db를 주면 1단으로 정리한 기록을 거기 남기고, 이미 있으면 1단을 건너뛰고 그 기록에서 시작해요(대화 글이 든 파일이에요).
-    records를 주면 시나리오 대신 그 가닥 기록(이미 정리된 것)에서 갈림길을 골라요. 목록에서 뺀 대화는 보지 않아요."""
+    records를 주면 시나리오 대신 그 가닥 기록(이미 정리된 것)에서 갈림길을 골라요. 목록에서 뺀 대화는 보지 않아요.
+    start는 고른 갈림길 중 몇째부터 살필지(멈춘 데서 이을 때), number는 시트의 번호를 어디서부터 이어 매길지예요."""
     meter = runner.Meter(engine)
     label = runner.Meter(labeler) if labeler is not None else meter
     rows, raw, error = [], [], None
@@ -161,10 +165,10 @@ def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=
                         say(f"1단이 못 붙인 턴이 {unlabeled}개 있어서 기록을 남기지 않았어요. 다시 돌리면 1단부터 해요")
                 error = clf.status["error"]
                 found = junctions(conn, chats)
-                picked = spread(found, limit) if not error else []
-                for n, (row, why) in enumerate(picked, 1):
+                picked = spread(found, limit)[max(start, 1) - 1:] if not error else []
+                for n, (row, why) in enumerate(picked, max(start, 1) + number):
                     if label.calls["classify"] + meter.calls["ahead"] + label.calls["lookup"] >= max_calls:
-                        error = f"호출 한도(--max-calls {max_calls})에 닿아 {n - 1}곳까지만 살폈어요."
+                        error = f"호출 한도(--max-calls {max_calls})에 닿아 {sum(ended.values())}곳까지만 살폈어요."
                         break
                     ctx = tools.Context(conn, row)
                     ctx.until = row["created_at"]
@@ -187,7 +191,7 @@ def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=
                     ended[result["ended"]] += 1
                     used.update(s["tool"] for s in result["steps"])
                     if say:
-                        say(f"갈림길 {n}/{len(picked)} · 길 {len(result['paths'])}개 · 호출 {meter.calls['ahead']}번"
+                        say(f"갈림길 {sum(ended.values())}/{len(picked)} · 길 {len(result['paths'])}개 · 호출 {meter.calls['ahead']}번"
                             + (f" · 웹 {label.calls['lookup']}번" if label.calls["lookup"] else ""))
                 turns = conn.execute("SELECT COUNT(*) FROM turns WHERE classified = 1").fetchone()[0]
             finally:
@@ -229,15 +233,26 @@ def _mark(text):
 
 
 def read_sheet(path) -> dict:
-    """{번호:종류: {useful, went, kind}} — 길이 있는 줄만."""
+    """{번호:턴:종류: {useful, went, kind}} — 길이 있는 줄만."""
     out = {}
     with open(path, encoding="utf-8-sig", newline="") as file:
         for row in csv.DictReader(file):
             kind = (row.get("종류") or "").strip()
             if not row.get("번호") or kind in ("", "—"):
                 continue
-            out[f"{row['번호'].strip()}:{kind}"] = {"useful": _mark(row.get("쓸모")), "went": _mark(row.get("갔나")), "kind": kind}
+            key = f"{row['번호'].strip()}:{(row.get('턴') or '').strip()}:{kind}"
+            out[key] = {"useful": _mark(row.get("쓸모")), "went": _mark(row.get("갔나")), "kind": kind}
     return out
+
+
+def sheet_so_far(path) -> list:
+    """이미 있는 시트의 줄들 (--append로 뒤에 붙일 때). 없으면 빈 목록."""
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as file:
+            rows = list(csv.reader(file))
+    except OSError:
+        return []
+    return rows[1:] if rows and tuple(rows[0]) == COLUMNS else []
 
 
 def compare(one, two) -> dict:
@@ -320,6 +335,8 @@ def main(argv=None) -> int:
     go.add_argument("--out", default=None, help="시트를 둘 곳 (기본 eval/local/앞길-시트.csv)")
     go.add_argument("--db", default=None, help="1단으로 정리한 기록을 남기고 다시 쓸 파일 (대화 글이 들어 있어요. eval/local/ 안에 둬요)")
     go.add_argument("--records", default=None, help="예시 대신 쓸 가닥 기록 (예: ~/.gadak/gadak.db). 읽기만 하고 복사본으로 돌려요")
+    go.add_argument("--from", dest="start", type=int, default=1, help="고른 갈림길 중 몇째부터 살필지 (멈춘 데서 이을 때)")
+    go.add_argument("--append", action="store_true", help="있던 시트의 뒤에 붙여요 (번호를 이어 매겨요)")
     go.add_argument("--tag", default="")
     both = sub.add_parser("compare", help="두 사람이 매긴 시트 견주기")
     both.add_argument("one")
@@ -367,21 +384,26 @@ def main(argv=None) -> int:
         engine.effort = config.AHEAD_EFFORT        # 실제로 쓸 때와 같은 깊이로 (backend/agent/investigate.py의 scout_engine)
     print(f"앞길 살피기 재기 · " + ("내 가닥 기록 (읽기만 해요)" if args.records else f"{path.name}의 {key}"))
     began = time.time()
+    sheet = Path(args.out) if args.out else LOCAL / ("-".join(x for x in ("앞길-시트", "내기록" if args.records else "", args.tag) if x) + ".csv")
+    before = sheet_so_far(sheet) if args.append else []
+    numbers = [int(r[0]) for r in before if r and str(r[0]).isdigit()]
+    # 멈춘 데서 잇는 것(--from)이면 갈림길의 차례가 곧 번호예요. 다른 대화를 더하는 것이면 있던 번호 뒤부터 매겨요
+    offset = max(numbers, default=0) if args.append and args.start <= 1 else 0
     out = run(scenario, engine, limit=args.max, web=args.web, max_calls=args.max_calls,
-              say=lambda text: print("   …", text, flush=True), labeler=labeler, db=args.db, records=args.records)
+              say=lambda text: print("   …", text, flush=True), labeler=labeler, db=args.db, records=args.records,
+              start=args.start, number=offset)
     print(report(key, out["numbers"]))
     if out["error"]:
         print("  ! 끝까지 돌지 못했어요:", out["error"])
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     label = "-".join(x for x in ("앞길", key, str(model), args.tag) if x)
-    sheet = Path(args.out) if args.out else LOCAL / ("-".join(x for x in ("앞길-시트", "내기록" if args.records else "", args.tag) if x) + ".csv")
     if out["rows"]:
-        write_sheet(sheet, out["rows"])
+        write_sheet(sheet, before + out["rows"])
         LOCAL.mkdir(exist_ok=True)
         (LOCAL / f"{label}-{stamp}.json").write_text(json.dumps(out["raw"], ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         print(f"  시트: {sheet}\n  두 사람이 각자 복사해서 ‘쓸모’(1 · 0)와 ‘갔나’(1 · 0 · 비움)를 채운 다음: python -m eval.ahead compare A.csv B.csv")
         print("  실제 대화 글이 들어 있으니 eval/local/ 밖에 두지 말고 커밋하지 마요.")
-    if not out["error"]:
+    if not out["error"] and args.start <= 1:      # 이어서 돈 것은 전체의 숫자가 아니라서 남기지 않아요
         RESULTS.mkdir(exist_ok=True)
         body = {"at": stamp, "scenario": key, "data": "records" if args.records else path.name, "seconds": round(time.time() - began, 1), "prompt": config.CODE,
                 **out["numbers"]}

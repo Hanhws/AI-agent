@@ -905,6 +905,8 @@ Claude Code가 없는 사람은 정리를 못 했어요. Anthropic API 키로도
 1. `python -m eval.ahead run --web` → `eval/local/앞길-시트.csv` (길마다 한 줄. 실제 대화 글이 들어 있어서 깃에 안 올라가요). **10/7에 만든 시트(길 7개)가 구현 담당 PC에 있어요.**
    - 내가 쓰는 가닥의 기록으로 만들려면: `python -m eval.ahead run --records ~/.gadak/gadak.db --max 6 --web` (기록은 읽기만 하고 복사본으로 돌려요. 목록에서 뺀 대화는 안 봐요. `--web`을 붙이면 내 대화에서 뽑은 검색어가 밖으로 나가요)
    - 1단을 다시 부르지 않으려면 `--db eval/local/u1.db` (정리한 기록을 남겨 두고 다시 써요)
+   - 멈춘 데서 이으려면 `--from 6 --append` (여섯째 갈림길부터 살피고, 있던 시트 뒤에 붙여요). 10/7에 멈춘 것을 잇는 명령: `python -m eval.ahead run --max 10 --web --db eval/local/u1.db --from 6 --append`
+   - 다른 대화의 길을 같은 시트에 더하려면 `--scenario u4 --append` (번호를 이어 매겨요)
 2. 시트를 각자 복사해서, 서로 보지 않고 두 칸을 채워요
    - `쓸모`: 1 쓸 만해요 · 0 아니에요 (뻔해요 · 틀렸어요 · 이미 아는 거예요)
    - `갔나`: ‘그 뒤 실제 대화’ 칸을 보고, 실제로 그 길로 갔으면 1 · 아니면 0 · 모르겠으면 비워요
