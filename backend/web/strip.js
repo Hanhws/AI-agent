@@ -67,6 +67,7 @@
       S.project = f.chat.project; S.chat = f.chat.id;
       return api('projects/' + enc(S.project) + '/view?chat=' + enc(S.chat)).then(function (v) {
         var real = v.project.id !== '_none', tab = st.sideTab, open = st.ledgerOpen;
+        R.root.style.setProperty('--route', v.project.color || '');   // 노선 색: 가닥 창 · 전체 지도와 같은 프로젝트 색
         g.load({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null,
           chats: v.chats, itemStates: v.itemStates, auto: v.auto }, S.first || moved);
         if (S.first) panel(params.get('tab'), params.get('list') === '1'); else if (moved) { st.sideTab = tab; st.ledgerOpen = open; }
