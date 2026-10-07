@@ -58,6 +58,7 @@ class ClaudeCliEngine:
 
     def complete_json(self, system: str, prompt: str, schema: dict) -> dict:
         """schema에 맞는 JSON 하나를 받아요."""
+        self.last_usage = None            # 이번 호출에서 쓴 토큰 (backend/tokens.py가 적어요)
         if not self.bin:
             raise EngineError("claude 명령을 찾지 못했어요")
         cmd = [
@@ -82,6 +83,7 @@ class ClaudeCliEngine:
             result = json.loads(out.stdout)
         except ValueError as exc:
             raise EngineError(f"Claude Code 출력을 읽지 못했어요: {(out.stdout or out.stderr)[:200]}") from exc
+        self.last_usage = dict(result.get("usage") or {}, cost=result.get("total_cost_usd"), model=self.model)
         if result.get("is_error") or "structured_output" not in result:
             raise EngineError(str(result.get("result") or result)[:300])
         return result["structured_output"]

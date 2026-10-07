@@ -396,7 +396,8 @@ class Investigator:
         began = time.time()
         try:
             result = check(tools.Context(conn, row), looks,
-                           lambda system, payload, schema: self.clf.call(system, payload, schema, engine))
+                           lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
+                                                                         kind="check", chat=row["chat_id"]))
         except EngineError:
             raise        # 로그인 · 한도 문제는 턴 탓이 아니라서 실패로 세지 않아요. 일꾼이 멈추고, 다시 켜면 처음부터 봐요
         except Exception:

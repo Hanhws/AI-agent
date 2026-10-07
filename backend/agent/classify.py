@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .. import config, store, usage
+from .. import config, store, tokens, usage
 from ..engines import EngineError, OutOfCalls, get_engine, resolve_name
 from . import investigate, tools
 
@@ -265,14 +265,17 @@ class Classifier:
     def pause(self) -> None:
         self.status["paused"] = True
 
-    def call(self, system, payload, schema, engine=None):
-        """엔진 호출 한 번. 1단 · 2단이 같은 한도를 써요."""
+    def call(self, system, payload, schema, engine=None, kind=None, chat=None):
+        """엔진 호출 한 번. 1단 · 2단이 같은 한도를 써요. 쓴 토큰은 내 PC에만 적어요(backend/tokens.py)."""
         engine = engine or self.engine()
         if self.status["calls"] >= self.max_calls:
             self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
             raise OutOfCalls()
         self.status["calls"] += 1
-        return engine.complete_json(system, payload, schema)
+        try:
+            return engine.complete_json(system, payload, schema)
+        finally:
+            tokens.record(self.rt.home, kind, chat, getattr(engine, "last_usage", None))
 
     def classify_chat(self, conn, chat_id) -> int:
         """그 대화의 밀린 턴을 CHUNK개씩 분류해요. 분류한 턴 수를 돌려줘요."""
@@ -289,7 +292,7 @@ class Classifier:
             payload = json.dumps(build_input(conn, chat, rows, batch), ensure_ascii=False)
             began = time.time()
             try:
-                output = self.call(SYSTEM, payload, SCHEMA, engine)
+                output = self.call(SYSTEM, payload, SCHEMA, engine, kind="classify", chat=chat_id)
             except OutOfCalls:
                 break
             with conn:
@@ -315,7 +318,8 @@ class Classifier:
         if len(rows) < SEG_MIN or len(rows) - self.seg_at.get(chat["id"], 0) < SEG_EVERY:
             return
         try:
-            output = self.call(SEG_SYSTEM, json.dumps(segment_input(chat, rows), ensure_ascii=False), SEG_SCHEMA, engine)
+            output = self.call(SEG_SYSTEM, json.dumps(segment_input(chat, rows), ensure_ascii=False), SEG_SCHEMA, engine,
+                               kind="segment", chat=chat["id"])
         except OutOfCalls:
             return
         with conn:
