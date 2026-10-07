@@ -38,6 +38,16 @@ RESEARCH_SCHEMA = {
     "required": ["found", "searched"], "additionalProperties": False,
 }
 RESEARCH_SECONDS = 120
+# PATH에 없을 때 더 찾아볼 자리. 공식 설치는 ~/.local/bin에 둬요 (Finder에서 켠 앱은 PATH가 짧아요)
+EXTRA_PATH = os.pathsep.join([os.path.expanduser("~/.local/bin"), os.path.expanduser("~/.claude/local"),
+                              "/opt/homebrew/bin", "/usr/local/bin"])
+
+
+def find_bin():
+    """쓸 수 있는 claude 명령. 없으면 None."""
+    return shutil.which("claude") or shutil.which("claude", path=EXTRA_PATH)
+
+
 _URL = re.compile(r"https?://[^\s\"'<>\\)\]}]+")
 _URL_FIELD = re.compile(r'\\?"url\\?"\s*:\s*\\?"(https?://[^"\\]+)')      # 검색 결과의 Links: [{"title":…, "url":…}]
 
@@ -74,7 +84,7 @@ class ClaudeCliEngine:
     name = "claude_cli"
 
     def __init__(self, model=None, timeout=120, effort=None):
-        self.bin = shutil.which("claude")
+        self.bin = find_bin()
         self.model = model or config.ENGINE_MODEL
         self.timeout = timeout
         self.effort = effort  # 큰 모델의 생각 깊이(low · medium · high). 비우면 가장 낮게: 분류에는 그거면 돼요

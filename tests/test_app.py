@@ -300,7 +300,20 @@ class AppTest(unittest.TestCase):
         for words in ("가닥 도움말", "노선도 읽기", "낱말 풀이", "앞길 보기", "저절로 살피기", "막힐 때"):
             self.assertIn(words, html)
         self.assertNotIn("<textarea", html)
+        # 도움말은 주제별로 나뉘어 한 번에 하나만 보이고(왼쪽에서 고르기), 위의 칸에서 낱말로 찾아요
+        topics = re.findall(r'<section id="(\w+)" data-name="([^"]+)"', html)
+        self.assertEqual([name for _, name in topics],
+                         ["처음 3분", "AI 연결", "대화 읽어 오기", "노선도 읽기", "할 일과 목록", "앞길", "떠 있는 버튼", "낱말 풀이", "막힐 때"])
+        self.assertIn('id="find"', html)
+        for _, name, body in re.findall(r'<section id="(\w+)" data-name="([^"]+)">(.*?)</section>', html, flags=re.S):
+            words = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body)).strip()
+            self.assertLess(len(words), 800, name)                  # 한 주제는 한 화면에 (전에는 한 쪽에 4,500자가 이어져 있었어요)
+        for words in ("AI 연결", "버튼 편집"):                         # 화면의 이름과 같은 말로 안내해요
+            self.assertIn(words, html)
         self.assertIn("window.open('help'", window)
+        # AI 연결: 정리에 쓸 AI를 화면에서 고르고 연결해요 (구독은 한 번 누르기 · API 키는 붙여 넣기). 키를 치는 칸은 가려져요
+        for words in ("'AI 연결'", "engine/connect", "engine/choose", "engine/key", "input.type = 'password'", "Claude 구독", "ChatGPT 구독"):
+            self.assertIn(words, window)
         swift = (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8")
         self.assertIn('menu("도움말"', swift)
         self.assertIn('appendingPathComponent("help")', swift)

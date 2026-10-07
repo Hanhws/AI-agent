@@ -146,6 +146,15 @@ button.citem.on:hover { background: var(--bubble); }
 .gone { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--bg); color: var(--muted); font-size: 14px; }
 .gone b { font-family: var(--display); font-size: 22px; color: var(--fg2); font-weight: 600; }
 
+/* AI 연결: 찾은 곳과 같은 자리 · 같은 카드. 지금 쓰는 것은 테두리를 진하게 */
+.aipop { width: min(380px, calc(100vw - 28px)); }
+.aipop .src.now { border-color: var(--fg); }
+.aipop .src .w.fail { color: var(--accent); }
+.aipop .src input { flex: 1; min-width: 0; height: 26px; padding: 0 9px; border: 1px solid var(--ring); border-radius: 6px; background: var(--surface); color: var(--fg); font: inherit; font-size: 12px; }
+.aipop .src input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+.aipop > .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.aipop .btn:disabled { opacity: .45; cursor: default; }
+
 /* 사용 기록 보내기 */
 .srcpop .src .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .srcpop pre.sent { max-height: 150px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--bubble); font-family: var(--mono); font-size: 11px; line-height: 1.55; white-space: pre; }

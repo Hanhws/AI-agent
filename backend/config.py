@@ -47,9 +47,11 @@ HOST = os.environ.get("GADAK_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GADAK_PORT", "7311"))
 DB_PATH = Path(os.environ.get("GADAK_DB", HOME / "gadak.db")).expanduser()
 
-# auto | claude_cli | none  (docs/usage-guide.md)
+# auto | claude_cli | codex_cli | anthropic_api | none  (docs/usage-guide.md 3장). 화면의 ‘AI 연결’에서 고른 것이 이 값보다 먼저예요
 ENGINE = os.environ.get("GADAK_ENGINE", "auto")
 ENGINE_MODEL = os.environ.get("GADAK_ENGINE_MODEL", "haiku")
+# ChatGPT 구독 엔진(codex_cli)이 쓸 모델. 비우면 Codex가 고르는 기본값이고, 위의 모델 이름은 생각 깊이로 옮겨요
+CODEX_MODEL = os.environ.get("GADAK_CODEX_MODEL", "")
 # 한 번 켠 동안 정리(1단 분류 + 2단 확인)에 쓰는 LLM 호출 수의 한도. 구독 한도를 모르는 사이에 다 쓰지 않게 해요
 MAX_CALLS = int(os.environ.get("GADAK_MAX_CALLS", "150"))
 # 2단(확인)이 한 턴에서 엔진에 묻는 걸음 수의 한도 (README 3-1: 초깃값 5)

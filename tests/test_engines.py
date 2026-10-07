@@ -3,6 +3,8 @@ import json
 import re
 import subprocess
 import tempfile
+import threading
+import time
 import types
 import unittest
 from pathlib import Path
@@ -13,7 +15,7 @@ import httpx2
 
 from backend import config, engines
 from backend.app import create_app
-from backend.engines import BadOutput, EngineError, anthropic_api, claude_cli, keys
+from backend.engines import BadOutput, EngineError, anthropic_api, claude_cli, codex_cli, connect, keys
 
 KEY = "sk-ant-api03-" + "Ab1_" * 8 + "wxyz"
 
@@ -100,6 +102,109 @@ class ClaudeCliTest(unittest.TestCase):
         self.assertIsInstance(out, EngineError)
         out, _, _ = self.ask(subprocess.TimeoutExpired("claude", 120))
         self.assertIsInstance(out, EngineError)
+
+
+class CodexCliTest(unittest.TestCase):
+    """ChatGPT 구독 엔진. 실제 Codex는 부르지 않아요: 명령을 가짜로 바꿔 끼우고, 답 파일을 대신 적어요."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.bin = Path(self.tmp.name) / "codex"
+        self.bin.write_text("#!/bin/sh\n", encoding="utf-8")
+        self.bin.chmod(0o755)
+        for patch in (mock.patch.object(config, "HOME", Path(self.tmp.name) / "home"), mock.patch.object(config, "CODEX_MODEL", ""),
+                      mock.patch.dict(codex_cli.os.environ, {codex_cli.ENV_BIN: str(self.bin), "OPENAI_API_KEY": "sk-쓰면-안-되는-키"})):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.seen = {}
+
+    def ask(self, answer, events=(), code=0, model="haiku", effort=None, stderr=""):
+        def run(command, **kwargs):
+            self.seen.update(command=command, kwargs=kwargs,
+                             schema=json.loads(Path(command[command.index("--output-schema") + 1]).read_text(encoding="utf-8")))
+            if isinstance(answer, Exception):
+                raise answer
+            if answer is not None:
+                Path(command[command.index("-o") + 1]).write_text(answer, encoding="utf-8")
+            return subprocess.CompletedProcess(command, code, stdout="\n".join(json.dumps(e) for e in events), stderr=stderr)
+        with mock.patch.object(codex_cli.subprocess, "run", side_effect=run):
+            engine = codex_cli.CodexCliEngine(model=model, effort=effort)
+            try:
+                return engine.complete_json("정리해", '{"turns": []}', SCHEMA), engine
+            except Exception as exc:
+                return exc, engine
+
+    def test_the_answer_comes_back_in_the_given_shape_and_nothing_is_kept(self):
+        used = {"type": "turn.completed", "usage": {"input_tokens": 13400, "cached_input_tokens": 12000, "cache_write_input_tokens": 0,
+                                                    "output_tokens": 19, "reasoning_output_tokens": 0}}
+        out, engine = self.ask('{"ok": true}', [{"type": "thread.started"}, used])
+        self.assertEqual(out, {"ok": True})
+        command, kwargs = self.seen["command"], self.seen["kwargs"]
+        self.assertEqual(command[:2], [str(self.bin), "exec"])
+        for flag in ("--ephemeral", "--skip-git-repo-check", "--ignore-user-config", "--json"):      # 내 Codex 대화 목록 · 설정과 섞이지 않게
+            self.assertIn(flag, command)
+        self.assertEqual(command[command.index("--sandbox") + 1], "read-only")                      # 무엇도 고치지 못해요
+        self.assertEqual(self.seen["schema"], SCHEMA)
+        self.assertEqual(command[command.index("-c") + 1], 'model_reasoning_effort="low"')
+        self.assertNotIn("-m", command)                                                              # 모델은 Codex의 기본값
+        self.assertTrue(kwargs["input"].endswith('정리해\n\n입력:\n{"turns": []}'))
+        self.assertNotIn("OPENAI_API_KEY", kwargs["env"])                                            # 구독 로그인으로 돌려요
+        self.assertEqual(engine.last, {"input_tokens": 13400, "output_tokens": 19, "cost": None})
+        self.assertEqual(engine.last_usage, {"input_tokens": 1400, "cache_read_input_tokens": 12000, "cache_creation_input_tokens": 0,
+                                             "output_tokens": 19, "cost": None, "model": "codex"})   # 캐시에서 읽은 것은 따로 세요
+        self.assertEqual((engine.name, engine.model), ("codex_cli", "haiku"))
+
+    def test_bigger_models_think_deeper_and_a_named_model_is_passed_on(self):
+        self.ask('{"ok": true}', model="sonnet")
+        self.assertIn('model_reasoning_effort="medium"', self.seen["command"])
+        self.ask('{"ok": true}', model="sonnet", effort="high")
+        self.assertIn('model_reasoning_effort="high"', self.seen["command"])
+        with mock.patch.object(config, "CODEX_MODEL", "gpt-작은-것"):
+            self.ask('{"ok": true}')
+        self.assertEqual(self.seen["command"][self.seen["command"].index("-m") + 1], "gpt-작은-것")
+
+    def test_login_or_limit_trouble_stops_and_an_odd_answer_fails_only_that_batch(self):
+        out, _ = self.ask(None, [{"type": "error", "message": "401 Unauthorized: not logged in"}], code=1)
+        self.assertIsInstance(out, EngineError)
+        self.assertIn("ChatGPT 구독을 다시 연결", str(out))                    # 가닥 창에 한 줄로 보이는 말
+        out, _ = self.ask(None, [{"type": "turn.failed", "error": {"message": "You've hit your usage limit. Try again at 3pm."}}], code=1)
+        self.assertIsInstance(out, EngineError)
+        self.assertIn("usage limit", str(out))
+        out, _ = self.ask(subprocess.TimeoutExpired("codex", 180))
+        self.assertIsInstance(out, EngineError)
+        for odd in ("죄송하지만 형식대로 답할 수 없어요", "[1, 2]", None):        # 글로 답함 · 모양이 다름 · 답이 없음
+            out, _ = self.ask(odd)
+            self.assertIsInstance(out, BadOutput, odd)
+            self.assertNotIsInstance(out, EngineError)
+
+    def test_login_is_checked_without_calling_a_model(self):
+        def status(said, code=0):
+            done = subprocess.CompletedProcess([], code, stdout=said, stderr="")
+            with mock.patch.object(codex_cli.subprocess, "run", return_value=done) as run:
+                return codex_cli.CodexCliEngine().check(), run.call_args.args[0]
+        seen, command = status("Logged in using ChatGPT\n")
+        self.assertEqual((seen, command[1:]), ({"ok": True, "authMethod": "chatgpt"}, ["login", "status"]))
+        self.assertFalse(status("Not logged in\n", 1)[0]["ok"])
+        with mock.patch.dict(codex_cli.os.environ, {codex_cli.ENV_BIN: "none"}):
+            self.assertEqual(codex_cli.CodexCliEngine().check()["ok"], False)
+            self.assertIsInstance(self.ask('{"ok": true}')[0], EngineError)
+
+    def test_codex_is_found_inside_the_editor_extension_or_where_gadak_put_it(self):
+        home = Path(self.tmp.name) / "me"
+        inside = home / ".vscode" / "extensions" / "openai.chatgpt-26.1002.5-darwin-arm64" / "bin" / "macos-aarch64" / "codex"
+        inside.parent.mkdir(parents=True)
+        inside.write_text("#!/bin/sh\n", encoding="utf-8")
+        inside.chmod(0o755)
+        env = {k: v for k, v in codex_cli.os.environ.items() if k != codex_cli.ENV_BIN}
+        with mock.patch.dict(codex_cli.os.environ, env, clear=True), mock.patch.object(codex_cli.shutil, "which", return_value=None), \
+                mock.patch.object(codex_cli.Path, "home", return_value=home):
+            self.assertEqual(codex_cli.find_bin(), str(inside))               # 터미널 명령이 없어도 ChatGPT 확장 안의 것을 써요
+            mine = config.HOME / "bin" / "codex"                              # 가닥이 받아 둔 것이 있으면 그것이 먼저
+            mine.parent.mkdir(parents=True)
+            mine.write_text("#!/bin/sh\n", encoding="utf-8")
+            mine.chmod(0o755)
+            self.assertEqual(codex_cli.find_bin(), str(mine))
 
 
 class FakeKeychain:
@@ -296,6 +401,35 @@ class AnthropicApiTest(WithKeychain):
 
 
 class ChoosingTest(WithKeychain):
+    def setUp(self):
+        super().setUp()
+        self.codex = False                 # Codex에 로그인돼 있는 Mac인지 (실제 Codex는 묻지 않아요)
+        patch = mock.patch.object(engines, "codex_ready", lambda: self.codex)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.addCleanup(engines.prefer, None)
+
+    def test_a_chatgpt_subscription_is_used_when_nothing_else_is_there(self):
+        def resolved(cli, logged_in=True):
+            with mock.patch.object(engines, "cli_found", lambda: cli), mock.patch.object(engines, "cli_logged_in", lambda: logged_in), \
+                    mock.patch.object(config, "ENGINE", "auto"):
+                return engines.resolve_name()
+        self.codex = True
+        self.assertEqual((resolved(False), resolved(True), resolved(True, logged_in=False)), ("codex_cli", "claude_cli", "codex_cli"))
+        keys.save(KEY)                                                         # 키가 있으면 키가 먼저예요
+        self.assertEqual((resolved(False), resolved(True, logged_in=False)), ("anthropic_api", "anthropic_api"))
+        with mock.patch.object(engines, "cli_found", lambda: False), mock.patch.object(codex_cli, "find_bin", lambda: "/x/codex"):
+            self.assertIsInstance(engines.get_engine("codex_cli"), codex_cli.CodexCliEngine)
+
+    def test_what_the_user_chose_comes_before_the_setting(self):
+        with mock.patch.object(engines, "cli_found", lambda: True), mock.patch.object(config, "ENGINE", "auto"):
+            engines.prefer("codex_cli")
+            self.assertEqual((engines.preferred(), engines.resolve_name()), ("codex_cli", "codex_cli"))
+            self.assertEqual(engines.resolve_name("none"), "none")             # 이름을 직접 주면 그 이름
+            for nothing in ("auto", None, "", "없는-엔진"):
+                engines.prefer(nothing)
+                self.assertEqual((engines.preferred(), engines.resolve_name()), (None, "claude_cli"), nothing)
+
     def test_auto_prefers_the_subscription_then_a_key_then_nothing(self):
         def resolved(cli, engine="auto"):
             with mock.patch.object(engines, "cli_found", lambda: cli), mock.patch.object(config, "ENGINE", engine):
@@ -316,11 +450,19 @@ class EngineRoutesTest(WithKeychain):
         super().setUp()
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        for patch in (mock.patch.object(engines, "cli_found", lambda: False), mock.patch.object(config, "ENGINE", "auto"),
+        self.ready = {"claude_cli": False, "codex_cli": False}      # 깔려 있고 로그인된 구독 엔진 (실제 명령은 묻지 않아요)
+        for patch in (mock.patch.object(engines, "cli_found", lambda: self.ready["claude_cli"]), mock.patch.object(config, "ENGINE", "auto"),
+                      mock.patch.object(engines, "cli_logged_in", lambda remember=0: self.ready["claude_cli"]),
+                      mock.patch.object(engines, "codex_found", lambda: self.ready["codex_cli"]),
+                      mock.patch.object(engines, "codex_logged_in", lambda remember=0: self.ready["codex_cli"]),
                       mock.patch.object(config, "ENGINE_MODEL", "haiku")):
             patch.start()
             self.addCleanup(patch.stop)
-        app = create_app(db_path=Path(self.tmp.name) / "gadak.db", engine="auto")
+        self.addCleanup(engines.prefer, None)
+        self.addCleanup(connect.cancel)
+        connect.cancel()
+        self.db = Path(self.tmp.name) / "gadak.db"
+        app = create_app(db_path=self.db, engine="auto")
         self.rt, self.client = app.config["GADAK"], app.test_client()
 
     def post(self, key, verdict=None):
@@ -331,9 +473,54 @@ class EngineRoutesTest(WithKeychain):
 
     def test_with_no_engine_the_screen_is_told_what_is_needed(self):
         state = self.client.get("/engine").get_json()
+        self.assertEqual(state.pop("job")["state"], "idle")
         self.assertEqual(state, {
             "configured": "auto", "resolved": "none", "model": "haiku", "cli": False, "need": "engine", "error": None, "paused": False,
-            "key": {"stored": False, "source": None, "hint": "", "can_store": True}})
+            "choice": "auto", "key": {"stored": False, "source": None, "hint": "", "can_store": True},
+            # ‘AI 연결’ 창이 그리는 것: 엔진마다 깔려 있는지 · 바로 쓸 수 있는지
+            "options": [{"name": "claude_cli", "found": False, "ready": False, "plan": None},
+                        {"name": "codex_cli", "found": False, "ready": False},
+                        {"name": "anthropic_api", "found": True, "ready": False, "hint": "", "source": None}]})
+
+    def test_the_engine_the_user_picks_is_used_and_remembered(self):
+        self.ready.update(claude_cli=True, codex_cli=True)
+        self.assertEqual(self.client.get("/engine").get_json()["resolved"], "claude_cli")     # 고르기 전: 알아서
+        before = self.client.get("/status").get_json()["rev"]
+        picked = self.client.post("/engine/choose", json={"name": "codex_cli"}).get_json()
+        self.assertEqual((picked["ok"], picked["engine"]["choice"], picked["engine"]["resolved"]), (True, "codex_cli", "codex_cli"))
+        self.assertGreater(self.client.get("/status").get_json()["rev"], before)
+        engines.prefer(None)                                                                  # 가닥을 껐다 켜도 기억해요
+        again = create_app(db_path=self.db, engine="auto").test_client().get("/engine").get_json()
+        self.assertEqual((again["choice"], again["resolved"]), ("codex_cli", "codex_cli"))
+        back = self.client.post("/engine/choose", json={"name": "auto"}).get_json()["engine"]
+        self.assertEqual((back["choice"], back["resolved"]), ("auto", "claude_cli"))
+        self.assertEqual(self.client.post("/engine/choose", json={"name": "gpt"}).status_code, 400)
+        self.assertEqual(self.client.post("/engine/choose", data="name=none").status_code, 415)   # 다른 사이트가 폼으로 못 바꾸게
+
+    def test_one_press_connects_a_subscription_and_then_uses_it(self):
+        steps = []
+        def install():
+            steps.append("install")
+            self.ready["codex_cli"] = "installed"
+        def login(name):
+            steps.append("login " + name)
+            self.ready["codex_cli"] = True
+        with mock.patch.object(connect, "_find", lambda name: "/x/codex" if self.ready[name] else None), \
+                mock.patch.object(connect, "_logged_in", lambda name: self.ready[name] is True), \
+                mock.patch.object(connect, "_install_codex", install), mock.patch.object(connect, "_login", login):
+            started = self.client.post("/engine/connect", json={"name": "codex_cli"})
+            self.assertEqual((started.status_code, started.get_json()["ok"]), (200, True))
+            for _ in range(100):
+                job = self.client.get("/engine?fresh=1").get_json()["job"]
+                if job["state"] != "running":
+                    break
+                time.sleep(0.02)
+        self.assertEqual((steps, job["state"], job["name"]), (["install", "login codex_cli"], "done", "codex_cli"))
+        state = self.client.get("/engine").get_json()
+        self.assertEqual((state["choice"], state["resolved"]), ("codex_cli", "codex_cli"))      # 다 되면 그 엔진을 골라요
+        self.assertEqual(self.client.post("/engine/connect", json={"name": "anthropic_api"}).status_code, 409)
+        cleared = self.client.post("/engine/cancel", json={}).get_json()
+        self.assertEqual((cleared["ok"], cleared["engine"]["job"]["state"]), (True, "idle"))    # 끝난 결과를 치워요
 
     def test_a_good_key_goes_to_the_keychain_and_the_engine_starts(self):
         self.client.get("/engine")                                       # 엔진 없음으로 굳어 있던 상태에서
@@ -385,6 +572,85 @@ class EngineRoutesTest(WithKeychain):
         status = self.client.get("/status").get_json()["classify"]
         self.assertEqual((status["engine"], status["paused"], status["error"]), ("anthropic_api", True, "API 키가 맞지 않아요. 키를 다시 넣어 주세요."))
         self.assertEqual(self.client.get("/engine").get_json()["error"], "API 키가 맞지 않아요. 키를 다시 넣어 주세요.")
+
+
+class ConnectTest(unittest.TestCase):
+    """한 번 눌러 연결하기. 실제로 받거나 로그인 창을 띄우지 않아요: 그 걸음들을 가짜로 바꿔 끼워요."""
+
+    def setUp(self):
+        self.addCleanup(connect.cancel)
+        self.state = {"found": False, "logged_in": False}
+        self.steps, self.done = [], []
+        for patch in (mock.patch.object(connect, "_find", lambda name: "/x/bin" if self.state["found"] else None),
+                      mock.patch.object(connect, "_logged_in", lambda name: self.state["logged_in"])):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def run_job(self, name="claude_cli", install=None, login=None):
+        def installed():
+            self.steps.append("install")
+            self.state["found"] = True
+        def logged(which):
+            self.steps.append("login")
+            self.state["logged_in"] = True
+        with mock.patch.object(connect, "_install_claude", install or installed), mock.patch.object(connect, "_install_codex", install or installed), \
+                mock.patch.object(connect, "_login", login or logged):
+            started = connect.start(name, self.done.append)
+            for _ in range(200):
+                if connect.status()["state"] != "running":
+                    break
+                time.sleep(0.01)
+        return started, connect.status()
+
+    def test_what_is_missing_is_fetched_and_then_the_login_window_opens(self):
+        started, job = self.run_job()
+        self.assertEqual((started, self.steps, self.done), ({"ok": True}, ["install", "login"], ["claude_cli"]))
+        self.assertEqual((job["state"], job["message"]), ("done", "연결했어요."))
+        self.steps.clear()
+        self.state.update(found=True, logged_in=False)            # 깔려 있으면 로그인만
+        self.assertEqual((self.run_job("codex_cli")[1]["state"], self.steps), ("done", ["login"]))
+        self.steps.clear()                                         # 다 돼 있으면 고르기만
+        self.assertEqual((self.run_job()[1]["state"], self.steps, self.done[-1]), ("done", [], "claude_cli"))
+
+    def test_trouble_is_one_line_for_the_window_and_nothing_is_chosen(self):
+        def broken():
+            raise connect.Problem("Claude Code 설치 파일를 받지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.")
+        _, job = self.run_job(install=broken)
+        self.assertEqual((job["state"], self.done), ("failed", []))
+        self.assertIn("인터넷을 확인", job["message"])
+        _, job = self.run_job(login=lambda name: None)             # 로그인 창을 닫아 버렸어요: 받기는 됐지만 고르지 않아요
+        self.assertEqual((job["state"], self.done, self.state["found"]), ("failed", [], True))
+        self.assertIn("로그인이 끝나지 않았어요", job["message"])
+        def odd(name):
+            raise ValueError("예상하지 못한 것")
+        self.state.update(found=True, logged_in=False)
+        _, job = self.run_job(login=odd)
+        self.assertEqual(job["state"], "failed")
+        self.assertIn("연결하지 못했어요", job["message"])
+
+    def test_only_subscriptions_connect_this_way_and_one_at_a_time(self):
+        self.assertEqual(connect.start("anthropic_api")["ok"], False)
+        gate = threading.Event()
+        def slow():
+            gate.wait(2)
+            self.state["found"] = True
+        with mock.patch.object(connect, "_install_claude", slow), mock.patch.object(connect, "_login", lambda name: None):
+            self.assertEqual(connect.start("claude_cli"), {"ok": True})
+            second = connect.start("codex_cli")
+            self.assertEqual(second["ok"], False)
+            self.assertIn("연결하는 중", second["reason"])
+            self.assertEqual(connect.status()["step"], "install")
+            gate.set()
+            for _ in range(200):                       # 뒤에서 돌던 것이 끝난 뒤에 가짜를 걷어요 (다음 테스트로 새지 않게)
+                if connect.status()["state"] != "running":
+                    break
+                time.sleep(0.01)
+
+    def test_downloads_come_only_over_https_from_the_makers(self):
+        self.assertTrue(connect.CLAUDE_INSTALLER.startswith("https://claude.ai/"))
+        self.assertTrue(connect.CODEX_RELEASE.startswith("https://github.com/openai/codex/releases/"))
+        with self.assertRaises(connect.Problem):
+            connect._fetch("http://example.com/x", "/tmp/x", "파일")
 
 
 if __name__ == "__main__":

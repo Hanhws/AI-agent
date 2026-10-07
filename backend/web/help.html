@@ -7,159 +7,272 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css">
 <link rel="stylesheet" href="ui/tokens.css">
 <style>
-/* 가닥 도움말: 쓰는 법과 낱말 풀이. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴 ‘도움말’이 새 창으로 열어요.
+/* 가닥 도움말. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴 ‘도움말’이 새 창으로 열어요.
+   한 번에 주제 하나만 보여요(왼쪽에서 고르거나 위에서 찾아요). 주소 끝에 #map처럼 주제 이름을 붙이면 그 주제로 열려요.
    색 · 글꼴은 shared/ui/tokens.css 그대로이고, 빨강은 ‘지금 · 할 일’을 가리킬 때만 써요. */
-html, body { margin: 0; background: var(--bg); }
-body { color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.7; }
-header { position: sticky; top: 0; z-index: 2; height: 48px; padding: 0 22px; display: flex; align-items: center; gap: 12px; background: #111; color: #fff; }
-header b { font-family: var(--display); font-size: 22px; letter-spacing: -0.02em; }
+html, body { margin: 0; height: 100%; background: var(--bg); }
+body { color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.65; display: flex; flex-direction: column; }
+header { flex: none; height: 48px; padding: 0 20px; display: flex; align-items: center; gap: 12px; background: #111; color: #fff; }
+header b { font-family: var(--display); font-size: 22px; letter-spacing: -0.02em; color: #fff; }   /* 아래의 b 색(본문 글자색)이 검은 머리띠에서는 안 보여요 */
 header span { font-size: 15px; }
-header nav { margin-left: auto; display: flex; gap: 14px; font-size: 13px; }
-header nav a { color: #fff; opacity: .8; text-decoration: none; }
-header nav a:hover { opacity: 1; text-decoration: underline; }
-main { max-width: 780px; margin: 0 auto; padding: 26px 24px 80px; }
-h1 { font-size: 26px; line-height: 1.35; margin: 8px 0 6px; letter-spacing: -0.02em; }
-h2 { font-size: 19px; margin: 44px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); letter-spacing: -0.01em; }
-h3 { font-size: 15.5px; margin: 22px 0 4px; }
-p { margin: 8px 0; color: var(--fg2); }
-.lead { font-size: 16px; color: var(--fg); }
-ol, ul { margin: 8px 0; padding-left: 22px; color: var(--fg2); }
-li { margin: 4px 0; }
+header input { margin-left: auto; width: 240px; max-width: 46vw; height: 30px; padding: 0 12px; border: 1px solid #555; border-radius: 15px; background: #222; color: #fff; font: inherit; font-size: 13.5px; }
+header input::placeholder { color: #aaa; }
+header input:focus { outline: 2px solid #fff; outline-offset: 1px; }
+.wrap { flex: 1; min-height: 0; display: flex; }
+nav { flex: none; width: 176px; padding: 16px 10px; border-right: 1px solid var(--line); background: var(--side); overflow-y: auto; }
+nav button { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 6px; background: none; color: var(--fg2); font: inherit; font-size: 14.5px; text-align: left; cursor: pointer; }
+nav button:hover { background: var(--bubble); color: var(--fg); }
+nav button.on { background: var(--bubble); color: var(--fg); font-weight: 700; }
+nav button:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
+nav button[hidden] { display: none; }
+main { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 30px 60px; }
+section { max-width: 640px; }
+section[hidden] { display: none; }
+h1 { font-size: 22px; line-height: 1.35; margin: 0 0 4px; letter-spacing: -0.02em; }
+h2 { font-size: 15px; margin: 24px 0 2px; color: var(--muted); font-weight: 600; }
+.lead { margin: 0 0 14px; color: var(--fg2); }
+p { margin: 6px 0; color: var(--fg2); }
 b, strong { color: var(--fg); }
-kbd { font: 600 12.5px var(--body); padding: 2px 7px; border: 1px solid var(--ring); border-radius: 4px; color: var(--fg); white-space: nowrap; }
-.note { margin: 12px 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--side); font-size: 14px; color: var(--fg2); }
-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14.5px; }
-th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
-th { width: 150px; color: var(--fg); font-weight: 600; white-space: nowrap; }
-td { color: var(--fg2); }
+kbd { font: 600 12.5px var(--body); padding: 1px 7px; border: 1px solid var(--ring); border-radius: 4px; color: var(--fg); white-space: nowrap; }
+ol { margin: 6px 0; padding: 0; list-style: none; counter-reset: step; }
+ol li { counter-increment: step; position: relative; margin: 0; padding: 9px 0 9px 38px; border-bottom: 1px solid var(--line); color: var(--fg2); }
+ol li::before { content: counter(step); position: absolute; left: 4px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--fg); color: var(--surface); font-size: 12.5px; font-weight: 700; line-height: 22px; text-align: center; }
+.note { margin: 14px 0 0; padding: 9px 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--side); font-size: 14px; color: var(--fg2); }
+/* 낱말 한 줄: 왼쪽에 이름, 오른쪽에 한두 문장 */
+dl { margin: 6px 0; }
+.e { display: grid; grid-template-columns: 128px 1fr; gap: 0 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.e[hidden] { display: none; }
+dt { color: var(--fg); font-weight: 600; }
+dd { margin: 0; color: var(--fg2); }
+/* 막힐 때: 물음을 누르면 답이 펴져요 */
+details { border-bottom: 1px solid var(--line); }
+details[hidden] { display: none; }
+summary { padding: 10px 0; cursor: pointer; color: var(--fg); font-weight: 600; }
+summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+details p { margin: 0 0 12px 18px; }
+.none { margin-top: 20px; color: var(--muted); }
+.from { display: none; margin: 22px 0 0; font-size: 13px; color: var(--muted); }
+body.finding .from { display: block; }
+body.finding h1, body.finding .lead, body.finding h2, body.finding .note, body.finding ol, body.finding section > p { display: none; }
 /* 노선도에 나오는 표시를 작게 그린 것 */
-.sym { display: inline-block; position: relative; width: 64px; height: 22px; vertical-align: middle; }
+.sym { display: inline-block; position: relative; width: 44px; height: 22px; vertical-align: middle; margin-right: 4px; }
 .sym::before { content: ""; position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--legend, #6CBE45); }
 .sym i { position: absolute; top: 11px; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--fg); }
 .sym.main i { width: 9px; height: 9px; }
 .sym.dec i { width: 15px; height: 15px; }
-.sym.now i { width: 17px; height: 17px; background: var(--accent); box-shadow: 0 0 0 5px var(--halo); }
-.sym.side::before { background: var(--spur); transform: rotate(-18deg); transform-origin: left center; right: 14px; }
+.sym.now i { width: 15px; height: 15px; background: var(--accent); box-shadow: 0 0 0 4px var(--halo); }
+.sym.side::before { background: var(--spur); transform: rotate(-18deg); transform-origin: left center; right: 10px; }
 .sym.side i { width: 10px; height: 10px; background: var(--surface); border: 2.5px solid var(--fg); left: 78%; top: 3px; }
-.sym.cap i { width: 30px; height: 16px; border-radius: 9px; background: var(--surface); border: 3px solid var(--fg); box-sizing: border-box; }
+.sym.cap i { width: 28px; height: 16px; border-radius: 9px; background: var(--surface); border: 3px solid var(--fg); box-sizing: border-box; }
 .sym.cap i::before, .sym.cap i::after { content: ""; position: absolute; top: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--fg); }
-.sym.cap i::before { left: 6px; } .sym.cap i::after { right: 6px; }
+.sym.cap i::before { left: 5px; } .sym.cap i::after { right: 5px; }
 .sym.todo i { width: 9px; height: 9px; }
 .sym.todo i::after { content: ""; position: absolute; top: -8px; right: -8px; width: 5px; height: 5px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
 .sym.file::before { display: none; }
 .sym.file i { width: 7px; height: 7px; }
+@media (max-width: 680px) {
+  .wrap { flex-direction: column; }
+  nav { width: auto; display: flex; gap: 4px; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  nav button { width: auto; white-space: nowrap; }
+  main { padding: 18px 18px 50px; }
+  .e { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
 <header>
   <b>가닥</b><span>도움말</span>
-  <nav><a href="#start">시작하기</a><a href="#map">노선도 읽기</a><a href="#lists">목록 네 칸</a><a href="#ahead">앞길</a><a href="#words">낱말 풀이</a><a href="#stuck">막힐 때</a></nav>
+  <input id="find" type="search" placeholder="낱말로 찾기 · 예) 곁길, 한도" aria-label="도움말에서 찾기">
 </header>
+<div class="wrap">
+<nav id="topics" aria-label="주제"></nav>
 <main>
-<h1>긴 AI 대화에서 길을 잃지 않게, 가닥이 옆에서 정리해요</h1>
-<p class="lead">가닥은 Claude · ChatGPT · Cursor 같은 AI와 나눈 대화를 읽어서 <b>지하철 노선도</b>처럼 그려 주고, 놓친 일을 먼저 알려 줘요. 가닥은 대답하지 않아요. 대화는 쓰던 곳에서 그대로 하고, 가닥은 옆에서 흐름만 정리해요.</p>
 
-<h2 id="start">시작하기</h2>
+<section id="start" data-name="처음 3분">
+<h1>처음 3분</h1>
+<p class="lead">가닥은 AI와 나눈 대화를 <b>지하철 노선도</b>로 그려 주고, 놓친 일을 먼저 알려 줘요. 가닥은 대답하지 않아요. 대화는 쓰던 곳에서 그대로 해요.</p>
 <ol>
-  <li><b>가닥을 켜요.</b> 켜 두면 이 컴퓨터의 Claude Code · Codex · Cursor 대화를 알아서 찾아 읽어요. 따로 설정할 것은 없어요.</li>
-  <li><b>웹에서 한 대화도 읽게 하려면</b> 왼쪽 아래 <kbd>찾은 곳</kbd>에서 크롬 확장을 한 번 연결해요. 크롬에서 연 Claude · ChatGPT 대화를 읽어요.</li>
-  <li><b>왼쪽 목록에서 대화를 골라요.</b> 위에 그 대화의 노선도가, 가운데에 대화 글이, 오른쪽에 할 일 · 정한 것 · 산출물 · 앞길이 나와요.</li>
+  <li><b>가닥을 켜요.</b> 이 Mac의 Claude Code · Codex 대화를 알아서 읽어요.</li>
+  <li><b>정리할 AI를 연결해요.</b> 왼쪽 아래 <kbd>AI 연결</kbd>에서 하나를 골라요.</li>
+  <li><b>왼쪽에서 대화를 골라요.</b> 위에 노선도, 가운데에 대화, 오른쪽에 목록이 나와요.</li>
   <li><b>노선도의 역을 눌러요.</b> 그 이야기를 한 자리로 바로 가요.</li>
 </ol>
-<div class="note">대화 글은 이 컴퓨터에만 저장돼요. 정리할 때는 내가 쓰는 Claude(구독 로그인이나 내 API 키)에만 보내고, 가닥 팀 서버로는 가지 않아요. 사용 기록을 보내기로 했다면 “어느 버튼을 몇 번 눌렀나” 같은 기록만 가고, 대화 글 · 제목 · 파일 이름은 가지 않아요.</div>
+<div class="note">대화 글은 이 Mac에만 저장돼요. 정리할 때만 내가 연결한 AI로 가요.</div>
+</section>
 
-<h2 id="map">노선도 읽기</h2>
-<p>대화 한 개가 노선 한 줄이에요. 왼쪽이 처음, 오른쪽이 지금이에요.</p>
-<table>
-  <tr><th><span class="sym main"><i></i></span> 역</th><td>내가 한 번 묻고 AI가 한 번 답한 것 하나예요. 누르면 그 자리로 가요. 마우스를 올리면 무슨 이야기였는지 보여요.</td></tr>
-  <tr><th><span class="sym dec"><i></i></span> 정함</th><td>큰 점과 굵은 역 이름. 그 자리에서 무언가를 <b>정했다</b>는 뜻이에요. 정한 내용은 오른쪽 ‘정한 것’ 칸에 모여요.</td></tr>
-  <tr><th><span class="sym now"><i></i></span> 지금</th><td>빨간 점. 대화가 지금 와 있는 자리예요. 화면에 하나만 있어요.</td></tr>
-  <tr><th><span class="sym side"><i></i></span> 곁길</th><td>본선에서 위로 빠지는 회색 선. 하던 이야기에서 잠깐 벗어나 다른 것을 물어본 자리예요. 끝난 곁길은 접혀 있고, 누르면 볼 수 있어요.</td></tr>
-  <tr><th><span class="sym cap"><i></i></span> 캡슐</th><td>한 번에 여러 가지를 부탁한 역이에요. 안의 점 하나가 부탁 하나예요. 속이 빈 점은 아직 답을 못 받은 부탁이에요.</td></tr>
-  <tr><th><span class="sym todo"><i></i></span> 할 일 표시</th><td>역 오른쪽 위의 작은 빨간 고리. 그 자리에 가닥이 찾은 할 일이 있어요.</td></tr>
-  <tr><th><span class="sym file"><i></i></span> 산출물</th><td>역 이름 아래의 작은 점과 숫자. 그 자리에서 파일이 나오거나 바뀌었어요.</td></tr>
-  <tr><th>구간</th><td>노선 위의 이름표(예: 기획 · 개발 · 배포). 이야기의 단계예요. 지난 구간은 <kbd>개발 8 ▸</kbd>처럼 접혀 있고, 누르면 펴져요. <kbd>모두 펼치기</kbd>로 한꺼번에 펴요.</td></tr>
-  <tr><th>점선 곡선</th><td>본선 아래의 주황 점선. 앞에서 한 이야기를 뒤에서 <b>다시 꺼냈다</b>는 표시예요.</td></tr>
-  <tr><th>환승하기</th><td>노선 끝의 화살표. 누르면 이 대화에서 정한 것과 남은 일을 요약해 복사해요. 새 대화의 첫머리에 붙여 넣으면 이어서 할 수 있어요.</td></tr>
-</table>
-<p>노선의 색은 프로젝트마다 달라요. 왼쪽 목록 · 노선도 · 전체 지도에서 같은 프로젝트는 같은 색이에요.</p>
+<section id="ai" data-name="AI 연결">
+<h1>AI 연결</h1>
+<p class="lead">가닥이 대화를 정리할 때 쓰는 AI예요. 왼쪽 아래 <kbd>AI 연결</kbd>에서 셋 중 하나를 골라요. 연결하지 않으면 대화를 읽어 보여 주기만 해요.</p>
+<dl>
+  <div class="e"><dt>Claude 구독</dt><dd>Pro · Max 구독으로 써요. 추가 요금이 없어요. <kbd>연결하기</kbd>를 누르면 브라우저에서 로그인해요.</dd></div>
+  <div class="e"><dt>ChatGPT 구독</dt><dd>Plus · Pro 구독으로 써요. 추가 요금이 없어요. <kbd>연결하기</kbd>를 누르면 브라우저에서 로그인해요.</dd></div>
+  <div class="e"><dt>API 키</dt><dd>Anthropic API 키를 붙여 넣어요. 쓴 만큼 그 키로 요금이 나가요. 키는 이 Mac의 키체인에만 둬요.</dd></div>
+  <div class="e"><dt>사용 한도</dt><dd>구독으로 연결하면 내가 쓰는 Claude · ChatGPT와 같은 한도를 나눠 써요.</dd></div>
+</dl>
+</section>
 
-<h3>전체 지도</h3>
-<p>맨 위 <kbd>전체 지도</kbd>를 누르면 모든 프로젝트와 대화가 날짜 순서로 한 장에 그려져요. 노선을 누르면 그 대화의 한 줄 노선도가 나오고, <kbd>대화 열기</kbd>로 가닥 창에서 열어요. 오른쪽 위 <kbd>닫기</kbd>나 Esc로 닫아요.</p>
+<section id="read" data-name="대화 읽어 오기">
+<h1>대화 읽어 오기</h1>
+<p class="lead">어디에서 한 대화를 읽는지는 왼쪽 아래 <kbd>찾은 곳</kbd>에 나와요.</p>
+<dl>
+  <div class="e"><dt>Claude Code · Codex</dt><dd>할 일이 없어요. 켜면 알아서 읽어요.</dd></div>
+  <div class="e"><dt>Cursor</dt><dd><kbd>찾은 곳</kbd>에서 <kbd>연결</kbd>을 한 번 눌러요.</dd></div>
+  <div class="e"><dt>Claude · ChatGPT 웹</dt><dd>크롬에 가닥 확장을 한 번 넣어요. 넣는 법은 <kbd>찾은 곳</kbd>에 있어요.</dd></div>
+  <div class="e"><dt>지난 대화 한꺼번에</dt><dd>각 서비스에서 내보낸 파일을 <kbd>찾은 곳</kbd>의 <kbd>파일 고르기</kbd>로 넣어요.</dd></div>
+  <div class="e"><dt>목록에서 빼기</dt><dd>대화에 마우스를 올리고 ×를 눌러요. 글은 지워지지 않고, 목록 맨 아래에서 되돌려요.</dd></div>
+</dl>
+</section>
 
-<h2 id="lists">오른쪽 목록 네 칸</h2>
-<table>
-  <tr><th>할 일</th><td><b>놓친 일</b>과 <b>제안</b>이 모여요. 버튼을 누르면 AI에게 보낼 글이 복사돼요. 대화 창에 붙여 넣어 보내면 돼요. 지금 하기 싫으면 <kbd>나중에</kbd>를 눌러요.</td></tr>
-  <tr><th>정한 것</th><td>이 대화(또는 이 프로젝트)에서 정한 것을 최근 순서로 보여 줘요. 누르면 정한 자리로 가요.</td></tr>
-  <tr><th>산출물</th><td>대화에서 나온 파일이에요. 같은 파일을 여러 번 고쳤으면 판(v1 · v2 …)으로 묶어 보여 줘요.</td></tr>
-  <tr><th>앞길</th><td>가닥이 미리 찾아본 “여기서 갈 수 있는 길”이에요. 아래 ‘앞길’ 설명을 봐 주세요.</td></tr>
-</table>
-<p>칸 위의 찾기 칸에 낱말을 치면 지난 대화까지 통틀어 찾아요. 정한 것이 먼저 나와요.</p>
+<section id="map" data-name="노선도 읽기">
+<h1>노선도 읽기</h1>
+<p class="lead">대화 한 개가 노선 한 줄이에요. 왼쪽이 처음, 오른쪽이 지금이에요. 노선 색은 프로젝트마다 달라요.</p>
+<dl>
+  <div class="e"><dt><span class="sym main"><i></i></span>역</dt><dd>한 번 묻고 한 번 답한 것. 누르면 그 자리로 가요.</dd></div>
+  <div class="e"><dt><span class="sym dec"><i></i></span>정함</dt><dd>큰 점과 굵은 이름. 그 자리에서 무언가를 정했어요.</dd></div>
+  <div class="e"><dt><span class="sym now"><i></i></span>지금</dt><dd>빨간 점. 대화가 와 있는 자리예요.</dd></div>
+  <div class="e"><dt><span class="sym side"><i></i></span>곁길</dt><dd>위로 빠지는 회색 선. 하던 이야기에서 잠깐 벗어난 질문이에요.</dd></div>
+  <div class="e"><dt><span class="sym cap"><i></i></span>캡슐</dt><dd>한 번에 여러 가지를 부탁한 역. 속이 빈 점은 답을 못 받은 부탁이에요.</dd></div>
+  <div class="e"><dt><span class="sym todo"><i></i></span>할 일 표시</dt><dd>작은 빨간 고리. 그 자리에 할 일이 있어요.</dd></div>
+  <div class="e"><dt><span class="sym file"><i></i></span>산출물</dt><dd>이름 아래의 작은 점. 그 자리에서 파일이 나오거나 바뀌었어요.</dd></div>
+  <div class="e"><dt>구간</dt><dd>노선 위의 이름표. 이야기의 단계예요. 접힌 구간은 누르면 펴져요.</dd></div>
+  <div class="e"><dt>점선 곡선</dt><dd>앞에서 한 이야기를 뒤에서 다시 꺼냈다는 표시예요.</dd></div>
+  <div class="e"><dt>환승하기</dt><dd>노선 끝의 화살표. 이 대화의 요약을 복사해요. 새 대화 첫머리에 붙여 넣어요.</dd></div>
+  <div class="e"><dt>전체 지도</dt><dd>맨 위 버튼. 모든 프로젝트와 대화를 한 장에 그려요. Esc로 닫아요.</dd></div>
+</dl>
+</section>
 
-<h3>가닥이 알아서 보내는 것</h3>
-<p>‘할 일’ 칸 아래에 있어요. 두 가지만, 내가 켰을 때만 가닥이 직접 보내요.</p>
-<ul>
-  <li><b>요청 외 변경</b> — 부탁하지 않은 것까지 AI가 바꿨을 때, 되돌려 달라고 바로 보내요.</li>
-  <li><b>이어 가기</b> — 같은 프로젝트에서 새 대화를 시작하면, 앞 대화의 요약을 넣어 줘요.</li>
-</ul>
-<p>그 밖의 것은 가닥이 대신 보내지 않아요. 글을 만들어 주기만 하고, 보낼지는 내가 정해요.</p>
+<section id="lists" data-name="할 일과 목록">
+<h1>할 일과 목록</h1>
+<p class="lead">오른쪽에 네 칸이 있어요. 위의 찾기 칸에 낱말을 치면 지난 대화까지 찾아요.</p>
+<dl>
+  <div class="e"><dt>할 일</dt><dd>가닥이 찾은 놓친 일과 제안. 버튼을 누르면 AI에게 보낼 글이 복사돼요. 미루려면 <kbd>나중에</kbd>.</dd></div>
+  <div class="e"><dt>정한 것</dt><dd>지금까지 정한 것을 최근 순서로. 누르면 정한 자리로 가요.</dd></div>
+  <div class="e"><dt>산출물</dt><dd>대화에서 나온 파일. 여러 번 고친 파일은 판(v1 · v2)으로 묶여요.</dd></div>
+  <div class="e"><dt>앞길</dt><dd>여기서 갈 수 있는 길을 가닥이 미리 찾아본 것이에요.</dd></div>
+</dl>
+<h2>할 일에 올라오는 것</h2>
+<dl>
+  <div class="e"><dt>빠진 요청</dt><dd>부탁했는데 답에서 빠진 것.</dd></div>
+  <div class="e"><dt>요청 외 변경</dt><dd>부탁하지 않았는데 AI가 바꾼 것.</dd></div>
+  <div class="e"><dt>끝나지 않은 곁길</dt><dd>곁길에서 정한 것 없이 돌아온 것.</dd></div>
+  <div class="e"><dt>이어 가기</dt><dd>새 대화를 열었을 때, 앞 대화에서 정한 것을 붙여 넣기.</dd></div>
+  <div class="e"><dt>반복 질문</dt><dd>다른 대화에서도 물었던 것. 그때 답을 다시 볼 수 있어요.</dd></div>
+  <div class="e"><dt>주제 전환</dt><dd>한 대화에 주제가 여럿 쌓였을 때, 새 대화로 옮기기를 권해요.</dd></div>
+  <div class="e"><dt>다음 할 일</dt><dd>앞길 살피기가 찾은 길.</dd></div>
+</dl>
+<h2>가닥이 알아서 보내는 것</h2>
+<p>‘할 일’ 칸 아래에서 켜요. <b>요청 외 변경 되돌리기</b>와 <b>이어 가기 요약</b> 두 가지만, 켰을 때만 가닥이 직접 보내요. 그 밖에는 글만 만들어 줘요.</p>
+</section>
 
-<h2 id="ahead">앞길</h2>
-<p>가닥이 이 대화가 <b>어디로 가려는지</b> 읽고, 지난 기록과 작업 폴더의 문서에서 <b>갈 수 있는 길</b>을 미리 찾아 셋까지 내밀어요. 답이 아니라, AI에게 가져가 물어볼 거리예요.</p>
-<table>
-  <tr><th>이어 가기</th><td>하던 방향으로 다음에 할 만한 일.</td></tr>
-  <tr><th>다른 길</th><td>지금 방법 말고 해 볼 수 있는 다른 방법.</td></tr>
-  <tr><th>미리 챙길 것</th><td>이대로 가면 걸릴 수 있어서 먼저 확인할 것.</td></tr>
-</table>
-<h3>쓰는 법 두 가지</h3>
-<ul>
-  <li><b>앞길 보기</b> — ‘앞길’ 칸 맨 위의 버튼. 누른 그 시점의 자리에서 한 번 살펴요. 30초에서 2분쯤 걸리고, 그동안 “살피는 중”이라고 떠요. 끝나면 찾은 길이 그 칸에 모여요.</li>
-  <li><b>저절로 살피기</b> — ‘할 일’ 칸 아래에서 켜요. 켜 두면 방금 무언가를 정했을 때 · 구간이 바뀔 때 · “다음에 뭐 하지?”라고 물을 때 가닥이 저절로 살펴요. 켜 둔 동안에는 ‘앞길 보기’ 버튼이 없어요.</li>
-</ul>
-<div class="note">앞길을 살필 때마다 내 Claude 사용 한도를 조금 써요(Pro 요금제의 5시간 한도로 치면 한 번에 0.7%쯤). 그래서 저절로 살피기는 꺼 둔 채로 시작해요.</div>
-<p><kbd>이 길 보기</kbd>를 누르면 왜 그 길인지, 가닥이 무엇을 찾아봤는지, AI에게 보낼 글이 보여요. <kbd>이 길로 묻기</kbd>를 누르면 그 글이 복사돼요.</p>
-<p>살폈는데 길이 안 나올 수도 있어요. 가닥은 <b>찾아본 근거가 있는 길만</b> 내고, 방금 대화를 되풀이하는 길은 버려요. 그럴 때는 “내밀 만한 길을 찾지 못했어요”라고 떠요. 살피지 못했을 때는 까닭을 같이 적어 줘요.</p>
+<section id="ahead" data-name="앞길">
+<h1>앞길</h1>
+<p class="lead">가닥이 이 대화가 어디로 가려는지 읽고, 갈 수 있는 길을 셋까지 찾아 줘요. 답이 아니라 AI에게 물어볼 거리예요.</p>
+<dl>
+  <div class="e"><dt>앞길 보기</dt><dd>‘앞길’ 칸 맨 위의 버튼. 누른 그 자리에서 한 번 살펴요. 30초에서 2분쯤 걸려요.</dd></div>
+  <div class="e"><dt>저절로 살피기</dt><dd>‘할 일’ 칸 아래에서 켜요. 무언가를 정했을 때 · 구간이 바뀔 때 저절로 살펴요.</dd></div>
+  <div class="e"><dt>이어 가기</dt><dd>하던 방향으로 다음에 할 만한 일.</dd></div>
+  <div class="e"><dt>다른 길</dt><dd>지금 방법 말고 해 볼 수 있는 방법.</dd></div>
+  <div class="e"><dt>미리 챙길 것</dt><dd>이대로 가면 걸릴 수 있어 먼저 확인할 것.</dd></div>
+  <div class="e"><dt>이 길 보기</dt><dd>왜 그 길인지, 무엇을 찾아봤는지 보여요. <kbd>이 길로 묻기</kbd>를 누르면 보낼 글이 복사돼요.</dd></div>
+</dl>
+<div class="note">살필 때마다 AI 사용 한도를 조금 써요(Claude Pro의 5시간 한도로 한 번에 0.7%쯤). 그래서 저절로 살피기는 꺼 둔 채로 시작해요.</div>
+</section>
 
-<h2 id="float">떠 있는 버튼 (Mac 앱)</h2>
-<p>화면 가장자리에 걸쳐 있는 가닥 버튼이에요. 다른 앱을 쓰는 동안에도 보여요. 마우스를 올리면 둘레에 버튼 여섯 개가 펴져요.</p>
-<table>
-  <tr><th>노선도</th><td>지금 쓰는 대화의 노선도를 화면 위쪽에 띄워요. 한 번 더 누르면 닫혀요.</td></tr>
-  <tr><th>할 일 · 정함 · 산출물</th><td>그 칸을 연 목록 창을 따로 띄워요. 목록 창 안에서 ‘앞길’ 칸도 볼 수 있어요.</td></tr>
-  <tr><th>찾기 · 창</th><td>가닥 창을 열어요. ‘찾기’는 대화 찾기 칸으로 바로 가요.</td></tr>
-</table>
-<p>버튼을 끌면 다른 가장자리로 옮겨져요. Esc로 떠 있는 창을 닫아요. 버튼을 숨기려면 메뉴 <kbd>보기 → 떠 있는 버튼</kbd>을 눌러요.</p>
+<section id="float" data-name="떠 있는 버튼">
+<h1>떠 있는 버튼</h1>
+<p class="lead">Mac 앱에서 화면 가장자리에 걸쳐 있는 가닥 버튼이에요. 다른 앱을 쓰는 동안에도 보여요. 마우스를 올리면 둘레에 버튼이 펴져요.</p>
+<dl>
+  <div class="e"><dt>노선도</dt><dd>지금 쓰는 대화의 노선도를 화면 위쪽에 띄워요. 한 번 더 누르면 닫혀요.</dd></div>
+  <div class="e"><dt>할 일 · 정함 · 산출물</dt><dd>그 칸을 연 목록 창을 따로 띄워요.</dd></div>
+  <div class="e"><dt>찾기 · 창</dt><dd>가닥 창을 열어요. ‘찾기’는 대화 찾기 칸으로 바로 가요.</dd></div>
+  <div class="e"><dt>버튼 바꾸기</dt><dd>가닥 버튼을 오른쪽 클릭 → <kbd>버튼 편집</kbd>. 버튼을 빼거나 더하고, 차례를 바꿔요. 여섯 개까지 둬요.</dd></div>
+  <div class="e"><dt>프로젝트 버튼</dt><dd>버튼 편집에서 프로젝트를 더하면, 그 버튼이 그 프로젝트의 노선도를 띄워요. 가닥 창을 열지 않고 프로젝트를 바꿔 봐요.</dd></div>
+  <div class="e"><dt>옮기기</dt><dd>가닥 버튼을 끌면 다른 가장자리로 옮겨져요.</dd></div>
+  <div class="e"><dt>닫기 · 숨기기</dt><dd>떠 있는 창은 Esc로 닫아요. 버튼을 숨기려면 메뉴 <kbd>보기 → 떠 있는 버튼</kbd>.</dd></div>
+</dl>
+</section>
 
-<h2 id="words">낱말 풀이</h2>
-<table>
-  <tr><th>가닥</th><td>흩어진 생각의 방향을 잡는다는 “가닥을 잡다”에서 온 이름이에요.</td></tr>
-  <tr><th>노선 · 본선</th><td>대화 한 개의 흐름을 그린 굵은 선.</td></tr>
-  <tr><th>역</th><td>질문 하나와 그 답. 노선 위의 점.</td></tr>
-  <tr><th>구간</th><td>이야기의 단계. 노선 위의 이름표.</td></tr>
-  <tr><th>곁길</th><td>하던 이야기에서 잠깐 벗어난 질문. 본선으로 돌아오면 끝나요.</td></tr>
-  <tr><th>정함</th><td>그 자리에서 무언가를 결정했다는 표시.</td></tr>
-  <tr><th>지금</th><td>대화가 와 있는 마지막 자리.</td></tr>
-  <tr><th>산출물</th><td>대화에서 만들어지거나 고쳐진 파일.</td></tr>
-  <tr><th>놓친 일</th><td>부탁했는데 답에서 빠진 것(<b>빠진 요청</b>), 부탁하지 않았는데 바뀐 것(<b>요청 외 변경</b>), 곁길에서 정한 것 없이 돌아온 것(<b>끝나지 않은 곁길</b>)처럼 그냥 지나치기 쉬운 일.</td></tr>
-  <tr><th>제안</th><td>가닥이 권하는 일. 앞 대화를 잇는 <b>이어 가기</b>, 앞길 살피기가 낸 <b>다음 할 일</b>, 같은 프로젝트의 다른 대화에서도 물었던 <b>반복 질문</b>(그때 답을 다시 볼 수 있어요), 한 대화에 주제가 여럿 쌓였을 때 새 대화로 옮기기를 권하는 <b>주제 전환</b>이 여기에 들어요.</td></tr>
-  <tr><th>한마디</th><td>새 할 일이 생겼을 때 화면 구석에 뜨는 작은 카드. 바로 하거나 ‘나중에’로 미뤄요.</td></tr>
-  <tr><th>앞길</th><td>여기서 갈 수 있는 길을 가닥이 미리 찾아본 것.</td></tr>
-  <tr><th>환승하기</th><td>이 대화의 요약을 복사해 새 대화로 넘어가는 것.</td></tr>
-  <tr><th>전체 지도</th><td>모든 프로젝트와 대화를 한 장에 그린 지도.</td></tr>
-  <tr><th>찾은 곳</th><td>가닥이 어디에서 대화를 읽고 있는지, 무엇으로 정리하는지 보여 주는 창. 왼쪽 아래에 있어요.</td></tr>
-  <tr><th>정리 엔진</th><td>대화를 읽고 역 이름 · 구간 · 할 일을 뽑는 AI. Claude Code에 로그인해 있거나 API 키를 넣으면 돌아요.</td></tr>
-  <tr><th>판단 기록</th><td>가닥이 할 일을 찾을 때 무엇을 보고 그렇게 판단했는지 적어 둔 기록. 왼쪽 아래 버튼으로 봐요.</td></tr>
-  <tr><th>목록에서 빼기</th><td>필요 없는 대화를 목록과 정리에서 빼는 것. 글은 지워지지 않고, 되돌릴 수 있어요.</td></tr>
-</table>
+<section id="words" data-name="낱말 풀이">
+<h1>낱말 풀이</h1>
+<p class="lead">가닥에서 쓰는 말이에요. 위의 찾기 칸에 치면 바로 찾아요.</p>
+<dl>
+  <div class="e"><dt>가닥</dt><dd>“가닥을 잡다”에서 온 이름이에요.</dd></div>
+  <div class="e"><dt>노선 · 본선</dt><dd>대화 한 개의 흐름을 그린 굵은 선.</dd></div>
+  <div class="e"><dt>역</dt><dd>질문 하나와 그 답.</dd></div>
+  <div class="e"><dt>구간</dt><dd>이야기의 단계. 노선 위의 이름표.</dd></div>
+  <div class="e"><dt>곁길</dt><dd>하던 이야기에서 잠깐 벗어난 질문.</dd></div>
+  <div class="e"><dt>정함</dt><dd>그 자리에서 무언가를 결정했다는 표시.</dd></div>
+  <div class="e"><dt>산출물</dt><dd>대화에서 만들어지거나 고쳐진 파일.</dd></div>
+  <div class="e"><dt>놓친 일</dt><dd>그냥 지나치기 쉬운 일. 빠진 요청 · 요청 외 변경 · 끝나지 않은 곁길.</dd></div>
+  <div class="e"><dt>제안</dt><dd>가닥이 권하는 일. 이어 가기 · 반복 질문 · 주제 전환 · 다음 할 일.</dd></div>
+  <div class="e"><dt>한마디</dt><dd>새 할 일이 생겼을 때 화면 구석에 뜨는 작은 카드.</dd></div>
+  <div class="e"><dt>앞길</dt><dd>여기서 갈 수 있는 길을 미리 찾아본 것.</dd></div>
+  <div class="e"><dt>환승하기</dt><dd>이 대화의 요약을 복사해 새 대화로 넘어가는 것.</dd></div>
+  <div class="e"><dt>전체 지도</dt><dd>모든 프로젝트와 대화를 한 장에 그린 지도.</dd></div>
+  <div class="e"><dt>찾은 곳</dt><dd>가닥이 어디에서 대화를 읽는지 보여 주는 창. 왼쪽 아래에 있어요.</dd></div>
+  <div class="e"><dt>정리 엔진</dt><dd>대화를 정리하는 AI. <kbd>AI 연결</kbd>에서 골라요.</dd></div>
+  <div class="e"><dt>판단 기록</dt><dd>가닥이 할 일을 찾을 때 무엇을 보고 판단했는지 적은 기록.</dd></div>
+</dl>
+</section>
 
-<h2 id="stuck">막힐 때</h2>
-<h3>노선도가 안 그려져요 · 역 이름이 이상해요</h3>
-<p>왼쪽 아래의 한 줄을 봐 주세요. “정리 엔진이 없어서 제목이 임시예요”라고 나오면 Claude Code에 로그인하거나 <kbd>찾은 곳</kbd>에서 API 키를 넣어야 해요. “정리하고 있어요”라고 나오면 조금 기다리면 돼요. 긴 대화는 몇 분 걸려요.</p>
-<h3>빨간 글씨로 멈췄다고 나와요</h3>
-<p>Claude 사용 한도에 걸렸거나 로그인이 풀린 거예요. 한도가 풀린 뒤 <kbd>정리 다시</kbd>를 누르면 멈춘 데서 이어 가요.</p>
-<h3>앞길 보기를 눌렀는데 아무것도 안 나와요</h3>
-<p>‘앞길’ 칸의 버튼 아래 한 줄을 봐 주세요. “살피는 중”이면 기다리면 되고, “내밀 만한 길을 찾지 못했어요”면 이번에는 근거 있는 길이 없었던 거예요. “살피지 못했어요”면 그 뒤에 까닭이 적혀 있어요.</p>
-<h3>다른 대화가 섞여 보여요 · 필요 없는 대화가 있어요</h3>
-<p>왼쪽 목록에서 그 대화에 마우스를 올리고 ×를 누르면 목록에서 빠져요. 목록 맨 아래 “뺀 대화”에서 되돌릴 수 있어요.</p>
+<section id="stuck" data-name="막힐 때">
+<h1>막힐 때</h1>
+<p class="lead">먼저 왼쪽 아래의 한 줄을 봐 주세요. 가닥이 지금 무엇을 하는지, 왜 멈췄는지가 거기에 나와요.</p>
+<details class="e"><summary>역 이름이 질문 첫머리 그대로예요</summary><p>정리할 AI가 연결되지 않았어요. 왼쪽 아래 <kbd>AI 연결</kbd>에서 하나를 골라요.</p></details>
+<details class="e"><summary>빨간 글씨로 멈췄다고 나와요</summary><p>사용 한도에 걸렸거나 로그인이 풀렸어요. 한도가 풀린 뒤 <kbd>정리 다시</kbd>를 누르면 멈춘 데서 이어 가요.</p></details>
+<details class="e"><summary>앞길 보기를 눌렀는데 아무것도 안 나와요</summary><p>버튼 아래 한 줄을 봐 주세요. “살피는 중”이면 기다리면 돼요. “내밀 만한 길을 찾지 못했어요”는 근거 있는 길이 없었다는 뜻이에요. “살피지 못했어요” 뒤에는 까닭이 적혀 있어요.</p></details>
+<details class="e"><summary>대화가 하나도 안 보여요</summary><p><kbd>찾은 곳</kbd>에서 무엇을 찾았는지 봐 주세요. 이 Mac에서 AI를 쓴 적이 없으면 읽을 기록이 없어요.</p></details>
+<details class="e"><summary>필요 없는 대화가 섞여 보여요</summary><p>그 대화에 마우스를 올리고 ×를 눌러요. 목록 맨 아래 “뺀 대화”에서 되돌려요.</p></details>
+<details class="e"><summary>웹에서 한 대화가 안 들어와요</summary><p>크롬의 가닥 확장 아이콘을 눌러 봐요. 가닥이 꺼져 있으면 켜고, 확장을 넣기 전에 열어 둔 탭은 새로고침해요.</p></details>
+<details class="e"><summary>떠 있는 버튼이 안 보여요</summary><p>메뉴 <kbd>보기 → 떠 있는 버튼</kbd>에 표시가 있는지 봐요. 있으면 화면의 네 가장자리를 둘러봐요.</p></details>
+<details class="e"><summary>처음 열 때 Mac이 막아요</summary><p>시스템 설정 → 개인정보 보호 및 보안 → 아래쪽의 <kbd>그래도 열기</kbd>를 눌러요. 한 번만 하면 돼요.</p></details>
+</section>
+
+<p id="none" class="none" hidden>찾는 말이 든 설명이 없어요. 다른 낱말로 찾아봐 주세요.</p>
 </main>
+</div>
+<script>
+/* 주제는 한 번에 하나만 보여요. 찾기 칸에 글을 치면 모든 주제에서 그 말이 든 줄만 모아 보여요. */
+(function () {
+  'use strict';
+  var nav = document.getElementById('topics'), find = document.getElementById('find'), none = document.getElementById('none');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section')), buttons = {};
+  sections.forEach(function (s) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = s.dataset.name;
+    b.onclick = function () { find.value = ''; show(s.id, true); };
+    nav.appendChild(b); buttons[s.id] = b;
+    var from = document.createElement('p'); from.className = 'from'; from.textContent = s.dataset.name; s.insertBefore(from, s.firstChild);
+  });
+  function show(id, remember) {
+    if (!buttons[id]) id = sections[0].id;
+    document.body.classList.remove('finding'); none.hidden = true;
+    sections.forEach(function (s) {
+      s.hidden = s.id !== id; buttons[s.id].hidden = false; buttons[s.id].classList.toggle('on', s.id === id);
+      Array.prototype.forEach.call(s.querySelectorAll('.e'), function (e) { e.hidden = false; });
+    });
+    if (remember) { try { history.replaceState(null, '', '#' + id); } catch (e) {} }
+    document.querySelector('main').scrollTop = 0;
+  }
+  function search(q) {
+    q = q.trim().toLowerCase();
+    if (!q) { show((location.hash || '').slice(1)); return; }
+    var any = false;
+    document.body.classList.add('finding');
+    sections.forEach(function (s) {
+      var hit = false;
+      Array.prototype.forEach.call(s.querySelectorAll('.e'), function (e) {
+        var ok = e.textContent.toLowerCase().indexOf(q) >= 0; e.hidden = !ok; hit = hit || ok;
+        if (ok && e.tagName === 'DETAILS') e.open = true;
+      });
+      s.hidden = !hit; buttons[s.id].hidden = !hit; buttons[s.id].classList.remove('on'); any = any || hit;
+    });
+    none.hidden = any;
+  }
+  find.addEventListener('input', function () { search(find.value); });
+  find.addEventListener('keydown', function (e) { if (e.key === 'Escape') { find.value = ''; search(''); } });
+  window.addEventListener('hashchange', function () { find.value = ''; show(location.hash.slice(1)); });
+  show((location.hash || '').slice(1));
+})();
+</script>
 </body>
 </html>

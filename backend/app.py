@@ -9,7 +9,7 @@ from flask import Flask, abort, g, jsonify, request, send_from_directory
 
 from . import assemble, auto, config, engines, sources, store, usage
 from .agent import ahead, handoff, tools, trace
-from .engines import describe_engine
+from .engines import connect, describe_engine
 from .runtime import Runtime
 from .sources import exports, pages
 
@@ -33,6 +33,10 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if "db" not in g:
             g.db = store.connect(app.config["DB_PATH"])
         return g.db
+
+    if engine == "auto":      # 사용자가 ‘AI 연결’에서 골라 둔 엔진이 있으면 그것부터 (없으면 설정 GADAK_ENGINE)
+        with rt.connect() as kept:
+            engines.prefer(store.setting(kept, engines.CHOICE_KEY))
 
     @app.teardown_appcontext
     def close_db(_exc):
@@ -134,18 +138,57 @@ def create_app(db_path=None, engine="auto") -> Flask:
         return jsonify(rev=rt.rev, todo=todo,
                        chat={"id": chat["id"], "title": chat["title"], "project": chat["project_id"]})
 
-    # ----- 엔진: 무엇으로 정리하는지, API 키 넣기 · 지우기 (backend/engines) -----
-    def engine_info():
+    # ----- 엔진: 무엇으로 정리하는지, 고르기 · 한 번 눌러 연결하기 · API 키 넣기 · 지우기 (backend/engines) -----
+    def engine_info(fresh=False):
         try:
             rt.classifier.engine()                   # 아직 고르지 않았으면 지금 골라요
         except Exception as exc:
             rt.classifier.status["error"] = str(exc)[:200]
-        return engines.overview(rt.classifier.status)
+        info = engines.overview(rt.classifier.status)
+        # ‘AI 연결’ 창이 그리는 것: 엔진마다 깔려 있는지 · 바로 쓸 수 있는지, 지금 연결하는 중인 것
+        info.update(options=engines.options(fresh), job=connect.status())
+        return info
+
+    def choose_engine(name) -> None:
+        """고른 엔진을 적어 두고 그 엔진으로 바꿔요. (연결이 뒤에서 끝났을 때도 불려서, 요청 밖에서도 돌아요)"""
+        conn = store.connect(app.config["DB_PATH"])
+        try:
+            with conn:
+                store.set_setting(conn, engines.CHOICE_KEY, name)
+        finally:
+            conn.close()
+        engines.prefer(name)
+        engines.forget_logins()
+        rt.classifier.reset_engine()
+        rt.bump()
 
     @app.get("/engine")
     def engine_state():
-        """정리에 쓰는 엔진과, 없으면 무엇이 필요한지(need). 키는 끝 네 글자만 보여 줘요."""
-        return jsonify(engine_info())
+        """정리에 쓰는 엔진과, 없으면 무엇이 필요한지(need). 키는 끝 네 글자만 보여 줘요.
+        ?fresh=1이면 로그인 상태를 다시 물어요 (연결을 기다리는 화면이 써요)."""
+        return jsonify(engine_info(request.args.get("fresh") == "1"))
+
+    @app.post("/engine/choose")
+    def engine_choose():
+        """‘AI 연결’에서 고른 엔진으로 바꾸고 기억해요. auto면 가닥이 알아서 골라요."""
+        name = str((request.get_json(silent=True) or {}).get("name") or "").lower()
+        if name not in engines.CHOICES:
+            return jsonify(ok=False, reason="고를 수 없는 엔진이에요."), 400
+        choose_engine(name)
+        return jsonify(ok=True, engine=engine_info())
+
+    @app.post("/engine/connect")
+    def engine_connect():
+        """구독으로 쓰는 엔진을 한 번 눌러 연결해요: 없으면 받고, 로그인 창을 띄우고, 다 되면 그 엔진을 골라요.
+        뒤에서 돌아요. 어디까지 갔는지는 GET /engine의 job에 나와요."""
+        name = str((request.get_json(silent=True) or {}).get("name") or "").lower()
+        result = connect.start(name, choose_engine)
+        return jsonify(dict(result, engine=engine_info())), (200 if result["ok"] else 409)
+
+    @app.post("/engine/cancel")
+    def engine_cancel():
+        connect.cancel()
+        return jsonify(ok=True, engine=engine_info())
 
     @app.post("/engine/key")
     def engine_key_set():
