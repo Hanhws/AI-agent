@@ -8,7 +8,7 @@ import time
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
 from . import assemble, auto, config, engines, sources, store, usage
-from .agent import handoff, tools, trace
+from .agent import ahead, handoff, tools, trace
 from .engines import describe_engine
 from .runtime import Runtime
 from .sources import exports, pages
@@ -115,7 +115,9 @@ def create_app(db_path=None, engine="auto") -> Flask:
 
     @app.get("/status")
     def status():
-        return jsonify(rt.status())
+        out = rt.status()
+        out["ahead"]["auto"] = ahead.auto_on(db())      # ‘저절로 살피기’: 사용자가 화면에서 켜고 끈 것 (없으면 설정)
+        return jsonify(out)
 
     @app.get("/float")
     def float_state():
@@ -301,6 +303,21 @@ def create_app(db_path=None, engine="auto") -> Flask:
         rt.classifier.request(chat_id, front=True)       # 아직 정리하지 않은 턴이 있으면 그것부터
         rt.classifier.checker.want_ahead(chat_id)
         return jsonify(ok=True)
+
+    @app.post("/ahead/auto")
+    def ahead_auto_set():
+        """‘저절로 살피기’를 켜고 꺼요: 길이 갈리는 순간마다 앞길을 살필지. 화면에서 사용자가 눌렀을 때만 불러요.
+        켜면 구독 한도를 더 써요(한 곳에 Claude Pro 5시간 한도의 0.7%쯤). 꺼 둔 동안에는 ‘앞길 보기’를 누를 때만 살펴요."""
+        body = request.get_json() or {}
+        if not isinstance(body.get("on"), bool):
+            abort(400)
+        if not config.AHEAD:
+            return jsonify(ok=False, reason="앞길 살피기는 꺼져 있어요."), 409
+        conn = db()
+        with conn:
+            store.set_setting(conn, ahead.AUTO_KEY, "1" if body["on"] else "0")
+        rt.bump()
+        return jsonify(ok=True, auto=ahead.auto_on(conn))
 
     @app.get("/turns/<turn_id>")
     def turn(turn_id):

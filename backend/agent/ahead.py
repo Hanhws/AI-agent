@@ -20,7 +20,7 @@
   그 출처의 글에 없으면 그 줄을 빼요(간추리다 번호를 틀리게 옮긴 일이 있었어요).
 - 찾아본 것이 하나도 없는 길은 버려요. 길이 하나도 안 남으면 아무 말도 하지 않아요.
 - 사용자가 ‘앞길 보기’를 눌렀을 때만 돌아요(POST /chats/<id>/ahead · 그 대화의 마지막 턴에서). 길이 갈리는 순간에 저절로 도는 것(due)은
-  꺼 뒀어요(GADAK_AHEAD_AUTO=1): 켜면 지금 하고 있는 대화의 마지막 턴에서만, 한 대화에서 AHEAD_EVERY턴에 한 번까지 돌아요.
+  사용자가 가닥 창의 ‘저절로 살피기’를 켰을 때만이에요(auto_on · 처음 값은 GADAK_AHEAD_AUTO=꺼짐): 켜면 지금 하고 있는 대화의 마지막 턴에서만, 한 대화에서 AHEAD_EVERY턴에 한 번까지 돌아요.
 - 그 턴에 서서 앞을 보는 것이라 그 턴 뒤의 기록은 보지 않아요(Context.until).
 - 버튼을 감추려면 GADAK_AHEAD=0. 쓸모는 eval/ahead.py로 재요. 프롬프트는 prompts/ahead.txt.
 """
@@ -137,10 +137,23 @@ def fresh(created_at, now=None) -> bool:
     return (now or datetime.now(timezone.utc)) - made <= timedelta(minutes=config.AHEAD_FRESH)
 
 
-def due(chat, rows, row, made, now=None):
-    """1단이 이 턴을 분류하며 물어요: 지금 앞길을 살필 순간인가. 까닭이나 None. 저절로 살피기를 켰을 때만이에요(AHEAD_AUTO).
+AUTO_KEY = "ahead.auto"      # 사용자가 화면에서 켜고 끈 ‘저절로 살피기’ (settings 표)
+
+
+def auto_on(conn) -> bool:
+    """길이 갈리는 순간에 저절로도 살필지. 사용자가 화면에서 켜고 끈 것이 먼저이고, 고른 적이 없으면 설정(GADAK_AHEAD_AUTO)을 따라요."""
+    if not config.AHEAD:
+        return False
+    chosen = store.setting(conn, AUTO_KEY)
+    return config.AHEAD_AUTO if chosen is None else chosen == "1"
+
+
+def due(chat, rows, row, made, now=None, auto=None):
+    """1단이 이 턴을 분류하며 물어요: 지금 앞길을 살필 순간인가. 까닭이나 None. 저절로 살피기를 켰을 때만이에요
+    (auto: auto_on(conn)의 값. 안 주면 설정 AHEAD_AUTO).
     made는 1단이 방금 붙인 값(dec · seg · depth)이에요. rows는 그 대화의 턴들(분류하기 전에 읽은 것)."""
-    if not (config.AHEAD and config.AHEAD_AUTO) or chat is None or chat["hidden"] or not rows or row["seq"] != rows[-1]["seq"]:
+    if not (config.AHEAD and (config.AHEAD_AUTO if auto is None else auto)) or chat is None or chat["hidden"] or not rows \
+            or row["seq"] != rows[-1]["seq"]:
         return None
     before = [r for r in rows if r["seq"] < row["seq"]]
     if len(before) < MIN_BEFORE or not fresh(row["created_at"], now):

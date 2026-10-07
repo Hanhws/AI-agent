@@ -16,7 +16,7 @@
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
     nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
-    ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
+    // 앞길 살피기는 가닥 창에서는 머리띠의 버튼으로 해요 (mount · paintAhead). 할 일 목록 아래에 줄로 그리는 hooks(ahead · aheadOn)는 넘기지 않아요
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
@@ -42,6 +42,12 @@
     brand.appendChild(logo);
     // 전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 한눈에 (backend/web/map.html). 심볼 옆, 늘 보이는 자리에
     var map = el('button', 'btn sm mapbtn', '전체 지도'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
+    // 앞길 살피기 (README 3-1): 전체 지도 옆에 ‘저절로 살피기’ 켬 · 끔(켜면 한도를 더 써요)과, 꺼 둔 동안 지금 자리에서 한 번 살피는 ‘앞길 보기’.
+    // 자리 · 문구는 임시예요 (디자인 담당과 정해요)
+    R.autoBtn = el('button', 'btn sm mapbtn aheadbtn'); R.autoBtn.type = 'button'; R.autoBtn.onclick = toggleAheadAuto; brand.appendChild(R.autoBtn);
+    R.aheadBtn = el('button', 'btn sm mapbtn aheadbtn', '앞길 보기'); R.aheadBtn.type = 'button'; R.aheadBtn.onclick = ahead; brand.appendChild(R.aheadBtn);
+    R.aheadBtn.title = '지금 자리에서 갈 수 있는 길을 가닥이 한 번 찾아봐요. 1~2분 걸려요.';
+    paintAhead();
     var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';
     R.find.setAttribute('aria-label', '모든 대화에서 찾기');
     R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
@@ -442,6 +448,26 @@
       g.flashToast(r.ok ? '앞길을 살펴보고 있어요. 1~2분 뒤 ‘제안’에 나타나요. 찾은 것이 없으면 아무것도 안 떠요.' : r.reason);
     }, function () { g.flashToast('앞길을 살피지 못했어요.'); });
   }
+  /* 머리띠의 앞길 버튼 둘을 지금 상태대로: 저절로 살피기가 켜져 있으면 그 버튼만(눌린 모양), 꺼져 있으면 옆에 ‘앞길 보기’도.
+     앞길 살피기를 아예 끈 가닥(GADAK_AHEAD=0)이나 예시 화면에서는 둘 다 감춰요 */
+  function paintAhead() {
+    if (!R.autoBtn) return;
+    var a = S.status && S.status.ahead, on = !S.demo && !!(a && a.on), auto = on && !!a.auto;
+    R.autoBtn.style.display = on ? '' : 'none'; R.aheadBtn.style.display = on && !auto ? '' : 'none';
+    R.autoBtn.textContent = '저절로 살피기 ' + (auto ? '켬' : '끔');
+    R.autoBtn.classList.toggle('on', auto); R.autoBtn.setAttribute('aria-pressed', auto ? 'true' : 'false');
+    R.autoBtn.title = (auto ? '길이 갈리는 순간마다 가닥이 앞길을 저절로 살피고 있어요. 누르면 꺼요.' : '켜면 길이 갈리는 순간마다 가닥이 앞길을 저절로 살펴요.')
+      + ' Claude 사용 한도를 더 써요(한 번에 Pro 5시간 한도의 0.7%쯤).';
+  }
+  /* 저절로 살피기 켬 · 끔: 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 살필지. 가닥이 기억해요 */
+  function toggleAheadAuto() {
+    var a = S.status && S.status.ahead; if (!a || !a.on) return;
+    api('ahead/auto', 'POST', { on: !a.auto }).then(function (r) {
+      if (!r.ok) { g.flashToast(r.reason || '바꾸지 못했어요.'); return; }
+      a.auto = !!r.auto; paintAhead();
+      g.flashToast(r.auto ? '이제 길이 갈리는 순간마다 앞길을 저절로 살펴요. Claude 사용 한도를 더 써요.' : '저절로 살피기를 껐어요. ‘앞길 보기’를 누를 때만 살펴요.');
+    }, function () { g.flashToast('바꾸지 못했어요.'); });
+  }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 
   /* ---------- 승인한 종류의 자동 실행: ‘앞으로는 알아서’를 켜고 꺼요. 실제로 보내는 건 그 도구에 붙인 hook이에요 (README 3-2) ---------- */
@@ -507,7 +533,7 @@
   }
   function tick() {
     return api('status').then(function (s) {
-      var first = !S.status; S.status = s; S.off = false;
+      var first = !S.status; S.status = s; S.off = false; paintAhead();
       if (s.rev !== S.rev || first) { S.rev = s.rev; return load(); }
       renderFoot();
     }, function () {

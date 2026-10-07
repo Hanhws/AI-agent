@@ -83,6 +83,10 @@ class DueTest(unittest.TestCase):
             self.assertIsNone(self.due(self.rows(5), dec="정함"))             # 버튼까지 감췄으면 저절로도 안 돌아요
         with on():
             self.assertEqual(self.due(self.rows(5), dec="정함"), "decided")
+            rows = self.rows(5)                                               # 화면에서 켜고 끈 것(auto)이 설정보다 먼저예요
+            self.assertIsNone(ahead.due({"hidden": 0}, rows, rows[-1], {"dec": "정함"}, now=self.NOW, auto=False))
+        with on(AHEAD_AUTO=False):
+            self.assertEqual(ahead.due({"hidden": 0}, rows, rows[-1], {"dec": "정함"}, now=self.NOW, auto=True), "decided")
 
     def test_only_junctions_on_the_last_fresh_turn_count(self):
         with on():
@@ -595,7 +599,16 @@ class WorkerTest(Story):
             with on(AHEAD=False):                                                                   # 버튼을 감춘 동안 (GADAK_AHEAD=0)
                 off = client.post(f"/chats/{CHAT}/ahead", json={})
                 self.assertEqual((off.status_code, off.get_json()["ok"]), (409, False))
-                self.assertEqual(client.get("/status").get_json()["ahead"], {"on": False, "web": False, "files": False})
+                self.assertEqual(client.get("/status").get_json()["ahead"], {"on": False, "auto": False, "web": False, "files": False})
+                self.assertEqual(client.post("/ahead/auto", json={"on": True}).status_code, 409)
+            with on(AHEAD_AUTO=False):                      # 화면의 ‘저절로 살피기’: 사용자가 켜고 끈 것을 가닥이 기억하고, 설정보다 먼저예요
+                self.assertEqual(client.get("/status").get_json()["ahead"]["auto"], False)
+                self.assertEqual(client.post("/ahead/auto", json={"on": "yes"}).status_code, 400)
+                self.assertEqual(client.post("/ahead/auto", json={"on": True}).get_json(), {"ok": True, "auto": True})
+                self.assertEqual((ahead.auto_on(conn), client.get("/status").get_json()["ahead"]["auto"]), (True, True))
+            with on():                                      # 설정으로 켜 둔 가닥에서도 화면에서 끌 수 있어요
+                self.assertEqual(client.post("/ahead/auto", json={"on": False}).get_json(), {"ok": True, "auto": False})
+                self.assertFalse(ahead.auto_on(conn))
 
             def work():
                 n = 0
@@ -603,7 +616,7 @@ class WorkerTest(Story):
                     n += 1
 
             with on(AHEAD_WEB=True, AHEAD_AUTO=False):                                              # 저절로 살피기는 끈 채로 (기본)
-                self.assertEqual(client.get("/status").get_json()["ahead"], {"on": True, "web": True, "files": True})
+                self.assertEqual(client.get("/status").get_json()["ahead"], {"on": True, "auto": False, "web": True, "files": True})
                 self.assertTrue(client.post(f"/chats/{CHAT}/ahead", json={}).get_json()["ok"])
                 self.assertEqual(client.get("/status").get_json()["classify"]["aheadQueued"], 1)
                 before = rt.classifier.status["calls"]
