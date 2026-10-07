@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .. import config, store, tokens, usage
 from ..engines import EngineError, OutOfCalls, get_engine, resolve_name
-from . import investigate, tools
+from . import investigate, rules, tools
 
 SYSTEM = (config.ROOT / "backend" / "prompts" / "classify.txt").read_text(encoding="utf-8")
 
@@ -297,6 +297,7 @@ class Classifier:
                 break
             with conn:
                 done = apply_output(conn, rows, batch, output)
+                rules.make(conn, chat_id, {row["id"] for row in batch})   # 엔진 없이 만드는 할 일 (곁길 · 반복 질문)
                 for row in batch:
                     self.tries[row["id"]] += 1
                     if self.tries[row["id"]] >= MAX_TRIES:
@@ -324,6 +325,7 @@ class Classifier:
             return
         with conn:
             apply_segments(conn, rows, output)
+            rules.transfer(conn, chat["id"])      # 주제가 여럿 쌓이면 환승하기를 권해요
         self.seg_at[chat["id"]] = len(rows)
 
     def step(self, conn) -> bool:

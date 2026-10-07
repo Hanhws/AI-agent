@@ -7,6 +7,7 @@ auto_log는 가닥이 직접 보낸 것의 기록이에요 (승인한 종류의 
 chats.hidden은 사용자가 목록에서 뺀 대화예요(1). 읽어 둔 글은 그대로 두고, 화면 · 찾기 · 정리에서만 빠져요.
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 """
+import collections
 import json
 import sqlite3
 import threading
@@ -451,11 +452,31 @@ def confirm_missing(conn, turn_id, missing) -> None:
     )
 
 
+RULE_KINDS = ("open", "repeat", "topic")   # 엔진 없이 규칙으로 만드는 할 일 (backend/agent/rules.py). 2단이 다시 써도 남겨요
+
+
 def set_items(conn, turn_id, items) -> list:
     """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요."""
-    conn.execute("DELETE FROM items WHERE turn_id = ?", (turn_id,))
-    ids = []
-    for n, item in enumerate(items):
+    conn.execute("DELETE FROM items WHERE turn_id = ? AND kind NOT IN (%s)" % ",".join("?" * len(RULE_KINDS)),
+                 (turn_id, *RULE_KINDS))
+    return _insert_items(conn, turn_id, items)
+
+
+def add_items(conn, turn_id, items) -> list:
+    """규칙 할 일을 덧붙여요. 그 턴에 같은 종류가 이미 있으면 두어요. 새로 넣은 것을 돌려줘요."""
+    have = {r["kind"] for r in conn.execute("SELECT kind FROM items WHERE turn_id = ?", (turn_id,))}
+    items = [it for it in items if it["kind"] not in have]
+    _insert_items(conn, turn_id, items)
+    return items
+
+
+def _insert_items(conn, turn_id, items) -> list:
+    taken = {r["id"] for r in conn.execute("SELECT id FROM items WHERE turn_id = ?", (turn_id,))}
+    ids, n = [], 0
+    for item in items:
+        while f"{turn_id}:{n}" in taken:
+            n += 1
+        taken.add(f"{turn_id}:{n}")
         item_id = f"{turn_id}:{n}"
         pop = item.get("pop")
         conn.execute(
@@ -602,7 +623,13 @@ def projects(conn) -> list:
         " FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0 LEFT JOIN turns t ON t.chat_id = c.id"
         " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"      # 대화를 다 뺀 프로젝트는 목록에 없어요
     )
-    return [{**dict(r), "color": project_color(r["id"])} for r in rows]   # 노선 색: 목록의 색 동그라미
+    lists = collections.defaultdict(list)    # 왼쪽 목록이 모든 프로젝트의 대화를 펼쳐 보여요. 최근에 쓴 대화가 위로
+    for c in conn.execute(
+        "SELECT c.id, c.project_id, c.title, COALESCE(MAX(t.created_at), c.created_at) AS last"
+        " FROM chats c LEFT JOIN turns t ON t.chat_id = c.id WHERE c.hidden = 0 GROUP BY c.id ORDER BY last DESC"
+    ):
+        lists[c["project_id"]].append({"id": c["id"], "title": c["title"], "date": display_date(c["last"])})
+    return [{**dict(r), "color": project_color(r["id"]), "list": lists[r["id"]]} for r in rows]   # 노선 색: 목록의 색 동그라미
 
 
 def view(conn, project_id, scope="all", chat_id=None):
