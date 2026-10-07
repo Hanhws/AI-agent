@@ -6,7 +6,8 @@ python -m eval --no-check               1단만. 한마디(items)는 재지 않�
 python -m eval --demo                   만든 예시(data/demo_conversations.json)로. 정답 파일이 없어도 돼요
 python -m eval --save                   숫자를 eval/results/에 남겨요 (글은 남기지 않아요)
 python -m eval --keep-examples          프롬프트 예시로 쓴 턴도 같이 재요 (보통은 빼요: eval/exclude.json)
-python -m eval --suggest                꺼 둔 ‘지난 결정 다시 꺼내기’를 켜고 재요 (쓸데없는 한마디가 얼마나 느는지)
+
+앞길 살피기(‘생각 못 한 방법 추천’)의 쓸모는 정답 파일로 잴 수 없어서 따로 재요: python -m eval.ahead (eval/ahead.py)
 
 엔진을 실제로 불러요. Claude 구독 엔진이면 구독 사용량을, API 키 엔진이면 돈을 써요 (58턴에 1단 8번 + 2단 몇 번).
 """
@@ -81,9 +82,7 @@ def main(argv=None) -> int:
     parser.add_argument("--timeout", type=float, default=300, help="엔진을 한 번 부를 때 기다리는 초 (큰 모델은 오래 걸려요)")
     parser.add_argument("--save", action="store_true", help="결과 숫자를 eval/results/에 남겨요")
     parser.add_argument("--tag", default="", help="결과 파일 이름에 붙일 말")
-    parser.add_argument("--suggest", action="store_true", help="지난 결정 다시 꺼내기(GADAK_SUGGEST)를 켜고 재요")
     args = parser.parse_args(argv)
-    config.SUGGEST = config.SUGGEST or args.suggest
 
     path = Path(args.data) if args.data else (DEMO if args.demo else EXAMPLE)
     key = args.scenario or ("demo" if args.demo else "u1")
@@ -124,7 +123,7 @@ def main(argv=None) -> int:
         elif args.save:
             stamp = datetime.now().strftime("%Y%m%d-%H%M")
             body = {"at": stamp, "scenario": key, "data": path.name, "excluded_ids": sorted(exclude),
-                    "check": not args.no_check, "suggest": config.SUGGEST, "seconds": round(time.time() - began, 1), "prompt": config.CODE,
+                    "check": not args.no_check, "seconds": round(time.time() - began, 1), "prompt": config.CODE,
                     "result": result, "stats": out["stats"], "checks": out["checks"], "error": out["error"]}
             label = "-".join(x for x in (key, str(model), args.tag) if x)
             RESULTS.mkdir(exist_ok=True)

@@ -20,31 +20,45 @@ class Meter:
         self.engine = engine
         self.name = getattr(engine, "name", "engine")
         self.model = getattr(engine, "model", None)
-        self.calls = {"classify": 0, "check": 0}
-        self.seconds = {"classify": 0.0, "check": 0.0}
+        self.calls = {"classify": 0, "check": 0, "ahead": 0, "lookup": 0}
+        self.seconds = {"classify": 0.0, "check": 0.0, "ahead": 0.0, "lookup": 0.0}
         self.tokens = {"in": 0, "out": 0}
         self.cost = 0.0
         self.priced = 0          # 값을 알려 준 호출 수
+        if callable(getattr(engine, "research", None)):
+            self.research = self._research      # 웹에서 찾아볼 줄 아는 엔진일 때만 (앞길 살피기의 look_up)
 
     def complete_json(self, system, prompt, schema):
         try:
-            stage = "check" if "trigger" in json.loads(prompt) else "classify"     # 2단의 입력에는 확인하는 까닭이 있어요
+            payload = json.loads(prompt)
+            # 2단의 입력에는 확인하는 까닭(trigger)이, 앞길 살피기의 입력에는 살피는 까닭(ahead)이 있어요
+            stage = "ahead" if "ahead" in payload else "check" if "trigger" in payload else "classify"
         except ValueError:
             stage = "classify"
         began = time.time()
         try:
             return self.engine.complete_json(system, prompt, schema)
         finally:
-            self.calls[stage] += 1
-            self.seconds[stage] += time.time() - began
-            last = getattr(self.engine, "last", None) or {}
-            self.tokens["in"] += int(last.get("input_tokens") or 0)
-            self.tokens["out"] += int(last.get("output_tokens") or 0)
-            if last.get("cost") is not None:
-                self.cost += float(last["cost"])
-                self.priced += 1
-            if hasattr(self.engine, "last"):
-                self.engine.last = None
+            self._count(stage, began)
+
+    def _research(self, question):
+        began = time.time()
+        try:
+            return self.engine.research(question)
+        finally:
+            self._count("lookup", began)
+
+    def _count(self, stage, began) -> None:
+        self.calls[stage] += 1
+        self.seconds[stage] += time.time() - began
+        last = getattr(self.engine, "last", None) or {}
+        self.tokens["in"] += int(last.get("input_tokens") or 0)
+        self.tokens["out"] += int(last.get("output_tokens") or 0)
+        if last.get("cost") is not None:
+            self.cost += float(last["cost"])
+            self.priced += 1
+        if hasattr(self.engine, "last"):
+            self.engine.last = None
 
     def stats(self) -> dict:
         out = {"engine": self.name, "model": self.model, "calls": dict(self.calls),

@@ -120,7 +120,19 @@
         list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
         led.appendChild(grp);
       });
+      renderAhead(led);
       renderAuto(led);
+    }
+    /* 앞길 살피기: 지금 자리에서 갈 수 있는 길을 가닥이 미리 찾아봐요 (README 3-1). 찾은 길은 위의 ‘제안’에 ‘다음 할 일’로 나타나요.
+       이 줄의 자리와 문구는 임시예요 (디자인 담당과 정해요) */
+    function renderAhead(host) {
+      if (!g.hooks.ahead || !g.hooks.aheadOn || !g.hooks.aheadOn()) return;
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '앞길'));
+      var r = el('div', 'lauto'); r.title = '이 대화가 향하는 곳을 읽고, 지난 기록 · 작업 폴더 · 웹(켰을 때)에서 갈 수 있는 길을 찾아봐요. 1~2분 걸려요.';
+      r.appendChild(el('span', null, '지금 자리에서 갈 수 있는 길'));
+      var b = el('button', 'linkbtn', '앞길 보기'); b.type = 'button'; b.onclick = function () { g.hooks.ahead(); }; r.appendChild(b);
+      grp.appendChild(r);
+      host.appendChild(grp);
     }
     /* 사용자가 ‘앞으로는 알아서’를 켠 종류. 여기서 다시 꺼요 (README 3-2: 종류별로 다시 끌 수 있어요) */
     function renderAuto(host) {

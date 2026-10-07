@@ -16,6 +16,7 @@
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
     nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
+    ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
@@ -433,6 +434,13 @@
       track('ui', { what: 'copy' });
       G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
     }, function () { g.flashToast('요약을 만들지 못했어요.'); });
+  }
+  /* 앞길 보기: 이 대화의 마지막 턴에 서서 갈 수 있는 길을 찾아 달라고 해요. 엔진이 뒤에서 돌고, 찾은 길은 ‘제안’에 나타나요 */
+  function ahead() {
+    if (!g.ACT) return;
+    api('chats/' + encodeURIComponent(g.ACT.id) + '/ahead', 'POST').then(function (r) {
+      g.flashToast(r.ok ? '앞길을 살펴보고 있어요. 1~2분 뒤 ‘제안’에 나타나요. 찾은 것이 없으면 아무것도 안 떠요.' : r.reason);
+    }, function () { g.flashToast('앞길을 살피지 못했어요.'); });
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 

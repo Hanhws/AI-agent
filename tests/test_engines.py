@@ -67,6 +67,12 @@ class ClaudeCliTest(unittest.TestCase):
         self.assertIsInstance(out, BadOutput)                           # 그래도 안 되면 그 묶음만 실패예요
         self.assertNotIsInstance(out, EngineError)                      # 정리 전체를 멈추는 오류가 아니에요
         self.assertEqual(run.call_count, claude_cli.ASK_TRIES)
+        # Claude Code가 안에서 여러 번 다시 시켜도 형식을 못 맞춘 것도 그 묶음만의 실패예요 (깨진 JSON)
+        broken = said(is_error=True, subtype="error_max_structured_output_retries", result=None,
+                      errors=["Failed to provide valid structured output after 5 attempts"])
+        out, run, _ = self.ask(broken)
+        self.assertIsInstance(out, BadOutput)
+        self.assertNotIsInstance(out, EngineError)
 
     def test_login_or_limit_trouble_stops_at_once(self):
         out, run, _ = self.ask(said(is_error=True, result="Not logged in · Please run /login"))

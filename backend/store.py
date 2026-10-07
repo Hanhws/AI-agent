@@ -475,21 +475,33 @@ def confirm_missing(conn, turn_id, missing) -> None:
 
 
 def set_items(conn, turn_id, items) -> list:
-    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요."""
-    conn.execute("DELETE FROM items WHERE turn_id = ?", (turn_id,))
-    ids = []
-    for n, item in enumerate(items):
-        item_id = f"{turn_id}:{n}"
-        pop = item.get("pop")
-        conn.execute(
-            "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
-            " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
-            (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
-             item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
-             item_id, now()),
-        )
-        ids.append(item_id)
-    return ids
+    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요.
+    앞길 살피기가 낸 길(<turnId>:a<n>)은 건드리지 않아요 (set_ahead_items)."""
+    conn.execute("DELETE FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) != ':a'", (turn_id,))
+    return [_add_item(conn, turn_id, f"{turn_id}:{n}", item) for n, item in enumerate(items)]
+
+
+def set_ahead_items(conn, turn_id, items) -> list:
+    """앞길 살피기(backend/agent/ahead.py)가 그 턴에서 낸 길을 적어요. id는 <turnId>:a<n>.
+    다시 살피면 길이 달라지니, 앞서 낸 길과 그 상태(나중에 · 끝냄)는 지우고 새로 적어요."""
+    old = [r["id"] for r in conn.execute(
+        "SELECT id FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) = ':a'", (turn_id,))]
+    for item_id in old:
+        conn.execute("DELETE FROM item_states WHERE id = ?", (item_id,))
+        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
+    return [_add_item(conn, turn_id, f"{turn_id}:a{n}", item) for n, item in enumerate(items)]
+
+
+def _add_item(conn, turn_id, item_id, item) -> str:
+    pop = item.get("pop")
+    conn.execute(
+        "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
+        " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
+        (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
+         item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
+         item_id, now()),
+    )
+    return item_id
 
 
 def log_auto(conn, chat_id, kind, text, item_id=None) -> None:

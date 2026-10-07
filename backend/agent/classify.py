@@ -179,13 +179,15 @@ def apply_output(conn, rows, batch, output) -> int:
         parts = parts if len(parts) >= 2 else None    # 요청이 하나면 나누지 않아요 (빠질 것도 없어요)
         chose = item.get("chose", True)
         dec = _word(item.get("dec"), DEC_MAX) if chose else None
+        seg = _word(item.get("seg"), SEG_MAX)
         store.set_classification(
             conn, row["id"], title=title, depth=depth,
-            seg=_word(item.get("seg"), SEG_MAX), topic=_word(item.get("topic"), SEG_MAX),
+            seg=seg, topic=_word(item.get("topic"), SEG_MAX),
             # 글 칸은 비워 두라고 해도 채우는 버릇이 있어서, 골랐는지(chose)를 먼저 묻고 아니면 정함을 버려요
             dec=dec, dec_note=_word(item.get("dec_note"), DEC_NOTE_MAX) if dec else None,
             ret=(depth == 0 and previous > 0), ref=earlier(item.get("ref")),
-            parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True),
+            parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True,
+                                                   {"dec": dec, "seg": seg, "depth": depth}),
             gist=gist_lines(item.get("gist")) if row["ai"].strip() else [],      # 답이 없는 턴은 간추릴 것도 없어요
         )
         depth_of[row["seq"]] = depth
@@ -259,6 +261,15 @@ class Classifier:
         self.status["calls"] += 1
         return engine.complete_json(system, payload, schema)
 
+    def research(self, question, engine=None):
+        """웹에서 찾아보기 한 번 (앞길 살피기 · 엔진이 할 줄 알 때만). 정리 호출과 같은 한도를 써요."""
+        engine = engine or self.engine()
+        if self.status["calls"] >= self.max_calls:
+            self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
+            raise OutOfCalls()
+        self.status["calls"] += 1
+        return engine.research(question)
+
     def classify_chat(self, conn, chat_id) -> int:
         """그 대화의 밀린 턴을 CHUNK개씩 분류해요. 분류한 턴 수를 돌려줘요."""
         engine = self.engine()
@@ -330,7 +341,7 @@ class Classifier:
             return False
         if self.queue:
             chat_id = self.queue.popleft()
-        elif self.checker.queue:
+        elif self.checker.waiting():
             chat_id = None
         else:
             return False

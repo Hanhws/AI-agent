@@ -8,34 +8,29 @@
 - missing: 1단이 빠진 것 같은 요청을 냄 (parts.open = 2)
 - unasked: 이 턴에서 파일이 바뀌었고, 1단이 요청보다 넓게 바뀐 것 같다고 봄 (wide)
 - handoff: 같은 프로젝트에 새 대화가 열림 — 그 프로젝트에서 가장 새 대화의 첫 턴이고, 앞 대화에 정한 것이 있을 때
-- suggest: (꺼 둠 · GADAK_SUGGEST=1) 사용자가 방법을 고르거나 길을 묻는데, 전에 스스로 정한 것이 이 프로젝트에 있을 때.
-           지난 결정 중 지금 물음에 쓸 만한 것을 ‘다음 할 일’(next)로 짚어요. 근거는 이 사용자의 기록뿐이에요
+- ahead: (꺼 둠 · GADAK_AHEAD=1) 길이 갈리는 순간 — 방금 정함 · 구간이 바뀜 · 사용자가 다음 할 일을 물음.
+         앞길 살피기(ahead.py)가 따로 돌아 ‘다음 할 일’(next)을 내요. 프롬프트 · 도구 · 근거 검사가 달라서 루프도 따로예요
 어느 턴을 볼지는 정해 둔 개수가 아니라 이 조건으로 정해요. 보는 대화가 먼저, 그 안에서는 지금에 가까운 턴부터.
 얼마나 멀리 볼지(앞 턴 · 지난 대화)는 에이전트가 도구로 정해요.
 
 규칙
 - 걸음은 MAX_STEPS번까지(초깃값 5). 마지막 걸음에서는 끝내는 것만 고를 수 있어요.
-- 근거를 도구로 직접 보지 못한 한마디는 버려요 (missing은 get_request, unasked는 get_diff, handoff · next는 search_decisions).
+- 근거를 도구로 직접 보지 못한 한마디는 버려요 (missing은 get_request, unasked는 get_diff, handoff는 search_decisions).
 - 한마디의 버튼 · 바뀐 곳 · 다시 보낼 글은 엔진의 말이 아니라 저장된 기록으로 만들어요.
 - 판단 기록(agent_runs)에 쓴 도구와 순서, 본 것, 결론을 남겨요 (trace.py, /trace).
 """
 import collections
 import json
-import re
 import time
 
 from .. import config, store, usage
-from ..engines import EngineError
-from . import tools, trace
+from ..engines import BadOutput, EngineError
+from . import ahead, tools, trace
 
 SYSTEM = (config.ROOT / "backend" / "prompts" / "investigate.txt").read_text(encoding="utf-8")
-SUGGEST = (config.ROOT / "backend" / "prompts" / "suggest.txt").read_text(encoding="utf-8")   # suggest가 걸린 턴에만 덧붙여요
 
-TRIGGERS = ("missing", "unasked", "handoff", "suggest")
-KINDS = ("missing", "unasked", "handoff")      # 2단이 만드는 한마디. suggest가 걸린 턴에서는 next도
-# 사용자가 방법을 고르거나 길을 묻는 말 (suggest를 켜는 실마리). 넓게 잡고, 맞는지는 2단이 기록을 보고 정해요
-WONDERING = re.compile(r"어떻게|어떡|방법|뭐가 (좋|나)|뭘로|어느 (게|것|쪽)|추천|고민|모르겠|막혔|안 ?돼|how (do|should|can)|which|recommend|stuck", re.I)
-NEAR = 6              # 같은 대화에서 이만큼 안쪽의 결정은 방금 정한 것이라 다시 꺼내지 않아요
+TRIGGERS = ("missing", "unasked", "handoff", "ahead")
+KINDS = ("missing", "unasked", "handoff")      # 이 루프가 만드는 한마디. 앞길 살피기(ahead)는 next를 따로 만들어요
 MAX_TRIES = 2
 OUTLINE = 40          # 노선 상태로 보여 주는 역 수 (지금 턴 둘레). 그 밖의 역은 도구로 찾아 봐요
 USER_CLIP = 600
@@ -44,28 +39,27 @@ DIFF_SHOWN = 40       # ‘바뀐 곳 보기’ 창에 보이는 줄
 EARLIER_CHATS = 10
 
 _TEXT = {"type": ["string", "null"]}
-def _item(kinds) -> dict:
-    return {
-        "type": "object",
-        "properties": {
-            "kind": {"type": "string", "enum": list(kinds)},
-            "text": {"type": "string"}, "why": {"type": "string"},
-            "part": {"type": ["integer", "null"]}, "file": _TEXT, "asked": _TEXT, "what": _TEXT,
-            "use": {"type": "array", "items": {"type": "string"}},
-        },
-        "required": ["kind", "text", "why", "part", "file", "asked", "what", "use"],
-        "additionalProperties": False,
-    }
+ITEM = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": list(KINDS)},
+        "text": {"type": "string"}, "why": {"type": "string"},
+        "part": {"type": ["integer", "null"]}, "file": _TEXT, "asked": _TEXT, "what": _TEXT,
+        "use": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["kind", "text", "why", "part", "file", "asked", "what", "use"],
+    "additionalProperties": False,
+}
 
 
-def _schema(choices, kinds=KINDS) -> dict:
+def _schema(choices) -> dict:
     return {
         "type": "object",
         "properties": {
             "think": {"type": "string"},
             "tool": {"type": "string", "enum": list(choices)},
             "arg": _TEXT,
-            "items": {"type": "array", "items": _item(kinds)},
+            "items": {"type": "array", "items": ITEM},
         },
         "required": ["think", "tool", "arg", "items"],
         "additionalProperties": False,
@@ -112,8 +106,9 @@ def handoff_due(conn, chat) -> bool:
     ).fetchone() is not None
 
 
-def triggers(conn, chat, rows, row, parts, wide) -> list:
-    """1단이 이 턴을 분류할 때 부르는 곳. 걸린 조건이 없으면 빈 목록이고, 그 턴은 2단을 건너뛰어요."""
+def triggers(conn, chat, rows, row, parts, wide, made=None) -> list:
+    """1단이 이 턴을 분류할 때 부르는 곳. 걸린 조건이 없으면 빈 목록이고, 그 턴은 2단을 건너뛰어요.
+    made는 1단이 이 턴에 방금 붙인 값(dec · seg · depth)이에요. 아직 저장하기 전이라 따로 받아요."""
     look = []
     if any(part.get("open") == store.MAYBE_MISSING for part in parts or []):
         look.append("missing")
@@ -122,26 +117,10 @@ def triggers(conn, chat, rows, row, parts, wide) -> list:
     # 가닥이 시작할 때 이미 요약을 넣은 대화(승인한 자동 실행)에는 다시 권하지 않아요
     if rows and row["seq"] == rows[0]["seq"] and handoff_due(conn, chat) and not store.auto_sent(conn, chat["id"], "handoff"):
         look.append("handoff")
-    # 지난 결정 다시 꺼내기는 지금 하고 있는 턴(그 대화의 마지막 턴)에서만 봐요. 지나간 턴에 뒤늦게 권해 봐야 쓸 데가 없고,
-    # 지난 대화를 한꺼번에 정리할 때 턴마다 2단이 돌면 호출이 서너 배가 돼요 (10/7 평가: 9턴에 36번)
-    if (config.SUGGEST and rows and row["seq"] == rows[-1]["seq"] and WONDERING.search(row["user"] or "")
-            and decided_before(conn, chat, row)):
-        look.append("suggest")
+    # 앞길 살피기: 길이 갈리는 순간에만, 지금 하고 있는 대화의 마지막 턴에서만 (ahead.due)
+    if ahead.due(chat, rows, row, made or {}):
+        look.append("ahead")
     return look
-
-
-def decided_before(conn, chat, row) -> bool:
-    """다시 꺼낼 만한 지난 결정이 있는지: 같은 프로젝트의 다른 대화에서 정한 것, 또는 이 대화에서 꽤 앞에 정한 것."""
-    if chat is None:
-        return False
-    if conn.execute("SELECT 1 FROM turns WHERE chat_id = ? AND dec IS NOT NULL AND seq <= ? LIMIT 1",
-                    (chat["id"], row["seq"] - NEAR)).fetchone():
-        return True
-    if chat["project_id"] == store.NO_PROJECT:
-        return False
-    return conn.execute(
-        "SELECT 1 FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ? AND c.id != ? AND c.hidden = 0"
-        " AND t.dec IS NOT NULL LIMIT 1", (chat["project_id"], chat["id"])).fetchone() is not None
 
 
 # ---------- 엔진에 주는 것 ----------
@@ -196,14 +175,10 @@ def check(ctx, looks, call, max_steps=None) -> dict:
     """한 턴을 확인해요. call(system, payload, schema)은 엔진 호출 한 번이에요."""
     max_steps = max(1, max_steps or config.MAX_STEPS)
     steps, out, calls, ended = [], {}, 0, "limit"
-    system, step, last = SYSTEM, STEP_SCHEMA, LAST_SCHEMA
-    if "suggest" in looks:          # 지난 결정 다시 꺼내기가 걸린 턴에서만 그 지시와 next 종류를 더해요
-        system = SYSTEM + "\n\n" + SUGGEST
-        step, last = _schema(tools.NAMES + ("finish",), KINDS + ("next",)), _schema(("finish",), KINDS + ("next",))
     for n in range(max_steps):
         left = max_steps - n - 1
         payload = json.dumps(step_input(ctx, looks, steps, left), ensure_ascii=False)
-        out = call(system, payload, step if left else last) or {}
+        out = call(SYSTEM, payload, STEP_SCHEMA if left else LAST_SCHEMA) or {}
         calls += 1
         tool = out.get("tool")
         if tool == "finish":
@@ -265,17 +240,6 @@ def conclude(ctx, looks, steps, out) -> dict:
                 drop(kind, "붙일 만한 지난 결정이나 남은 일이 없어서 버렸어요")
             elif not any(i["kind"] == "handoff" for i in made):
                 made.append(item)
-        elif kind == "next":
-            seen = {d["id"] for s in steps if s["tool"] == "search_decisions" for d in s["data"].get("decisions") or []}
-            item = suggest_item(ctx, raw.get("use"), why, seen) if "suggest" in looks else None
-            if "suggest" not in looks:
-                drop(kind, "방법을 묻는 턴이 아니라 버렸어요")
-            elif not seen:
-                drop(kind, "지난 결정을 찾아보지 않고 낸 결론이라 버렸어요")
-            elif item is None:
-                drop(kind, "찾아본 결정이 아니거나 방금 정한 것이라 버렸어요")
-            elif not any(i["kind"] == "next" for i in made):
-                made.append(item)
         else:
             drop(str(kind), "모르는 종류라 버렸어요")
     return {"missing": missing, "items": made, "dropped": dropped}
@@ -325,40 +289,6 @@ def unasked_item(ctx, path, pairs, raw, why) -> dict:
 def _said(decision) -> str:
     """정한 것: 풀어 쓴 문장이 있으면 그걸로 (역 이름은 대화 밖에서 읽으면 뜻이 흐려요)."""
     return (decision["dec_note"] if "dec_note" in decision.keys() else None) or decision["dec"]
-
-
-def suggest_item(ctx, use, why, seen):
-    """지난 결정 다시 꺼내기. 엔진이 고른 결정 중 이번 걸음에 실제로 찾아본 것만 써요. 글은 엔진의 말이 아니라 기록으로 만들어요."""
-    ids = [u for u in (use or []) if isinstance(u, str) and u in seen][:3]
-    if not ids:
-        return None
-    where, values = ctx.scope()
-    rows = ctx.conn.execute(
-        "SELECT t.id, t.seq, t.dec, t.dec_note, t.chat_id, c.title AS chat_title, c.created_at FROM turns t JOIN chats c ON c.id = t.chat_id"
-        f" WHERE t.id IN (%s) AND t.dec IS NOT NULL AND {where} ORDER BY c.created_at DESC, t.seq DESC" % ",".join("?" * len(ids)),
-        ids + values,
-    ).fetchall()
-    # 이 대화에서 방금 정한 것은 사용자가 알고 있어요. 꽤 앞의 것과 다른 대화의 것만 꺼내요
-    kept = [r for r in rows if r["chat_id"] != ctx.chat["id"] or ctx.row["seq"] - r["seq"] >= NEAR]
-    if not kept:
-        return None
-
-    def origin(r):
-        if r["chat_id"] == ctx.chat["id"]:
-            return "이 대화의 앞에서"
-        return f"{store.display_date(r['created_at'])} {r['chat_title'] or '지난 대화'}"
-
-    first = kept[0]
-    text = f"전에 정한 것이 있어요: “{first['dec']}”" + (f" 외 {len(kept) - 1}개" if len(kept) > 1 else "")
-    prompt = "전에 정한 대로 해 줘.\n" + "\n".join(f"- {_said(r)} ({origin(r)})" for r in kept)
-    return {
-        "kind": "next", "text": text,
-        "why": why or "방법을 묻고 있는데, 전에 스스로 정해 둔 것이 있어요.",
-        "btn": "이 방법으로", "at": first["id"],
-        "pop": {"title": "전에 정한 방법", "text": prompt,
-                "note": "가닥이 권하는 방법이 아니라, 전에 직접 정한 것을 다시 꺼낸 거예요. 고쳐서 보내도 돼요.",
-                "btn": "이 방법으로", "prompt": prompt},
-    }
 
 
 def handoff_summary(decisions, leftovers) -> str:
@@ -424,8 +354,10 @@ class Investigator:
     def __init__(self, classifier):
         self.clf = classifier
         self.queue = collections.deque()
+        self.wanted = collections.deque()      # 사용자가 ‘앞길 보기’를 누른 대화 (ahead.py)
         self.tries = collections.Counter()
         self._engine = None
+        self._scout = None
 
     def engine(self):
         """2단 모델을 따로 정했으면(GADAK_CHECK_MODEL) 그 모델로, 아니면 1단과 같은 엔진."""
@@ -437,8 +369,20 @@ class Investigator:
             self._engine = type(base)(model=model)
         return self._engine
 
+    def scout_engine(self):
+        """앞길 살피기에 쓸 모델을 따로 정했으면(GADAK_AHEAD_MODEL) 그 모델로, 아니면 2단과 같은 엔진."""
+        engine = self.engine()
+        model = config.AHEAD_MODEL
+        if engine is None or not model or getattr(engine, "model", model) == model:
+            return engine
+        if self._scout is None or type(self._scout) is not type(engine) or self._scout.model != model:
+            self._scout = type(engine)(model=model)
+            if hasattr(self._scout, "effort"):           # 길을 찾는 일은 분류보다 깊이 봐야 해요. 그만큼 오래 걸려요
+                self._scout.effort, self._scout.timeout = config.AHEAD_EFFORT, 300
+        return self._scout
+
     def forget_engine(self) -> None:
-        self._engine = None
+        self._engine = self._scout = None
 
     def request(self, chat_id, front=True) -> None:
         if not chat_id:
@@ -451,11 +395,30 @@ class Investigator:
             self.queue.append(chat_id)
         self.clf.wake.set()
 
+    def want_ahead(self, chat_id) -> bool:
+        """사용자가 누른 ‘앞길 보기’. 그 대화의 마지막 턴에 서서 살펴요. 꺼 둔 동안에는 받지 않아요."""
+        if not config.AHEAD or not chat_id:
+            return False
+        if chat_id not in self.wanted:
+            self.wanted.append(chat_id)
+        self.clf.wake.set()
+        return True
+
+    def waiting(self) -> bool:
+        return bool(self.queue or self.wanted)
+
     def step(self, conn) -> bool:
         """줄 맨 앞 대화에서 확인할 턴 하나를 봐요. 볼 것이 없으면 False."""
         if self.engine() is None:
             self.queue.clear()     # 엔진이 없으면 기록만 해요
+            self.wanted.clear()
             return False
+        while self.wanted:         # 사용자가 누른 것이 먼저예요
+            chat = store.chat_row(conn, self.wanted.popleft())
+            rows = [r for r in store.chat_turns(conn, chat["id"]) if r["classified"] == 1] if chat is not None else []
+            if rows and not chat["hidden"]:
+                self.look_ahead(conn, rows[-1], "button")
+                return True
         while self.queue:
             waiting = store.waiting_checks(conn, self.queue[0])
             if not waiting:
@@ -471,6 +434,23 @@ class Investigator:
             with conn:   # 볼 까닭이 없거나 거듭 실패한 턴은 다시 보지 않아요
                 store.set_checked(conn, row["id"], 1 if not looks else -1)
             return None
+        regular = [t for t in looks if t != "ahead"]      # 앞길 살피기는 루프가 따로예요 (look_ahead)
+        result = self.check_regular(conn, row, regular) if regular else None
+        if "ahead" in looks and config.AHEAD:
+            try:
+                self.look_ahead(conn, row, ahead.reason(row["user"], row["dec"], row["seg"], row["depth"]) or "decided")
+            except EngineError:
+                raise        # 로그인 · 한도 문제. 이 턴은 확인하지 않은 채로 남아서, 다시 켜면 처음부터 봐요
+            except BadOutput:
+                pass         # 엔진이 형식을 못 지켰어요. 앞길을 못 살폈어도 이 턴의 확인은 끝난 거예요 (다시 살피려면 사용자가 눌러요)
+            except Exception as exc:
+                self.clf.status["error"] = str(exc)[:200]     # 그 밖의 문제는 보이게 남기되, 같은 턴을 되풀이해 살피지는 않아요
+        with conn:
+            store.set_checked(conn, row["id"], 1)
+        self.clf.rt.bump()
+        return result
+
+    def check_regular(self, conn, row, looks):
         engine = self.engine()
         self.clf.status["checking"] = row["id"]
         began = time.time()
@@ -490,13 +470,38 @@ class Investigator:
             result["saved"] = [{"id": i, "kind": item["kind"], "text": item["text"]}
                                for i, item in zip(ids, result["items"])]
             trace.save(conn, row["id"], looks, result, engine)
-            store.set_checked(conn, row["id"], 1)
         self.clf.status["checks"] += 1
         used = collections.Counter(s["tool"] for s in result["steps"])
-        # 사용 기록의 표에 있는 까닭만 적어요 (suggest는 표에 없어요. 칸을 더하려면 사람에게 먼저 물어요)
-        usage.record(conn, "check", {name: True for name in looks if name in KINDS}, steps=len(result["steps"]), calls=result["calls"],
+        usage.record(conn, "check", {name: True for name in looks}, steps=len(result["steps"]), calls=result["calls"],
                      made=len(ids), dropped=len(result["dropped"]), ended=result["ended"],
                      seconds=time.time() - began, **used)
+        for item in result["items"]:
+            usage.record(conn, "item", kind=item["kind"], did="made", at="auto")
+        return result
+
+    def look_ahead(self, conn, row, why):
+        """앞길 살피기 한 번 (ahead.scout). 길을 ‘다음 할 일’로 적고 판단 기록을 남겨요."""
+        engine = self.scout_engine()
+        ctx = tools.Context(conn, row)
+        searcher = self.engine()          # 웹에서 찾아 간추리는 일은 2단의 (작은) 모델로 충분해요
+        if config.AHEAD_WEB and callable(getattr(searcher, "research", None)):
+            ctx.lookup = lambda question: self.clf.research(question, searcher)
+        self.clf.status["checking"] = row["id"]
+        began = time.time()
+        try:
+            result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine))
+        finally:
+            self.clf.status["checking"] = None
+        with conn:
+            ids = store.set_ahead_items(conn, row["id"], result["items"])
+            result["saved"] = [{"id": i, "kind": item["kind"], "text": item["text"]}
+                               for i, item in zip(ids, result["items"])]
+            trace.save(conn, row["id"], ["ahead"], result, engine)
+        self.clf.status["checks"] += 1
+        # 사용 기록의 표에는 앞길 살피기의 칸이 없어요(까닭 · 새 도구). 있는 칸만 적어요. 칸을 더하려면 사람에게 먼저 물어요
+        used = collections.Counter(s["tool"] for s in result["steps"] if s["tool"] in tools.NAMES)
+        usage.record(conn, "check", steps=len(result["steps"]), calls=result["calls"], made=len(ids),
+                     dropped=len(result["dropped"]), ended=result["ended"], seconds=time.time() - began, **used)
         for item in result["items"]:
             usage.record(conn, "item", kind=item["kind"], did="made", at="auto")
         self.clf.rt.bump()

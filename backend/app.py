@@ -288,6 +288,20 @@ def create_app(db_path=None, engine="auto") -> Flask:
         call = rt.classifier.call if rt.classifier.engine() else None
         return jsonify(text=handoff.write(conn, chat_id, call))
 
+    @app.post("/chats/<chat_id>/ahead")
+    def chat_ahead(chat_id):
+        """사용자가 누른 ‘앞길 보기’: 그 대화의 마지막 턴에 서서 앞길을 살펴요 (backend/agent/ahead.py).
+        엔진이 뒤에서 1~2분 돌고, 찾은 길은 그 턴의 ‘다음 할 일’로 나타나요. 꺼 둔 동안에는 받지 않아요."""
+        if store.chat_row(db(), chat_id) is None:
+            abort(404)
+        if not config.AHEAD:
+            return jsonify(ok=False, reason="앞길 살피기는 꺼져 있어요."), 409
+        if rt.classifier.engine() is None:
+            return jsonify(ok=False, reason="정리에 쓸 엔진이 없어요."), 409
+        rt.classifier.request(chat_id, front=True)       # 아직 정리하지 않은 턴이 있으면 그것부터
+        rt.classifier.checker.want_ahead(chat_id)
+        return jsonify(ok=True)
+
     @app.get("/turns/<turn_id>")
     def turn(turn_id):
         data = store.turn_full(db(), turn_id)

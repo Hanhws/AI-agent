@@ -72,8 +72,17 @@ def _code_stamp() -> str:
 
 
 CODE = _code_stamp()   # 이 프로세스가 켜질 때의 코드
-# 지난 결정 다시 꺼내기(‘생각 못 한 방법 추천’): 사용자가 길을 물을 때, 전에 스스로 정한 것 중 쓸 만한 것을 한마디로 짚어요.
-# 쓸데없는 한마디가 늘 수 있어서 기본은 꺼 둬요. 정확도 평가(eval/)로 재 보고 켜요 (docs/changes-detail.md 20번)
-SUGGEST = os.environ.get("GADAK_SUGGEST", "0") == "1"
+# 앞길 살피기(‘생각 못 한 방법 추천’ · backend/agent/ahead.py): 길이 갈리는 순간에 사용자가 하려는 일을 읽고, 갈 수 있는 길을
+# 미리 찾아봐서 ‘다음 할 일’로 내밀어요. 쓸데없는 한마디가 늘 수 있어서 기본은 꺼 둬요. 쓸모를 재 보고(eval/ahead.py) 켜요
+AHEAD = os.environ.get("GADAK_AHEAD", "0") == "1"
+AHEAD_WEB = os.environ.get("GADAK_AHEAD_WEB", "0") == "1"        # 웹에서도 찾아봐요. 대화에서 뽑은 검색어가 밖으로 나가서 따로 켜요
+AHEAD_FILES = os.environ.get("GADAK_AHEAD_FILES", "1") == "1"    # 그 대화의 작업 폴더에 있는 글 파일도 읽어요 (깃이 무시하는 파일은 빼고)
+# 길을 찾는 일은 분류보다 어려워요. 작은 모델(Haiku)은 방금 대화만 되풀이해서(10/7 시범) 이 일만 큰 모델을 기본으로 둬요.
+# 비우면(GADAK_AHEAD_MODEL=) 2단과 같은 모델
+AHEAD_MODEL = os.environ.get("GADAK_AHEAD_MODEL", "sonnet") or None
+AHEAD_EFFORT = os.environ.get("GADAK_AHEAD_EFFORT", "medium")    # 모델을 따로 정했을 때 그 모델의 생각 깊이 (Claude 구독 엔진)
+AHEAD_STEPS = int(os.environ.get("GADAK_AHEAD_STEPS", "8"))      # 한 번 살필 때 엔진에 묻는 걸음 수의 한도
+AHEAD_EVERY = int(os.environ.get("GADAK_AHEAD_EVERY", "8"))      # 한 대화에서 이만큼의 턴에 한 번까지 (사용자가 누른 것은 세지 않아요)
+AHEAD_FRESH = int(os.environ.get("GADAK_AHEAD_FRESH", "180"))    # 분. 이보다 오래된 턴은 지나간 일이라 살피지 않아요 (0이면 따지지 않아요)
 # 2단에 쓸 모델. 비우면 1단과 같은 모델
 CHECK_MODEL = os.environ.get("GADAK_CHECK_MODEL") or ENGINE_MODEL
