@@ -16,6 +16,8 @@
 - ‘찾아본 것’은 지금 대화 밖에서 와야 해요. 이 대화의 최근 NEAR턴은 사용자가 이미 아는 것이라 출처로 치지 않아요
   (다른 대화 · 한참 앞의 턴 · 파일 · 웹만). 가닥이 내밀 것은 둘이 지금 보고 있지 않은 것이에요.
   열린 할 일도 방금 것이면 치지 않아요: 그건 할 일 목록이 이미 보여 줘요.
+- 찾아본 줄의 글은 엔진이 간추린 말이에요. 파일 · 웹에서 찾았다는 줄에 든 수(두 자리 넘는 수 · #번호 · 퍼센트)가
+  그 출처의 글에 없으면 그 줄을 빼요(간추리다 번호를 틀리게 옮긴 일이 있었어요).
 - 찾아본 것이 하나도 없는 길은 버려요. 길이 하나도 안 남으면 아무 말도 하지 않아요.
 - 지금 하고 있는 대화의 마지막 턴에서만, 한 대화에서 AHEAD_EVERY턴에 한 번까지 돌아요. 사용자가 누르면(POST /chats/<id>/ahead) 바로 돌아요.
 - 그 턴에 서서 앞을 보는 것이라 그 턴 뒤의 기록은 보지 않아요(Context.until).
@@ -325,6 +327,30 @@ def _host(url) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
+def _figures(text) -> set:
+    """글에 든 수 가운데 간추리다 틀리기 쉬운 것: 두 자리 넘는 수 · #번호 · 퍼센트."""
+    return set(re.findall(r"#\d+|\d+(?:\.\d+)?%|\d{2,}", text or ""))
+
+
+def _seen_text(steps) -> tuple:
+    """이번에 도구가 보여 준 글을 출처별로 모아요: (파일 경로 → 글, 웹 주소 → 글). 찾아본 줄의 수를 대조하는 데 써요."""
+    files, pages = {}, {}
+    for s in steps:
+        data = s["data"]
+        if s["tool"] == "read_file" and not data.get("error"):
+            name = outside.nfc(data["path"])
+            files[name] = files.get(name, "") + "\n" + data.get("text", "")
+        elif s["tool"] == "search_files":
+            for hit in data.get("hits") or []:
+                name = outside.nfc(hit["path"])
+                files[name] = files.get(name, "") + "\n" + hit.get("text", "")
+        elif s["tool"] == "look_up":
+            for item in data.get("found") or []:
+                page = same_page(item["source"])
+                pages[page] = pages.get(page, "") + "\n" + item.get("line", "")
+    return files, pages
+
+
 def conclude(ctx, steps, out) -> dict:
     """엔진이 낸 길을 기록과 맞춰 봐요. 근거가 된 턴을 이번에 보여 준 적이 없으면 그 길을 버리고,
     찾아본 것의 출처가 도구 결과에 없거나 방금 대화의 것이면 그 줄을 빼요. 찾아본 것이 하나도 남지 않은 길도 버려요(머리말의 규칙)."""
@@ -334,6 +360,7 @@ def conclude(ctx, steps, out) -> dict:
     files |= {outside.nfc(h["path"]) for s in steps if s["tool"] == "search_files" for h in s["data"].get("hits") or []}
     pages = {same_page(f["source"]): f["source"] for s in steps if s["tool"] == "look_up"
              for f in s["data"].get("found") or []}
+    file_text, page_text = _seen_text(steps)
     goal = _line((out or {}).get("goal"), GOAL_MAX) or None
     paths, dropped, cut = [], [], 0
 
@@ -367,15 +394,15 @@ def conclude(ctx, steps, out) -> dict:
                 name = outside.nfc(re.sub(r":\d+(-\d+)?$", "", source))          # ‘경로:줄’로 적어도 그 파일이에요
                 if not line:
                     continue
-                if name in files:
+                if name in files and _figures(line) <= _figures(file_text.get(name)):
                     found.append({"line": line, "from": "file", "source": source, "label": source})
-                elif same_page(source) in pages:
+                elif same_page(source) in pages and _figures(line) <= _figures(page_text.get(same_page(source))):
                     found.append({"line": line, "from": "web", "source": pages[same_page(source)], "label": _host(source)})
                 elif turn is not None and _far(ctx, turn):
                     found.append({"line": line, "from": "turn", "source": turn["id"],
                                   "label": f"{_where(ctx, turn)} ‘{turn['title']}’"})
                 else:
-                    lost += 1          # 출처가 도구 결과에 없거나, 방금 대화에 있던 것
+                    lost += 1          # 출처가 도구 결과에 없거나, 방금 대화에 있던 것이거나, 출처에 없는 수가 든 줄
             cut += lost
             if not found:
                 drop(kind, "찾아본 것이 없는 길이라 버렸어요" + (f" (출처로 칠 수 없는 줄 {lost}개)" if lost else ""))

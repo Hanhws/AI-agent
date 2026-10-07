@@ -279,6 +279,9 @@ class ScoutTest(Story):
         self.assertIn("error", mine[2]["data"])
         item = result["items"][0]
         self.assertIn("· 초당 30건까지예요. (core.telegram.org)", item["pop"]["text"])
+        figures = iter([step("look_up", "한도"), done(path("check", basis=[self.now], found=[
+            {"line": "초당 300건까지 보낼 수 있어요.", "source": "https://core.telegram.org/bots/faq"}]))])   # 웹에서 본 것은 30건
+        self.assertEqual(ahead.scout(ctx, "decided", lambda *_: next(figures))["items"], [])
         self.assertIn("(https://core.telegram.org/bots/faq#broadcasting)", item["pop"]["prompt"])   # 보낼 글에는 주소를 그대로
         self.assertNotIn("검색에 없던", item["pop"]["text"])
         self.assertEqual(outside.summary("look_up", mine[0]["data"]), "찾은 것 1줄 · 검색 1번")
@@ -411,6 +414,25 @@ class OutsideTest(Story):
                 self.assertEqual(outside.root(here) is not None, allowed, cwd)
                 self.assertEqual("read_file" in ahead.tool_names(here), allowed, cwd)
 
+    def test_without_git_files_inside_a_repo_are_left_alone(self):
+        base = self.folder()
+        inner = base / "inner"
+        inner.mkdir()
+        (inner / "kept.md").write_text("# 일정", encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(inner)], check=True, capture_output=True)
+        ctx = self.story(cwd=str(base))
+        with mock.patch.object(outside, "git_ready", return_value=False), mock.patch.object(outside.subprocess, "run") as run:
+            names = [f["path"] for f in outside.list_files(ctx)["files"]]
+            self.assertIn("README.md", names)                      # 저장소가 아닌 곳의 파일은 이름으로만 가려서 봐요
+            self.assertNotIn("inner/kept.md", names)               # 저장소 안은 무엇을 무시하기로 했는지 몰라서 안 봐요
+            self.assertIn("깃을 쓸 수 없어서", outside.read_file(ctx, "inner/kept.md")["error"])
+            self.assertEqual(outside.read_file(ctx, "src/main.py")["text"], "T = 1300\n")
+            run.assert_not_called()                                # 깃을 부르지 않아요 (개발자 도구 설치 창이 뜨지 않게)
+            with self.conn:
+                self.conn.execute("UPDATE chats SET cwd = ? WHERE id = ?", (str(inner), CHAT))
+            self.assertEqual(outside.list_files(tools.Context(self.conn, self.row(self.now)))["files"], [])
+        self.assertTrue(outside.git_ready())                       # 이 PC에는 깃이 있어요 (위의 저장소도 깃으로 만들었어요)
+
     def test_a_file_that_was_read_can_be_a_source(self):
         base = self.folder()
         ctx = self.story(cwd=str(base))
@@ -425,6 +447,17 @@ class OutsideTest(Story):
             {"line": "README에 설명이 있어요.", "source": "README.md"}]))])
         with on():
             self.assertEqual(len(ahead.scout(ctx, "decided", lambda *_: next(again))["items"]), 1)
+        # 간추리다 수를 틀리게 옮긴 줄은 빼요: 출처의 글에 없는 번호 · 날짜 · 퍼센트
+        wrong = iter([step("read_file", "README.md:2004"), done(path("check", basis=[self.now], found=[
+            {"line": "10/10까지 알림 문구를 끝내야 해요.", "source": "README.md:2005"},
+            {"line": "PR #7까지 합쳐야 한다고 적혀 있어요.", "source": "README.md:2005"},
+            {"line": "12/31까지라고 적혀 있어요.", "source": "README.md"},
+            {"line": "정확도가 70%라고 적혀 있어요.", "source": "README.md"}]))])
+        with on():
+            result = ahead.scout(ctx, "decided", lambda *_: next(wrong))
+        self.assertEqual([f["line"] for f in result["paths"][0]["found"]], ["10/10까지 알림 문구를 끝내야 해요."])
+        self.assertEqual((result["cut"], result["dropped"][0]["why"]), (3, "출처로 칠 수 없는 줄 3개를 뺐어요 (길은 남겼어요)"))
+        self.assertEqual(ahead._figures("PR #2 · #4를 10/13에 85.5%로 3번"), {"#2", "#4", "10", "13", "85.5%"})
 
 
 class WorkerTest(Story):

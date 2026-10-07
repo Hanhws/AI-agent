@@ -8,13 +8,17 @@
 파일은 읽기만 하고, 읽은 글은 대화 글과 같은 곳(엔진)에만 보내요. 읽지 않는 것:
 - 작업 폴더 밖의 파일 (바로 가기로 밖을 가리키는 것 포함)
 - 작업 폴더가 홈 · 바탕화면 · 문서 · 다운로드처럼 넓은 곳이면 아무것도 (프로젝트 폴더가 아니에요)
-- 깃이 무시하는 파일(.gitignore) — 올리지 않기로 한 파일은 가닥도 읽지 않아요. 작업 폴더 안에 저장소가 들어 있을 때도 같아요
+- 깃이 무시하는 파일(.gitignore) — 올리지 않기로 한 파일은 가닥도 읽지 않아요. 작업 폴더 안에 저장소가 들어 있을 때도 같아요.
+  깃을 쓸 수 없는 Mac(개발자 도구가 없음)에서는 무엇을 무시하기로 했는지 알 수 없어서, 저장소 안의 파일은 아예 읽지 않아요
 - 이름이 비밀번호 · 키 · 내 PC 전용 파일처럼 보이는 것 (.env · *.pem · *.local.* …)
 - 글이 아닌 파일, 너무 큰 파일
 """
+import functools
 import os
 import re
+import shutil
 import subprocess
+import sys
 import unicodedata
 from pathlib import Path
 
@@ -72,8 +76,31 @@ def too_broad(path) -> bool:
     return real.parent == home and real.name in BROAD
 
 
+@functools.lru_cache(maxsize=1)
+def git_ready() -> bool:
+    """깃을 불러도 되는지. macOS의 /usr/bin/git은 개발자 도구가 없으면 ‘설치할까요?’ 창을 띄우는 껍데기라, 그때는 부르지 않아요."""
+    path = shutil.which("git")
+    if not path:
+        return False
+    if sys.platform == "darwin" and os.path.realpath(path) == "/usr/bin/git":
+        try:
+            tools = subprocess.run(["/usr/bin/xcode-select", "-p"], capture_output=True, text=True, timeout=3)
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return tools.returncode == 0 and Path(tools.stdout.strip()).is_dir()
+    return True
+
+
+def _repo_above(path) -> bool:
+    """이 폴더나 그 위 어딘가가 깃 저장소인지 (.git이 있는지)."""
+    path = Path(path)
+    return any((folder / ".git").exists() for folder in (path, *path.parents))
+
+
 def _git(base, *args):
-    """깃 명령 하나. 저장소가 아니거나 깃이 없으면 None."""
+    """깃 명령 하나. 저장소가 아니거나 깃을 쓸 수 없으면 None."""
+    if not git_ready():
+        return None
     try:
         out = subprocess.run(["git", "-C", str(base), *args], capture_output=True, timeout=GIT_SECONDS)
     except (OSError, subprocess.TimeoutExpired):
@@ -128,7 +155,8 @@ def _readable(base) -> list:
     """읽어도 되는 글 파일들. 얕은 곳부터: README · 설정 같은 큰 그림이 먼저 와요."""
     names = _tracked(base)
     if names is None:
-        names = _walk(base)
+        # 저장소인데 깃에게 물을 수 없으면(깃이 없음) 무시하기로 한 파일을 가릴 수 없어요. 그때는 읽지 않아요
+        names = [] if not git_ready() and _repo_above(base) else _walk(base)
     names = [n for n in names if not _hidden(n) and _texty(n)]
     names.sort(key=lambda n: (n.count("/"), n.lower()))
     return names
@@ -264,6 +292,8 @@ def read_file(ctx, arg=None) -> dict:
         return {"error": "비밀이 들었을 수 있는 파일이라 읽지 않아요."}
     if _ignored(base, rel):
         return {"error": "깃이 무시하는 파일은 읽지 않아요."}
+    if not git_ready() and _repo_above(real.parent):
+        return {"error": "이 Mac에서는 깃을 쓸 수 없어서, 저장소 안의 파일은 읽지 않아요."}
     if not _texty(inside):
         return {"error": "글 파일만 읽어요."}
     if real.stat().st_size > READ_BYTES:
