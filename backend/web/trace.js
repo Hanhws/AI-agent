@@ -6,8 +6,11 @@
   var params = new URLSearchParams(location.search);
   var S = { turn: params.get('turn'), project: params.get('project') || '', projects: [], rev: -1, sig: null };
   var POLL = 3000;
-  var TRIGGER = { missing: '빠진 요청 후보', unasked: '요청 외 변경 후보', handoff: '새 대화' };
-  var KIND = { missing: '빠진 요청', unasked: '요청 외 변경', handoff: '이어 가기' };
+  var TRIGGER = { missing: '빠진 요청 후보', unasked: '요청 외 변경 후보', handoff: '새 대화', ahead: '앞길 살피기' };
+  var KIND = { missing: '빠진 요청', unasked: '요청 외 변경', handoff: '이어 가기', next: '다음 할 일' };
+  // 앞길 살피기(backend/agent/ahead.py): 살핀 까닭과 길의 종류
+  var AHEAD_WHY = { decided: '방금 정했어요', stage: '구간이 바뀌었어요', asked: '다음 할 일을 물었어요', button: '앞길 보기를 눌렀어요' };
+  var PATH = { onward: '이어 가기', other: '다른 길', check: '미리 챙길 것' };
   var ENDED = { finish: '결론을 냈어요', limit: '걸음 한도에 닿아 멈췄어요', odd: '엔진의 답을 읽지 못해 멈췄어요' };
   var root = document.getElementById('trace');
 
@@ -21,6 +24,8 @@
   function argText(step, run) {
     if (step.tool === 'list_open_items') return '';
     if (step.tool === 'search_decisions') return step.arg ? '“' + step.arg + '”' : '최근 것부터';
+    if (step.tool === 'search_turns' || step.tool === 'search_files' || step.tool === 'look_up') return step.arg ? '“' + step.arg + '”' : '';
+    if (step.tool === 'list_files' || step.tool === 'read_file') return step.arg || '';
     return !step.arg || step.arg === run.turn.id ? '이 역' : '역 ' + step.arg;
   }
 
@@ -77,7 +82,9 @@
     c.appendChild(h);
     var why = el('div', 'why'); why.appendChild(el('span', null, '확인한 까닭'));
     run.trigger.forEach(function (t) { why.appendChild(el('span', 'chip', TRIGGER[t] || t)); });
+    if (run.why) why.appendChild(el('span', null, AHEAD_WHY[run.why] || run.why));
     c.appendChild(why);
+    if (run.goal) { var goal = el('div', 'think'); goal.textContent = '읽은 목적지 · ' + run.goal; c.appendChild(goal); }
     if (run.steps.length) {
       var ol = el('ol', 'steps'); ol.setAttribute('aria-label', '쓴 도구');
       run.steps.forEach(function (s, i) { ol.appendChild(stepItem(s, i, run)); });
@@ -87,7 +94,7 @@
     if (run.think) end.appendChild(el('div', 'think', run.think));
     (run.items || []).forEach(function (it) { end.appendChild(got('todo', KIND[it.kind] || it.kind, it.text)); });
     (run.missing || []).forEach(function (m) { end.appendChild(got('todo', KIND.missing, '“' + m.t + '” 답이 안 왔어요')); });
-    (run.dropped || []).forEach(function (d) { end.appendChild(got('drop', '버린 결론', (KIND[d.kind] || d.kind) + ' · ' + d.why)); });
+    (run.dropped || []).forEach(function (d) { end.appendChild(got('drop', '버린 결론', (KIND[d.kind] || PATH[d.kind] || d.kind) + ' · ' + d.why)); });
     if (!(run.items || []).length && !(run.missing || []).length) end.appendChild(el('div', 'none', '한마디를 만들지 않았어요.'));
     var meta = ['엔진 호출 ' + run.calls + '번'];
     if (run.engine) meta.push(run.engine + (run.model ? ' · ' + run.model : ''));
@@ -100,7 +107,7 @@
   function render(runs) {
     root.innerHTML = '';
     root.appendChild(top());
-    root.appendChild(el('p', 'lead', '빠진 요청이나 요청 외 변경이 의심되는 턴, 새 대화의 첫 턴에서 가닥이 기록을 다시 읽어 확인해요. 어떤 도구를 어떤 순서로 썼고 무엇을 보고 결론 냈는지 여기 남겨요.'));
+    root.appendChild(el('p', 'lead', '빠진 요청이나 요청 외 변경이 의심되는 턴, 새 대화의 첫 턴에서 가닥이 기록을 다시 읽어 확인해요. 앞길을 살핀 턴도 여기 남아요. 어떤 도구를 어떤 순서로 썼고 무엇을 보고 결론 냈는지 볼 수 있어요.'));
     root.appendChild(bar());
     if (!runs.length) {
       var e = el('div', 'empty'); e.appendChild(el('b', null, '아직 판단 기록이 없어요.'));
