@@ -219,6 +219,22 @@ class ScoutTest(Story):
             quiet = ahead.scout(ctx, why, lambda *_: done(path("onward", basis=[self.now])))
             self.assertEqual((quiet["items"], quiet["calls"]), ([], 1), why)
 
+    def test_turn_ids_never_show_in_what_people_read(self):
+        ctx = self.story()
+        leaky = done(path(
+            "other", f"{self.asked}에서 본 길 다시 보기", why=f"{self.asked}에서 물었고 {self.old}에서 정했어요. tffffffffff는 없는 턴이에요.",
+            basis=[self.now], found=[{"line": f"{self.asked}에서 웹훅이면 된다고 했어요.", "source": self.asked}],
+            ask=f"{self.asked}에서 말한 웹훅으로 보내 줘."))
+        answers = iter([step("search_turns", "디스코드"), leaky])
+        result = ahead.scout(ctx, "asked", lambda *_: next(answers))
+        item, shown = result["items"][0], result["paths"][0]
+        self.assertEqual(shown["title"], "‘디스코드 되냐’에서 본 길 다시 보기")
+        self.assertEqual(shown["why"], "‘디스코드 되냐’에서 물었고 ‘알림 채널’에서 정했어요. 는 없는 턴이에요.")
+        self.assertEqual((shown["ask"], shown["found"][0]["line"]), ("‘디스코드 되냐’에서 말한 웹훅으로 보내 줘.", "‘디스코드 되냐’에서 웹훅이면 된다고 했어요."))
+        self.assertEqual(shown["found"][0]["source"], self.asked)             # 출처 칸에는 id가 그대로 (화면에는 제목으로 풀어 보여 줘요)
+        for text in (item["text"], item["why"], item["pop"]["text"], item["pop"]["prompt"]):
+            self.assertIsNone(ahead.TURN_ID.search(text), text)
+
     def test_it_stands_on_the_turn_and_does_not_see_what_came_after(self):
         ctx = self.story()
         later = self.turn("g4", "알림 문구는 짧게 하자", "짧게 바꿨어요.",

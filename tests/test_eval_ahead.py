@@ -238,6 +238,30 @@ class FilledSheetTest(unittest.TestCase):
         self.assertNotIn("첫째 시트에서 읽지 못한", text)
         self.assertNotIn("한쪽 시트에만", text)
 
+    def test_one_persons_ratings_are_scored_on_their_own(self):
+        owner = [("0", "0"), ("1", "0"), ("1", "0"), ("0", "1"), ("1", "0"), ("1", ""), ("1", "")]
+        with tempfile.TemporaryDirectory() as tmp:
+            a = cli.read_sheet(self.sheet(tmp, "A.csv", owner))
+            many = cli.read_sheet(self.sheet(tmp, "많이.csv", [("1", "0")] * 9 + [("0", "1")] * 3 + [("", ""), ("O", "")]))
+        result = cli.score(a)
+        self.assertEqual((result["paths"], result["unrated"], result["useful"], result["rate"]), (7, 0, 5, 0.7143))
+        self.assertEqual(result["went"], {"of": 5, "new": 3, "anyway": 0, "obvious": 1, "neither": 1})
+        self.assertEqual(result["by_kind"], {"다른 길": {"of": 3, "useful": 1}, "미리 챙길 것": {"of": 2, "useful": 2}, "이어 가기": {"of": 2, "useful": 2}})
+        self.assertEqual((result["enough"], result["passed"]), (False, False))
+        text = cli.show_score("A.csv", result)
+        for line in ("A.csv · 매긴 길 7개", "쓸모 있다고 한 길        71% (5/7)", "갔나를 매긴 5개 중 — 생각 못 한 길 3개(쓸모 있는데 가지 않음) · 어차피 간 길 0개",
+                     "뻔한 되풀이 1개(쓸모없는데 감) · 둘 다 아님 1개", "아직 정할 수 없어요: 매긴 길이 10개가 안 돼요."):
+            self.assertIn(line, text)
+        self.assertNotIn("정할 수 없어요", cli.show_score("A.csv", result, verdict=False))
+        enough = cli.score(many)                                               # 12개를 매겼고 9개가 쓸모(75%). 안 매긴 줄과 못 읽은 줄은 빼요
+        self.assertEqual((enough["paths"], enough["unrated"], enough["rate"], enough["passed"], len(enough["odd"])), (12, 2, 0.75, True, 1))
+        text = cli.show_score("많이.csv", enough)
+        for line in ("매긴 길 12개 (안 매긴 길 2개는 뺐어요)", "켤 기준(70% 이상)을 넘었어요.", "! 읽지 못한 칸 1개"):
+            self.assertIn(line, text)
+        low = cli.score({k: dict(v, useful=0 if n < 4 else v["useful"]) for n, (k, v) in enumerate(many.items())})
+        self.assertIn("못 미쳐요", cli.show_score("낮음.csv", low))
+        self.assertEqual(cli.score({})["rate"], None)
+
     def test_sheets_that_do_not_line_up_are_called_out(self):
         with tempfile.TemporaryDirectory() as tmp:
             seven = cli.read_sheet(self.sheet(tmp, "A.csv", [("1", "")] * 7))
@@ -273,6 +297,16 @@ class FilledSheetTest(unittest.TestCase):
             self.assertIn("둘 다 매긴 길 3개", said)
             code, said = run("compare", str(good), str(xlsx))
             self.assertEqual((code, "CSV UTF-8" in said), (2, True))
+            code, said = run("score", str(good))                                     # 한 사람이 매긴 시트 하나
+            self.assertEqual(code, 0)
+            for line in ("A.csv · 매긴 길 3개", "쓸모 있다고 한 길        100% (3/3)", "생각 못 한 길 3개", "매긴 길이 10개가 안 돼요"):
+                self.assertIn(line, said)
+            code, said = run("score", str(good), str(odd))                           # 저마다 자기 대화를 매긴 시트 둘: 시트마다, 그리고 합쳐서
+            self.assertEqual(code, 0)
+            for line in ("A.csv · 매긴 길 3개", "B.csv · 매긴 길 1개 (안 매긴 길 2개는 뺐어요)", "! 읽지 못한 칸 1개", "모두 합쳐 · 매긴 길 4개 (안 매긴 길 2개는 뺐어요)"):
+                self.assertIn(line, said)
+            self.assertEqual((said.count("정할 수 없어요"), said.count("읽지 못한 칸")), (1, 1))     # 판정과 못 읽은 칸은 한 번씩만
+            self.assertEqual(run("score", str(xlsx))[0], 2)
             # 가닥이 만든 시트가 아닌 파일 뒤에는 붙이지 않아요 (덮어쓰지 않아요)
             other = Path(tmp) / "남의 파일.csv"
             other.write_text("이름,값\n가,1\n", encoding="utf-8")
@@ -308,26 +342,38 @@ class CliTest(unittest.TestCase):
         for words in ("확인 시각", "호출 한도", "환율", "몇 시에"):                # 대화 글 · 길의 글은 숫자 파일에 남기지 않아요
             self.assertNotIn(words, text)
 
-    def test_a_stopped_run_can_be_picked_up_and_more_talks_added_to_the_same_sheet(self):
+    def test_a_stopped_run_can_be_picked_up_and_more_junctions_added_to_a_rated_sheet(self):
         with tempfile.TemporaryDirectory() as tmp:
             sheet = Path(tmp) / "시트.csv"
+            base = ["run", "--demo", "--model", "정답", "--out", str(sheet)]
             patches = (mock.patch.object(cli, "get_engine", lambda name: Scout()), mock.patch.object(cli, "resolve_name", lambda name=None: "scout"),
                        mock.patch.object(cli, "RESULTS", Path(tmp) / "results"), mock.patch.object(cli, "LOCAL", Path(tmp) / "local"))
-            with contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()):
+            with contextlib.ExitStack() as stack, contextlib.redirect_stdout(io.StringIO()) as said:
                 for patch in patches:
                     stack.enter_context(patch)
-                self.assertEqual(cli.main(["run", "--demo", "--model", "정답", "--max", "1", "--out", str(sheet)]), 0)           # 첫 갈림길만
+                self.assertEqual(cli.main(base + ["--max", "1"]), 0)                      # 첫 갈림길만 살피고 멈춘 셈
                 first = cli.sheet_so_far(sheet)
-                self.assertEqual(cli.main(["run", "--demo", "--model", "정답", "--from", "2", "--append", "--out", str(sheet)]), 0)   # 둘째부터 이어서
+                self.assertEqual(cli.main(base + ["--from", "2", "--append"]), 0)         # 둘째부터 이어서
                 both = cli.sheet_so_far(sheet)
-                self.assertEqual(cli.main(["run", "--demo", "--model", "정답", "--append", "--out", str(sheet)]), 0)             # 한 번 더: 번호를 이어 매겨요
+                rated = [list(r) for r in both]                                           # 사람이 둘째 갈림길의 두 줄을 매겼어요
+                rated[1][13:16], rated[2][13:16] = ["1", "0", "좋아요"], ["0", "", ""]
+                cli.write_sheet(sheet, rated)
+                self.assertEqual(cli.main(base + ["--append"]), 0)                        # 같은 갈림길을 또: 다시 살피지 않아요
+                same = cli.sheet_so_far(sheet)
+                with mock.patch.object(config, "AHEAD_EVERY", 1):                         # 간격을 줄이면 사이의 갈림길을 더 살펴요
+                    self.assertEqual(cli.main(base + ["--append"]), 0)
                 more = cli.sheet_so_far(sheet)
                 saved = sorted(p.name for p in (Path(tmp) / "results").glob("*.json"))
             self.assertEqual([(r[0], r[1]) for r in first], [("1", "a4")])
             self.assertEqual([(r[0], r[1]) for r in both], [("1", "a4"), ("2", "b4"), ("2", "b4")])
-            self.assertEqual([(r[0], r[1]) for r in more[3:]], [("3", "a4"), ("4", "b4"), ("4", "b4")])
-            self.assertEqual(len(cli.read_sheet(sheet)), 4)                 # 길이 든 줄: 번호 · 턴 · 종류로 가려요
-            self.assertEqual(saved, ["앞길-demo-정답.json"])                 # 이어서 돈 것의 숫자는 남기지 않아요
+            self.assertEqual(same, rated)
+            self.assertIn("새로 붙일 줄이 없어요", said.getvalue())
+            self.assertIn("시트에 이미 있는 갈림길 2곳은 다시 보지 않아요 · 새로 살필 곳 3곳", said.getvalue())
+            self.assertEqual(more[:3], rated)                                             # 있던 줄과 매긴 값은 그대로
+            self.assertEqual([(r[0], r[1]) for r in more[3:]], [("3", "a5"), ("4", "b5"), ("4", "b5"), ("5", "b6"), ("5", "b6")])   # 번호를 이어 매겨요
+            self.assertIn("있던 3줄은 그대로 두고 5줄을 붙였어요", said.getvalue())
+            self.assertEqual(len(cli.read_sheet(sheet)), 6)                 # 길이 든 줄: 번호 · 턴 · 종류로 가려요
+            self.assertEqual(saved, ["앞길-demo-정답.json"])                 # 이어서 · 더해서 돈 것의 숫자는 남기지 않아요
 
     def test_without_the_example_file_it_says_how_to_try(self):
         with mock.patch.object(cli, "EXAMPLE", Path("없는 파일.json")), contextlib.redirect_stdout(io.StringIO()) as said:

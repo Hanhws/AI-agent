@@ -327,6 +327,22 @@ def _host(url) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
+TURN_ID = re.compile(r"(?<![0-9A-Za-z])t[0-9a-f]{10}(?![0-9A-Za-z])")
+
+
+def _plain(ctx, text):
+    """사람이 읽을 글에 섞인 턴 id(t9fd083009a)를 그 턴의 제목으로 바꿔요. 가닥 안에서만 쓰는 번호가 화면에 보이지 않게요.
+    (10/7 평가에서 까닭에 “t9fd083009a에서 …”가 그대로 나왔어요.) 찾을 수 없는 id는 지워요."""
+    if not isinstance(text, str):
+        return text
+
+    def name(match):
+        row = ctx.turn(match.group(0))
+        return f"‘{row['title']}’" if row is not None else ""
+
+    return TURN_ID.sub(name, text)
+
+
 def _figures(text) -> set:
     """글에 든 수 가운데 간추리다 틀리기 쉬운 것: 두 자리 넘는 수 · #번호 · 퍼센트."""
     return set(re.findall(r"#\d+|\d+(?:\.\d+)?%|\d{2,}", text or ""))
@@ -371,7 +387,7 @@ def conclude(ctx, steps, out) -> dict:
         if not isinstance(raw, dict):
             continue
         kind = raw.get("kind")
-        title, ask = _line(raw.get("title"), TITLE_MAX), _block(raw.get("ask"), ASK_MAX)
+        title, ask = _line(_plain(ctx, raw.get("title")), TITLE_MAX), _block(_plain(ctx, raw.get("ask")), ASK_MAX)
         basis = []
         for ref in raw.get("basis") or []:
             row = _turn(ctx, ref, seen)
@@ -388,7 +404,7 @@ def conclude(ctx, steps, out) -> dict:
         else:
             found, lost = [], 0
             for item in raw.get("found") or []:
-                line = _line(item.get("line"), LINE_MAX) if isinstance(item, dict) else ""
+                line = _line(_plain(ctx, item.get("line")), LINE_MAX) if isinstance(item, dict) else ""
                 source = str(item.get("source") or "").strip() if isinstance(item, dict) else ""
                 turn = _turn(ctx, re.sub(r":p?\d+$", "", source) if source.startswith("t") else source, looked)   # 할 일의 id로 가리켜도 그 턴이에요
                 name = outside.nfc(re.sub(r":\d+(-\d+)?$", "", source))          # ‘경로:줄’로 적어도 그 파일이에요
@@ -409,7 +425,7 @@ def conclude(ctx, steps, out) -> dict:
                 continue
             if lost:
                 drop(kind, f"출처로 칠 수 없는 줄 {lost}개를 뺐어요 (길은 남겼어요)")
-            paths.append({"kind": kind, "title": title, "why": _line(raw.get("why"), WHY_MAX), "ask": ask,
+            paths.append({"kind": kind, "title": title, "why": _line(_plain(ctx, raw.get("why")), WHY_MAX), "ask": ask,
                           "basis": basis[:BASIS_KEEP], "found": found[:FOUND_KEEP]})
     return {"goal": goal, "paths": [public(p) for p in paths], "items": [path_item(ctx, goal, p) for p in paths],
             "dropped": dropped, "cut": cut}
