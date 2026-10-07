@@ -179,6 +179,110 @@ class CompareTest(unittest.TestCase):
         self.assertIn("못 미쳐요", cli.show(low))
 
 
+class FilledSheetTest(unittest.TestCase):
+    """사람이 엑셀 · Numbers로 채워 저장한 시트: 형식이 달라도 읽고, 잘못 적은 칸은 조용히 넘기지 않아요."""
+    KINDS = ["이어 가기", "다른 길", "미리 챙길 것"]
+
+    def sheet(self, tmp, name, marks):
+        path = Path(tmp) / name
+        cli.write_sheet(path, [[n, "a1", "방금 정함", "대화", "지금", "목적지", self.KINDS[n % 3], "길", "", "", "· 줄 하나\n· 줄 둘", "보낼 글",
+                                "1. 그 뒤", useful, went, ""] for n, (useful, went) in enumerate(marks, 1)]
+                        + [[99, "a9", "방금 정함", "대화", "지금", "", "—", "(길을 내지 않았어요)", "", "", "", "", "", "", "", ""]])
+        return path
+
+    def test_sheets_saved_by_a_spreadsheet_are_still_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.sheet(tmp, "A.csv", [("1", "0"), ("0", ""), ("1", "1"), ("", "")])
+            plain = cli.read_sheet(path)
+            self.assertEqual((len(plain), plain["1:a1:다른 길"]), (4, {"useful": 1, "went": 0, "kind": "다른 길", "odd": {}}))
+            text = path.read_text(encoding="utf-8-sig")
+            old = Path(tmp) / "예전 한글 형식.csv"                     # 엑셀의 ‘쉼표로 분리(.csv)’. —는 이 형식에 없어 ?가 돼요
+            old.write_bytes(text.encode("cp949", errors="replace"))
+            wide = Path(tmp) / "유니코드 텍스트.txt"                    # 엑셀의 ‘유니코드 텍스트’: UTF-16 · 탭
+            with open(wide, "w", encoding="utf-16", newline="") as file:
+                csv.writer(file, delimiter="\t").writerows(csv.reader(io.StringIO(text, newline="")))
+            semi = Path(tmp) / "쌍반점.csv"
+            with open(semi, "w", encoding="utf-8", newline="") as file:
+                csv.writer(file, delimiter=";").writerows(csv.reader(io.StringIO(text, newline="")))
+            for other in (old, wide, semi):
+                self.assertEqual(cli.read_sheet(other), plain, other.name)
+            xlsx = Path(tmp) / "시트.xlsx"
+            xlsx.write_bytes(b"PK\x03\x04" + b"\x00" * 20)
+            renamed = Path(tmp) / "열 이름을 고침.csv"
+            renamed.write_text(text.replace("쓸모", "유용", 1), encoding="utf-8-sig")
+            broken = Path(tmp) / "깨진 글자.csv"
+            broken.write_bytes(b"\x81\x00\xff\xfe\x81")
+            for bad, said in ((xlsx, "CSV UTF-8"), (renamed, "‘쓸모’ 열이 없어요"), (broken, "글자를 읽지 못했어요"),
+                              (Path(tmp) / "없는 파일.csv", "열지 못했어요")):
+                with self.assertRaises(cli.SheetError) as caught:
+                    cli.read_sheet(bad)
+                self.assertIn(said, str(caught.exception), bad.name)
+
+    def test_marks_that_cannot_be_read_are_reported_not_dropped_quietly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            a = cli.read_sheet(self.sheet(tmp, "A.csv", [("1", "1")] * 4))
+            b = cli.read_sheet(self.sheet(tmp, "B.csv", [("O", "예"), ("１", " 0 "), ("1.0", ""), ("0 (뻔함)", "X")]))
+        self.assertEqual([(b[k]["useful"], b[k]["went"]) for k in ("1:a1:다른 길", "2:a1:미리 챙길 것", "3:a1:이어 가기", "4:a1:다른 길")],
+                         [(None, None), (1, 0), (1, None), (0, None)])          # 전각 숫자 · 1.0 · 뒤에 붙인 메모는 읽어요
+        looked = cli.check(b)
+        self.assertEqual((looked["paths"], looked["useful"], looked["went"], len(looked["odd"]), looked["blank"], looked["ok"]),
+                         (4, 3, 1, 3, [], False))
+        self.assertIn("‘1 · a1 · 다른 길’의 쓸모 “O”", cli.show_check("B.csv", looked))
+        fine = cli.check(a)
+        self.assertEqual((fine["ok"], fine["odd"]), (True, []))
+        self.assertIn("이대로 견줄 수 있어요", cli.show_check("A.csv", fine))
+        result = cli.compare(a, b)
+        self.assertEqual((result["paths"], result["unrated"], result["odd"]["one"], len(result["odd"]["two"])), (3, 1, [], 3))
+        text = cli.show(result)
+        self.assertIn("! 둘째 시트에서 읽지 못한 칸 3개: ‘1 · a1 · 다른 길’의 쓸모 “O”", text)
+        self.assertNotIn("첫째 시트에서 읽지 못한", text)
+        self.assertNotIn("한쪽 시트에만", text)
+
+    def test_sheets_that_do_not_line_up_are_called_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            seven = cli.read_sheet(self.sheet(tmp, "A.csv", [("1", "")] * 7))
+            three = cli.read_sheet(self.sheet(tmp, "B.csv", [("1", "")] * 3))          # 다른 시트(길이 셋뿐인 것)를 채운 경우
+        result = cli.compare(seven, three)
+        self.assertEqual((result["paths"], len(result["only"]["one"]), result["only"]["two"]), (3, 4, []))
+        self.assertIn("! 한쪽 시트에만 있는 길이 있어요 (첫째에만 4개 · 둘째에만 0개): ‘4 · a1 · 다른 길’", cli.show(result))
+        self.assertNotIn("한쪽 시트에만", cli.show(cli.compare(seven, seven)))
+
+    def test_the_commands_explain_instead_of_crashing(self):
+        def run(*argv):
+            with contextlib.redirect_stdout(io.StringIO()) as said:
+                return cli.main(list(argv)), said.getvalue()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            good = self.sheet(tmp, "A.csv", [("1", "0")] * 3)
+            odd = self.sheet(tmp, "B.csv", [("O", "0"), ("1", ""), ("", "")])
+            old = Path(tmp) / "C.csv"
+            old.write_bytes(good.read_text(encoding="utf-8-sig").encode("cp949", errors="replace"))
+            xlsx = Path(tmp) / "D.xlsx"
+            xlsx.write_bytes(b"PK\x03\x04")
+            code, said = run("check", str(good), str(old))
+            self.assertEqual((code, said.count("이대로 견줄 수 있어요"), said.count("길 3개")), (0, 2, 2))
+            code, said = run("check", str(odd))
+            self.assertEqual(code, 1)
+            for line in ("쓸모 1/3칸 · 갔나 1/3칸", "읽지 못한 칸 1개", "쓸모를 비운 길 1개: ‘3 · a1 · 이어 가기’"):
+                self.assertIn(line, said)
+            self.assertEqual(run("check", str(xlsx), str(Path(tmp) / "없음.csv"))[0], 1)
+            code, said = run("check", str(self.sheet(tmp, "빈 시트.csv", [("", "")] * 3)))       # 아직 아무것도 안 매긴 시트
+            self.assertEqual((code, "아직 쓸모를 매긴 길이 없어요" in said, "견줄 수 있어요" in said), (1, True, False))
+            code, said = run("compare", str(good), str(old))                          # 형식이 달라도 같은 시트로 읽혀요
+            self.assertEqual(code, 0)
+            self.assertIn("둘 다 매긴 길 3개", said)
+            code, said = run("compare", str(good), str(xlsx))
+            self.assertEqual((code, "CSV UTF-8" in said), (2, True))
+            # 가닥이 만든 시트가 아닌 파일 뒤에는 붙이지 않아요 (덮어쓰지 않아요)
+            other = Path(tmp) / "남의 파일.csv"
+            other.write_text("이름,값\n가,1\n", encoding="utf-8")
+            with mock.patch.object(cli, "get_engine", lambda name: Scout()), mock.patch.object(cli, "resolve_name", lambda name=None: "scout"), \
+                    mock.patch.object(cli, "RESULTS", Path(tmp) / "results"), mock.patch.object(cli, "LOCAL", Path(tmp) / "local"):
+                code, said = run("run", "--demo", "--model", "정답", "--append", "--out", str(other))
+            self.assertEqual((code, other.read_text(encoding="utf-8")), (2, "이름,값\n가,1\n"))
+            self.assertIn("뒤에 붙이지 않았어요", said)
+
+
 class CliTest(unittest.TestCase):
     def run_cli(self, *argv):
         with tempfile.TemporaryDirectory() as tmp, \
