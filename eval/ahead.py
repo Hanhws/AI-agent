@@ -1,8 +1,7 @@
 """앞길 살피기의 쓸모 재기 (backend/agent/ahead.py · ‘생각 못 한 방법 추천’).
 
-가닥이 낸 길이 쓸 만한지는 정답 파일로 잴 수 없어요(정답에 ‘앞길’이 없어요). 그래서 사람이 매겨요.
-매기는 사람은 **그 대화를 한 사람**이에요(10/7에 정함): 그 순간에 무엇을 알고 있었고 무엇이 필요했는지는 그 사람만 알아요.
-켤 기준: 그 사람이 매긴 길이 10개 이상이고, 쓸모 있다고 한 길이 70% 이상.
+가닥이 낸 길이 쓸 만한지는 정답 파일로 잴 수 없어요(정답에 ‘앞길’이 없어요). 그래서 사람 둘이 따로 매겨요.
+켤 기준: 둘 다 매긴 길이 10개 이상이고, 둘 다 쓸모 있다고 한 길이 70% 이상.
 
 1) 돌리기 — 예시 대화를 1단으로 정리한 다음, 갈림길마다 그 턴에 서서(그 뒤의 대화는 못 보게) 앞길을 살펴요
    python -m eval.ahead run                   u1, 갈림길 10곳까지. 1단은 지금 모델, 앞길은 앞길 모델(GADAK_AHEAD_MODEL · 기본 sonnet)
@@ -16,15 +15,14 @@
                                                           길이 모자랄 때: 갈림길 사이의 간격을 줄여 더 살피고, 이미 매긴 시트 뒤에 붙여요
    → eval/local/앞길-시트.csv (길마다 한 줄) · eval/results/앞길-<시나리오>-<모델>.json (숫자만)
    --append는 시트에 이미 있는 갈림길(같은 대화의 같은 턴)을 다시 살피지 않고, 있던 줄과 매긴 값을 그대로 둬요.
-2) 매기기 — 그 대화를 한 사람이 두 칸을 채워요 (둘이 견줘 보려면 시트를 각자 복사해서, 서로 보지 않고)
+2) 매기기 — 두 사람이 시트를 각자 복사해서, 서로 보지 않고 두 칸을 채워요
    쓸모   1 쓸 만해요 · 0 아니에요 (뻔해요 · 틀렸어요 · 이미 아는 거예요)
    갔나   ‘그 뒤 실제 대화’를 보고, 실제로 그 길로 갔으면 1 · 아니면 0 · 모르겠으면 비워요
    python -m eval.ahead check eval/local/앞길-A.csv       다 채웠으면 한 번: 읽히는지, 빠뜨리거나 잘못 적은 칸이 없는지 봐요 (엔진을 부르지 않아요)
-3) 숫자 내기 (엔진을 부르지 않아요)
-   python -m eval.ahead score eval/local/앞길-A.csv       한 사람이 매긴 시트: 쓸모 있다고 한 길의 비율 · ‘생각 못 한 길’의 수 · 켤 기준을 넘는지
-   python -m eval.ahead score 앞길-A.csv 앞길-내기록.csv   시트가 여럿이면(저마다 자기 대화를 매긴 것) 시트마다, 그리고 합쳐서
+3) 견주기 — 한 사람이 두 시트를 받아서 돌리면 돼요 (엔진을 부르지 않아요)
    python -m eval.ahead compare eval/local/앞길-A.csv eval/local/앞길-B.csv
-                                                          같은 시트를 둘이 따로 매겼을 때: 둘 다 쓸모 있다고 한 비율 · 일치도 κ
+   → 둘 다 쓸모 있다고 한 길의 비율 (켤 기준: 10개 이상 매겨서 70% 이상) · 일치도 κ · 실제로 간 길의 비율
+   python -m eval.ahead score eval/local/앞길-A.csv       한 사람의 시트만 볼 때: 쓸모 있다고 한 비율 · ‘생각 못 한 길’의 수 (판정은 하지 않아요)
 
 시트를 채울 때: 쓸모 · 갔나 칸은 1이나 0으로 시작하게 적고, 번호 · 턴 · 종류 칸은 고치지 않아요(두 시트를 맞추는 열쇠예요).
 엑셀 · Numbers로 고쳐 저장해도 읽어요(CSV UTF-8 · 예전 한글 형식 · 유니코드 텍스트). .xlsx로 저장한 것은 못 읽어요.
@@ -371,7 +369,7 @@ def show_check(name, result) -> str:
 
 
 def score(sheet) -> dict:
-    """한 사람이 매긴 시트의 숫자. 그 대화를 한 사람이 매긴 것으로 켤지 정해요(머리말).
+    """한 사람이 매긴 시트의 숫자. 켤지는 이것이 아니라 두 사람의 시트를 견줘서(compare) 정해요.
     갔나와 묶어 읽는 법: 쓸모 있는데 가지 않은 길 = 생각 못 한 길(이 기능이 노리는 것) · 쓸모 있고 간 길 = 어차피 갔을 길 ·
     쓸모없는데 간 길 = 뻔한 것을 되풀이한 것."""
     ids = [k for k, r in sheet.items() if r["useful"] is not None]
@@ -391,11 +389,10 @@ def score(sheet) -> dict:
         "went": {"of": len(gone), "new": count(True, False), "anyway": count(True, True),
                  "obvious": count(False, True), "neither": count(False, False)},
         "odd": odd_cells(sheet),
-        "enough": len(ids) >= NEED, "passed": len(ids) >= NEED and rate is not None and rate >= BAR,
     }
 
 
-def show_score(name, result, verdict=True) -> str:
+def show_score(name, result) -> str:
     n, went = result["paths"], result["went"]
     lines = [
         f"{name} · 매긴 길 {n}개" + (f" (안 매긴 길 {result['unrated']}개는 뺐어요)" if result["unrated"] else ""),
@@ -406,14 +403,6 @@ def show_score(name, result, verdict=True) -> str:
     ]
     if result["odd"]:
         lines.append(f"  ! 읽지 못한 칸 {len(result['odd'])}개: {_some(result['odd'])} — 1이나 0으로 시작하게 적어야 셀 수 있어요.")
-    if not verdict:
-        pass
-    elif not result["enough"]:
-        lines.append(f"  아직 정할 수 없어요: 매긴 길이 {NEED}개가 안 돼요.")
-    elif result["passed"]:
-        lines.append(f"  켤 기준({BAR * 100:.0f}% 이상)을 넘었어요.")
-    else:
-        lines.append(f"  켤 기준({BAR * 100:.0f}% 이상)에 못 미쳐요. 꺼 둔 채로 둬요.")
     return "\n".join(lines)
 
 
@@ -517,27 +506,22 @@ def main(argv=None) -> int:
     both.add_argument("two")
     look = sub.add_parser("check", help="매긴 시트 하나가 읽히는지, 잘못 적은 칸이 없는지 보기")
     look.add_argument("sheets", nargs="+")
-    one = sub.add_parser("score", help="한 사람이 매긴 시트의 숫자 (시트가 여럿이면 합친 것도)")
+    one = sub.add_parser("score", help="한 사람이 매긴 시트의 숫자 (판정은 compare로)")
     one.add_argument("sheets", nargs="+")
     args = parser.parse_args(argv)
 
     if args.what == "score":
-        merged = {}
-        for n, path in enumerate(args.sheets):
+        for path in args.sheets:
             try:
                 sheet = read_sheet(path)
             except SheetError as exc:
                 print(exc)
                 return 2
-            if len(args.sheets) > 1:
-                print(show_score(Path(path).name, score(sheet), verdict=False))
-                sheet = {f"{n}/{key}": dict(row, odd={}) for key, row in sheet.items()}     # 읽지 못한 칸은 위에서 이미 말했어요
-            merged.update(sheet)
-        if not merged:
-            print("길이 든 줄이 없는 시트예요.")
-            return 2
-        print(show_score("모두 합쳐" if len(args.sheets) > 1 else Path(args.sheets[0]).name, score(merged)))
-        print("그 대화를 한 사람이 매긴 것으로 봐요. 길의 수가 적으면 한두 개에 크게 흔들려요.")
+            if not sheet:
+                print(f"{Path(path).name}에 길이 든 줄이 없어요.")
+                return 2
+            print(show_score(Path(path).name, score(sheet)))
+        print("한 사람이 매긴 숫자예요. 켤지는 두 사람의 시트를 견줘서 정해요: python -m eval.ahead compare A.csv B.csv")
         return 0
 
     if args.what == "check":
@@ -621,7 +605,7 @@ def main(argv=None) -> int:
         LOCAL.mkdir(exist_ok=True)
         (LOCAL / f"{label}-{stamp}.json").write_text(json.dumps(out["raw"], ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         print(f"  시트: {sheet}" + (f" (있던 {len(before)}줄은 그대로 두고 {len(out['rows'])}줄을 붙였어요)" if before else ""))
-        print("  그 대화를 한 사람이 ‘쓸모’(1 · 0)와 ‘갔나’(1 · 0 · 비움)를 채운 다음: python -m eval.ahead score <시트>")
+        print("  두 사람이 각자 복사해서 ‘쓸모’(1 · 0)와 ‘갔나’(1 · 0 · 비움)를 채운 다음: python -m eval.ahead compare A.csv B.csv")
         print("  실제 대화 글이 들어 있으니 eval/local/ 밖에 두지 말고 커밋하지 마요.")
     elif args.append and not out["error"]:
         print("  새로 붙일 줄이 없어요. 시트에 이미 있는 갈림길은 다시 살피지 않아요.")

@@ -238,7 +238,7 @@ class FilledSheetTest(unittest.TestCase):
         self.assertNotIn("첫째 시트에서 읽지 못한", text)
         self.assertNotIn("한쪽 시트에만", text)
 
-    def test_one_persons_ratings_are_scored_on_their_own(self):
+    def test_one_persons_sheet_can_be_looked_at_alone_but_the_verdict_takes_two(self):
         owner = [("0", "0"), ("1", "0"), ("1", "0"), ("0", "1"), ("1", "0"), ("1", ""), ("1", "")]
         with tempfile.TemporaryDirectory() as tmp:
             a = cli.read_sheet(self.sheet(tmp, "A.csv", owner))
@@ -247,20 +247,21 @@ class FilledSheetTest(unittest.TestCase):
         self.assertEqual((result["paths"], result["unrated"], result["useful"], result["rate"]), (7, 0, 5, 0.7143))
         self.assertEqual(result["went"], {"of": 5, "new": 3, "anyway": 0, "obvious": 1, "neither": 1})
         self.assertEqual(result["by_kind"], {"다른 길": {"of": 3, "useful": 1}, "미리 챙길 것": {"of": 2, "useful": 2}, "이어 가기": {"of": 2, "useful": 2}})
-        self.assertEqual((result["enough"], result["passed"]), (False, False))
         text = cli.show_score("A.csv", result)
         for line in ("A.csv · 매긴 길 7개", "쓸모 있다고 한 길        71% (5/7)", "갔나를 매긴 5개 중 — 생각 못 한 길 3개(쓸모 있는데 가지 않음) · 어차피 간 길 0개",
-                     "뻔한 되풀이 1개(쓸모없는데 감) · 둘 다 아님 1개", "아직 정할 수 없어요: 매긴 길이 10개가 안 돼요."):
+                     "뻔한 되풀이 1개(쓸모없는데 감) · 둘 다 아님 1개"):
             self.assertIn(line, text)
-        self.assertNotIn("정할 수 없어요", cli.show_score("A.csv", result, verdict=False))
-        enough = cli.score(many)                                               # 12개를 매겼고 9개가 쓸모(75%). 안 매긴 줄과 못 읽은 줄은 빼요
-        self.assertEqual((enough["paths"], enough["unrated"], enough["rate"], enough["passed"], len(enough["odd"])), (12, 2, 0.75, True, 1))
+        enough = cli.score(many)                                               # 안 매긴 줄과 못 읽은 줄은 빼요
+        self.assertEqual((enough["paths"], enough["unrated"], enough["rate"], len(enough["odd"])), (12, 2, 0.75, 1))
         text = cli.show_score("많이.csv", enough)
-        for line in ("매긴 길 12개 (안 매긴 길 2개는 뺐어요)", "켤 기준(70% 이상)을 넘었어요.", "! 읽지 못한 칸 1개"):
+        for line in ("매긴 길 12개 (안 매긴 길 2개는 뺐어요)", "! 읽지 못한 칸 1개"):
             self.assertIn(line, text)
-        low = cli.score({k: dict(v, useful=0 if n < 4 else v["useful"]) for n, (k, v) in enumerate(many.items())})
-        self.assertIn("못 미쳐요", cli.show_score("낮음.csv", low))
+        for words in ("켤 기준", "정할 수 없어요"):                              # 한 사람의 시트로는 켤지 말하지 않아요
+            self.assertNotIn(words, text)
+        self.assertNotIn("passed", enough)
         self.assertEqual(cli.score({})["rate"], None)
+        both = cli.compare(many, many)                                         # 판정은 두 시트를 견줘서
+        self.assertEqual((both["paths"], both["rate"], both["passed"]), (12, 0.75, True))
 
     def test_sheets_that_do_not_line_up_are_called_out(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -297,15 +298,13 @@ class FilledSheetTest(unittest.TestCase):
             self.assertIn("둘 다 매긴 길 3개", said)
             code, said = run("compare", str(good), str(xlsx))
             self.assertEqual((code, "CSV UTF-8" in said), (2, True))
-            code, said = run("score", str(good))                                     # 한 사람이 매긴 시트 하나
+            code, said = run("score", str(good), str(odd))                           # 한 사람씩의 숫자. 켤지는 말하지 않아요
             self.assertEqual(code, 0)
-            for line in ("A.csv · 매긴 길 3개", "쓸모 있다고 한 길        100% (3/3)", "생각 못 한 길 3개", "매긴 길이 10개가 안 돼요"):
+            for line in ("A.csv · 매긴 길 3개", "쓸모 있다고 한 길        100% (3/3)", "생각 못 한 길 3개", "B.csv · 매긴 길 1개 (안 매긴 길 2개는 뺐어요)",
+                         "! 읽지 못한 칸 1개", "켤지는 두 사람의 시트를 견줘서 정해요: python -m eval.ahead compare A.csv B.csv"):
                 self.assertIn(line, said)
-            code, said = run("score", str(good), str(odd))                           # 저마다 자기 대화를 매긴 시트 둘: 시트마다, 그리고 합쳐서
-            self.assertEqual(code, 0)
-            for line in ("A.csv · 매긴 길 3개", "B.csv · 매긴 길 1개 (안 매긴 길 2개는 뺐어요)", "! 읽지 못한 칸 1개", "모두 합쳐 · 매긴 길 4개 (안 매긴 길 2개는 뺐어요)"):
-                self.assertIn(line, said)
-            self.assertEqual((said.count("정할 수 없어요"), said.count("읽지 못한 칸")), (1, 1))     # 판정과 못 읽은 칸은 한 번씩만
+            for words in ("모두 합쳐", "정할 수 없어요", "켤 기준"):
+                self.assertNotIn(words, said)
             self.assertEqual(run("score", str(xlsx))[0], 2)
             # 가닥이 만든 시트가 아닌 파일 뒤에는 붙이지 않아요 (덮어쓰지 않아요)
             other = Path(tmp) / "남의 파일.csv"

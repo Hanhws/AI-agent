@@ -131,7 +131,7 @@ GADAK_AHEAD_WEB=1      # 웹에서도 찾아보기 (대화에서 뽑은 검색�
 - **아무것도 안 뜰 수 있어요.** 찾아본 것이 없는 길, 방금 대화를 되풀이하는 길은 버려요. 왜 버렸는지는 왼쪽 아래 ‘판단 기록’에 있어요.
 - **무엇을 읽나**: 가닥이 저장한 내 대화 기록, 그 대화의 작업 폴더에 있는 글 파일(깃이 무시하는 파일 · `.env` 같은 이름 · 홈이나 문서 같은 넓은 폴더는 읽지 않아요. 끄려면 `GADAK_AHEAD_FILES=0`), 그리고 켰을 때만 웹.
 - **드는 것**: 갈림길 한 곳에 큰 모델(Sonnet)을 2~4번, 웹을 켰으면 검색을 한두 번 더 불러요. 구독 사용 한도를 같이 써요. 모델은 `GADAK_AHEAD_MODEL`로 바꿔요(비우면 2단과 같은 모델. Haiku는 방금 대화를 되풀이해서 권하지 않아요).
-- **쓸모 재기**: `python -m eval.ahead run --web`으로 시트를 만들고, 그 대화를 한 사람이 매긴 다음 `python -m eval.ahead score <시트>` (docs/changes-detail.md 22-6). 예시 대화 대신 내가 쓰는 가닥의 기록으로 만들려면 `--records ~/.gadak/gadak.db`(읽기만 해요).
+- **쓸모 재기**: `python -m eval.ahead run --web`으로 시트를 만들고, 두 사람이 각자 매긴 다음 `python -m eval.ahead compare A.csv B.csv` (docs/changes-detail.md 22-6). 예시 대화 대신 내가 쓰는 가닥의 기록으로 만들려면 `--records ~/.gadak/gadak.db`(읽기만 해요).
 
 ## 4. 읽는 곳별 안내
 
