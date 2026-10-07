@@ -559,6 +559,8 @@ class WorkerTest(Story):
         with on():
             ids = self.junction(Engine(marks, ahead=[bad]))
         self.assertEqual((self.row(ids[2])["checked"], store.turn_items(self.conn, ids[2])), (1, []))   # 못 살펴도 확인은 끝
+        seen = self.clf.checker.ahead_state(self.conn, CHAT)                       # 왜 아무것도 안 떴는지는 남겨요
+        self.assertEqual((seen["state"], seen["turn"], "형식" in seen["reason"]), ("failed", ids[2], True))
 
     def test_engine_trouble_pauses_and_the_turn_waits(self):
         marks = lambda p: labels(p, t3={"chose": True, "dec": "임계값 1300원"})
@@ -570,9 +572,17 @@ class WorkerTest(Story):
         with on():
             ids = self.junction(engine)
             self.assertEqual((self.clf.status["paused"], self.row(ids[2])["checked"]), (True, 0))
+            seen = self.clf.checker.ahead_state(self.conn, CHAT)
+            self.assertEqual((seen["state"], "한도를 다 썼어요" in seen["reason"]), ("failed", True))
             self.clf.resume()
             self.run_worker()
         self.assertEqual((self.row(ids[2])["checked"], len(store.turn_items(self.conn, ids[2]))), (1, 1))
+        seen = self.clf.checker.ahead_state(self.conn, CHAT)
+        self.assertEqual((seen["state"], seen["paths"], seen["goal"]), ("done", 1, "환율 알림 봇 내보내기"))
+        self.clf.checker.seen_ahead.clear()                                        # 가닥을 다시 켠 뒤에는 판단 기록에서 찾아요
+        again = self.clf.checker.ahead_state(self.conn, CHAT)
+        self.assertEqual((again["state"], again["paths"], again["turn"]), ("done", 1, ids[2]))
+        self.assertEqual(self.clf.checker.ahead_state(self.conn, "없는 대화"), {"state": "idle"})
 
     def test_the_button_looks_from_the_last_turn_and_replaces_earlier_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -619,10 +629,14 @@ class WorkerTest(Story):
                 self.assertEqual(client.get("/status").get_json()["ahead"], {"on": True, "auto": False, "web": True, "files": True})
                 self.assertTrue(client.post(f"/chats/{CHAT}/ahead", json={}).get_json()["ok"])
                 self.assertEqual(client.get("/status").get_json()["classify"]["aheadQueued"], 1)
+                project = conn.execute("SELECT project_id FROM chats WHERE id = ?", (CHAT,)).fetchone()[0]
+                seen = lambda: client.get(f"/projects/{project}/view?chat={CHAT}").get_json()["ahead"]     # 화면의 ‘앞길’ 칸이 받는 것
+                self.assertEqual(seen()["state"], "queued")
                 before = rt.classifier.status["calls"]
                 work()                                                                               # 1단이 먼저, 그다음 앞길
                 last = ids[2]
                 self.assertEqual([i["text"] for i in store.turn_items(conn, last)], ["이어 가기 · 첫 번째 길"])
+                self.assertEqual([seen()[k] for k in ("state", "turn", "why", "paths")], ["done", last, "button", 1])
                 self.assertEqual(engine.calls[-1][1]["ahead"], {"why": "button"})
                 self.assertIn("look_up", engine.calls[-1][1]["tools"])
                 self.assertEqual((calls, rt.classifier.status["calls"] - before), (["무엇"], 1 + 3))    # 1단 1번 + 앞길 2번 + 웹 1번
@@ -633,6 +647,7 @@ class WorkerTest(Story):
                 self.assertNotIn("look_up", engine.calls[-1][1]["tools"])                            # 웹은 따로 켜야 해요
                 # 다시 살피면 앞서 낸 길과 그 상태는 지워요. 이번에는 웹에서 찾은 것이 없으니(꺼 둠) 낼 길이 없어요
                 self.assertEqual(store.turn_items(conn, last), [])
+                self.assertEqual((seen()["state"], seen()["paths"]), ("none", 0))          # 살폈지만 낼 길이 없었다고 말해 줘요
                 self.assertIsNone(conn.execute("SELECT 1 FROM item_states WHERE id = ?", (last + ":a0",)).fetchone())
             self.assertEqual([tuple(r["trigger"]) for r in trace.runs(conn, turn_id=last)], [("ahead",), ("ahead",)])
 

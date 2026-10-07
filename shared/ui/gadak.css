@@ -62,6 +62,20 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .st.found, .cap.found { box-shadow: 0 0 0 5px var(--halo) !important; }
 .dbody.noled { grid-template-columns: minmax(0, 1fr); }
 .dbody.noled .dside { display: none; }
+/* 목록을 노선도 카드와 떼어 따로 놓을 때 (가닥 창의 오른쪽 기둥 · 떠 있는 버튼의 목록 창): 위에서 아래까지 길게, 글씨를 조금 크게 */
+.dside.apart { flex: 1; min-height: 0; max-height: none; border-left: 0; }
+.dside.apart .ptabs { padding: 0 12px; }
+.dside.apart .ptabs button { height: 40px; padding: 0 11px; font-size: 13.5px; }
+.dside.apart .qwrap { padding: 10px 14px 0; }
+.dside.apart .pbody { padding: 12px 14px 22px; }
+.dside.apart .litem .t, .dside.apart .srow2 .t { font-size: 14px; }
+.dside.apart .litem .k, .dside.apart .srow2 .k { font-size: 12px; }
+.dside.apart .litem .w, .dside.apart .srow2 .w, .dside.apart .lauto { font-size: 13px; }
+/* 앞길 칸: 어디까지 갔는지 · 가닥이 읽은 목적지 · 한도 안내. 못 살핀 까닭은 굵게만 (빨강은 ‘지금 · 할 일’에만 써요) */
+.astate { font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.astate.bad { color: var(--fg); font-weight: 600; }
+.agoal { font-size: 12.5px; line-height: 1.55; color: var(--fg2); }
+.lnote { font-size: 11.5px; line-height: 1.5; color: var(--faint); }
 .ledbtn { height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .ledbtn:hover { color: var(--fg); border-color: var(--ring); }
 .ledbtn.hot { border-color: var(--accent); color: var(--accent); font-weight: 600; }

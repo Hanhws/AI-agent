@@ -144,7 +144,8 @@ extension FloatController {
             let angle = fanAngles()[index] * .pi / 180, middle = outCenter()
             return NSPoint(x: middle.x + cos(angle) * fanRadius, y: middle.y + sin(angle) * fanRadius)
         }
-        func window() -> String { overlay?.isVisible == true ? (shown ?? "?") : "closed" }
+        // 떠 있는 창 둘: 노선도 창 / 목록 창에 보이는 칸
+        func window() -> String { (overlay?.isVisible == true ? "map" : "closed") + "/" + (lister?.isVisible == true ? (listShown ?? "?") : "closed") }
         var seen: [String] = []
 
         mouse = NSPoint(x: bubbleCenter().x + 10, y: bubbleCenter().y)       // 걸쳐 있는 버튼에 올려요
@@ -213,17 +214,18 @@ extension FloatController {
             case .bottom: inward.y += peekSize / 4
             }
             note("hit peek bubble=\(mine(inward)) whereFanWas=\(mine(onSatellite)) whereBubbleWas=\(mine(middle)) diameter=\(bubble.diameter)")
-            showOverlay("todo")
+            showList("todo")
             later(5) { [self] in
-                note("overlay todo frame=\(NSStringFromRect(overlay?.frame ?? .zero)) visible=\(overlay?.isVisible == true) height=\(overlayHeight) level=\(overlay?.level.rawValue ?? -1)")
-                web?.takeSnapshot(with: nil) { [self] image, _ in
-                    write("overlay-todo.png", png(image))
-                    showOverlay("map")
+                note("list todo frame=\(NSStringFromRect(lister?.frame ?? .zero)) visible=\(lister?.isVisible == true) height=\(listHeight) level=\(lister?.level.rawValue ?? -1)")
+                listWeb?.takeSnapshot(with: nil) { [self] image, _ in
+                    write("list-todo.png", png(image))
+                    closeList()
+                    showOverlay()
                     later(2) { [self] in
                         note("overlay map frame=\(NSStringFromRect(overlay?.frame ?? .zero)) height=\(overlayHeight) todo=\(todo)")
                         web?.takeSnapshot(with: nil) { [self] image, _ in
                             write("overlay-map.png", png(image))
-                            // 노선도 창 안을 진짜 클릭처럼 눌러 봐요: 가닥이 앞에 있지 않아도 첫 클릭에 목록이 펴지는지 → 다시 접히는지 →
+                            // 노선도 창 안을 진짜 클릭처럼 눌러 봐요: 가닥이 앞에 있지 않아도 첫 클릭에 목록 창이 뜨는지 → 한 번 더 누르면 닫히는지 →
                             // 역을 누르면 가닥 창이 그 대화의 그 역을 열라는 부탁을 받는지 → ‘접기’로 창이 닫히는지
                             let find = "(function(n){var b=n==='station'?document.querySelector('button.st[data-tid]'):[].slice.call(document.querySelectorAll('button')).filter(function(x){return n==='fold'?x.textContent==='접기':x.className==='ledbtn'})[0];if(!b)return null;var r=b.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2,b.dataset.tid||'']})"
                             func tap(_ name: String, then: @escaping (String) -> Void) {
@@ -245,17 +247,17 @@ extension FloatController {
                                 }
                             }
                             app?.webView.evaluateJavaScript("(function(){var f=window.gadakOpen;window.gadakAsked=null;window.gadakOpen=function(h){window.gadakAsked=h;return f(h)}})()", completionHandler: nil)
-                            let before = overlayHeight, keyBefore = overlay?.isKeyWindow == true, activeBefore = NSApp.isActive
+                            let keyBefore = overlay?.isKeyWindow == true, activeBefore = NSApp.isActive
                             tap("list") { [self] _ in
-                                let first = overlayHeight, keyAfter = overlay?.isKeyWindow == true
+                                let opened = lister?.isVisible == true, keyAfter = overlay?.isKeyWindow == true || lister?.isKeyWindow == true
                                 tap("list") { [self] _ in
-                                    let second = overlayHeight
+                                    let closedAgain = lister?.isVisible != true
                                     tap("station") { [self] station in
                                         app?.webView.evaluateJavaScript("window.gadakAsked ? window.gadakAsked.turn : ''") { [self] asked, _ in
-                                            let opened = !station.isEmpty && (asked as? String) == station
+                                            let stationOpened = !station.isEmpty && (asked as? String) == station
                                             let front = NSApp.isActive && app?.window.isKeyWindow == true
                                             tap("fold") { [self] _ in
-                                                note("overlay clicks firstClick=\(first > before + 20) heights=\(before)→\(first)→\(second) key=\(keyBefore)→\(keyAfter) appActive=\(activeBefore) station=\(opened) windowCameFront=\(front) fold=\(overlay?.isVisible != true)")
+                                                note("overlay clicks firstClick=\(opened) listOpened=\(opened) listClosedAgain=\(closedAgain) key=\(keyBefore)→\(keyAfter) appActive=\(activeBefore) station=\(stationOpened) windowCameFront=\(front) fold=\(overlay?.isVisible != true)")
                                                 escape(note, later)
                                             }
                                         }
@@ -276,7 +278,7 @@ extension FloatController {
         FloatController.userApp?.activate(options: [])
         later(1.2) { [self] in
             let behind = !NSRunningApplication.current.isActive, before = front()
-            showOverlay("map")
+            showOverlay()
             later(0.5) { [self] in
                 let key = overlay?.isKeyWindow == true && NSApp.keyWindow === overlay
                 let stayed = !NSRunningApplication.current.isActive && front() == before && app?.window.isKeyWindow != true

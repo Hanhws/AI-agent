@@ -83,6 +83,11 @@ def create_app(db_path=None, engine="auto") -> Flask:
         """떠 있는 가닥 버튼이 펼치는 노선도 창 (mac/Float.swift). 가닥 창의 노선도 카드만 따로 띄운 것이에요."""
         return send_from_directory(WEB_DIR, "strip.html", max_age=0)
 
+    @app.get("/help")
+    def help_page():
+        """도움말: 가닥을 쓰는 법과 낱말 풀이. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴가 새 창으로 열어요."""
+        return send_from_directory(WEB_DIR, "help.html", max_age=0)
+
     @app.get("/map")
     def map_page():
         """전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 (쉰 날은 접어요). 노선을 누르면 한 줄 노선도."""
@@ -270,6 +275,9 @@ def create_app(db_path=None, engine="auto") -> Flask:
         data = store.view(db(), project_id, scope=scope, chat_id=request.args.get("chat"))
         if data is None:
             abort(404)
+        # 보고 있는 대화의 앞길 살피기가 어디까지 갔나 (살피는 중 · 길 n개 · 낼 길이 없었음 · 못 살핌). 화면의 ‘앞길’ 칸이 써요
+        shown = next((c["id"] for c in data["chats"] if c.get("active")), None)
+        data["ahead"] = rt.classifier.checker.ahead_state(db(), shown) if shown else {"state": "idle"}
         return jsonify(data)
 
     @app.get("/projects/<project_id>/search")

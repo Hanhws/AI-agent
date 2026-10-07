@@ -264,7 +264,10 @@ function zoomable(svg, world, onPaint = () => {}, most = 2.2) {   // most: 화�
     moved += Math.abs(dx) + Math.abs(dy);
     goal.x += dx; goal.y += dy; view.x = goal.x; view.y = goal.y; drag = [e.clientX, e.clientY]; paint();
   });
-  svg.addEventListener("pointerup", () => { drag = null; svg.classList.remove("drag"); });
+  const drop = () => { drag = null; svg.classList.remove("drag"); };
+  svg.addEventListener("pointerup", drop);
+  svg.addEventListener("pointercancel", drop);          // 끌다가 창 밖에서 놓거나 손짓이 끊겨도 끌기 상태가 남지 않게
+  svg.addEventListener("lostpointercapture", drop);
   svg.addEventListener("dblclick", e => { const r = svg.getBoundingClientRect(); z.zoomAt(2, e.clientX - r.left, e.clientY - r.top); });
   return z;
 }
@@ -712,7 +715,12 @@ function openInGadak(chatId, turnId) {
   else location.href = "/";
 }
 document.getElementById("open").onclick = () => openInGadak(shown);
-document.getElementById("close").onclick = () => parent.postMessage({ gadakMap: "close" }, location.origin);
+// 닫기: 가닥 창이 열어 둔 길(gadakMapClose)을 바로 부르고, 안 되면 메시지로 알려요
+const closeMap = () => {
+  try { if (typeof parent.gadakMapClose === "function") return parent.gadakMapClose(); } catch (e) {}
+  parent.postMessage({ gadakMap: "close" }, location.origin);
+};
+document.getElementById("close").onclick = closeMap;
 // 한 줄 노선도의 역을 누르면 그 역에서 열어요
 ssvg.addEventListener("click", () => {
   const turn = stripZ.picked("[data-turn]")?.dataset.turn;
@@ -728,7 +736,7 @@ addEventListener("keydown", e => {
   else if (e.key === "-") cur().zoomAt(1 / 1.4, ...cur().center());
   else if (e.key === "0") cur().all();
   else if (e.key === "Escape" && cur() === stripZ) closeStrip();
-  else if (e.key === "Escape" && EMBED) parent.postMessage({ gadakMap: "close" }, location.origin);
+  else if (e.key === "Escape" && EMBED) closeMap();
 });
 addEventListener("resize", () => cur().all());
 mapZ.all(true);

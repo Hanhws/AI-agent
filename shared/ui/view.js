@@ -13,8 +13,10 @@
      handoff()           노선도 끝 ‘환승하기’를 눌렀을 때 (이 대화까지의 요약을 다음 대화에 붙이게). 없으면 그 표시를 안 그려요
      setAuto(kind, on)   ‘앞으로는 알아서’를 켜고 끔 (승인한 종류의 자동 실행, README 3-2). 이 hook이 없는 입구에서는 그 칸을 안 보여요.
                          지금 켜져 있는 종류는 SC.auto = {unasked, handoff}, 가닥이 직접 보낸 한마디는 item.sent = 'auto'
-     ahead()             할 일 목록의 ‘앞길 보기’를 눌렀을 때 (지금 자리에서 갈 수 있는 길을 가닥이 찾아보게 · README 3-1 앞길 살피기).
-     aheadOn()           앞길 살피기가 켜져 있는지. 이 둘이 없거나 꺼져 있으면 그 줄을 안 그려요 */
+     ahead()             목록의 넷째 칸 ‘앞길’에서 ‘앞길 보기’를 눌렀을 때 (지금 자리에서 갈 수 있는 길을 가닥이 찾아보게 · README 3-1 앞길 살피기).
+     aheadOn()           앞길 살피기를 쓸 수 있는지. 이 둘이 없거나 꺼져 있으면 ‘앞길’ 칸을 안 그려요.
+                         그 대화의 앞길 살피기가 어디까지 갔는지는 SC.ahead = { state, at, paths, dropped, reason, goal, why } (side.js)
+     aheadAuto()         ‘저절로 살피기’가 켜져 있는지 · setAheadAuto(on) 켜고 끔. 둘이 있으면 할 일 칸 아래에 그 줄을 그려요 */
 (function (G) {
   'use strict';
   var el = G.el, fname = G.fname;

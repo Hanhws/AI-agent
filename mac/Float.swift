@@ -2,7 +2,8 @@
 //
 // 1. 평소: 화면 가장자리에 반쯤 걸쳐 있어요. 다른 앱을 쓰는 동안에도 그 위에 떠 있어요.
 // 2. 마우스를 올리거나 누르면 다 나오면서 둘레에 버튼 여섯 개가 펼쳐져요.
-// 3. 가닥 버튼이나 둘레 버튼을 누르면 화면 위쪽에 노선도 창이 떠요 (백엔드의 /strip: 가닥 창의 노선도 카드만 따로 띄운 것).
+// 3. 가닥 버튼이나 둘레의 ‘노선도’를 누르면 화면 위쪽에 노선도 창이 떠요 (백엔드의 /strip: 가닥 창의 노선도 카드만 따로 띄운 것).
+//    ‘할 일 · 정함 · 산출물’을 누르면 목록 창이 따로 떠요 (/strip?only=list). 노선도 창과 같이 띄워 둘 수 있어요.
 // 4. 버튼은 끌어서 화면 가장자리 어디로든 옮길 수 있어요. 놓으면 가장 가까운 가장자리에 붙고, 메뉴 막대와 Dock 위에도 놓여요.
 //
 // 모양은 가닥의 표기 그대로예요: 종이색 동그라미 · 검은 선 · 심볼 A. 빨강은 ‘지금’과 할 일 수에만 써요.
@@ -12,7 +13,7 @@ import WebKit
 
 enum FloatEdge: String, CaseIterable { case left, right, top, bottom }
 
-/// 버튼 둘레에 펼쳐지는 여섯 가지. key는 /strip의 탭 이름이거나(map · todo · dec · files) 가닥 창을 여는 일(find · window).
+/// 버튼 둘레에 펼쳐지는 여섯 가지. key는 노선도 창(map), 목록 창에서 볼 칸(todo · dec · files), 가닥 창을 여는 일(find · window).
 struct FloatAction { let key: String, label: String, tip: String }
 
 let floatActions = [
@@ -268,8 +269,13 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     var overlay: FloatPanel?              // 노선도 창
     var web: WKWebView?
     var loaded = false
-    var shown: String?                    // 노선도 창에 지금 보이는 것 (map · todo · dec · files)
+    var shown: String?                    // 노선도 창이 떠 있으면 "map"
     var overlayHeight: CGFloat = 300
+    var lister: FloatPanel?               // 목록 창 (할 일 · 정한 것 · 산출물 · 앞길). 노선도 창과 따로 떠요
+    var listWeb: WKWebView?
+    var listLoaded = false
+    var listShown: String?                // 목록 창에 지금 보이는 칸 (todo · dec · files)
+    var listHeight: CGFloat = 460
 
     private var watch: Timer?
     private var poll: Timer?
@@ -337,7 +343,9 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// 버튼을 숨겨요. 이 뒤로는 쓰지 않아요 (다시 켜면 새로 만들어요)
     func close() {
         closeOverlay()
+        closeList()
         web?.configuration.userContentController.removeScriptMessageHandler(forName: "gadak")
+        listWeb?.configuration.userContentController.removeScriptMessageHandler(forName: "gadak")
         watch?.invalidate()
         poll?.invalidate()
         lurk?.invalidate()
@@ -352,7 +360,13 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     @objc func screensChanged() {
         place()
+        refit()
+    }
+
+    /// 떠 있는 두 창을 제자리 · 제 크기로 (화면이 바뀌었거나, 카드 높이가 바뀌었거나, 한쪽이 열리고 닫혔을 때)
+    func refit() {
         if overlay?.isVisible == true { overlay?.setFrame(overlayFrame(), display: true) }
+        if lister?.isVisible == true { lister?.setFrame(listFrame(), display: true) }
     }
 
     // MARK: 자리
@@ -535,7 +549,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// 펼쳐진 가닥 버튼을 눌렀어요: 노선도 창을 켜고 꺼요
     func primary() {
-        if overlay?.isVisible == true { closeOverlay() } else { showOverlay("map") }
+        if overlay?.isVisible == true { closeOverlay() } else { showOverlay() }
     }
 
     func clickedAway() {
@@ -565,7 +579,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         saved.set(Double(along), forKey: "GadakFloatAlong")
         saved.set(screenIndex, forKey: "GadakFloatScreen")
         place(animated: true)
-        if overlay?.isVisible == true { overlay?.setFrame(overlayFrame(), display: true) }
+        refit()
         wasOff = false
         startWatch()
     }
@@ -605,16 +619,18 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     @objc func hideButton() { app?.setFloat(false) }
     @objc func quit() { NSApp.terminate(nil) }
 
-    // MARK: 둘레 버튼 → 노선도 창
+    // MARK: 둘레 버튼 → 노선도 창 · 목록 창
 
-    /// 노선도 창에서 볼 것을 고르면 둘레 버튼은 그대로 둬요(이어서 다른 것을 눌러 볼 수 있게). 가닥 창을 여는 것은 접어요
+    /// 볼 것을 고르면 둘레 버튼은 그대로 둬요(이어서 다른 것을 눌러 볼 수 있게). 가닥 창을 여는 것은 접어요.
+    /// 노선도와 목록은 창이 따로예요: 같은 것을 한 번 더 누르면 그 창만 닫혀요
     func choose(_ index: Int) {
         let action = floatActions[index]
         switch action.key {
         case "find": retreat(); app?.showMain(script: "window.gadakFind && window.gadakFind()")
         case "window": retreat(); app?.showMain()
+        case "map": if overlay?.isVisible == true { closeOverlay() } else { showOverlay() }
         default:
-            if overlay?.isVisible == true && shown == action.key { closeOverlay() } else { showOverlay(action.key) }
+            if lister?.isVisible == true && listShown == action.key { closeList() } else { showList(action.key) }
         }
     }
 
@@ -625,7 +641,53 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return NSRect(x: visible.midX - width / 2, y: visible.maxY - overlayHeight - 2, width: width, height: overlayHeight)
     }
 
-    func showOverlay(_ tab: String) {
+    /// 화면 오른쪽 위. 노선도 창이 떠 있으면 그 바로 아래에 놓여요
+    func listFrame() -> NSRect {
+        let visible = screen.visibleFrame, width = min(visible.width - 32, 452)
+        var top = visible.maxY - 2
+        if overlay?.isVisible == true { top = overlayFrame().minY + 18 }     // 노선도 창의 그림자 자리만큼만 겹쳐요
+        let height = max(min(listHeight, top - visible.minY - 12), 160)
+        return NSRect(x: visible.maxX - width - 4, y: top - height, width: width, height: height)
+    }
+
+    /// 목록 창: 할 일 · 정한 것 · 산출물 · 앞길만 따로 (백엔드의 /strip?only=list)
+    func showList(_ tab: String) {
+        guard let base = base else { NSSound.beep(); return }      // 가닥이 아직 켜지는 중이에요
+        if lister == nil {
+            let made = makeFloatPanel(level: .floating, keyable: true)
+            let configuration = WKWebViewConfiguration()
+            configuration.userContentController.add(self, name: "gadak")
+            let view = StripWebView(frame: .zero, configuration: configuration)
+            view.setValue(false, forKey: "drawsBackground")
+            view.navigationDelegate = self
+            made.contentView = view
+            made.onEscape = { [weak self] in self?.closeList() }
+            lister = made
+            listWeb = view
+        }
+        lister?.setFrame(listFrame(), display: true)
+        if listLoaded {
+            listWeb?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ tab: '\(tab)' })", completionHandler: nil)
+        } else {
+            var address = URLComponents(url: base.appendingPathComponent("strip"), resolvingAgainstBaseURL: false)!
+            address.queryItems = [URLQueryItem(name: "only", value: "list"), URLQueryItem(name: "tab", value: tab), URLQueryItem(name: "app", value: "2")]
+            listWeb?.load(URLRequest(url: address.url!))
+            listLoaded = true
+        }
+        listShown = tab
+        lister?.orderFrontRegardless()
+        panel.orderFrontRegardless()         // 가닥 버튼이 맨 위에
+        lister?.makeKey()                    // 뜨자마자 Esc로 닫히고, 찾기 칸에 바로 칠 수 있게 (가닥을 앞으로 가져오지는 않아요)
+        if let view = listWeb, lister?.firstResponder !== view { lister?.makeFirstResponder(view) }
+    }
+
+    func closeList() {
+        lister?.orderOut(nil)
+        listShown = nil
+    }
+
+    /// 노선도 창: 지금 쓰는 대화의 노선도 카드만 (백엔드의 /strip)
+    func showOverlay() {
         guard let base = base else { NSSound.beep(); return }      // 가닥이 아직 켜지는 중이에요
         if overlay == nil {
             let made = makeFloatPanel(level: .floating, keyable: true)        // 다른 앱 창 위, 가닥 버튼 아래
@@ -639,18 +701,19 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             overlay = made
             web = view
         }
-        let list = tab != "map", side = tab == "map" ? "todo" : tab
         overlay?.setFrame(overlayFrame(), display: true)
         if loaded {
-            web?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ tab: '\(side)', list: \(list) })", completionHandler: nil)
+            web?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ list: false })", completionHandler: nil)
         } else {
+            // app=2: 목록은 목록 창에서 따로 본다고 화면에 알려요 (카드의 ‘‹ 할 일 · 찾기’가 목록 창을 열어 달라고 부탁해요)
             var address = URLComponents(url: base.appendingPathComponent("strip"), resolvingAgainstBaseURL: false)!
-            address.queryItems = [URLQueryItem(name: "tab", value: side), URLQueryItem(name: "list", value: list ? "1" : "0")]
+            address.queryItems = [URLQueryItem(name: "list", value: "0"), URLQueryItem(name: "app", value: "2")]
             web?.load(URLRequest(url: address.url!))
             loaded = true
         }
-        shown = tab
+        shown = "map"
         overlay?.orderFrontRegardless()
+        if lister?.isVisible == true { lister?.setFrame(listFrame(), display: true) }     // 목록 창은 노선도 창 아래로
         panel.orderFrontRegardless()         // 가닥 버튼이 노선도 창 위에
         // 뜨자마자 글쇠는 이 창이 받아요: 누르지 않아도 Esc로 닫히고, 찾기 칸에 바로 칠 수 있어요.
         // 가닥을 앞으로 가져오지는 않아요(쓰던 앱의 창은 그대로 앞에 있어요). 닫으면 글쇠는 쓰던 앱으로 돌아가요.
@@ -661,25 +724,35 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func closeOverlay() {
         overlay?.orderOut(nil)
         shown = nil
+        if lister?.isVisible == true { lister?.setFrame(listFrame(), display: true) }     // 목록 창이 위로 올라와요
     }
 
-    func webView(_ view: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { loaded = false }
-    func webView(_ view: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { loaded = false }
-    func webViewWebContentProcessDidTerminate(_ view: WKWebView) { loaded = false }
+    /// 화면을 못 읽었으면 다음에 띄울 때 다시 읽어요 (어느 창의 화면인지 가려서)
+    func unloaded(_ view: WKWebView) { if view === listWeb { listLoaded = false } else { loaded = false } }
+    func webView(_ view: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { unloaded(view) }
+    func webView(_ view: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { unloaded(view) }
+    func webViewWebContentProcessDidTerminate(_ view: WKWebView) { unloaded(view) }
 
-    /// 노선도 창의 화면이 부탁하는 것: 복사 · 창 닫기 · 카드 높이에 맞추기 · 가닥 창에서 그 역 열기
+    /// 노선도 창 · 목록 창의 화면이 부탁하는 것: 복사 · 창 닫기 · 높이에 맞추기 · 목록 창 열기 · 가닥 창에서 그 역 열기
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "gadak", let body = message.body as? [String: Any] else { return }
+        let fromList = message.webView != nil && message.webView === listWeb
         if let text = body["copy"] as? String {
             let board = NSPasteboard.general
             board.clearContents()
             board.setString(text, forType: .string)
         }
         if let what = body["float"] as? String {
-            if what == "close" { closeOverlay() }
+            if what == "close" { if fromList { closeList() } else { closeOverlay() } }
             if what == "size", let height = (body["height"] as? NSNumber)?.doubleValue {
-                overlayHeight = min(max(CGFloat(height), 90), screen.visibleFrame.height * 0.75)
-                if overlay?.isVisible == true { overlay?.setFrame(overlayFrame(), display: true) }
+                if fromList { listHeight = min(max(CGFloat(height), 200), screen.visibleFrame.height * 0.75) }
+                else { overlayHeight = min(max(CGFloat(height), 90), screen.visibleFrame.height * 0.75) }
+                refit()
+            }
+            // 노선도 카드의 ‘‹ 할 일 · 찾기’: 목록 창을 열어요. 떠 있으면 닫아요
+            if what == "list" {
+                let tab = (body["tab"] as? String).flatMap { ["todo", "dec", "files", "ahead"].contains($0) ? $0 : nil } ?? "todo"
+                if lister?.isVisible == true { closeList() } else { showList(tab) }
             }
         }
         if let target = body["open"] as? [String: Any], let json = try? JSONSerialization.data(withJSONObject: target),
@@ -694,6 +767,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func ready(_ url: URL) {
         base = url
         loaded = false
+        listLoaded = false
         poll?.invalidate()
         poll = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in self?.ask() }
         ask()

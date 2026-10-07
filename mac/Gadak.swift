@@ -20,6 +20,8 @@ func setting(_ key: String, _ envKey: String) -> String? {
     return Bundle.main.object(forInfoDictionaryKey: key) as? String
 }
 
+let helpTitle = "가닥 도움말"       // 메뉴 ‘도움말’의 항목 이름이자 그 창의 제목
+
 /// 종이색 바탕 (docs/design/tokens.css의 --bg). 화면이 뜨기 전에 흰색이 번쩍이지 않게 해요.
 let paper = NSColor(name: nil) { appearance in
     appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -383,6 +385,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     @objc func zoomIn(_ sender: Any?) { webView.pageZoom = min(webView.pageZoom + 0.1, 2) }
     @objc func zoomOut(_ sender: Any?) { webView.pageZoom = max(webView.pageZoom - 0.1, 0.6) }
 
+    /// 도움말: 가닥을 쓰는 법과 낱말 풀이 (백엔드의 /help). 창을 따로 띄워서, 가닥을 쓰면서 옆에 두고 볼 수 있어요.
+    /// 이미 떠 있으면 그 창을 앞으로 가져와요
+    @objc func showHelp(_ sender: Any?) {
+        guard let base = url else { NSSound.beep(); return }      // 가닥이 아직 켜지는 중이에요
+        if let open = extra.first(where: { $0.title == helpTitle }) { open.makeKeyAndOrderFront(nil); return }
+        let popup = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 760),
+                             styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                             backing: .buffered, defer: false)
+        popup.title = helpTitle
+        popup.isReleasedWhenClosed = false
+        popup.tabbingMode = .disallowed
+        popup.backgroundColor = paper
+        popup.delegate = self
+        let page = WKWebView(frame: popup.contentView!.bounds, configuration: WKWebViewConfiguration())
+        page.autoresizingMask = [.width, .height]
+        page.navigationDelegate = self
+        page.underPageBackgroundColor = paper
+        popup.contentView!.addSubview(page)
+        page.load(URLRequest(url: base.appendingPathComponent("help")))
+        popup.center()
+        popup.makeKeyAndOrderFront(nil)
+        extra.append(popup)
+    }
+
     func buildMenu() {
         let bar = NSMenu()
         func item(_ title: String, _ action: Selector?, _ key: String = "",
@@ -437,8 +463,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             .separator(),
             item("닫기", #selector(NSWindow.performClose(_:)), "w"),
         ])
+        // 도움말: 가닥을 쓰는 법과 낱말 풀이 (backend/web/help.html)
+        let guide = item(helpTitle, #selector(showHelp(_:)), "?")
+        guide.target = self
+        let help = menu("도움말", [guide])
         NSApp.mainMenu = bar
         NSApp.windowsMenu = windows
+        NSApp.helpMenu = help
     }
 }
 

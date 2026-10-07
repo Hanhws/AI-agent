@@ -1,4 +1,4 @@
-/* 가닥 창(로컬 웹 페이지). shared/ui의 노선도 카드 · 레일 · 목록 · 한마디를 그대로 쓰고,
+/* 가닥 창(로컬 웹 페이지). shared/ui의 노선도 카드 · 목록 · 한마디를 그대로 쓰고,
    여기에는 이 입구만의 것(프로젝트 · 대화 목록, 읽기 전용 대화, 찾은 곳, 백엔드와 주고받기)만 있어요.
    주소에 ?demo 를 붙이거나 백엔드 없이 열면 미리 정리해 둔 예시(data/demo_conversations.json)를 보여 줘요. */
 (function () {
@@ -16,7 +16,9 @@
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
     nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
-    // 앞길 살피기는 가닥 창에서는 머리띠의 버튼으로 해요 (mount · paintAhead). 할 일 목록 아래에 줄로 그리는 hooks(ahead · aheadOn)는 넘기지 않아요
+    // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
+    ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
+    aheadAuto: function () { return !!(S.status && S.status.ahead && S.status.ahead.auto); }, setAheadAuto: setAheadAuto,
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
@@ -42,12 +44,6 @@
     brand.appendChild(logo);
     // 전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 한눈에 (backend/web/map.html). 심볼 옆, 늘 보이는 자리에
     var map = el('button', 'btn sm mapbtn', '전체 지도'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
-    // 앞길 살피기 (README 3-1): 전체 지도 옆에 ‘저절로 살피기’ 켬 · 끔(켜면 한도를 더 써요)과, 꺼 둔 동안 지금 자리에서 한 번 살피는 ‘앞길 보기’.
-    // 자리 · 문구는 임시예요 (디자인 담당과 정해요)
-    R.autoBtn = el('button', 'btn sm mapbtn aheadbtn'); R.autoBtn.type = 'button'; R.autoBtn.onclick = toggleAheadAuto; brand.appendChild(R.autoBtn);
-    R.aheadBtn = el('button', 'btn sm mapbtn aheadbtn', '앞길 보기'); R.aheadBtn.type = 'button'; R.aheadBtn.onclick = ahead; brand.appendChild(R.aheadBtn);
-    R.aheadBtn.title = '지금 자리에서 갈 수 있는 길을 가닥이 한 번 찾아봐요. 1~2분 걸려요.';
-    paintAhead();
     var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';
     R.find.setAttribute('aria-label', '모든 대화에서 찾기');
     R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
@@ -55,12 +51,17 @@
     fw.appendChild(R.find); bar.appendChild(fw);
     R.lists = el('div', 'lists'); bar.appendChild(R.lists);
     R.foot = el('div', 'foot'); bar.appendChild(R.foot);
+    // 가운데: 왼쪽에 노선도 카드와 그 아래 대화, 오른쪽에 목록(할 일 · 정한 것 · 산출물 · 앞길)을 카드와 떼어 위에서 아래까지.
+    // 대화 옆 세로 레일은 위의 노선도와 겹쳐서 가닥 창에서는 그리지 않아요 (10/7 · 구현 담당. shared/ui/rail.js는 대화가 화면에 있는 다른 입구용으로 남아 있어요)
     var main = el('div', 'sitemain'); site.appendChild(main);
-    g.mountDrawer(main);
-    var cw = el('div', 'chatwrap'); main.appendChild(cw);
+    var col = el('div', 'maincol'); main.appendChild(col);
+    R.unfold = el('button', 'unfold', '노선도 펼치기'); R.unfold.type = 'button'; R.unfold.hidden = true; R.unfold.onclick = function () { g.toggleDrawer(); }; col.appendChild(R.unfold);
+    g.mountDrawer(col, null, true);
+    var cw = el('div', 'chatwrap'); col.appendChild(cw);
     R.chat = el('div', 'chat'); R.thread = el('div', 'thread'); R.chat.appendChild(R.thread); cw.appendChild(R.chat);
-    R.rail = el('nav', 'rail'); R.rail.setAttribute('aria-label', '가닥 레일'); cw.appendChild(R.rail);
     R.nudgeHost = cw;
+    R.sideCol = el('aside', 'sidecol'); R.sideCol.setAttribute('aria-label', '할 일 · 정한 것 · 산출물 · 앞길'); main.appendChild(R.sideCol);
+    g.mountSide(R.sideCol, true);
     R.chat.addEventListener('scroll', onChatScroll);
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
     R.src = el('div', 'pop srcpop'); R.src.hidden = true; document.body.appendChild(R.src);
@@ -77,9 +78,9 @@
     renderThread();
     R.chat.scrollTop = S.bottom ? R.chat.scrollHeight : keep; S.bottom = false;
     var V = g.buildView(st.scope);
-    R.drawer.hidden = !st.drawerOpen;
-    if (st.drawerOpen) { g.renderMapHead(V); g.renderSide(); g.renderMap(V); }
-    g.renderRail();
+    R.drawer.hidden = !st.drawerOpen; R.unfold.hidden = st.drawerOpen;
+    g.renderSide();                    // 목록은 노선도 카드를 접어도 그대로 있어요
+    if (st.drawerOpen) { g.renderMapHead(V); g.renderMap(V); }
     g.renderNudge();
     updateViewing(true);
     renderFoot();
@@ -244,7 +245,7 @@
     if (t.parts) R.partEls[t.id + ':0'] = para;
     if (t.long && full === t) {
       var more = el('button', 'linkbtn more', '전체 보기'); more.type = 'button';
-      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; para.textContent = d.turn.ai; more.remove(); g.renderRail(); }); };
+      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; para.textContent = d.turn.ai; more.remove(); }); };
       a.appendChild(more);
     }
     if (t.files) {
@@ -281,6 +282,7 @@
     if (s && s.classify.paused) { var again = el('button', 'btn sm', '정리 다시'); again.type = 'button'; again.onclick = function () { api('classify', 'POST', { pause: false }).then(tick); }; row.appendChild(again); }
     // 2단이 어떤 도구로 무엇을 보고 결론 냈는지는 노선도 카드에 넣지 않고 별도 페이지에서 봐요 (README 3-1)
     var log = el('button', 'btn sm', '판단 기록'); log.type = 'button'; log.onclick = function () { track('ui', { what: 'trace' }); window.open('trace', '_blank'); }; row.appendChild(log);
+    var help = el('button', 'btn sm', '도움말'); help.type = 'button'; help.onclick = openHelp; row.appendChild(help);
     var quit = el('button', 'btn sm', '끄기'); quit.type = 'button'; quit.onclick = quitApp; row.appendChild(quit);
     f.appendChild(row);
   }
@@ -417,12 +419,11 @@
     var y = R.chat.scrollTop + R.chat.clientHeight * 0.3, v = null;
     Array.prototype.forEach.call(R.thread.children, function (n) { if (n.dataset.id && n.offsetTop <= y) v = n.dataset.id; });
     if (R.chat.scrollTop + R.chat.clientHeight >= R.chat.scrollHeight - 4) { var last = R.thread.lastElementChild; if (last && last.dataset.id) v = last.dataset.id; }
-    if (R.vp && R.rail) { var H = R.rail.clientHeight - 64, sh = Math.max(R.chat.scrollHeight, 1); R.vp.style.top = (48 + R.chat.scrollTop / sh * H - 6) + 'px'; R.vp.style.height = (R.chat.clientHeight / sh * H + 12) + 'px'; }
     if (v === viewing && !force) return;
     viewing = v;
     Array.prototype.forEach.call(R.root.querySelectorAll('.viewing'), function (n) { n.classList.remove('viewing'); });
     if (!v) return;
-    [R.mapDots, R.railDots].forEach(function (set) { if (set && set[v]) set[v].classList.add('viewing'); });
+    if (R.mapDots && R.mapDots[v]) R.mapDots[v].classList.add('viewing');
   }
   function onChatScroll() { if (ticking) return; ticking = true; requestAnimationFrame(function () { ticking = false; updateViewing(); }); }
 
@@ -441,31 +442,23 @@
       G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
     }, function () { g.flashToast('요약을 만들지 못했어요.'); });
   }
-  /* 앞길 보기: 이 대화의 마지막 턴에 서서 갈 수 있는 길을 찾아 달라고 해요. 엔진이 뒤에서 돌고, 찾은 길은 ‘제안’에 나타나요 */
+  /* 앞길 보기: 이 대화의 마지막 턴에 서서 갈 수 있는 길을 찾아 달라고 해요. 엔진이 뒤에서 돌고, 어디까지 갔는지와 찾은 길은 목록의 ‘앞길’ 칸에 나타나요
+     (기다리는 중 · 살피는 중 · 길 n개 · 낼 길이 없었음 · 못 살핀 까닭). 상태가 바뀌면 백엔드가 알려서(rev) 다시 받아 와요 */
   function ahead() {
-    if (!g.ACT) return;
+    if (!g.ACT || !g.ACT.id) { g.flashToast('먼저 대화를 골라 주세요.'); return; }
+    st.sideTab = 'ahead'; st.ledgerOpen = true;
     api('chats/' + encodeURIComponent(g.ACT.id) + '/ahead', 'POST').then(function (r) {
-      g.flashToast(r.ok ? '앞길을 살펴보고 있어요. 1~2분 뒤 ‘제안’에 나타나요. 찾은 것이 없으면 아무것도 안 떠요.' : r.reason);
-    }, function () { g.flashToast('앞길을 살피지 못했어요.'); });
+      if (!r.ok) { g.SC.ahead = { state: 'failed', reason: r.reason }; g.render(); return; }
+      g.SC.ahead = { state: 'queued' }; g.render();
+    }, function () { g.SC.ahead = { state: 'failed', reason: '가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.' }; g.render(); });
   }
-  /* 머리띠의 앞길 버튼 둘을 지금 상태대로: 저절로 살피기가 켜져 있으면 그 버튼만(눌린 모양), 꺼져 있으면 옆에 ‘앞길 보기’도.
-     앞길 살피기를 아예 끈 가닥(GADAK_AHEAD=0)이나 예시 화면에서는 둘 다 감춰요 */
-  function paintAhead() {
-    if (!R.autoBtn) return;
-    var a = S.status && S.status.ahead, on = !S.demo && !!(a && a.on), auto = on && !!a.auto;
-    R.autoBtn.style.display = on ? '' : 'none'; R.aheadBtn.style.display = on && !auto ? '' : 'none';
-    R.autoBtn.textContent = '저절로 살피기 ' + (auto ? '켬' : '끔');
-    R.autoBtn.classList.toggle('on', auto); R.autoBtn.setAttribute('aria-pressed', auto ? 'true' : 'false');
-    R.autoBtn.title = (auto ? '길이 갈리는 순간마다 가닥이 앞길을 저절로 살피고 있어요. 누르면 꺼요.' : '켜면 길이 갈리는 순간마다 가닥이 앞길을 저절로 살펴요.')
-      + ' Claude 사용 한도를 더 써요(한 번에 Pro 5시간 한도의 0.7%쯤).';
-  }
-  /* 저절로 살피기 켬 · 끔: 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 살필지. 가닥이 기억해요 */
-  function toggleAheadAuto() {
-    var a = S.status && S.status.ahead; if (!a || !a.on) return;
-    api('ahead/auto', 'POST', { on: !a.auto }).then(function (r) {
+  /* 저절로 살피기 켜기 · 끄기: 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 살필지. 가닥이 기억해요 */
+  function setAheadAuto(on) {
+    api('ahead/auto', 'POST', { on: on }).then(function (r) {
       if (!r.ok) { g.flashToast(r.reason || '바꾸지 못했어요.'); return; }
-      a.auto = !!r.auto; paintAhead();
-      g.flashToast(r.auto ? '이제 길이 갈리는 순간마다 앞길을 저절로 살펴요. Claude 사용 한도를 더 써요.' : '저절로 살피기를 껐어요. ‘앞길 보기’를 누를 때만 살펴요.');
+      if (S.status && S.status.ahead) S.status.ahead.auto = !!r.auto;
+      g.flashToast(r.auto ? '이제 길이 갈리는 순간마다 앞길을 저절로 살펴요. Claude 사용 한도를 더 써요.' : '저절로 살피기를 껐어요. ‘앞길’ 칸의 ‘앞길 보기’를 누를 때만 살펴요.');
+      g.render();
     }, function () { g.flashToast('바꾸지 못했어요.'); });
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
@@ -502,9 +495,9 @@
       if (!S.project) { show({ chats: [] }); return; }
       return api('projects/' + encodeURIComponent(S.project) + '/view' + (S.chat ? '?chat=' + encodeURIComponent(S.chat) : '')).then(function (v) {
         var real = v.project.id !== '_none';  // 프로젝트 · 폴더가 없는 대화는 대화별로만 봐요
-        // 노선 색: 전체 지도와 같은 프로젝트 색 (store.project_color). 노선도 카드 · 레일이 var(--route)로 써요
+        // 노선 색: 전체 지도와 같은 프로젝트 색 (store.project_color). 노선도 카드가 var(--route)로 써요
         R.root.style.setProperty('--route', v.project.color || '');
-        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto });
+        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto, ahead: v.ahead });
       });
     });
   }
@@ -533,7 +526,7 @@
   }
   function tick() {
     return api('status').then(function (s) {
-      var first = !S.status; S.status = s; S.off = false; paintAhead();
+      var first = !S.status; S.status = s; S.off = false;
       if (s.rev !== S.rev || first) { S.rev = s.rev; return load(); }
       renderFoot();
     }, function () {
@@ -550,11 +543,19 @@
     document.body.appendChild(R.mapFrame); R.mapFrame.focus();
   }
   function closeMap() { if (R.mapFrame) { R.mapFrame.remove(); R.mapFrame = null; } }
+  // 지도 쪽(backend/web/map.html)의 ‘닫기’가 바로 부를 수 있게도 열어 둬요. 메시지가 닿지 않는 경우에도 닫히게요
+  window.gadakMapClose = closeMap;
+  // 글쇠가 지도 안이 아니라 가닥 창에 있을 때도 Esc로 닫혀요
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && R.mapFrame) { e.preventDefault(); closeMap(); } });
   window.addEventListener('message', function (e) {
     if (e.origin !== location.origin || !e.data || !R.mapFrame || e.source !== R.mapFrame.contentWindow) return;
     if (e.data.gadakMap === 'close') closeMap();
     if (e.data.gadakOpen) { closeMap(); window.gadakOpen(e.data.gadakOpen); }
   });
+
+  /* 도움말: 가닥을 쓰는 법과 낱말 풀이 (backend/web/help.html). 새 창으로 열어요. 가닥 앱의 메뉴 ‘도움말’도 이것을 불러요 */
+  function openHelp() { window.open('help', 'gadak-help'); }
+  window.gadakHelp = openHelp;
 
   /* 가닥 앱의 떠 있는 버튼이 부르는 것 (mac/Float.swift): 그 대화의 그 역을 열기 · 대화 찾기 칸으로 가기 */
   window.gadakOpen = function (h) { if (!S.demo && h && h.chat) openFound({ id: h.chat, project: { id: h.project }, turn: h.turn }); };

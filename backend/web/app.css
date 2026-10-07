@@ -18,7 +18,23 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
 .citem.on { background: var(--bubble); color: var(--fg); font-weight: 500; }
 .citem.flash { background: var(--flash); }
 .citem.rep span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent); margin-right: 6px; vertical-align: 1px; }
-.sitemain { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--surface); }
+/* 가운데: 왼쪽 기둥에 노선도 카드와 그 아래 대화, 오른쪽 기둥에 목록(할 일 · 정한 것 · 산출물 · 앞길)을 위에서 아래까지 */
+.sitemain { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; min-width: 0; background: var(--surface); }
+.maincol { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.maincol .chat { padding-right: 24px; }
+/* 노선도 카드의 머리줄은 한 줄로: 자리가 모자라면 제목과 상태 글이 줄어들어요 */
+.maincol .dhead { flex-wrap: nowrap; }
+.maincol .dhead > * { flex: none; }
+.maincol .dhead .map-title, .maincol .dhead .map-status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.maincol .dhead .sp { flex: 1 1 0; }
+.maincol .nudge-web { right: 20px; }
+.sidecol { width: 380px; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--surface); }
+.sidecol[hidden] { display: none; }
+@media (max-width: 1180px) { .sidecol { width: 320px; } }
+/* 접어 둔 노선도 카드를 다시 펴는 버튼 */
+.unfold { align-self: flex-start; margin: 10px 16px 0; height: 28px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.unfold:hover { color: var(--fg); border-color: var(--ring); }
+.unfold[hidden] { display: none; }
 .chatwrap { position: relative; flex: 1; min-height: 0; }
 .chat { position: absolute; inset: 0; overflow-y: auto; padding: 22px calc(var(--railw) + 24px) 24px 24px; }
 .appmain .chat { padding-right: 28px; }
@@ -120,9 +136,6 @@ button.citem.on:hover { background: var(--bubble); }
 .band .mapbtn { height: 30px; border: 1px solid rgba(255,255,255,.5); border-radius: 0; background: none; color: #fff; font: 600 13px var(--body); }
 .band .mapbtn:hover { background: rgba(255,255,255,.12); }
 .band .mapbtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-/* 앞길 살피기: 전체 지도 옆의 ‘저절로 살피기 켬 · 끔’과 ‘앞길 보기’ (app.js paintAhead). 켜져 있으면 흰 바탕으로 눌린 모양. 자리 · 문구는 임시예요 */
-.band .aheadbtn.on { background: #fff; color: #111; }
-.band .aheadbtn.on:hover { background: rgba(255,255,255,.85); }
 .mapframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 60; background: var(--bg); }
 
 /* 프로젝트 노선 색 동그라미 (app.js pdot) */

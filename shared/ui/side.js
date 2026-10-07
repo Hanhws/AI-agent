@@ -1,4 +1,4 @@
-/* 노선도 카드의 오른쪽 목록: 할 일 · 정한 것 · 산출물 · 지난 대화에서 찾기
+/* 목록: 할 일 · 정한 것 · 산출물 · 앞길 · 지난 대화에서 찾기. 노선도 카드의 오른쪽에 붙거나, 입구가 준 자리에 따로 놓여요 (map.js의 mountSide)
    (prototype의 renderSide · renderLedger · renderDecisions · renderArtifacts · renderFound). README 7-9. */
 (function (G) {
   'use strict';
@@ -7,14 +7,24 @@
   G.side = function (g) {
     var st = g.st, R = g.R, KIND = G.KIND, findTimer = null;
 
+    /* 앞길 살피기(README 3-1)를 쓸 수 있는 입구인지: 누르는 hook이 있고 켜져 있을 때만 넷째 칸을 그려요 */
+    function aheadShown() { return !!(g.hooks.ahead && g.hooks.aheadOn && g.hooks.aheadOn()); }
+    /* 앞길 살피기가 낸 길: id가 <턴 id>:a<n>인 ‘다음 할 일’ */
+    function aheadPaths() { return g.allItems().filter(function (it) { return /:a\d+$/.test(it.id); }); }
+
     g.renderSide = function () {
       var n = g.openItems().length;
-      R.dbody.classList.toggle('noled', !st.ledgerOpen);
-      R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
-      R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);
-      R.ledBtn.setAttribute('aria-expanded', String(st.ledgerOpen));
+      if (R.sideHost) R.sideHost.hidden = !st.ledgerOpen; else if (R.dbody) R.dbody.classList.toggle('noled', !st.ledgerOpen);
+      if (R.ledBtn) {
+        R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
+        R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);
+        R.ledBtn.setAttribute('aria-expanded', String(st.ledgerOpen));
+      }
       if (!st.ledgerOpen) return;
-      tabs(R.sideHead, [['todo', '할 일', n], ['dec', '정한 것'], ['files', '산출물']], st.sideTab, function (v) { st.sideTab = v; });
+      var list = [['todo', '할 일', n], ['dec', '정한 것'], ['files', '산출물']];
+      if (aheadShown()) list.push(['ahead', '앞길', aheadPaths().filter(function (it) { return g.stateOf(it) === 'open'; }).length]);
+      else if (st.sideTab === 'ahead') st.sideTab = 'todo';
+      tabs(R.sideHead, list, st.sideTab, function (v) { st.sideTab = v; });
       if (R.qInput.value.trim() !== st.q) R.qInput.value = st.q;
       g.renderSideBody(); g.markFound();
     };
@@ -23,7 +33,8 @@
       list.forEach(function (o) {
         var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(cur === o[0]));
         if (o[2]) b.appendChild(el('span', 'n', String(o[2])));
-        b.onclick = function () { set(o[0]); g.track('ui', { what: 'tab_' + o[0] }); g.render(); };
+        // 사용 기록의 표(backend/usage_schema.py)에 ‘앞길’ 칸은 없어서 적지 않아요. 칸을 더하려면 사람에게 먼저 물어요
+        b.onclick = function () { set(o[0]); if (o[0] !== 'ahead') g.track('ui', { what: 'tab_' + o[0] }); g.render(); };
         host.appendChild(b);
       });
     }
@@ -64,6 +75,7 @@
       if (st.q) { renderFound(b); return; }
       if (st.sideTab === 'todo') renderLedger(b);
       else if (st.sideTab === 'dec') renderDecisions(b);
+      else if (st.sideTab === 'ahead') renderAheadTab(b);
       else renderArtifacts(b);
     };
     function rowBtn(host, top, main, sub, t) {
@@ -120,18 +132,64 @@
         list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
         led.appendChild(grp);
       });
-      renderAhead(led);
       renderAuto(led);
+      renderAheadAuto(led);
     }
-    /* 앞길 살피기: 지금 자리에서 갈 수 있는 길을 가닥이 미리 찾아봐요 (README 3-1). 찾은 길은 위의 ‘제안’에 ‘다음 할 일’로 나타나요.
-       이 줄의 자리와 문구는 임시예요 (디자인 담당과 정해요) */
-    function renderAhead(host) {
-      if (!g.hooks.ahead || !g.hooks.aheadOn || !g.hooks.aheadOn()) return;
-      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '앞길'));
-      var r = el('div', 'lauto'); r.title = '이 대화가 향하는 곳을 읽고, 지난 기록 · 작업 폴더 · 웹(켰을 때)에서 갈 수 있는 길을 찾아봐요. 1~2분 걸려요.';
-      r.appendChild(el('span', null, '지금 자리에서 갈 수 있는 길'));
-      var b = el('button', 'linkbtn', '앞길 보기'); b.type = 'button'; b.onclick = function () { g.hooks.ahead(); }; r.appendChild(b);
+
+    /* ---------- 앞길 (README 3-1 앞길 살피기). 자리와 문구는 임시예요 (디자인 담당과 정해요) ----------
+       SC.ahead = { state, at, paths, dropped, reason, goal, why }: 보고 있는 대화의 앞길 살피기가 어디까지 갔나.
+       state는 idle(살핀 적 없음) · queued(차례를 기다림) · looking(살피는 중) · done(길을 냄) · none(낼 길이 없었음) · failed(못 살핌) */
+    function when(iso) {
+      var d = new Date(iso); if (isNaN(d)) return '';
+      var hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      return (d.toDateString() === new Date().toDateString() ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + hm;
+    }
+    function aheadLine(a) {
+      if (a.state === 'queued') return '차례를 기다리고 있어요. 하던 정리가 끝나면 바로 살펴요.';
+      if (a.state === 'looking') return '살피는 중이에요. 보통 30초에서 2분쯤 걸려요.';
+      if (a.state === 'done') return when(a.at) + '에 살폈어요 · 길 ' + a.paths + '개' + (a.why && a.why !== 'button' ? ' · 저절로 살핌' : '');
+      if (a.state === 'none') return when(a.at) + '에 살폈는데, 내밀 만한 길을 찾지 못했어요.' + (a.dropped ? ' 찾아본 근거가 없는 길 ' + a.dropped + '개는 버렸어요.' : '');
+      if (a.state === 'failed') return '살피지 못했어요. ' + (a.reason || '');
+      return '';
+    }
+    /* 넷째 칸: 맨 위에 ‘앞길 보기’(저절로 살피기를 꺼 둔 동안), 그 아래 어디까지 갔는지, 그 아래 찾은 길 */
+    function renderAheadTab(host) {
+      var a = g.SC.ahead || { state: 'idle' }, auto = !!(g.hooks.aheadAuto && g.hooks.aheadAuto());
+      var busy = a.state === 'queued' || a.state === 'looking', box = el('div', 'led'); host.appendChild(box);
+      var top = el('div', 'lgrp'), r = el('div', 'lauto' + (auto ? ' on' : ''));
+      if (auto) r.appendChild(el('span', null, '길이 갈리는 순간마다 저절로 살피고 있어요'));
+      else {
+        r.appendChild(el('span', null, '지금 자리에서 갈 수 있는 길'));
+        var b = el('button', 'btn sm primary', busy ? '살피는 중…' : '앞길 보기'); b.type = 'button'; b.disabled = busy;
+        b.title = '이 대화가 향하는 곳을 읽고, 지난 기록 · 작업 폴더의 문서 · 웹(켰을 때)에서 갈 수 있는 길을 찾아봐요.';
+        b.onclick = function () { g.hooks.ahead(); }; r.appendChild(b);
+      }
+      top.appendChild(r);
+      var line = aheadLine(a); if (line) top.appendChild(el('div', 'astate' + (a.state === 'failed' ? ' bad' : ''), line));
+      if (a.goal && (a.state === 'done' || a.state === 'none')) top.appendChild(el('div', 'agoal', '가닥이 읽은 목적지 · ' + a.goal));
+      if (!auto) top.appendChild(el('div', 'lnote', '누를 때마다 Claude 사용 한도를 조금 써요(Pro 5시간 한도의 0.7%쯤).'));
+      box.appendChild(top);
+      var list = aheadPaths();
+      if (list.length) {
+        var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '찾은 길'));
+        list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
+        box.appendChild(grp);
+      } else if (a.state === 'idle') {
+        box.appendChild(el('div', 'lempty', auto ? '아직 살핀 적이 없어요. 방금 무언가를 정했거나 구간이 바뀌면 가닥이 갈 수 있는 길을 찾아 여기에 모아요.'
+          : '아직 살핀 적이 없어요. ‘앞길 보기’를 누르면 가닥이 지난 기록과 작업 폴더의 문서에서 갈 수 있는 길을 찾아 여기에 모아요.'));
+      }
+    }
+    /* 할 일 칸 아래의 ‘저절로 살피기’: 켜 두면 길이 갈리는 순간마다 가닥이 앞길을 살펴요. 한도를 더 써서 기본은 꺼짐이에요 */
+    function renderAheadAuto(host) {
+      if (!aheadShown() || !g.hooks.aheadAuto || !g.hooks.setAheadAuto) return;
+      var on = !!g.hooks.aheadAuto();
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '가닥이 알아서 살피는 것'));
+      var r = el('div', 'lauto' + (on ? ' on' : ''));
+      r.title = '켜 두면 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 가닥이 앞길을 저절로 살펴요. 꺼 두면 ‘앞길’ 칸의 ‘앞길 보기’를 누를 때만 살펴요.';
+      r.appendChild(el('span', null, '앞길 저절로 살피기' + (on ? ' · 켜짐' : ' · 꺼짐')));
+      var b = el('button', 'linkbtn', on ? '끄기' : '켜기'); b.type = 'button'; b.onclick = function () { g.hooks.setAheadAuto(!on); }; r.appendChild(b);
       grp.appendChild(r);
+      grp.appendChild(el('div', 'lnote', '켜 두면 Claude 사용 한도를 더 써요(한 번에 Pro 5시간 한도의 0.7%쯤).'));
       host.appendChild(grp);
     }
     /* 사용자가 ‘앞으로는 알아서’를 켠 종류. 여기서 다시 꺼요 (README 3-2: 종류별로 다시 끌 수 있어요) */

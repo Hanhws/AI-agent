@@ -267,6 +267,37 @@ class AppTest(unittest.TestCase):
         for name in ("gadakStrip", "gadakFind", "gadakOpen"):
             self.assertIn("window." + name, swift)
             self.assertIn("window." + name + " = ", script if name == "gadakStrip" else window)
+        # 목록 창은 노선도 창과 따로 떠요: 앱이 주소에 붙이는 말과 화면이 앱에 부탁하는 말이 서로 맞는지
+        for asks, hears in (('URLQueryItem(name: "only", value: "list")', "params.get('only') === 'list'"),
+                            ('URLQueryItem(name: "app", value: "2")', "params.get('app') === '2'"),
+                            ('what == "list"', "tell({ float: 'list'"), ('what == "close"', "tell({ float: 'close' })"),
+                            ('what == "size"', "tell({ float: 'size'")):
+            self.assertIn(asks, swift)
+            self.assertIn(hears, script)
+        self.assertIn("setProperty('--route'", script)      # 노선 색이 없으면 본선과 역이 같은 색이라 역이 안 보여요
+
+    def test_the_window_keeps_the_list_apart_and_has_help(self):
+        """가닥 창: 목록(할 일 · 정한 것 · 산출물 · 앞길)은 노선도 카드와 떼어 오른쪽에, 대화 옆 레일은 그리지 않아요. 도움말이 있어요."""
+        window = (ROOT / "backend" / "web" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("g.mountDrawer(col, null, true)", window)
+        self.assertIn("g.mountSide(R.sideCol, true)", window)
+        self.assertNotIn("g.renderRail()", window)
+        side = (ROOT / "shared" / "ui" / "side.js").read_text(encoding="utf-8")
+        for words in ("['ahead', '앞길'", "앞길 저절로 살피기", "살피지 못했어요", "내밀 만한 길을 찾지 못했어요"):
+            self.assertIn(words, side)
+        with self.client.get("/help") as page:
+            html = page.get_data(as_text=True)
+        self.assertEqual(page.status_code, 200)
+        for words in ("가닥 도움말", "노선도 읽기", "낱말 풀이", "앞길 보기", "저절로 살피기", "막힐 때"):
+            self.assertIn(words, html)
+        self.assertNotIn("<textarea", html)
+        self.assertIn("window.open('help'", window)
+        swift = (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8")
+        self.assertIn('menu("도움말"', swift)
+        self.assertIn('appendingPathComponent("help")', swift)
+        # 전체 지도 닫기: 지도 쪽이 가닥 창의 길을 바로 부르고, 가닥 창에서는 Esc로도 닫혀요
+        self.assertIn("window.gadakMapClose = closeMap", window)
+        self.assertIn("parent.gadakMapClose", (ROOT / "backend" / "web" / "map.html").read_text(encoding="utf-8"))
 
     def test_item_state_is_kept(self):
         self.turn()

@@ -356,6 +356,7 @@ class Investigator:
         self.clf = classifier
         self.queue = collections.deque()
         self.wanted = collections.deque()      # 사용자가 ‘앞길 보기’를 누른 대화 (ahead.py)
+        self.seen_ahead = {}                   # 대화 id → 앞길 살피기가 어디까지 갔나 (화면의 ‘앞길’ 칸이 보여 줘요. 다시 켜면 비워져요)
         self.tries = collections.Counter()
         self._engine = None
         self._scout = None
@@ -402,8 +403,30 @@ class Investigator:
             return False
         if chat_id not in self.wanted:
             self.wanted.append(chat_id)
+        self.note_ahead(chat_id, "queued")
         self.clf.wake.set()
         return True
+
+    def note_ahead(self, chat_id, state, **more) -> None:
+        """앞길 살피기가 어디까지 갔는지 적어 둬요. 눌렀는데 아무것도 안 뜰 때, 찾은 것이 없어서인지 못 살펴서인지 화면이 말해 주려고요.
+        queued 차례를 기다림 · looking 살피는 중 · done 길을 냄 · none 살폈지만 낼 길이 없었음 · failed 살피지 못함(reason)."""
+        self.seen_ahead[chat_id] = dict(more, state=state, at=store.now())
+        self.clf.rt.bump()
+
+    def ahead_state(self, conn, chat_id) -> dict:
+        """화면의 ‘앞길’ 칸이 보여 줄 것. 이번에 켠 뒤로 살핀 적이 없으면 판단 기록에서 마지막으로 살핀 것을 찾아요."""
+        seen = self.seen_ahead.get(chat_id)
+        if seen:
+            return dict(seen)
+        last = conn.execute(
+            "SELECT r.turn_id, r.steps_json, r.created_at FROM agent_runs r JOIN turns t ON t.id = r.turn_id"
+            " WHERE t.chat_id = ? AND r.trigger = 'ahead' ORDER BY r.created_at DESC, r.rowid DESC LIMIT 1", (chat_id,)).fetchone()
+        if last is None:
+            return {"state": "idle"}
+        body = json.loads(last["steps_json"] or "{}")
+        made = len(body.get("items") or [])
+        return {"state": "done" if made else "none", "at": last["created_at"], "turn": last["turn_id"], "why": body.get("why"),
+                "paths": made, "dropped": len(body.get("dropped") or []), "goal": body.get("goal")}
 
     def waiting(self) -> bool:
         return bool(self.queue or self.wanted)
@@ -411,15 +434,23 @@ class Investigator:
     def step(self, conn) -> bool:
         """줄 맨 앞 대화에서 확인할 턴 하나를 봐요. 볼 것이 없으면 False."""
         if self.engine() is None:
+            for chat_id in self.wanted:
+                self.note_ahead(chat_id, "failed", reason="정리에 쓸 엔진이 없어요.")
             self.queue.clear()     # 엔진이 없으면 기록만 해요
             self.wanted.clear()
             return False
         while self.wanted:         # 사용자가 누른 것이 먼저예요
-            chat = store.chat_row(conn, self.wanted.popleft())
+            chat_id = self.wanted.popleft()
+            chat = store.chat_row(conn, chat_id)
             rows = [r for r in store.chat_turns(conn, chat["id"]) if r["classified"] == 1] if chat is not None else []
-            if rows and not chat["hidden"]:
+            if not rows or chat["hidden"]:
+                self.note_ahead(chat_id, "failed", reason="아직 정리된 턴이 없어서 살필 자리가 없어요. 정리가 끝난 뒤 다시 눌러 주세요.")
+                continue
+            try:
                 self.look_ahead(conn, rows[-1], "button")
-                return True
+            except BadOutput:
+                pass               # 엔진이 형식을 못 지켰어요. 까닭은 look_ahead가 적어 뒀고, 다시 누르면 다시 살펴요
+            return True
         while self.queue:
             waiting = store.waiting_checks(conn, self.queue[0])
             if not waiting:
@@ -487,10 +518,21 @@ class Investigator:
         searcher = self.engine()          # 웹에서 찾아 간추리는 일은 2단의 (작은) 모델로 충분해요
         if config.AHEAD_WEB and callable(getattr(searcher, "research", None)):
             ctx.lookup = lambda question: self.clf.research(question, searcher)
+        chat_id = row["chat_id"]
+        self.note_ahead(chat_id, "looking", turn=row["id"], why=why)
         self.clf.status["checking"] = row["id"]
         began = time.time()
         try:
             result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine))
+        except EngineError as exc:       # 로그인 · 한도. 일꾼이 멈춰요
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Claude에 닿지 못했어요: " + str(exc)[:160])
+            raise
+        except BadOutput:
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="엔진이 답을 정해 준 형식으로 내지 못했어요. 다시 눌러 보세요.")
+            raise
+        except Exception as exc:
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="살피다 문제가 생겼어요: " + str(exc)[:160])
+            raise
         finally:
             self.clf.status["checking"] = None
         with conn:
@@ -505,5 +547,6 @@ class Investigator:
                      dropped=len(result["dropped"]), ended=result["ended"], seconds=time.time() - began, **used)
         for item in result["items"]:
             usage.record(conn, "item", kind=item["kind"], did="made", at="auto")
-        self.clf.rt.bump()
+        self.note_ahead(chat_id, "done" if ids else "none", turn=row["id"], why=why, paths=len(ids), dropped=len(result["dropped"]),
+                        goal=result.get("goal"), seconds=round(time.time() - began))
         return result
