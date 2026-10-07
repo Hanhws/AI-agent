@@ -8,7 +8,8 @@
 - missing: 1단이 빠진 것 같은 요청을 냄 (parts.open = 2)
 - unasked: 이 턴에서 파일이 바뀌었고, 1단이 요청보다 넓게 바뀐 것 같다고 봄 (wide)
 - handoff: 같은 프로젝트에 새 대화가 열림 — 그 프로젝트에서 가장 새 대화의 첫 턴이고, 앞 대화에 정한 것이 있을 때
-- ahead: (꺼 둠 · GADAK_AHEAD=1) 길이 갈리는 순간 — 방금 정함 · 구간이 바뀜 · 사용자가 다음 할 일을 물음.
+- ahead: (꺼 둠 · GADAK_AHEAD_AUTO=1) 길이 갈리는 순간 — 방금 정함 · 구간이 바뀜 · 사용자가 다음 할 일을 물음.
+         기본은 사용자가 ‘앞길 보기’를 눌렀을 때만이에요. 그건 조건이 아니라 want_ahead로 바로 받아요.
          앞길 살피기(ahead.py)가 따로 돌아 ‘다음 할 일’(next)을 내요. 프롬프트 · 도구 · 근거 검사가 달라서 루프도 따로예요
 어느 턴을 볼지는 정해 둔 개수가 아니라 이 조건으로 정해요. 보는 대화가 먼저, 그 안에서는 지금에 가까운 턴부터.
 얼마나 멀리 볼지(앞 턴 · 지난 대화)는 에이전트가 도구로 정해요.
@@ -117,7 +118,7 @@ def triggers(conn, chat, rows, row, parts, wide, made=None) -> list:
     # 가닥이 시작할 때 이미 요약을 넣은 대화(승인한 자동 실행)에는 다시 권하지 않아요
     if rows and row["seq"] == rows[0]["seq"] and handoff_due(conn, chat) and not store.auto_sent(conn, chat["id"], "handoff"):
         look.append("handoff")
-    # 앞길 살피기: 길이 갈리는 순간에만, 지금 하고 있는 대화의 마지막 턴에서만 (ahead.due)
+    # 앞길을 저절로도 살피게 켰을 때만(AHEAD_AUTO): 길이 갈리는 순간에, 지금 하고 있는 대화의 마지막 턴에서 (ahead.due)
     if ahead.due(chat, rows, row, made or {}):
         look.append("ahead")
     return look
@@ -436,7 +437,7 @@ class Investigator:
             return None
         regular = [t for t in looks if t != "ahead"]      # 앞길 살피기는 루프가 따로예요 (look_ahead)
         result = self.check_regular(conn, row, regular) if regular else None
-        if "ahead" in looks and config.AHEAD:
+        if "ahead" in looks and config.AHEAD and config.AHEAD_AUTO:     # 끄기 전에 갈림길로 적어 둔 턴도 끈 뒤에는 살피지 않아요
             try:
                 self.look_ahead(conn, row, ahead.reason(row["user"], row["dec"], row["seg"], row["depth"]) or "decided")
             except EngineError:

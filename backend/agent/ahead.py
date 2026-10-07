@@ -19,9 +19,10 @@
 - 찾아본 줄의 글은 엔진이 간추린 말이에요. 파일 · 웹에서 찾았다는 줄에 든 수(두 자리 넘는 수 · #번호 · 퍼센트)가
   그 출처의 글에 없으면 그 줄을 빼요(간추리다 번호를 틀리게 옮긴 일이 있었어요).
 - 찾아본 것이 하나도 없는 길은 버려요. 길이 하나도 안 남으면 아무 말도 하지 않아요.
-- 지금 하고 있는 대화의 마지막 턴에서만, 한 대화에서 AHEAD_EVERY턴에 한 번까지 돌아요. 사용자가 누르면(POST /chats/<id>/ahead) 바로 돌아요.
+- 사용자가 ‘앞길 보기’를 눌렀을 때만 돌아요(POST /chats/<id>/ahead · 그 대화의 마지막 턴에서). 길이 갈리는 순간에 저절로 도는 것(due)은
+  꺼 뒀어요(GADAK_AHEAD_AUTO=1): 켜면 지금 하고 있는 대화의 마지막 턴에서만, 한 대화에서 AHEAD_EVERY턴에 한 번까지 돌아요.
 - 그 턴에 서서 앞을 보는 것이라 그 턴 뒤의 기록은 보지 않아요(Context.until).
-- 기본은 꺼 둬요(GADAK_AHEAD=1). 쓸모를 재서(eval/ahead.py) 넘으면 켜요. 프롬프트는 prompts/ahead.txt.
+- 버튼을 감추려면 GADAK_AHEAD=0. 쓸모는 eval/ahead.py로 재요. 프롬프트는 prompts/ahead.txt.
 """
 import json
 import re
@@ -137,9 +138,9 @@ def fresh(created_at, now=None) -> bool:
 
 
 def due(chat, rows, row, made, now=None):
-    """1단이 이 턴을 분류하며 물어요: 지금 앞길을 살필 순간인가. 까닭이나 None.
+    """1단이 이 턴을 분류하며 물어요: 지금 앞길을 살필 순간인가. 까닭이나 None. 저절로 살피기를 켰을 때만이에요(AHEAD_AUTO).
     made는 1단이 방금 붙인 값(dec · seg · depth)이에요. rows는 그 대화의 턴들(분류하기 전에 읽은 것)."""
-    if not config.AHEAD or chat is None or chat["hidden"] or not rows or row["seq"] != rows[-1]["seq"]:
+    if not (config.AHEAD and config.AHEAD_AUTO) or chat is None or chat["hidden"] or not rows or row["seq"] != rows[-1]["seq"]:
         return None
     before = [r for r in rows if r["seq"] < row["seq"]]
     if len(before) < MIN_BEFORE or not fresh(row["created_at"], now):

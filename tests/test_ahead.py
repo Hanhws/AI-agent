@@ -33,8 +33,8 @@ def path(kind, title="알림 문구부터 정하기", **fields):
 
 
 def on(**more):
-    """앞길 살피기를 켠 설정."""
-    values = {"AHEAD": True, "AHEAD_WEB": False, "AHEAD_FILES": True, "AHEAD_MODEL": None}
+    """앞길 살피기를 켜고, 갈림길에서 저절로도 살피게 한 설정. (기본은 사용자가 누를 때만: AHEAD_AUTO=False)"""
+    values = {"AHEAD": True, "AHEAD_AUTO": True, "AHEAD_WEB": False, "AHEAD_FILES": True, "AHEAD_MODEL": None}
     values.update(more)
     return mock.patch.multiple(config, **values)
 
@@ -75,8 +75,12 @@ class DueTest(unittest.TestCase):
     def due(self, rows, row=None, chat=None, **made):
         return ahead.due(chat or {"hidden": 0}, rows, row or rows[-1], made, now=self.NOW)
 
-    def test_it_is_off_unless_turned_on(self):
-        self.assertIsNone(self.due(self.rows(5), dec="정함"))
+    def test_it_looks_by_itself_only_when_that_is_turned_on(self):
+        self.assertIsNone(self.due(self.rows(5), dec="정함"))                 # 기본: 사용자가 누를 때만 돌아요
+        with on(AHEAD_AUTO=False):
+            self.assertIsNone(self.due(self.rows(5), dec="정함"))
+        with on(AHEAD=False):
+            self.assertIsNone(self.due(self.rows(5), dec="정함"))             # 버튼까지 감췄으면 저절로도 안 돌아요
         with on():
             self.assertEqual(self.due(self.rows(5), dec="정함"), "decided")
 
@@ -497,6 +501,21 @@ class WorkerTest(Story):
         self.run_worker()
         return ids
 
+    def test_by_default_a_junction_waits_for_the_button(self):
+        """저절로 살피기를 켜지 않으면(기본) 갈림길이어도 앞길을 살피지 않아요. 다른 확인은 하던 대로 해요."""
+        marks = lambda p: labels(p, t3={"chose": True, "dec": "임계값 1300원", "parts": [
+            {"t": "임계값 바꾸기", "type": "task", "target": None, "open": False},
+            {"t": "테스트는 어떻게 하냐", "type": "q", "target": None, "open": True}]})
+        engine = Engine(marks, steps=[{"think": "본다", "tool": "get_request", "arg": None, "items": []},
+                                      finish({"kind": "missing", "text": "", "why": "답에 없어요", "part": 1, "file": None,
+                                              "asked": None, "what": None, "use": []})],
+                        ahead=[step("search_turns", "환율"), self.grounded])
+        with on(AHEAD_AUTO=False):
+            ids = self.junction(engine)
+        now = self.row(ids[2])
+        self.assertEqual((now["look"], now["checked"]), ("missing", 1))
+        self.assertFalse(any(isinstance(c[1], dict) and "ahead" in c[1] for c in engine.calls))
+
     def test_a_junction_is_looked_at_once_and_other_items_stay(self):
         marks = lambda p: labels(p, t3={"chose": True, "dec": "임계값 1300원", "parts": [
             {"t": "임계값 바꾸기", "type": "task", "target": None, "open": False},
@@ -573,16 +592,17 @@ class WorkerTest(Story):
                 ids = [store.upsert_turn(conn, chat_id=CHAT, message_ref=f"g{n}", user=f"질문 {n}", ai="답", state="done")["id"]
                        for n in range(3)]
             self.assertEqual(client.post("/chats/없는대화/ahead", json={}).status_code, 404)
-            off = client.post(f"/chats/{CHAT}/ahead", json={})
-            self.assertEqual((off.status_code, off.get_json()["ok"]), (409, False))                 # 꺼 둔 동안
-            self.assertEqual(client.get("/status").get_json()["ahead"], {"on": False, "web": False, "files": False})
+            with on(AHEAD=False):                                                                   # 버튼을 감춘 동안 (GADAK_AHEAD=0)
+                off = client.post(f"/chats/{CHAT}/ahead", json={})
+                self.assertEqual((off.status_code, off.get_json()["ok"]), (409, False))
+                self.assertEqual(client.get("/status").get_json()["ahead"], {"on": False, "web": False, "files": False})
 
             def work():
                 n = 0
                 while rt.classifier.step(conn) and n < 20:
                     n += 1
 
-            with on(AHEAD_WEB=True):
+            with on(AHEAD_WEB=True, AHEAD_AUTO=False):                                              # 저절로 살피기는 끈 채로 (기본)
                 self.assertEqual(client.get("/status").get_json()["ahead"], {"on": True, "web": True, "files": True})
                 self.assertTrue(client.post(f"/chats/{CHAT}/ahead", json={}).get_json()["ok"])
                 self.assertEqual(client.get("/status").get_json()["classify"]["aheadQueued"], 1)
@@ -594,7 +614,7 @@ class WorkerTest(Story):
                 self.assertIn("look_up", engine.calls[-1][1]["tools"])
                 self.assertEqual((calls, rt.classifier.status["calls"] - before), (["무엇"], 1 + 3))    # 1단 1번 + 앞길 2번 + 웹 1번
                 self.assertTrue(client.patch(f"/items/{last}:a0", json={"state": "done"}).get_json()["ok"])
-            with on():
+            with on(AHEAD_AUTO=False):
                 client.post(f"/chats/{CHAT}/ahead", json={})
                 work()
                 self.assertNotIn("look_up", engine.calls[-1][1]["tools"])                            # 웹은 따로 켜야 해요

@@ -72,9 +72,12 @@ def _code_stamp() -> str:
 
 
 CODE = _code_stamp()   # 이 프로세스가 켜질 때의 코드
-# 앞길 살피기(‘생각 못 한 방법 추천’ · backend/agent/ahead.py): 길이 갈리는 순간에 사용자가 하려는 일을 읽고, 갈 수 있는 길을
-# 미리 찾아봐서 ‘다음 할 일’로 내밀어요. 쓸데없는 한마디가 늘 수 있어서 기본은 꺼 둬요. 쓸모를 재 보고(eval/ahead.py) 켜요
-AHEAD = os.environ.get("GADAK_AHEAD", "0") == "1"
+# 앞길 살피기(‘생각 못 한 방법 추천’ · backend/agent/ahead.py): 사용자가 ‘앞길 보기’를 눌렀을 때, 하려는 일을 읽고 갈 수 있는 길을
+# 미리 찾아봐서 ‘다음 할 일’로 내밀어요. 누를 때만 돌아요. 버튼을 감추려면 GADAK_AHEAD=0
+AHEAD = os.environ.get("GADAK_AHEAD", "1") == "1"
+# 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)에 저절로도 살펴요. 꺼 둬요: 한 곳에 Claude Pro 5시간 한도의
+# 0.7%쯤(Sonnet 2~3번)을 써서, 쓰는 사람이 모르는 새 한도가 줄어요 (10/7에 잼 · README 3-5)
+AHEAD_AUTO = os.environ.get("GADAK_AHEAD_AUTO", "0") == "1"
 AHEAD_WEB = os.environ.get("GADAK_AHEAD_WEB", "0") == "1"        # 웹에서도 찾아봐요. 대화에서 뽑은 검색어가 밖으로 나가서 따로 켜요
 AHEAD_FILES = os.environ.get("GADAK_AHEAD_FILES", "1") == "1"    # 그 대화의 작업 폴더에 있는 글 파일도 읽어요 (깃이 무시하는 파일은 빼고)
 # 길을 찾는 일은 분류보다 어려워요. 작은 모델(Haiku)은 방금 대화만 되풀이해서(10/7 시범) 이 일만 큰 모델을 기본으로 둬요.

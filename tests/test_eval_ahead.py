@@ -80,7 +80,7 @@ class RunTest(unittest.TestCase):
         self.assertTrue(first["그 뒤 실제 대화"].startswith("1. "))
         self.assertEqual((first["쓸모"], first["갔나"]), ("", ""))
         self.assertIn("갈림길 2/2", said[-1])
-        self.assertEqual(config.AHEAD, False)                                       # 재는 동안 건드린 설정은 되돌려요
+        self.assertEqual(config.AHEAD, True)                                        # 재는 동안 건드린 설정은 되돌려요 (기본은 켬: 누를 때만 도는 버튼)
 
     def test_web_lookups_are_counted_and_only_when_asked(self):
         engine = Scout()
