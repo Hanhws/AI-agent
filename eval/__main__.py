@@ -61,6 +61,8 @@ def report(key, result, stats, checks, check) -> str:
         lines.append("  items 정밀도       재지 않음 (--no-check)")
     calls, seconds = stats["calls"], stats["seconds"]
     tail = f"  호출 1단 {calls['classify']}번 ({seconds['classify']:.0f}초) · 2단 {calls['check']}번 ({seconds['check']:.0f}초)"
+    if calls.get("segment"):             # 대화 전체를 보고 구간을 다시 나눈 호출 (10/7부터. 그 전에 남긴 결과에는 없어요)
+        tail += f" · 구간 나누기 {calls['segment']}번 ({seconds['segment']:.0f}초)"
     if "cost_usd" in stats:
         tail += f" · API로 치면 약 ${stats['cost_usd']:.3f}"
     lines.append(tail)

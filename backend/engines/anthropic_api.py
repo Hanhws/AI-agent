@@ -21,6 +21,7 @@ FALLBACKS = ("claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-son
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 # 100만 토큰에 드는 값(달러): (입력, 출력). 2026-09-25에 본 값이에요. 평가에서 ‘약 얼마’를 보여 줄 때만 써요
 PRICES = {"claude-haiku-4-5": (1.0, 5.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-opus-5-5": (4.0, 20.0)}
+USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")   # backend/tokens.py가 읽는 칸
 
 
 def model_id(name=None) -> str:
@@ -80,6 +81,7 @@ class AnthropicApiEngine:
         self.model_id = model_id(self.model)
         self.timeout = timeout
         self.last = None      # 마지막 호출의 토큰 수와 값 (정확도 평가가 봐요)
+        self.last_usage = None  # 마지막 호출이 쓴 토큰을 종류별로 (backend/tokens.py가 내 PC에 적어요)
         self._client = client
 
     def client(self):
@@ -116,6 +118,7 @@ class AnthropicApiEngine:
 
     def complete_json(self, system: str, prompt: str, schema: dict) -> dict:
         """schema에 맞는 JSON 하나를 받아요."""
+        self.last_usage = None
         anthropic = _sdk()
         client, request = self.client(), self._request(system, prompt, schema)
         try:
@@ -130,6 +133,7 @@ class AnthropicApiEngine:
         price = PRICES.get(self.model_id)
         self.last = {"input_tokens": tokens_in, "output_tokens": used.output_tokens,
                      "cost": (tokens_in * price[0] + used.output_tokens * price[1]) / 1_000_000 if price else None}
+        self.last_usage = dict({k: getattr(used, k, 0) or 0 for k in USAGE_FIELDS}, cost=self.last["cost"], model=self.model)
         if response.stop_reason == "refusal":
             raise BadOutput("모델이 이 묶음은 다루지 않겠다고 했어요")
         if response.stop_reason == "max_tokens":

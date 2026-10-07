@@ -275,13 +275,22 @@ class AppTest(unittest.TestCase):
             self.assertIn(asks, swift)
             self.assertIn(hears, script)
         self.assertIn("setProperty('--route'", script)      # 노선 색이 없으면 본선과 역이 같은 색이라 역이 안 보여요
+        # ‘주제 전환’ 한마디의 환승하기(effect: transfer)는 떠 있는 창에서도 요약을 복사해요. 이 창에는 노선도 끝의 환승 표시(handoff)가 없어요
+        nudge = (ROOT / "shared" / "ui" / "nudge.js").read_text(encoding="utf-8")
+        self.assertIn("g.hooks.handoff || g.hooks.transfer", nudge)
+        self.assertIn("transfer: transfer", script)
+        self.assertNotIn("handoff:", script)
+        self.assertIn("'/handoff'", script)
 
     def test_the_window_keeps_the_list_apart_and_has_help(self):
         """가닥 창: 목록(할 일 · 정한 것 · 산출물 · 앞길)은 노선도 카드와 떼어 오른쪽에, 대화 옆 레일은 그리지 않아요. 도움말이 있어요."""
         window = (ROOT / "backend" / "web" / "app.js").read_text(encoding="utf-8")
         self.assertIn("g.mountDrawer(col, null, true)", window)
         self.assertIn("g.mountSide(R.sideCol, true)", window)
-        self.assertNotIn("g.renderRail()", window)
+        # 가닥 창은 레일을 놓지 않아요. ‘전체 보기’에 남아 있는 레일 다시 그리기(기획 담당의 줄 그대로)는 레일이 없으면 아무 일도 하지 않아요
+        self.assertNotIn("R.rail =", window)
+        self.assertIn("if (!rail) return;", (ROOT / "shared" / "ui" / "rail.js").read_text(encoding="utf-8"))
+        self.assertIn("fillAnswer(para, d.turn.ai); more.remove(); g.renderRail();", window)   # ‘전체 보기’로 받은 답도 구획 · 표 · 코드로
         side = (ROOT / "shared" / "ui" / "side.js").read_text(encoding="utf-8")
         for words in ("['ahead', '앞길'", "앞길 저절로 살피기", "살피지 못했어요", "내밀 만한 길을 찾지 못했어요"):
             self.assertIn(words, side)

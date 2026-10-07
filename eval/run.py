@@ -20,8 +20,8 @@ class Meter:
         self.engine = engine
         self.name = getattr(engine, "name", "engine")
         self.model = getattr(engine, "model", None)
-        self.calls = {"classify": 0, "check": 0, "ahead": 0, "lookup": 0}
-        self.seconds = {"classify": 0.0, "check": 0.0, "ahead": 0.0, "lookup": 0.0}
+        self.calls = {"classify": 0, "segment": 0, "check": 0, "ahead": 0, "lookup": 0}
+        self.seconds = {"classify": 0.0, "segment": 0.0, "check": 0.0, "ahead": 0.0, "lookup": 0.0}
         self.tokens = {"in": 0, "out": 0}
         self.cost = 0.0
         self.priced = 0          # 값을 알려 준 호출 수
@@ -31,8 +31,10 @@ class Meter:
     def complete_json(self, system, prompt, schema):
         try:
             payload = json.loads(prompt)
-            # 2단의 입력에는 확인하는 까닭(trigger)이, 앞길 살피기의 입력에는 살피는 까닭(ahead)이 있어요
-            stage = "ahead" if "ahead" in payload else "check" if "trigger" in payload else "classify"
+            # 2단의 입력에는 확인하는 까닭(trigger)이, 앞길 살피기의 입력에는 살피는 까닭(ahead)이 있어요.
+            # 1단의 입력에는 지금까지의 흐름(state)이 있고, 그것도 없으면 대화 전체를 보고 구간을 다시 나누는 호출이에요
+            stage = ("ahead" if "ahead" in payload else "check" if "trigger" in payload
+                     else "classify" if "state" in payload else "segment")
         except ValueError:
             stage = "classify"
         began = time.time()

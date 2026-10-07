@@ -74,6 +74,21 @@ class ClaudeCliTest(unittest.TestCase):
         self.assertIsInstance(out, BadOutput)
         self.assertNotIsInstance(out, EngineError)
 
+    def test_what_a_call_spent_is_kept_for_the_token_log(self):
+        """backend/tokens.py가 읽는 값. 형식이 틀려 다시 물은 것도, 실패한 답도 쓴 것으로 세요."""
+        used = {"input_tokens": 10, "cache_read_input_tokens": 100, "output_tokens": 5, "service_tier": "standard"}
+        prose = said(is_error=False, result="글로 답했어요", usage=used, total_cost_usd=0.001)
+        _, _, engine = self.ask(prose, said(is_error=False, structured_output={"ok": True}, usage=used, total_cost_usd=0.002))
+        spent = dict(engine.last_usage)
+        self.assertAlmostEqual(spent.pop("cost"), 0.003)
+        self.assertEqual(spent, {"input_tokens": 20, "cache_read_input_tokens": 200, "output_tokens": 10, "model": "haiku"})
+        self.assertEqual(engine.last["input_tokens"], 110)                # 평가가 보는 값은 마지막 답 하나 그대로
+        out, _, engine = self.ask(said(is_error=True, result="Claude AI usage limit reached|1791234567", usage=used))
+        self.assertIsInstance(out, EngineError)
+        self.assertEqual((engine.last_usage["input_tokens"], engine.last_usage["cost"]), (10, None))
+        _, _, engine = self.ask(subprocess.TimeoutExpired("claude", 120))
+        self.assertIsNone(engine.last_usage)                              # 답을 못 받았으면 적을 것이 없어요
+
     def test_login_or_limit_trouble_stops_at_once(self):
         out, run, _ = self.ask(said(is_error=True, result="Not logged in · Please run /login"))
         self.assertIsInstance(out, EngineError)
@@ -213,6 +228,8 @@ class AnthropicApiTest(WithKeychain):
             self.assertNotIn(gone, request)
         self.assertEqual(NULLABLE["properties"]["dec"], {"type": ["string", "null"]})          # 받은 schema는 그대로 둬요
         self.assertEqual(engine.last, {"input_tokens": 1200, "output_tokens": 300, "cost": (1200 * 1.0 + 300 * 5.0) / 1_000_000})
+        self.assertEqual(engine.last_usage, {"input_tokens": 1200, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0,
+                                             "output_tokens": 300, "cost": engine.last["cost"], "model": "haiku"})   # 토큰 기록이 읽는 모양
         self.assertEqual((engine.name, engine.model), ("anthropic_api", "haiku"))
 
     def test_bigger_models_run_at_low_effort_with_a_server_side_fallback(self):

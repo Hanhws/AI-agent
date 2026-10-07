@@ -22,6 +22,7 @@
 - 화면을 고치면 가닥 창을 `?demo`(만든 예시)와 `?demo=example&scen=u1`(각자 PC의 실제 예시)로 열어 `screenshots/`와 나란히 비교해요.
 - 사용자가 설정하지 않아도 돌아야 해요. 켜면 알아서 찾고 읽어요(`backend/sources/`). 다른 프로그램의 설정을 고치는 일(Cursor hook 연결)만 사용자가 한 번 눌러요.
 - 에이전트는 2단이에요. 매 턴 분류 1회(`backend/agent/classify.py`) + 조건이 걸린 턴만 도구 루프(`backend/agent/investigate.py`). 2단이 돈 턴은 판단 기록을 남겨요. README 3-1.
+- 엔진 없이 만드는 할 일(끝나지 않은 곁길 · 반복 질문 · 주제 전환)은 `backend/agent/rules.py`가 분류 결과로 만들어요. 2단이 그 턴을 다시 써도 남겨요(`store.RULE_KINDS`). 역이 쌓이면 대화 전체를 보고 구간을 다시 나눠요(`classify.segment_chat` · 호출 1번). 엔진을 부르는 새 자리를 만들면 `Classifier.call`에 `kind` · `chat`을 넘겨요(쓴 토큰을 내 PC에 적어요 · `backend/tokens.py`).
 - 가닥이 직접 보내는 건 사용자가 승인한 종류(요청 외 변경 되돌리기 · 이어 가기 요약)뿐이에요. 그 밖에는 글을 넣어 주기만 해요. README 3-2. 보낼 수 있는 종류는 `store.AUTO_KINDS`, 보낼지 정하는 곳은 `backend/auto.py` 하나예요. 종류를 늘리려면 먼저 사람에게 물어요.
 - 사이트 DOM 셀렉터는 사이트별 파일 위쪽 상수로 모아요.
 - 크롬 확장이 대화를 보내는 곳은 내 PC의 가닥(`127.0.0.1:7311`) 하나예요. 읽는 쪽(`extension/content/`)은 화면을 읽기만 하고 고치지 않아요. 다른 주소나 다른 보내는 길을 넣지 않아요(`tests/test_extension.py`가 확인). 화면에서 읽은 대화를 역과 맞추는 일은 가닥이 해요(`backend/sources/pages.py`).

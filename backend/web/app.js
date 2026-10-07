@@ -103,8 +103,27 @@
   // 프로젝트 노선 색 동그라미: 왼쪽 목록 · 노선도 · 전체 지도가 같은 색 (store.project_color)
   function pdot(color) { var i = el('i', 'pdot'); i.style.background = color; i.setAttribute('aria-hidden', 'true'); return i; }
   function renderLists() {
-    var host = R.lists, keep = host.scrollTop; host.innerHTML = ''; R.citems = {};
-    if (S.findQ) { renderFound(host); host.scrollTop = keep; return; }
+    var host = R.lists, keep = host.scrollTop;
+    if (S.findQ) { R.listSig = null; host.innerHTML = ''; R.citems = {}; renderFound(host); host.scrollTop = keep; return; }
+    if (!S.demo && S.projects.length && S.projects[0].list) {
+      // 모든 프로젝트를 머리글로 두고 그 아래 대화를 늘 펼쳐 둬요 (Claude 사이드바처럼).
+      // 몇 초마다 새로 그리면 누르는 중인 줄이 바뀌어 클릭이 씹혀요. 바뀐 게 없으면 그대로 둬요
+      var sig = JSON.stringify([S.projects, g.ACT && g.ACT.id, S.hiddenCount, S.hiddenOpen, S.hiddenList]);
+      if (sig === R.listSig && host.firstChild) return;
+      R.listSig = sig; host.innerHTML = ''; R.citems = {};
+      S.projects.forEach(function (p) {
+        var row = el('div', 'crow'), head = el('h6', 'pgroup', p.name); if (p.color) head.prepend(pdot(p.color));
+        row.appendChild(head); host.appendChild(row);
+        var x = el('button', 'cx', '×'); x.type = 'button'; x.title = '이 프로젝트의 대화를 모두 목록에서 빼기'; x.setAttribute('aria-label', x.title);
+        x.onclick = function () { hideProject(p); }; row.appendChild(x);
+        p.list.forEach(function (c) {
+          R.citems[c.id] = citem(host, c.title || '(제목 없음)', c.date, !!g.ACT && c.id === g.ACT.id, function () { S.project = p.id; openChat(c.id); },
+            { title: '이 대화를 목록에서 빼기', run: function () { hideChats([c.id], '대화를 목록에서 뺐어요.'); } });
+        });
+      });
+      renderHidden(host); host.scrollTop = keep; return;
+    }
+    host.innerHTML = ''; R.citems = {};
     if (g.SC.chats.length) {
       var head = el('h6', null, g.SC.project ? '프로젝트 · ' + g.SC.project : '최근 대화'); host.appendChild(head);
       var mine = S.projects.filter(function (p) { return p.id === S.project; })[0];
@@ -233,6 +252,80 @@
     });
     st.enter = null;
   }
+  /* 답을 제목 줄(## · 한 줄 전체가 굵은 글씨 · ---)로 나눠 맥락마다 구획해요. 제목이 둘 이상일 때만. 엔진을 쓰지 않아요 */
+  var HEAD_RE = /^\s{0,3}(?:#{1,4}\s+(.+?)\s*#*|\*\*([^*]+)\*\*:?)\s*$/, RULE_RE = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/;
+  var FENCE_RE = /^\s*(```|~~~)/, ROW_RE = /^\s*\|.*(?:\||…)\s*$/, SEP_RE = /^\s*\|?[\s:|-]*-{2,}[\s:|-]*\|?\s*$/;
+  function answerBlocks(text) {
+    var out = [{ h: null, lines: [] }], fence = false;
+    String(text || '').split('\n').forEach(function (line) {
+      if (FENCE_RE.test(line)) fence = !fence;
+      var m = !fence && line.match(HEAD_RE);    // 코드 블록 안의 # 주석은 제목이 아니에요
+      if (m) out.push({ h: m[1] || m[2], lines: [] });
+      else if (!fence && RULE_RE.test(line)) out.push({ h: null, lines: [] });
+      else if (RULE_RE.test(line)) out.push({ h: null, lines: [] });
+      else out[out.length - 1].lines.push(line);
+    });
+    out.forEach(function (b) { b.body = b.lines.join('\n').trim(); });
+    out = out.filter(function (b) { return b.h || b.body; });
+    return out.filter(function (b) { return b.h; }).length >= 2 ? out : null;
+  }
+  // **굵게** · `코드` · > 인용만 살려요. 글은 textContent로만 넣어요 (대화 원문을 HTML로 읽지 않아요)
+  function inline(parent, text) {
+    String(text).split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/).forEach(function (bit, i) {
+      if (!bit) return;
+      if (i % 2 === 0) parent.appendChild(document.createTextNode(bit));
+      else parent.appendChild(el(bit[0] === '`' ? 'code' : 'b', null, bit[0] === '`' ? bit.slice(1, -1) : bit.slice(2, -2)));
+    });
+    return parent;
+  }
+  // 코드 블록(```)은 고정폭 상자로, 표(| … |)는 표로. 답이 잘려 닫는 ```가 없어도 끝까지 코드로 봐요
+  function cells(line) { return line.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); }); }
+  function table(rows) {
+    var t = el('table'), head = rows.length > 1 && SEP_RE.test(rows[1]);
+    rows.forEach(function (line, i) {
+      if (head && i === 1) return;
+      var tr = el('tr');
+      cells(line).forEach(function (c) { tr.appendChild(inline(el(head && i === 0 ? 'th' : 'td'), c)); });
+      t.appendChild(tr);
+    });
+    var w = el('div', 'tbl'); w.appendChild(t); return w;
+  }
+  function richText(text) {
+    var f = el('div', 'rt'), plain = [], code = null, rows = [];
+    function flush() {
+      var s = plain.join('\n').replace(/^\n+|\n+$/g, ''); if (s) inline(f, s); plain = [];
+      if (rows.length) { f.appendChild(table(rows)); rows = []; }
+    }
+    String(text || '').split('\n').forEach(function (line) {
+      if (code) {
+        if (FENCE_RE.test(line)) { f.appendChild(el('pre', 'code', code.join('\n'))); code = null; } else code.push(line);
+        return;
+      }
+      if (FENCE_RE.test(line)) { flush(); code = []; return; }
+      if (ROW_RE.test(line)) { if (plain.length) { var keep = rows; rows = []; flush(); rows = keep; } rows.push(line); return; }
+      if (rows.length) flush();
+      var q = line.match(/^\s*>\s?(.*)$/);
+      if (q) { flush(); f.appendChild(inline(el('span', 'qt'), q[1])); } else plain.push(line);
+    });
+    flush(); if (code) f.appendChild(el('pre', 'code', code.join('\n')));
+    return f;
+  }
+  // 제목 줄 = 역. 왼쪽에 프로젝트 색 노선을 세로로 긋고(레일과 같은 문법), 누르면 그 구획을 접어요
+  function fillAnswer(box, text) {
+    var blocks = answerBlocks(text);
+    box.innerHTML = ''; box.classList.toggle('blocks', !!blocks);
+    if (!blocks) { box.appendChild(richText(text)); return; }
+    blocks.forEach(function (b) {
+      var s = el('div', 'blk' + (b.h ? ' blk-st' : ''));
+      if (b.h) {
+        var h = inline(el('button', 'blk-h'), b.h); h.type = 'button'; h.setAttribute('aria-expanded', 'true');
+        h.onclick = function () { var shut = s.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!shut)); };
+        s.appendChild(h);
+      }
+      if (b.body) s.appendChild(richText(b.body));
+      box.appendChild(s);
+    });
+  }
   function chatTurn(t) {
     var w = el('div', 'turn'); w.dataset.id = t.id;
     var u = el('div', 'u');
@@ -241,11 +334,11 @@
     if (t.parts) u.appendChild(el('span', 'tag', '요청 ' + t.parts.length + '개'));
     var full = S.full[t.id] || t;  // 화면에는 앞부분만 와요. ‘전체 보기’로 받아 둔 원문이 있으면 그것을
     var up = el('p', null, full.user); u.appendChild(up); w.appendChild(u);
-    var a = el('div', 'a'), para = el('p', 'part', full.ai); a.appendChild(para);
+    var a = el('div', 'a'), para = el('div', 'part'); fillAnswer(para, full.ai); a.appendChild(para);
     if (t.parts) R.partEls[t.id + ':0'] = para;
     if (t.long && full === t) {
       var more = el('button', 'linkbtn more', '전체 보기'); more.type = 'button';
-      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; para.textContent = d.turn.ai; more.remove(); }); };
+      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; fillAnswer(para, d.turn.ai); more.remove(); g.renderRail(); }); };
       a.appendChild(more);
     }
     if (t.files) {

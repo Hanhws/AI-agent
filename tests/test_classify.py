@@ -81,14 +81,15 @@ class ClassifyTest(unittest.TestCase):
     def test_input_carries_the_line_so_far_not_the_whole_chat(self):
         clf = self.start(lambda p: titled(p, t9={"depth": 1}), turns=12)
         self.assertEqual(clf.classify_chat(self.conn, CHAT), 12)
-        first, second = self.engine.calls                     # 12턴 = 8개 + 4개, 호출 두 번
+        first, second, whole = self.engine.calls              # 12턴 = 8개 + 4개, 그다음 구간 나누기
         self.assertEqual([t["id"] for t in first["turns"]], [str(n) for n in range(1, 9)])
         self.assertEqual(first["turns"][1], {"id": "2", "user": "질문 2", "ai": "답 2", "edited_files": ["main.py"]})
         self.assertEqual((first["project"], first["chat"], first["state"]["main"]), ("환율 알리미", {"title": "알림 봇 구현"}, []))
         self.assertEqual([t["id"] for t in second["turns"]], ["9", "10", "11", "12"])
         self.assertEqual(second["state"]["main"][-1], {"id": "8", "title": "제목 8", "dec": None})
         self.assertIsNone(second["state"]["open_side_chain"])
-        self.assertEqual(clf.status["calls"], 2)
+        self.assertEqual(len(whole["turns"]), 12)
+        self.assertEqual(clf.status["calls"], 3)
 
     def test_wrong_values_from_the_model_are_corrected(self):
         clf = self.start(lambda p: titled(
@@ -231,6 +232,35 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(clf.classify_chat(self.conn, CHAT), 8)
         self.assertTrue(clf.status["paused"])
         self.assertIn("1번", clf.status["error"])
+
+    def test_segments_are_redrawn_from_the_whole_chat(self):
+        def answer(p):
+            if "state" in p:
+                return titled(p, t1={"seg": "시작"})
+            return {"segs": [{"from": "3", "name": "JOIN"}, {"from": "7", "name": "뷰와 독립성"}, {"from": "99", "name": "없음"}]}
+        clf = self.start(answer, turns=8)
+        clf.classify_chat(self.conn, CHAT)
+        self.assertEqual([r["seg"] for r in self.rows()], ["JOIN", None, None, None, None, None, "뷰와 독립성", None])
+        with self.conn:
+            store.upsert_turn(self.conn, chat_id=CHAT, message_ref="g9", user="질문 9", ai="답 9", state="done")
+        clf.classify_chat(self.conn, CHAT)
+        self.assertEqual(len(self.engine.calls), 3)          # 한 역 늘었다고 다시 나누지 않아요
+
+    def test_a_badly_shaped_segment_answer_keeps_the_segments_and_the_work_goes_on(self):
+        def answer(p):
+            if "state" in p:
+                return titled(p, t1={"seg": "환율"})
+            raise BadOutput("글로 답했어요")
+        clf = self.start(answer, turns=6)
+        clf.request(CHAT)
+        self.assertTrue(clf.step(self.conn))
+        self.assertEqual((clf.status["paused"], clf.status["error"]), (False, None))     # 정리를 멈추지 않아요
+        self.assertEqual([r["seg"] for r in self.rows()], ["환율", None, None, None, None, None])   # 1단이 붙인 구간 그대로
+        self.assertEqual(list(clf.checker.queue), [CHAT])                                # 2단은 하던 대로 이어서 봐요
+        with self.conn:
+            store.upsert_turn(self.conn, chat_id=CHAT, message_ref="g7", user="질문 7", ai="답 7", state="done")
+        clf.classify_chat(self.conn, CHAT)
+        self.assertEqual(len(self.engine.calls), 3)          # 역이 더 쌓일 때까지는 다시 묻지 않아요
 
     def test_no_engine_means_no_classification(self):
         self.start(titled)

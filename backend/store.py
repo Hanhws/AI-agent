@@ -8,6 +8,7 @@ chats.hidden은 사용자가 목록에서 뺀 대화예요(1). 읽어 둔 글은
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 turns.gist는 답을 간추린 두세 줄이에요(JSON 배열). 1단이 분류할 때 같이 적어요. NULL은 아직 안 적은 것, []는 적을 것이 없던 것.
 """
+import collections
 import json
 import sqlite3
 import threading
@@ -257,6 +258,14 @@ def set_chat_title(conn, chat_id, title) -> None:
     conn.execute("UPDATE chats SET title = ? WHERE id = ?", (title, chat_id))
 
 
+def set_chat_project(conn, chat_id, project) -> bool:
+    """대화를 그 프로젝트로 옮겨요 (사람이 나눈 그룹을 따라갈 때). 옮겼으면 True."""
+    project = project_key(project)
+    conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (project, project))
+    return conn.execute("UPDATE chats SET project_id = ? WHERE id = ? AND project_id != ?",
+                        (project, chat_id, project)).rowcount > 0
+
+
 def move_chat(conn, chat_id, project) -> bool:
     """프로젝트 없이 들어온 대화의 프로젝트를 나중에 알게 되면 그쪽으로 옮겨요. 옮겼으면 True."""
     project = project_key(project)
@@ -474,11 +483,35 @@ def confirm_missing(conn, turn_id, missing) -> None:
     )
 
 
+RULE_KINDS = ("open", "repeat", "topic")   # 엔진 없이 규칙으로 만드는 할 일 (backend/agent/rules.py). 2단이 다시 써도 남겨요
+
+
 def set_items(conn, turn_id, items) -> list:
     """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요.
-    앞길 살피기가 낸 길(<turnId>:a<n>)은 건드리지 않아요 (set_ahead_items)."""
-    conn.execute("DELETE FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) != ':a'", (turn_id,))
-    return [_add_item(conn, turn_id, f"{turn_id}:{n}", item) for n, item in enumerate(items)]
+    규칙 할 일(RULE_KINDS · add_items)과 앞길 살피기가 낸 길(<turnId>:a<n> · set_ahead_items)은 건드리지 않아요."""
+    conn.execute("DELETE FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) != ':a' AND kind NOT IN (%s)"
+                 % ",".join("?" * len(RULE_KINDS)), (turn_id, *RULE_KINDS))
+    return _insert_items(conn, turn_id, items)
+
+
+def add_items(conn, turn_id, items) -> list:
+    """규칙 할 일을 덧붙여요. 그 턴에 같은 종류가 이미 있으면 두어요. 새로 넣은 것을 돌려줘요."""
+    have = {r["kind"] for r in conn.execute("SELECT kind FROM items WHERE turn_id = ?", (turn_id,))}
+    items = [it for it in items if it["kind"] not in have]
+    _insert_items(conn, turn_id, items)
+    return items
+
+
+def _insert_items(conn, turn_id, items) -> list:
+    """<turnId>:<n>에서 비어 있는 번호에 차례로 넣어요 (남겨 둔 규칙 할 일과 번호가 겹치지 않게)."""
+    taken = {r["id"] for r in conn.execute("SELECT id FROM items WHERE turn_id = ?", (turn_id,))}
+    ids, n = [], 0
+    for item in items:
+        while f"{turn_id}:{n}" in taken:
+            n += 1
+        taken.add(f"{turn_id}:{n}")
+        ids.append(_add_item(conn, turn_id, f"{turn_id}:{n}", item))
+    return ids
 
 
 def set_ahead_items(conn, turn_id, items) -> list:
@@ -640,7 +673,13 @@ def projects(conn) -> list:
         " FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0 LEFT JOIN turns t ON t.chat_id = c.id"
         " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"      # 대화를 다 뺀 프로젝트는 목록에 없어요
     )
-    return [{**dict(r), "color": project_color(r["id"])} for r in rows]   # 노선 색: 목록의 색 동그라미
+    lists = collections.defaultdict(list)    # 왼쪽 목록이 모든 프로젝트의 대화를 펼쳐 보여요. 최근에 쓴 대화가 위로
+    for c in conn.execute(
+        "SELECT c.id, c.project_id, c.title, COALESCE(MAX(t.created_at), c.created_at) AS last"
+        " FROM chats c LEFT JOIN turns t ON t.chat_id = c.id WHERE c.hidden = 0 GROUP BY c.id ORDER BY last DESC"
+    ):
+        lists[c["project_id"]].append({"id": c["id"], "title": c["title"], "date": display_date(c["last"])})
+    return [{**dict(r), "color": project_color(r["id"]), "list": lists[r["id"]]} for r in rows]   # 노선 색: 목록의 색 동그라미
 
 
 def view(conn, project_id, scope="all", chat_id=None):

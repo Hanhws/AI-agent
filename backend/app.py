@@ -295,7 +295,8 @@ def create_app(db_path=None, engine="auto") -> Flask:
         conn = db()
         if store.chat_row(conn, chat_id) is None:
             abort(404)
-        call = rt.classifier.call if rt.classifier.engine() else None
+        call = (lambda system, payload, schema: rt.classifier.call(system, payload, schema, kind="handoff", chat=chat_id)) \
+            if rt.classifier.engine() else None
         return jsonify(text=handoff.write(conn, chat_id, call))
 
     @app.post("/chats/<chat_id>/ahead")

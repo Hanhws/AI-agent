@@ -488,7 +488,8 @@ class Investigator:
         began = time.time()
         try:
             result = check(tools.Context(conn, row), looks,
-                           lambda system, payload, schema: self.clf.call(system, payload, schema, engine))
+                           lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
+                                                                         kind="check", chat=row["chat_id"]))
         except EngineError:
             raise        # 로그인 · 한도 문제는 턴 탓이 아니라서 실패로 세지 않아요. 일꾼이 멈추고, 다시 켜면 처음부터 봐요
         except Exception:
@@ -517,13 +518,14 @@ class Investigator:
         ctx = tools.Context(conn, row)
         searcher = self.engine()          # 웹에서 찾아 간추리는 일은 2단의 (작은) 모델로 충분해요
         if config.AHEAD_WEB and callable(getattr(searcher, "research", None)):
-            ctx.lookup = lambda question: self.clf.research(question, searcher)
+            ctx.lookup = lambda question: self.clf.research(question, searcher, chat=row["chat_id"])
         chat_id = row["chat_id"]
         self.note_ahead(chat_id, "looking", turn=row["id"], why=why)
         self.clf.status["checking"] = row["id"]
         began = time.time()
         try:
-            result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine))
+            result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
+                                                                                        kind="ahead", chat=chat_id))
         except EngineError as exc:       # 로그인 · 한도. 일꾼이 멈춰요
             self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Claude에 닿지 못했어요: " + str(exc)[:160])
             raise

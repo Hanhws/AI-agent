@@ -196,7 +196,7 @@ def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=
                 if skipped and say:
                     say(f"시트에 이미 있는 갈림길 {skipped}곳은 다시 보지 않아요 · 새로 살필 곳 {len(picked)}곳")
                 for n, (row, why) in enumerate(picked, max(start, 1) + number):
-                    if label.calls["classify"] + meter.calls["ahead"] + label.calls["lookup"] >= max_calls:
+                    if label.calls["classify"] + label.calls["segment"] + meter.calls["ahead"] + label.calls["lookup"] >= max_calls:
                         error = f"호출 한도(--max-calls {max_calls})에 닿아 {sum(ended.values())}곳까지만 살폈어요."
                         break
                     ctx = tools.Context(conn, row)
@@ -231,7 +231,7 @@ def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=
     stats = meter.stats()
     if label is not meter:                    # 1단을 다른 엔진으로 돌렸으면 그쪽에서 센 것을 합쳐요
         mine = label.stats()
-        for stage in ("classify", "lookup"):
+        for stage in ("classify", "segment", "lookup"):
             stats["calls"][stage], stats["seconds"][stage] = mine["calls"][stage], mine["seconds"][stage]
         stats["label_model"] = mine["model"]
         if "cost_usd" in mine or "cost_usd" in stats:
@@ -493,7 +493,9 @@ def report(key, numbers) -> str:
         f" · 찾아본 것이 붙은 길 {numbers['with_found']}개 · 길을 내지 않은 곳 {numbers['silent']}곳",
         f"  버린 길 {numbers['dropped']}개 · 출처가 없어 뺀 줄이 있는 길 {numbers['cut_lines']}개",
         f"  호출 1단 {calls['classify']}번 ({seconds['classify']:.0f}초) · 앞길 {calls['ahead']}번 ({seconds['ahead']:.0f}초)"
-        f" · 웹 {calls['lookup']}번 ({seconds['lookup']:.0f}초)" + (f" · API로 치면 약 ${stats['cost_usd']:.3f}" if "cost_usd" in stats else ""),
+        f" · 웹 {calls['lookup']}번 ({seconds['lookup']:.0f}초)"
+        + (f" · 구간 나누기 {calls['segment']}번 ({seconds['segment']:.0f}초)" if calls.get("segment") else "")
+        + (f" · API로 치면 약 ${stats['cost_usd']:.3f}" if "cost_usd" in stats else ""),
     ]
     return "\n".join(lines)
 

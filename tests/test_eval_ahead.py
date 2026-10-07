@@ -63,7 +63,9 @@ class RunTest(unittest.TestCase):
         self.assertEqual((numbers["turns"], numbers["junctions"], numbers["by_why"], numbers["looked"]), (12, 2, {"decided": 2}, 2))
         # 첫 갈림길(같은 대화의 두 턴 앞 결정뿐)은 대화 밖에서 찾은 것이 없어 조용하고, 둘째(지난 대화의 결정)는 길 둘
         self.assertEqual((numbers["paths"], numbers["by_kind"], numbers["dropped"], numbers["silent"]), (2, {"onward": 1, "check": 1}, 4, 1))
-        self.assertEqual((numbers["stats"]["calls"], numbers["web"]), ({"classify": 2, "check": 0, "ahead": 2, "lookup": 0}, False))
+        # 1단은 대화마다 한 번, 6턴이 쌓였으니 대화 전체를 보고 구간을 다시 나누는 호출도 한 번씩 (따로 세요)
+        self.assertEqual((numbers["stats"]["calls"], numbers["web"]),
+                         ({"classify": 2, "segment": 2, "check": 0, "ahead": 2, "lookup": 0}, False))
         self.assertEqual(numbers["tools"], {"search_decisions": 2, "list_open_items": 2})
         for payload in engine.seen:                                   # 그 턴 뒤의 대화는 보여 주지 않아요
             self.assertEqual(payload["outline"][-1]["id"], payload["now"]["id"])
@@ -87,14 +89,14 @@ class RunTest(unittest.TestCase):
         out = cli.run(run.load(DEMO, "demo"), engine, limit=1, web=True)
         numbers = out["numbers"]
         self.assertEqual((numbers["looked"], numbers["web"], numbers["with_found"], numbers["paths"]), (1, True, 1, 1))
-        self.assertEqual(numbers["stats"]["calls"], {"classify": 2, "check": 0, "ahead": 2, "lookup": 1})
+        self.assertEqual(numbers["stats"]["calls"], {"classify": 2, "segment": 2, "check": 0, "ahead": 2, "lookup": 1})
         # 대화 밖에서 찾은 것이 웹뿐이라, 웹에서 찾은 줄이 붙은 길만 남아요
         self.assertEqual(dict(zip(cli.COLUMNS, out["rows"][0]))["찾아본 것"], "· 하루 1,000번까지 부를 수 있어요. (https://api.example/limits)")
         plain = cli.run(run.load(DEMO, "demo"), NoWeb(), limit=1, web=True)         # 웹을 못 찾는 엔진이면 켜도 안 써요
         self.assertEqual((plain["numbers"]["web"], plain["numbers"]["stats"]["calls"]["lookup"]), (False, 0))
 
     def test_the_call_limit_stops_it_and_says_so(self):
-        out = cli.run(run.load(DEMO, "demo"), Scout(), limit=10, max_calls=3)
+        out = cli.run(run.load(DEMO, "demo"), Scout(), limit=10, max_calls=5)       # 1단 2 + 구간 나누기 2 + 앞길 1
         self.assertEqual(out["numbers"]["looked"], 1)
         self.assertIn("1곳까지만", out["error"])
 
@@ -102,8 +104,8 @@ class RunTest(unittest.TestCase):
         out = cli.run(run.load(DEMO, "demo"), Scout(model="큰 모델"), limit=10, labeler=Scout(model="작은 모델"))
         stats = out["numbers"]["stats"]
         self.assertEqual((stats["model"], stats["label_model"], stats["calls"]),
-                         ("큰 모델", "작은 모델", {"classify": 2, "check": 0, "ahead": 2, "lookup": 0}))
-        self.assertEqual(stats["cost_usd"], 2 * 0.001 + 2 * 0.002)
+                         ("큰 모델", "작은 모델", {"classify": 2, "segment": 2, "check": 0, "ahead": 2, "lookup": 0}))
+        self.assertEqual(stats["cost_usd"], 4 * 0.001 + 2 * 0.002)                  # 1단 쪽 엔진이 넷(분류 2 · 구간 2), 앞길 둘
         self.assertIn("scout / 큰 모델 (1단은 작은 모델)", cli.report("demo", out["numbers"]))
 
     def test_labelled_records_can_be_kept_and_used_again(self):

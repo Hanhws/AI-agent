@@ -21,7 +21,7 @@
 
   var g = G.create({
     render: render, go: go, goPart: function (t) { go(t); }, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    goHint: '역을 누르면 가닥 창에서 그 대화를 열어요', setAuto: setAuto,
+    goHint: '역을 누르면 가닥 창에서 그 대화를 열어요', setAuto: setAuto, transfer: transfer,
     // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
     ahead: ahead, aheadOn: function () { return !!(S.status && S.status.ahead && S.status.ahead.on); },
     aheadAuto: function () { return !!(S.status && S.status.ahead && S.status.ahead.auto); }, setAheadAuto: setAheadAuto,
@@ -91,6 +91,15 @@
       g.flashToast(on ? '다음부터 ‘' + G.KIND[kind].label + '’은 가닥이 바로 보내요.' : '‘' + G.KIND[kind].label + '’은 다시 물어보고 보낼게요.');
       g.render();
     }, function () { g.flashToast('바꾸지 못했어요.'); });
+  }
+  /* ‘주제 전환’ 한마디의 ‘환승하기’: 가닥 창의 노선도 끝 환승하기와 같은 요약을 복사해요 (이 창의 노선도에는 그 표시를 그리지 않아요) */
+  function transfer() {
+    if (!S.chat) return;
+    g.flashToast('다음 대화에 붙일 요약을 쓰고 있어요…');
+    api('chats/' + enc(S.chat) + '/handoff').then(function (r) {
+      if (!r.text) { g.flashToast('아직 정한 것도 남은 일도 없어요.'); return; }
+      G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
+    }, function () { g.flashToast('요약을 만들지 못했어요.'); });
   }
   /* 앞길 보기 · 저절로 살피기 (가닥 창의 app.js와 같은 일). 어디까지 갔는지는 ‘앞길’ 칸에 나타나요 */
   function ahead() {

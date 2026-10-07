@@ -79,6 +79,7 @@ class ClaudeCliEngine:
         self.timeout = timeout
         self.effort = effort  # 큰 모델의 생각 깊이(low · medium · high). 비우면 가장 낮게: 분류에는 그거면 돼요
         self.last = None      # 마지막 호출의 토큰 수와 값 (정확도 평가가 봐요). 구독에서는 내는 돈이 아니라 API로 쳤을 때의 값이에요
+        self.last_usage = None  # 마지막 호출이 쓴 토큰을 종류별로 (backend/tokens.py가 적어요)
 
     def _env(self) -> dict:
         env = {k: v for k, v in os.environ.items() if k not in _DROP_ENV}
@@ -112,6 +113,7 @@ class ClaudeCliEngine:
 
     def complete_json(self, system: str, prompt: str, schema: dict) -> dict:
         """schema에 맞는 JSON 하나를 받아요."""
+        self.last_usage = None            # 이번 호출에서 쓴 토큰 (backend/tokens.py가 적어요)
         if not self.bin:
             raise EngineError("claude 명령을 찾지 못했어요")
         cmd = [
@@ -140,6 +142,7 @@ class ClaudeCliEngine:
                 result = json.loads(out.stdout)
             except ValueError as exc:
                 raise EngineError(f"Claude Code 출력을 읽지 못했어요: {(out.stdout or out.stderr)[:200]}") from exc
+            self._spent(result)
             self._trouble(result)
             if "structured_output" in result:
                 break
@@ -167,10 +170,24 @@ class ClaudeCliEngine:
             "output_tokens": used.get("output_tokens") or 0, "cost": result.get("total_cost_usd"),
         }
 
+    def _spent(self, result) -> None:
+        """이번 호출에서 쓴 토큰과 값을 last_usage에 (backend/tokens.py가 내 PC에 적어요).
+        실패한 답도 토큰은 썼고, 형식이 틀려 다시 물었으면 그만큼 더해요."""
+        used = result.get("usage") if isinstance(result.get("usage"), dict) else {}
+        seen = self.last_usage or {}
+        spent = {k: v for k, v in seen.items() if type(v) is int}
+        for k, v in used.items():
+            if type(v) is int:
+                spent[k] = spent.get(k, 0) + v
+        cost = result.get("total_cost_usd")
+        self.last_usage = dict(spent, cost=seen.get("cost") if cost is None else (seen.get("cost") or 0) + cost,
+                               model=self.model)
+
     def research(self, question: str) -> dict:
         """웹에서 찾아봐요. {found: [{line, source}], searched: [...], dropped: 버린 줄 수}
         출처는 검색 도구가 실제로 돌려준 주소만 남겨요. 모델이 적은 주소가 검색 결과에 없으면 그 줄을 버려요.
         검색이 늦거나 형식이 틀리면 빈 결과를 돌려줘요(정리를 멈추지 않아요). 로그인 · 한도 문제만 EngineError예요."""
+        self.last_usage = None
         if not self.bin:
             raise EngineError("claude 명령을 찾지 못했어요")
         cmd = [
@@ -203,6 +220,7 @@ class ClaudeCliEngine:
                 result = event
         if result is None:
             raise EngineError(f"Claude Code 출력을 읽지 못했어요: {(out.stdout or out.stderr)[:200]}")
+        self._spent(result)
         self._trouble(result)
         self._used(result)
         data = result.get("structured_output") if isinstance(result.get("structured_output"), dict) else {}

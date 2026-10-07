@@ -12,6 +12,8 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
 .sitebar .sname { font-weight: 600; font-size: 14px; padding: 2px 8px 10px; color: var(--fg); }
 .sitebar .newc { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; height: 30px; font-size: 12.5px; text-align: left; padding: 0 10px; color: var(--fg2); margin-bottom: 10px; }
 .sitebar h6 { margin: 10px 8px 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--faint); }
+.sitebar h6.pgroup { margin-top: 18px; font-size: 13px; letter-spacing: 0; color: var(--muted); }
+.sitebar .crow:first-child h6.pgroup { margin-top: 6px; }
 .citem { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 6px; color: var(--fg2); line-height: 1.35; transition: background .4s; }
 .citem span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .citem small { color: var(--faint); font-size: 11px; flex: none; }
@@ -57,6 +59,30 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
 .file { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; }
 .part { border-radius: 6px; transition: background .6s; }
 .part.flash { background: var(--flash); }
+/* 답의 구획: 제목 줄 = 역, 왼쪽 세로선 = 프로젝트 노선 (레일과 같은 문법) */
+.part.blocks { display: flex; flex-direction: column; gap: 18px; }
+.blk { position: relative; padding-left: 26px; }
+.blk.blk-st::before { content: ""; position: absolute; left: 4px; top: 12px; bottom: -18px; width: 4px; background: var(--route, var(--rail)); }
+.blk.blk-st:last-child::before { display: none; }
+.blk-h { position: relative; display: block; padding: 0; margin: 0 0 4px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 700; line-height: 1.6; color: var(--fg); text-align: left; }
+.blk-h::before { content: ""; position: absolute; left: -25px; top: 7px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--fg); box-shadow: 0 0 0 2px var(--surface); }
+.blk.shut .blk-h::before { background: var(--surface); box-shadow: inset 0 0 0 2px var(--fg), 0 0 0 2px var(--surface); }
+.blk.shut .blk-h { margin-bottom: 0; }
+.blk.shut .rt { display: none; }
+.blk-h:hover { text-decoration: underline; text-underline-offset: 3px; }
+.blk-h:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.rt b { font-weight: 700; }
+.rt code { font-family: var(--mono); font-size: 0.9em; padding: 1px 4px; border-radius: 3px; background: var(--bubble); }
+.rt pre.code { margin: 8px 0; padding: 10px 12px; border-radius: var(--radius); background: var(--bubble); overflow-x: auto;
+  font-family: var(--mono); font-size: 13px; line-height: 1.55; white-space: pre; }
+.rt .tbl { margin: 8px 0; overflow-x: auto; }
+.rt table { border-collapse: collapse; font-size: 13.5px; line-height: 1.5; white-space: normal; }
+.rt th, .rt td { padding: 5px 12px 5px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top;
+  overflow-wrap: normal; word-break: keep-all; }   /* 단어 중간에서 줄을 바꾸지 않고, 넓으면 옆으로 스크롤 */
+.rt th { font-weight: 700; border-bottom-color: var(--stem); }
+.rt .qt { display: block; margin: 2px 0; padding-left: 12px; border-left: 2px solid var(--stem); color: var(--fg2); }
 .seam { display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.04em; color: var(--faint); }
 .seam::before, .seam::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .tool { margin-top: 10px; font-size: 12px; color: var(--muted); }
