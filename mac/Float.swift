@@ -1,7 +1,8 @@
 // 떠 있는 가닥 버튼 (요청 UI 10/4 · screenshots/요청 UI.png).
 //
 // 1. 평소: 화면 가장자리에 반쯤 걸쳐 있어요. 다른 앱을 쓰는 동안에도 그 위에 떠 있어요.
-// 2. 마우스를 올리거나 누르면 다 나오면서 둘레에 버튼 여섯 개가 펼쳐져요.
+// 2. 마우스를 올리거나 누르면 다 나오면서 둘레에 버튼이 펼쳐져요. 처음에는 여섯 개이고, 사용자가 ‘버튼 편집’에서
+//    빼고 더하고 차례를 바꿔요(여섯 개까지 · backend/floatbar.py). 프로젝트를 버튼으로 두면 그 프로젝트의 노선도를 띄워요.
 // 3. 가닥 버튼이나 둘레의 ‘노선도’를 누르면 화면 위쪽에 노선도 창이 떠요 (백엔드의 /strip: 가닥 창의 노선도 카드만 따로 띄운 것).
 //    ‘할 일 · 정함 · 산출물’을 누르면 목록 창이 따로 떠요 (/strip?only=list). 노선도 창과 같이 띄워 둘 수 있어요.
 // 4. 버튼은 끌어서 화면 가장자리 어디로든 옮길 수 있어요. 놓으면 가장 가까운 가장자리에 붙고, 메뉴 막대와 Dock 위에도 놓여요.
@@ -13,9 +14,15 @@ import WebKit
 
 enum FloatEdge: String, CaseIterable { case left, right, top, bottom }
 
-/// 버튼 둘레에 펼쳐지는 여섯 가지. key는 노선도 창(map), 목록 창에서 볼 칸(todo · dec · files), 가닥 창을 여는 일(find · window).
-struct FloatAction { let key: String, label: String, tip: String }
+/// 버튼 둘레에 펼쳐지는 것 하나. key는 노선도 창(map), 목록 창에서 볼 칸(todo · dec · files · ahead), 가닥 창을 여는 일(find · window),
+/// 도움말(help). 프로젝트 버튼이면 project에 그 프로젝트 id, color에 그 프로젝트의 노선 색이 있어요 (key는 "p:<id>").
+struct FloatAction {
+    let key: String, label: String, tip: String
+    var project: String? = nil
+    var color: NSColor? = nil
+}
 
+/// 처음 모양. 사용자가 바꾸면 백엔드가 알려 주는 대로 다시 놓아요 (GET /float의 slots)
 let floatActions = [
     FloatAction(key: "map", label: "노선도", tip: "지금 대화의 노선도"),
     FloatAction(key: "todo", label: "할 일", tip: "놓친 일과 제안"),
@@ -44,6 +51,12 @@ func token(_ light: Int, _ dark: Int) -> NSColor {
 let floatSurface = token(0xFFFFFF, 0x1F1E1B)
 let floatInk = token(0x141414, 0xF1EFEA)
 let floatLine = token(0xBDB9B2, 0x6A665F)      // --ring: 어두운 화면에서도 동그라미 테두리가 보이게
+
+/// "#6CBE45" 같은 색 글 → 색. 모양이 다르면 nil
+func hexColor(_ text: String?) -> NSColor? {
+    guard let text = text, text.hasPrefix("#"), text.count == 7, let hex = Int(text.dropFirst(), radix: 16) else { return nil }
+    return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+}
 let floatMuted = token(0x3F3F46, 0xD6D3CD)
 let floatAccent = token(0xC8401A, 0xF0704A)
 
@@ -208,8 +221,16 @@ final class SatelliteView: DiscView {
 
     override func draw(_ dirty: NSRect) {
         drawDisc(in: bounds, diameter: diameter, hot: hot)
-        drawText(action.label, size: action.label.count > 2 ? 10.5 : 11.5, weight: .medium, color: hot ? floatInk : floatMuted,
-                 centeredAt: NSPoint(x: bounds.midX, y: bounds.midY))
+        if let route = action.color {       // 프로젝트 버튼: 그 프로젝트의 노선 색으로 테두리를 굵게 (가닥 창 · 전체 지도와 같은 색)
+            let ring = NSBezierPath(ovalIn: NSRect(x: bounds.midX - diameter / 2 + 1.5, y: bounds.midY - diameter / 2 + 1.5,
+                                                   width: diameter - 3, height: diameter - 3))
+            ring.lineWidth = 3
+            route.setStroke()
+            ring.stroke()
+        }
+        let size: CGFloat = action.label.count > 3 ? 9.5 : (action.label.count > 2 ? 10.5 : 11.5)
+        drawText(action.label, size: size, weight: action.project == nil ? .medium : .semibold,
+                 color: hot || action.project != nil ? floatInk : floatMuted, centeredAt: NSPoint(x: bounds.midX, y: bounds.midY))
         drawBadge(badge, at: NSPoint(x: bounds.midX + diameter * 0.34, y: bounds.midY + diameter * 0.34))
     }
 }
@@ -257,6 +278,8 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     let panel = makeFloatPanel(level: .statusBar, keyable: false)     // 메뉴 막대와 Dock 위에도 놓을 수 있게
     let bubble = BubbleView(frame: NSRect(x: 0, y: 0, width: bubbleSize + shade * 2, height: bubbleSize + shade * 2))
     var satellites: [SatelliteView] = []
+    var actions = floatActions            // 둘레에 놓인 것들. 사용자가 ‘버튼 편집’에서 바꾸면 달라져요
+    var pinned: String?                   // 프로젝트 버튼으로 고른 프로젝트 id. nil이면 ‘지금 쓰는 대화’
     var mode = Mode.peek
 
     // 어디에 붙어 있는지: 어느 화면의 어느 가장자리, 그 가장자리를 따라 어디쯤(0…1)
@@ -298,23 +321,12 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         screenIndex = saved.integer(forKey: "GadakFloatScreen")
 
         let content = NSView(frame: NSRect(x: 0, y: 0, width: floatSide, height: floatSide))
-        for (index, action) in floatActions.enumerated() {
-            let view = SatelliteView(frame: NSRect(x: 0, y: 0, width: satelliteSize + shade * 2, height: satelliteSize + shade * 2))
-            view.owner = self
-            view.diameter = satelliteSize
-            view.action = action
-            view.index = index
-            view.toolTip = action.tip
-            view.isHidden = true
-            view.alphaValue = 0
-            content.addSubview(view)
-            satellites.append(view)
-        }
         bubble.owner = self
         bubble.diameter = peekSize
-        bubble.toolTip = "가닥 · 누르면 노선도, 끌면 옮겨져요"
+        bubble.toolTip = "가닥 · 누르면 노선도, 끌면 옮겨져요. 오른쪽 클릭하면 버튼을 편집해요"
         content.addSubview(bubble)
         panel.contentView = content
+        buildSatellites()
 
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -329,6 +341,46 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }) {
             monitors.append(mine)
         }
+    }
+
+    // MARK: 둘레 버튼 놓기
+
+    /// actions대로 둘레 버튼을 새로 만들어요. 가닥 버튼보다 아래에 놓아요
+    func buildSatellites() {
+        guard let content = panel.contentView else { return }
+        satellites.forEach { $0.removeFromSuperview() }
+        satellites = []
+        for (index, action) in actions.enumerated() {
+            let view = SatelliteView(frame: NSRect(x: 0, y: 0, width: satelliteSize + shade * 2, height: satelliteSize + shade * 2))
+            view.owner = self
+            view.diameter = satelliteSize
+            view.action = action
+            view.index = index
+            view.toolTip = action.tip
+            view.isHidden = true
+            view.alphaValue = 0
+            content.addSubview(view, positioned: .below, relativeTo: bubble)
+            satellites.append(view)
+        }
+        satellites.first { $0.action.key == "todo" }?.badge = todo
+    }
+
+    /// 백엔드가 알려 준 둘레 버튼들(GET /float의 slots). 지금 것과 다르면 다시 놓아요. 여섯 개까지만 받아요
+    func applySlots(_ slots: [[String: Any]]) {
+        let wanted: [FloatAction] = slots.prefix(floatActions.count).compactMap { slot in
+            guard let key = slot["key"] as? String, let label = slot["label"] as? String, !label.isEmpty else { return nil }
+            let project = slot["project"] as? String
+            return FloatAction(key: key, label: label, tip: slot["tip"] as? String ?? label, project: project,
+                               color: project == nil ? nil : hexColor(slot["color"] as? String) ?? floatInk)
+        }
+        func signature(_ list: [FloatAction]) -> String {
+            list.map { "\($0.key)|\($0.label)|\($0.tip)|\($0.color?.description ?? "")" }.joined(separator: "\n")
+        }
+        guard signature(wanted) != signature(actions) else { return }
+        actions = wanted
+        if let project = pinned, !actions.contains(where: { $0.project == project }) { pinned = nil }     // 뺀 프로젝트를 보고 있었으면
+        buildSatellites()
+        layout(animated: false)
     }
 
     // MARK: 보이기 · 숨기기
@@ -435,13 +487,19 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// 둘레 버튼이 놓이는 각도(도). 화면 안쪽으로 반원으로 펼치고, 첫 버튼이 위(왼쪽 · 오른쪽 가장자리)나 왼쪽(위 · 아래 가장자리)에 와요
+    /// 둘레 버튼이 놓이는 각도(도). 화면 안쪽으로 펼치고, 첫 버튼이 위(왼쪽 · 오른쪽 가장자리)나 왼쪽(위 · 아래 가장자리)에 와요.
+    /// 버튼 사이는 36도예요. 여섯이면 반원을 다 쓰고(90 · 54 · 18 · -18 · -54 · -90), 적으면 화면 안쪽 가운데로 모여요
     func fanAngles() -> [CGFloat] {
-        switch edge {
-        case .left: return [90, 54, 18, -18, -54, -90]
-        case .right: return [90, 126, 162, 198, 234, 270]
-        case .top: return [180, 216, 252, 288, 324, 360]
-        case .bottom: return [180, 144, 108, 72, 36, 0]
+        let count = satellites.count
+        let step: CGFloat = 36, half = step * CGFloat(max(count - 1, 0)) / 2
+        return (0..<count).map { index in
+            let along = step * CGFloat(index)
+            switch edge {
+            case .left: return half - along
+            case .right: return 180 - half + along
+            case .top: return 270 - half + along
+            case .bottom: return 90 + half - along
+            }
         }
     }
 
@@ -547,9 +605,9 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if let since = awaySince, Date().timeIntervalSince(since) > 0.5 { retreat() }
     }
 
-    /// 펼쳐진 가닥 버튼을 눌렀어요: 노선도 창을 켜고 꺼요
+    /// 펼쳐진 가닥 버튼을 눌렀어요: 노선도 창을 켜고 꺼요 (켤 때는 ‘지금 쓰는 대화’로)
     func primary() {
-        if overlay?.isVisible == true { closeOverlay() } else { showOverlay() }
+        if overlay?.isVisible == true { closeOverlay() } else { pinned = nil; showOverlay() }
     }
 
     func clickedAway() {
@@ -609,6 +667,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             menu.addItem(item)
         }
         add("가닥 창 열기", #selector(openWindow))
+        add("버튼 편집…", #selector(editButtons))
         add("버튼 숨기기", #selector(hideButton))
         menu.addItem(.separator())
         add("가닥 끄기", #selector(quit))
@@ -616,6 +675,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     @objc func openWindow() { retreat(); app?.showMain() }
+    @objc func editButtons() { retreat(); app?.showFloatEditor(nil) }
     @objc func hideButton() { app?.setFloat(false) }
     @objc func quit() { NSApp.terminate(nil) }
 
@@ -624,14 +684,35 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// 볼 것을 고르면 둘레 버튼은 그대로 둬요(이어서 다른 것을 눌러 볼 수 있게). 가닥 창을 여는 것은 접어요.
     /// 노선도와 목록은 창이 따로예요: 같은 것을 한 번 더 누르면 그 창만 닫혀요
     func choose(_ index: Int) {
-        let action = floatActions[index]
+        guard actions.indices.contains(index) else { return }
+        let action = actions[index]
+        if let project = action.project {
+            // 프로젝트 버튼: 가닥 창을 열지 않고 그 프로젝트의 노선도를 띄워요. 보고 있던 프로젝트를 한 번 더 누르면 닫혀요
+            if overlay?.isVisible == true && pinned == project { closeOverlay(); return }
+            pinned = project
+            showOverlay()
+            if lister?.isVisible == true, let tab = listShown { showList(tab) }      // 떠 있는 목록 창도 같은 프로젝트로
+            return
+        }
         switch action.key {
         case "find": retreat(); app?.showMain(script: "window.gadakFind && window.gadakFind()")
         case "window": retreat(); app?.showMain()
-        case "map": if overlay?.isVisible == true { closeOverlay() } else { showOverlay() }
+        case "help": retreat(); app?.showHelp(nil)
+        case "map":
+            // 노선도: ‘지금 쓰는 대화’. 프로젝트를 보고 있었으면 닫지 않고 지금 대화로 돌아와요
+            if overlay?.isVisible == true && pinned == nil { closeOverlay(); return }
+            pinned = nil
+            showOverlay()
+            if lister?.isVisible == true, let tab = listShown { showList(tab) }
         default:
             if lister?.isVisible == true && listShown == action.key { closeList() } else { showList(action.key) }
         }
+    }
+
+    /// 화면에 넘길 ‘볼 프로젝트’: 프로젝트 id를 글로("…"), 없으면 null (화면의 window.gadakStrip이 받아요)
+    func pinnedScript() -> String {
+        guard let project = pinned, let json = try? JSONSerialization.data(withJSONObject: [project]), let text = String(data: json, encoding: .utf8) else { return "null" }
+        return String(text.dropFirst().dropLast())
     }
 
     /// 화면 위쪽 가운데. 메뉴 막대 바로 아래에 떠요
@@ -667,10 +748,11 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         lister?.setFrame(listFrame(), display: true)
         if listLoaded {
-            listWeb?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ tab: '\(tab)' })", completionHandler: nil)
+            listWeb?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ tab: '\(tab)', project: \(pinnedScript()) })", completionHandler: nil)
         } else {
             var address = URLComponents(url: base.appendingPathComponent("strip"), resolvingAgainstBaseURL: false)!
             address.queryItems = [URLQueryItem(name: "only", value: "list"), URLQueryItem(name: "tab", value: tab), URLQueryItem(name: "app", value: "2")]
+            if let project = pinned { address.queryItems?.append(URLQueryItem(name: "project", value: project)) }
             listWeb?.load(URLRequest(url: address.url!))
             listLoaded = true
         }
@@ -703,11 +785,12 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         overlay?.setFrame(overlayFrame(), display: true)
         if loaded {
-            web?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ list: false })", completionHandler: nil)
+            web?.evaluateJavaScript("window.gadakStrip && window.gadakStrip({ list: false, project: \(pinnedScript()) })", completionHandler: nil)
         } else {
             // app=2: 목록은 목록 창에서 따로 본다고 화면에 알려요 (카드의 ‘‹ 할 일 · 찾기’가 목록 창을 열어 달라고 부탁해요)
             var address = URLComponents(url: base.appendingPathComponent("strip"), resolvingAgainstBaseURL: false)!
             address.queryItems = [URLQueryItem(name: "list", value: "0"), URLQueryItem(name: "app", value: "2")]
+            if let project = pinned { address.queryItems?.append(URLQueryItem(name: "project", value: project)) }
             web?.load(URLRequest(url: address.url!))
             loaded = true
         }
@@ -763,7 +846,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     // MARK: 백엔드
 
-    /// 백엔드가 켜졌어요. 할 일 수를 가끔 물어 버튼에 빨간 수로 보여 줘요
+    /// 백엔드가 켜졌어요. 할 일 수와 둘레에 놓을 버튼들을 가끔 물어요 (할 일 수는 버튼에 빨간 수로)
     func ready(_ url: URL) {
         base = url
         loaded = false
@@ -780,7 +863,11 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
             guard let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             let count = (json["todo"] as? NSNumber)?.intValue ?? 0
-            DispatchQueue.main.async { self?.setTodo(count) }
+            let slots = json["slots"] as? [[String: Any]]
+            DispatchQueue.main.async {
+                if let slots = slots { self?.applySlots(slots) }       // 예전 백엔드는 slots를 주지 않아요. 그때는 처음 모양 그대로
+                self?.setTodo(count)
+            }
         }.resume()
     }
 
@@ -788,6 +875,6 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard count != todo else { return }
         todo = count
         bubble.badge = count
-        satellites[1].badge = count
+        satellites.first { $0.action.key == "todo" }?.badge = count
     }
 }

@@ -576,11 +576,12 @@ def chat_row(conn, chat_id):
     return conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
 
 
-def now_chat(conn):
-    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None."""
+def now_chat(conn, project=None):
+    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None.
+    project를 주면 그 프로젝트 안에서 골라요 (떠 있는 버튼의 프로젝트 버튼)."""
     return conn.execute(
-        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0"
-        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1"
+        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0 AND (? IS NULL OR c.project_id = ?)"
+        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1", (project, project)
     ).fetchone()
 
 

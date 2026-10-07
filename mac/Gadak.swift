@@ -21,6 +21,7 @@ func setting(_ key: String, _ envKey: String) -> String? {
 }
 
 let helpTitle = "가닥 도움말"       // 메뉴 ‘도움말’의 항목 이름이자 그 창의 제목
+let floatEditTitle = "떠 있는 버튼 편집"
 
 /// 종이색 바탕 (docs/design/tokens.css의 --bg). 화면이 뜨기 전에 흰색이 번쩍이지 않게 해요.
 let paper = NSColor(name: nil) { appearance in
@@ -387,13 +388,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     /// 도움말: 가닥을 쓰는 법과 낱말 풀이 (백엔드의 /help). 창을 따로 띄워서, 가닥을 쓰면서 옆에 두고 볼 수 있어요.
     /// 이미 떠 있으면 그 창을 앞으로 가져와요
-    @objc func showHelp(_ sender: Any?) {
+    @objc func showHelp(_ sender: Any?) { showPage(helpTitle, path: "help", width: 860, height: 760) }
+
+    /// 떠 있는 버튼 편집: 둘레에 놓을 버튼을 고르는 작은 창 (백엔드의 /float/edit). 가닥 버튼을 오른쪽 클릭해서도 열어요
+    @objc func showFloatEditor(_ sender: Any?) { showPage(floatEditTitle, path: "float/edit", width: 440, height: 640) }
+
+    /// 백엔드의 화면 하나를 따로 뜨는 창으로. 같은 이름의 창이 떠 있으면 그 창을 앞으로 가져와요
+    func showPage(_ title: String, path: String, width: CGFloat, height: CGFloat) {
         guard let base = url else { NSSound.beep(); return }      // 가닥이 아직 켜지는 중이에요
-        if let open = extra.first(where: { $0.title == helpTitle }) { open.makeKeyAndOrderFront(nil); return }
-        let popup = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 760),
+        if let open = extra.first(where: { $0.title == title }) { NSApp.activate(ignoringOtherApps: true); open.makeKeyAndOrderFront(nil); return }
+        let popup = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                              backing: .buffered, defer: false)
-        popup.title = helpTitle
+        popup.title = title
         popup.isReleasedWhenClosed = false
         popup.tabbingMode = .disallowed
         popup.backgroundColor = paper
@@ -403,8 +410,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         page.navigationDelegate = self
         page.underPageBackgroundColor = paper
         popup.contentView!.addSubview(page)
-        page.load(URLRequest(url: base.appendingPathComponent("help")))
+        page.load(URLRequest(url: base.appendingPathComponent(path)))
         popup.center()
+        NSApp.activate(ignoringOtherApps: true)      // 떠 있는 버튼에서 열면 가닥이 뒤에 있어요
         popup.makeKeyAndOrderFront(nil)
         extra.append(popup)
     }
@@ -456,6 +464,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             item("축소", #selector(zoomOut(_:)), "-"),
             .separator(),
             floating,
+            item("떠 있는 버튼 편집…", #selector(showFloatEditor(_:))),
         ])
         let windows = menu("윈도우", [
             item("최소화", #selector(NSWindow.performMiniaturize(_:)), "m"),

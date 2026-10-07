@@ -2,12 +2,13 @@
    - 노선도 창 (/strip): 지금 쓰는 대화(가장 최근에 턴이 온 대화)의 노선도 카드. 역을 누르면 가닥 창에서 그 자리를 열고, 카드의 ‘접기’는 이 창을 닫아요.
    - 목록 창 (/strip?only=list): 할 일 · 정한 것 · 산출물 · 앞길만. 노선도 창과 따로 떠요.
    앱이 주소에 app=2를 붙여 열면 목록은 늘 목록 창에서 봐요(카드의 ‘‹ 할 일 · 찾기’도 목록 창을 열어요).
-   그게 없으면(예전에 만든 앱 · 브라우저) 전처럼 노선도 카드 안에서 목록을 펴요. */
+   그게 없으면(예전에 만든 앱 · 브라우저) 전처럼 노선도 카드 안에서 목록을 펴요.
+   보여 주는 것은 보통 ‘지금 쓰는 대화’예요. 떠 있는 버튼의 프로젝트 버튼을 누르면(project=…) 그 프로젝트에서 가장 최근에 쓴 대화를 보여 줘요. */
 (function () {
   'use strict';
   var G = window.Gadak, el = G.el, params = new URLSearchParams(location.search);
   var ONLY = params.get('only') === 'list', APART = params.get('app') === '2';
-  var S = { rev: -1, project: null, chat: null, first: true, height: 0, status: null, flags: '' };
+  var S = { rev: -1, project: null, chat: null, first: true, height: 0, status: null, flags: '', pin: params.get('project') || null };
   var POLL = 1500, TABS = { todo: 1, dec: 1, files: 1 };       // 떠 있는 버튼이 고르는 칸. ‘앞길’ 칸은 목록 안에서 골라요
   if (/^(light|dark)$/.test(params.get('theme') || '')) document.documentElement.dataset.theme = params.get('theme');
 
@@ -119,7 +120,7 @@
   }
 
   function load() {
-    return api('float').then(function (f) {
+    return api('float' + (S.pin ? '?project=' + enc(S.pin) : '')).then(function (f) {
       if (!f.chat) { g.load({ chats: [] }, S.first); S.first = false; g.render(); return; }
       var moved = f.chat.id !== S.chat;          // 다른 대화로 넘어갔으면 접힘 · 범위를 처음으로
       S.project = f.chat.project; S.chat = f.chat.id;
@@ -144,8 +145,13 @@
     }).catch(function () {});
   }
 
-  /* 앱이 부르는 것: 같은 창에서 볼 것만 바꿔요 (노선도 창: 목록을 펼지 · 목록 창: 어느 칸을 볼지) */
-  window.gadakStrip = function (o) { panel(o && o.tab, o && o.list); g.render(); if (!G.reduce && !ONLY) g.reveal(); };
+  /* 앱이 부르는 것: 같은 창에서 볼 것만 바꿔요 (노선도 창: 목록을 펼지 · 목록 창: 어느 칸을 볼지).
+     project를 같이 주면 볼 프로젝트를 바꿔요: 프로젝트 id면 그 프로젝트의 최근 대화, null이면 다시 ‘지금 쓰는 대화’ */
+  window.gadakStrip = function (o) {
+    panel(o && o.tab, o && o.list);
+    if (o && 'project' in o && (o.project || null) !== S.pin) { S.pin = o.project || null; load().then(function () { if (!G.reduce && !ONLY) g.reveal(); }); return; }
+    g.render(); if (!G.reduce && !ONLY) g.reveal();
+  };
 
   mount();
   g.load({ chats: [] }, true);

@@ -228,7 +228,9 @@ class AppTest(unittest.TestCase):
             self.assertEqual(self.client.post("/chats/hidden", json=bad).status_code, 400)
 
     def test_the_floating_button_asks_about_the_chat_in_use(self):
-        self.assertEqual(self.client.get("/float").get_json(), {"rev": self.rt.rev, "chat": None, "todo": 0})
+        empty = self.client.get("/float").get_json()
+        self.assertEqual(len(empty.pop("slots")), 6)                                   # 둘레에 놓을 버튼들 (tests/test_floatbar.py)
+        self.assertEqual(empty, {"rev": self.rt.rev, "chat": None, "todo": 0})
         self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · conv-1
         self.event("prompt", "n1", project="nba-analysis", chat_id="conv-2", text="Ridge로 해 줘")
         now = self.client.get("/float").get_json()
@@ -316,7 +318,7 @@ class AppTest(unittest.TestCase):
             self.assertIn(words, window)
         swift = (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8")
         self.assertIn('menu("도움말"', swift)
-        self.assertIn('appendingPathComponent("help")', swift)
+        self.assertIn('showPage(helpTitle, path: "help"', swift)
         # 전체 지도 닫기: 지도 쪽이 가닥 창의 길을 바로 부르고, 가닥 창에서는 Esc로도 닫혀요
         self.assertIn("window.gadakMapClose = closeMap", window)
         self.assertIn("parent.gadakMapClose", (ROOT / "backend" / "web" / "map.html").read_text(encoding="utf-8"))

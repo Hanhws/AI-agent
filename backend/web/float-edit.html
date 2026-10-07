@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>떠 있는 버튼 편집</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css">
+<link rel="stylesheet" href="../ui/tokens.css">
+<style>
+/* 떠 있는 가닥 버튼의 둘레 버튼을 고르는 작은 창 (가닥 버튼 오른쪽 클릭 → 버튼 편집 · mac/Gadak.swift가 띄워요).
+   자리는 여섯. 자리마다 기능 하나나 프로젝트 하나를 둬요. 바꾸면 바로 저장하고(POST /float/slots), 버튼에는 몇 초 안에 반영돼요.
+   모양은 떠 있는 버튼과 같아요: 종이색 동그라미 · 검은 글. 프로젝트 버튼은 그 프로젝트의 노선 색 테두리예요. */
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.55; padding: 16px 18px 22px; }
+h1 { margin: 0 0 2px; font-size: 17px; letter-spacing: -0.01em; }
+p { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
+h2 { margin: 16px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+button, input { font: inherit; }
+.btn { height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg2); font-size: 12px; cursor: pointer; }
+.btn:hover:not(:disabled) { color: var(--fg); border-color: var(--ring); }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn:focus-visible, .chip:focus-visible, input:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+/* 미리 보기: 버튼이 놓이는 차례대로 */
+.fan { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--side); min-height: 46px; align-items: center; }
+.disc { width: 46px; height: 46px; border-radius: 50%; border: 1.3px solid var(--ring); background: var(--surface); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 500; color: var(--fg2); text-align: center; line-height: 1.15; box-shadow: 0 1px 4px rgba(0, 0, 0, .14); }
+.disc.project { border-width: 3px; border-color: var(--c, var(--ring)); color: var(--fg); font-weight: 600; }
+.fan .none { color: var(--faint); font-size: 12.5px; }
+.slots { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.slots li { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 10px; border-bottom: 1px solid var(--line); }
+.slots li:last-child { border-bottom: 0; }
+.slots .n { flex: none; width: 14px; color: var(--faint); font-size: 12px; text-align: center; }
+.slots .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slots .kind { color: var(--faint); font-size: 11.5px; margin-left: 4px; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; background: var(--c, var(--ring)); }
+.slots input { flex: none; width: 58px; height: 26px; padding: 0 7px; border: 1px solid var(--ring); border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 12.5px; text-align: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { height: 28px; padding: 0 10px; border: 1px dashed var(--ring); border-radius: 14px; background: none; color: var(--fg2); font-size: 12.5px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip:hover:not(:disabled) { border-style: solid; color: var(--fg); }
+.chip:disabled { opacity: .35; cursor: default; }
+.empty { color: var(--faint); font-size: 12.5px; }
+.foot { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.said { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>떠 있는 버튼 편집</h1>
+<p>가닥 버튼 둘레에 놓을 버튼을 골라요. 여섯 개까지 두고, 바꾸면 바로 저장돼요.</p>
+
+<div id="fan" class="fan" aria-label="미리 보기"></div>
+
+<h2 id="count">지금 버튼</h2>
+<ul id="slots" class="slots"></ul>
+
+<h2>더할 수 있는 기능</h2>
+<div id="actions" class="chips"></div>
+
+<h2>더할 수 있는 프로젝트 <span style="font-weight:400">· 누르면 그 프로젝트의 노선도를 띄우는 버튼이 돼요</span></h2>
+<div id="projects" class="chips"></div>
+
+<div class="foot">
+  <button id="reset" class="btn" type="button">처음 모양으로</button>
+  <span id="said" class="said" role="status"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var D = null, said = document.getElementById('said'), timer = null;
+  if (/^(light|dark)$/.test(new URLSearchParams(location.search).get('theme') || '')) document.documentElement.dataset.theme = new URLSearchParams(location.search).get('theme');
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function say(text) { said.textContent = text; clearTimeout(timer); timer = setTimeout(function () { said.textContent = ''; }, 2500); }
+  function send(body, done) {
+    fetch('slots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d.ok) { D = d; render(); say(done || '저장했어요. 버튼에 곧 반영돼요.'); } else say(d.reason || '저장하지 못했어요.'); },
+            function () { say('가닥에 닿지 못했어요.'); });
+  }
+  // 서버에 보내는 모양: 기능은 {action}, 프로젝트는 {project, label}
+  function plain(slots) { return slots.map(function (s) { return s.action ? { action: s.action } : { project: s.project, label: s.label }; }); }
+  function save(slots, done) { send({ slots: plain(slots) }, done); }
+  function button(label, title, click, off) {
+    var b = el('button', 'btn', label); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); b.disabled = !!off; b.onclick = click; return b;
+  }
+  function render() {
+    var slots = D.slots, full = slots.length >= D.max;
+    var fan = document.getElementById('fan'); fan.innerHTML = '';
+    slots.forEach(function (s) {
+      var d = el('div', 'disc' + (s.project ? ' project' : ''), s.action ? s.name : s.label);
+      if (s.project) d.style.setProperty('--c', s.color); d.title = s.name; fan.appendChild(d);
+    });
+    if (!slots.length) fan.appendChild(el('span', 'none', '둘레 버튼이 없어요. 가닥 버튼만 떠 있어요.'));
+    document.getElementById('count').textContent = '지금 버튼 · ' + slots.length + '/' + D.max;
+
+    var list = document.getElementById('slots'); list.innerHTML = '';
+    slots.forEach(function (s, i) {
+      var li = el('li'); li.appendChild(el('span', 'n', String(i + 1)));
+      var name = el('span', 'name');
+      if (s.project) { var dot = el('i', 'dot'); dot.style.setProperty('--c', s.color); name.appendChild(dot); }
+      name.appendChild(document.createTextNode(s.name)); name.appendChild(el('span', 'kind', s.project ? '프로젝트' : '기능')); name.title = s.name;
+      li.appendChild(name);
+      if (s.project) {
+        var input = el('input'); input.value = s.label; input.maxLength = D.labelMax; input.title = '버튼에 쓸 이름 (' + D.labelMax + '자까지)'; input.setAttribute('aria-label', s.name + ' 버튼에 쓸 이름');
+        var rename = function () { var v = input.value.trim(); if (v === s.label) return; var next = slots.slice(); next[i] = { project: s.project, label: v }; save(next, '이름을 바꿨어요.'); };
+        input.onblur = rename; input.onkeydown = function (e) { if (e.key === 'Enter') input.blur(); };
+        li.appendChild(input);
+      }
+      li.appendChild(button('↑', '위로', function () { var next = slots.slice(); next.splice(i - 1, 0, next.splice(i, 1)[0]); save(next, '차례를 바꿨어요.'); }, i === 0));
+      li.appendChild(button('↓', '아래로', function () { var next = slots.slice(); next.splice(i + 1, 0, next.splice(i, 1)[0]); save(next, '차례를 바꿨어요.'); }, i === slots.length - 1));
+      li.appendChild(button('빼기', s.name + ' 빼기', function () { save(slots.filter(function (_, j) { return j !== i; }), '뺐어요.'); }));
+      list.appendChild(li);
+    });
+    if (!slots.length) { var none = el('li'); none.appendChild(el('span', 'empty', '아래에서 골라 더해요.')); list.appendChild(none); }
+
+    var used = {}; slots.forEach(function (s) { used[s.action ? 'a:' + s.action : 'p:' + s.project] = 1; });
+    function chips(host, items, make, nothing) {
+      host.innerHTML = '';
+      var left = items.filter(function (x) { return !used[make(x).key]; });
+      left.forEach(function (x) {
+        var m = make(x), c = el('button', 'chip'); c.type = 'button'; c.disabled = full; c.title = full ? '여섯 자리가 다 찼어요. 하나를 빼고 더해요.' : m.title;
+        if (m.color) { var dot = el('i', 'dot'); dot.style.setProperty('--c', m.color); c.appendChild(dot); }
+        c.appendChild(document.createTextNode('+ ' + m.name));
+        c.onclick = function () { save(slots.concat([m.slot]), m.name + ' 버튼을 더했어요.'); };
+        host.appendChild(c);
+      });
+      if (!left.length) host.appendChild(el('span', 'empty', nothing));
+    }
+    chips(document.getElementById('actions'), D.actions, function (a) { return { key: 'a:' + a.key, name: a.name, title: a.tip, slot: { action: a.key, name: a.name } }; }, '기능은 다 놓여 있어요.');
+    chips(document.getElementById('projects'), D.projects, function (p) {
+      return { key: 'p:' + p.id, name: p.name, title: p.name + '의 노선도를 띄우는 버튼', color: p.color, slot: { project: p.id, label: p.label, name: p.name, color: p.color } };
+    }, D.projects.length ? '프로젝트는 다 놓여 있어요.' : '아직 읽은 프로젝트가 없어요.');
+  }
+  document.getElementById('reset').onclick = function () { send({ reset: true }, '처음 모양으로 되돌렸어요.'); };
+  fetch('slots').then(function (r) { return r.json(); }).then(function (d) { D = d; render(); }, function () { say('가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.'); });
+})();
+</script>
+</body>
+</html>

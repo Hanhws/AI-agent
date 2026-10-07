@@ -116,6 +116,41 @@ extension FloatController {
             }
         }
         note("fan edges=4 positions=4 outside=\(outside) overlap=\(overlap) underNotch=\(covered)")
+
+        // 사용자가 바꾼 둘레 버튼 (‘버튼 편집’ · backend/floatbar.py): 하나 · 넷(프로젝트 둘) · 여섯(섞어서)으로 놓아도
+        // 화면 안에 있고 서로 겹치지 않는지. 그림은 buttons-custom.png (줄마다 한 가지, 칸마다 가장자리 하나)
+        let stock: [[String: Any]] = actions.map { ["key": $0.key, "label": $0.label, "tip": $0.tip] }
+        func slot(_ key: String, _ label: String, _ color: String? = nil) -> [String: Any] {
+            guard let color = color else { return ["key": key, "label": label, "tip": label] }
+            return ["key": "p:" + key, "label": label, "tip": label, "project": key, "color": color]
+        }
+        var customs: [String] = [], sheets: [NSBitmapImageRep?] = []
+        for slots in [[slot("map", "노선도")],
+                      [slot("map", "노선도"), slot("환율", "환율", "#6CBE45"), slot("todo", "할 일"), slot("수업", "DB수업", "#0039A6")],
+                      [slot("todo", "할 일"), slot("ahead", "앞길"), slot("환율", "환율", "#6CBE45"), slot("help", "도움말"),
+                       slot("수업", "수업", "#FF6319"), slot("window", "창")]] {
+            applySlots(slots)
+            var bad = 0
+            for side in FloatEdge.allCases {
+                edge = side; along = 0.3; mode = .menu; place(); layout(animated: false)
+                let frame = screen.frame
+                let discs: [(NSPoint, CGFloat)] = ((satellites as [DiscView]) + [bubble]).map { view in
+                    (NSPoint(x: panel.frame.minX + view.frame.midX, y: panel.frame.minY + view.frame.midY), view.diameter / 2)
+                }
+                for (middle, radius) in discs where !frame.insetBy(dx: radius, dy: radius).contains(middle) { bad += 1 }
+                for a in discs.indices {
+                    for b in discs.indices where b > a {
+                        if hypot(discs[a].0.x - discs[b].0.x, discs[a].0.y - discs[b].0.y) < discs[a].1 + discs[b].1 + 4 { bad += 1 }
+                    }
+                }
+                sheets.append(picture(over: NSColor(white: 0.96, alpha: 1)))
+            }
+            customs.append("\(satellites.count):\(satellites.map { $0.action.label }.joined(separator: ","))/bad=\(bad)")
+        }
+        write("buttons-custom.png", sheet(sheets, columns: 4))
+        pinned = "수업"                      // 보고 있던 프로젝트의 버튼을 빼면 ‘지금 쓰는 대화’로 돌아와요
+        applySlots(stock)
+        note("slots " + customs.joined(separator: " ") + " back=\(satellites.count) pinnedCleared=\(pinned == nil)")
         for (label, point) in [("left", NSPoint(x: screen.frame.minX + 200, y: screen.frame.midY)),
                                ("top", NSPoint(x: screen.frame.midX, y: screen.frame.maxY - 150)),
                                ("bottom", NSPoint(x: screen.frame.maxX - 300, y: screen.frame.minY + 90)),
@@ -290,7 +325,36 @@ extension FloatController {
                 }
                 later(0.5) { [self] in
                     note("overlay esc gadakBehind=\(behind) keyOnOpen=\(key) gadakStayedBehind=\(stayed) closed=\(overlay?.isVisible != true) keyAfter=\(overlay?.isKeyWindow == true) frontAppSame=\(front() == before)")
-                    NSApp.terminate(nil)
+                    project(note, later)
+                }
+            }
+        }
+    }
+
+    /// 프로젝트 버튼(‘버튼 편집’에서 더한 것): 누르면 가닥 창을 앞으로 가져오지 않고 그 프로젝트의 노선도가 뜨고,
+    /// 한 번 더 누르면 닫히고, 가닥 버튼으로 다시 열면 ‘지금 쓰는 대화’로 돌아와요. 둘레에 프로젝트 버튼이 없으면 건너뛰어요
+    fileprivate func project(_ note: @escaping (String) -> Void, _ later: @escaping (Double, @escaping () -> Void) -> Void) {
+        guard let at = actions.firstIndex(where: { $0.project != nil }), let wanted = actions[at].project else {
+            note("project none")
+            NSApp.terminate(nil)
+            return
+        }
+        func title(_ then: @escaping (String) -> Void) {
+            guard let view = web else { then("?"); return }
+            view.evaluateJavaScript("(document.querySelector('.map-title') || {}).textContent || ''") { value, _ in then(value as? String ?? "?") }
+        }
+        choose(at)
+        later(1.8) { [self] in
+            title { [self] shown in
+                let opened = overlay?.isVisible == true, pin = pinned == wanted
+                choose(at)
+                let closed = overlay?.isVisible != true
+                primary()
+                later(1.8) { [self] in
+                    title { [self] now in
+                        note("project label=\(actions[at].label) pin=\(pin) opened=\(opened) shows=\(shown) again=\(closed ? "closed" : "open") bubble=\(pinned ?? "now") shows=\(now) gadakStayedBehind=\(app?.window.isKeyWindow != true)")
+                        NSApp.terminate(nil)
+                    }
                 }
             }
         }

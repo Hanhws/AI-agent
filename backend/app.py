@@ -7,7 +7,7 @@ import time
 
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
-from . import assemble, auto, config, engines, sources, store, usage
+from . import assemble, auto, config, engines, floatbar, sources, store, usage
 from .agent import ahead, handoff, tools, trace
 from .engines import connect, describe_engine
 from .runtime import Runtime
@@ -87,6 +87,11 @@ def create_app(db_path=None, engine="auto") -> Flask:
         """떠 있는 가닥 버튼이 펼치는 노선도 창 (mac/Float.swift). 가닥 창의 노선도 카드만 따로 띄운 것이에요."""
         return send_from_directory(WEB_DIR, "strip.html", max_age=0)
 
+    @app.get("/float/edit")
+    def float_edit_page():
+        """떠 있는 버튼의 둘레 버튼을 고르는 작은 창 (가닥 버튼 오른쪽 클릭 → 버튼 편집)."""
+        return send_from_directory(WEB_DIR, "float-edit.html", max_age=0)
+
     @app.get("/help")
     def help_page():
         """도움말: 가닥을 쓰는 법과 낱말 풀이. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴가 새 창으로 열어요."""
@@ -130,13 +135,35 @@ def create_app(db_path=None, engine="auto") -> Flask:
 
     @app.get("/float")
     def float_state():
-        """떠 있는 버튼이 묻는 것: 지금 쓰는 대화(가장 최근에 턴이 온 대화)와, 거기 열려 있는 할 일 수."""
-        chat = store.now_chat(db())
+        """떠 있는 버튼이 묻는 것: 지금 쓰는 대화(가장 최근에 턴이 온 대화)와 거기 열려 있는 할 일 수, 둘레에 놓을 버튼들(slots).
+        ?project=를 주면 그 프로젝트에서 가장 최근에 쓴 대화예요 (프로젝트 버튼을 눌렀을 때)."""
+        chat = store.now_chat(db(), request.args.get("project") or None)
+        slots = floatbar.resolved(db())
         if chat is None:
-            return jsonify(rev=rt.rev, chat=None, todo=0)
+            return jsonify(rev=rt.rev, chat=None, todo=0, slots=slots)
         todo = sum(1 for i in tools.open_items(db(), "c.id = ?", [chat["id"]]) if i["state"] == "open")
-        return jsonify(rev=rt.rev, todo=todo,
+        return jsonify(rev=rt.rev, todo=todo, slots=slots,
                        chat={"id": chat["id"], "title": chat["title"], "project": chat["project_id"]})
+
+    @app.get("/float/slots")
+    def float_slots():
+        """버튼 편집 화면이 받는 것: 지금 자리들과, 더할 수 있는 기능 · 프로젝트."""
+        return jsonify(floatbar.editing(db()))
+
+    @app.post("/float/slots")
+    def float_slots_set():
+        """둘레 버튼을 바꿔요. {slots: [{action} | {project, label}]} · {reset: true}면 처음 모양으로. 버튼에는 몇 초 안에 반영돼요."""
+        body = request.get_json(silent=True) or {}
+        conn = db()
+        with conn:
+            if body.get("reset"):
+                floatbar.reset(conn)
+            elif isinstance(body.get("slots"), list):
+                floatbar.save(conn, body["slots"])
+            else:
+                return jsonify(ok=False, reason="바꿀 자리를 받지 못했어요."), 400
+        rt.bump()
+        return jsonify(dict(floatbar.editing(conn), ok=True))
 
     # ----- 엔진: 무엇으로 정리하는지, 고르기 · 한 번 눌러 연결하기 · API 키 넣기 · 지우기 (backend/engines) -----
     def engine_info(fresh=False):
