@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from backend import config
+from backend import config, store
 from eval import ahead as cli
 from eval import run
 from tests.test_eval import DEMO, Oracle
@@ -115,6 +115,21 @@ class RunTest(unittest.TestCase):
         self.assertEqual((first["numbers"]["stats"]["calls"]["classify"], again["numbers"]["stats"]["calls"]["classify"]), (2, 0))
         self.assertEqual((again["numbers"]["turns"], again["numbers"]["junctions"], again["numbers"]["paths"]), (12, 2, 2))
         self.assertEqual([r[1] for r in again["rows"]], [r[1] for r in first["rows"]])
+
+    def test_my_own_records_can_be_used_without_touching_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            mine = Path(tmp) / "gadak.db"
+            cli.run(run.load(DEMO, "demo"), Scout(), limit=0, db=mine)           # 정리된 기록 하나를 만들어 두고
+            conn = store.connect(mine)
+            with conn:
+                store.set_hidden(conn, ["demo:c1"])                               # 대화 하나는 목록에서 뺐어요
+            conn.close()
+            before = mine.read_bytes()
+            out = cli.run(None, Scout(), limit=10, records=mine)
+            self.assertEqual(mine.read_bytes(), before)                           # 원본은 그대로
+        self.assertEqual((out["numbers"]["stats"]["calls"]["classify"], out["numbers"]["junctions"]), (0, 1))   # 뺀 대화는 보지 않아요
+        # 뺀 대화에서 정한 것은 찾아보지도 않아서, 이 갈림길에서는 대화 밖에서 찾은 것이 없어요 → 조용해요
+        self.assertEqual([(r[1], r[6]) for r in out["rows"]], [("b4", "—")])
 
     def test_many_junctions_are_sampled_evenly(self):
         self.assertEqual(cli.spread(list(range(10)), 4), [0, 3, 6, 9])

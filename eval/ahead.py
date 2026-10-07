@@ -7,6 +7,7 @@
    python -m eval.ahead run --max 3 --web     세 곳만, 웹에서도 찾아보게
    python -m eval.ahead run --model haiku --tag haiku     앞길을 다른 모델로
    python -m eval.ahead run --db eval/local/u1.db         1단으로 정리한 기록을 남겨 두고, 다음부터는 그걸 다시 써요 (1단 호출을 아껴요)
+   python -m eval.ahead run --records ~/.gadak/gadak.db   예시 대신 내가 쓰는 가닥의 기록에서 (읽기만 하고 복사본으로 돌려요. 1단은 건너뛰어요)
    → eval/local/앞길-시트.csv (길마다 한 줄) · eval/results/앞길-<시나리오>-<모델>.json (숫자만)
 2) 매기기 — 두 사람이 시트를 각자 복사해서, 서로 보지 않고 두 칸을 채워요
    쓸모   1 쓸 만해요 · 0 아니에요 (뻔해요 · 틀렸어요 · 이미 아는 거예요)
@@ -22,6 +23,7 @@ import argparse
 import csv
 import json
 import shutil
+import sqlite3
 import sys
 import tempfile
 import time
@@ -104,10 +106,22 @@ def sheet_rows(conn, n, row, why, result) -> list:
     return out
 
 
-def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=None, db=None) -> dict:
+def snapshot(source, target) -> None:
+    """가닥의 기록을 읽기 전용으로 열어 통째로 떠 와요. 켜져 있는 가닥이 쓰고 있는 파일이어도 원본은 건드리지 않아요."""
+    src = sqlite3.connect(f"file:{Path(source).expanduser()}?mode=ro", uri=True, timeout=5)
+    dst = sqlite3.connect(target)
+    try:
+        src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+
+
+def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=None, db=None, records=None) -> dict:
     """시나리오를 1단으로 정리하고, 갈림길마다 앞길을 살펴요. 돌려주는 것: rows(시트 줄) · numbers(숫자만) · raw · error.
     engine은 앞길을 살피는 엔진, labeler는 1단(분류)에 쓸 엔진이에요(비우면 같은 엔진). 실제로 쓸 때도 둘의 모델이 달라요.
-    db를 주면 1단으로 정리한 기록을 거기 남기고, 이미 있으면 1단을 건너뛰고 그 기록에서 시작해요(대화 글이 든 파일이에요)."""
+    db를 주면 1단으로 정리한 기록을 거기 남기고, 이미 있으면 1단을 건너뛰고 그 기록에서 시작해요(대화 글이 든 파일이에요).
+    records를 주면 시나리오 대신 그 가닥 기록(이미 정리된 것)에서 갈림길을 골라요. 목록에서 뺀 대화는 보지 않아요."""
     meter = runner.Meter(engine)
     label = runner.Meter(labeler) if labeler is not None else meter
     rows, raw, error = [], [], None
@@ -117,17 +131,18 @@ def run(scenario, engine, limit=10, web=False, max_calls=150, say=None, labeler=
     try:
         with tempfile.TemporaryDirectory() as tmp:
             kept_db = Path(db) if db else None
-            if kept_db is not None and kept_db.is_file():
-                shutil.copyfile(kept_db, Path(tmp) / "gadak.db")
+            ready = Path(records).expanduser() if records else kept_db if kept_db is not None and kept_db.is_file() else None
+            if ready is not None:
+                snapshot(ready, Path(tmp) / "gadak.db")
             rt = Runtime(Path(tmp) / "gadak.db", engine=label)
             clf = classify.Classifier(rt, label, max_calls=max_calls)
             rt.classifier = clf
             conn = rt.connect()
             try:
-                if kept_db is not None and kept_db.is_file():
-                    chats = [r["id"] for r in conn.execute("SELECT id FROM chats ORDER BY created_at, rowid")]
+                if ready is not None:
+                    chats = [r["id"] for r in conn.execute("SELECT id FROM chats WHERE hidden = 0 ORDER BY created_at, rowid")]
                     if say:
-                        say(f"정리해 둔 기록에서 시작해요 ({kept_db.name})")
+                        say(f"정리해 둔 기록에서 시작해요 ({ready.name} · 대화 {len(chats)}개)")
                 else:
                     chats = replay.feed(conn, scenario)["chats"]
                     for chat_id in chats:
@@ -304,6 +319,7 @@ def main(argv=None) -> int:
     go.add_argument("--timeout", type=float, default=300)
     go.add_argument("--out", default=None, help="시트를 둘 곳 (기본 eval/local/앞길-시트.csv)")
     go.add_argument("--db", default=None, help="1단으로 정리한 기록을 남기고 다시 쓸 파일 (대화 글이 들어 있어요. eval/local/ 안에 둬요)")
+    go.add_argument("--records", default=None, help="예시 대신 쓸 가닥 기록 (예: ~/.gadak/gadak.db). 읽기만 하고 복사본으로 돌려요")
     go.add_argument("--tag", default="")
     both = sub.add_parser("compare", help="두 사람이 매긴 시트 견주기")
     both.add_argument("one")
@@ -321,14 +337,21 @@ def main(argv=None) -> int:
 
     path = Path(args.data) if args.data else (DEMO if args.demo else EXAMPLE)
     key = args.scenario or ("demo" if args.demo else "u1")
-    if not path.is_file():
+    scenario = None
+    if args.records:
+        path, key = Path(args.records).expanduser(), "내기록"
+        if not path.is_file():
+            print(f"가닥 기록이 없어요: {path}")
+            return 2
+    elif not path.is_file():
         print(f"예시 파일이 없어요: {path}\n실제 대화가 든 파일이라 저장소에 없어요. 만든 예시로 돌려 보려면: python -m eval.ahead run --demo")
         return 2
-    try:
-        scenario = runner.load(path, key)
-    except KeyError:
-        print(f"{path.name}에 ‘{key}’ 시나리오가 없어요.")
-        return 2
+    else:
+        try:
+            scenario = runner.load(path, key)
+        except KeyError:
+            print(f"{path.name}에 ‘{key}’ 시나리오가 없어요.")
+            return 2
     name = resolve_name(args.engine)
     if name == "none":
         print("엔진이 없어요. Claude Code에 로그인하거나 API 키를 넣어 주세요 (docs/usage-guide.md 3장).")
@@ -342,16 +365,16 @@ def main(argv=None) -> int:
         return 2
     if hasattr(engine, "effort"):
         engine.effort = config.AHEAD_EFFORT        # 실제로 쓸 때와 같은 깊이로 (backend/agent/investigate.py의 scout_engine)
-    print(f"앞길 살피기 재기 · {path.name}의 {key}")
+    print(f"앞길 살피기 재기 · " + ("내 가닥 기록 (읽기만 해요)" if args.records else f"{path.name}의 {key}"))
     began = time.time()
     out = run(scenario, engine, limit=args.max, web=args.web, max_calls=args.max_calls,
-              say=lambda text: print("   …", text, flush=True), labeler=labeler, db=args.db)
+              say=lambda text: print("   …", text, flush=True), labeler=labeler, db=args.db, records=args.records)
     print(report(key, out["numbers"]))
     if out["error"]:
         print("  ! 끝까지 돌지 못했어요:", out["error"])
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     label = "-".join(x for x in ("앞길", key, str(model), args.tag) if x)
-    sheet = Path(args.out) if args.out else LOCAL / ("-".join(x for x in ("앞길-시트", args.tag) if x) + ".csv")
+    sheet = Path(args.out) if args.out else LOCAL / ("-".join(x for x in ("앞길-시트", "내기록" if args.records else "", args.tag) if x) + ".csv")
     if out["rows"]:
         write_sheet(sheet, out["rows"])
         LOCAL.mkdir(exist_ok=True)
@@ -360,7 +383,7 @@ def main(argv=None) -> int:
         print("  실제 대화 글이 들어 있으니 eval/local/ 밖에 두지 말고 커밋하지 마요.")
     if not out["error"]:
         RESULTS.mkdir(exist_ok=True)
-        body = {"at": stamp, "scenario": key, "data": path.name, "seconds": round(time.time() - began, 1), "prompt": config.CODE,
+        body = {"at": stamp, "scenario": key, "data": "records" if args.records else path.name, "seconds": round(time.time() - began, 1), "prompt": config.CODE,
                 **out["numbers"]}
         (RESULTS / f"{label}.json").write_text(json.dumps(body, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"  남김: eval/results/{label}.json")
