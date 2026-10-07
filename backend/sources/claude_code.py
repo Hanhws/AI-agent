@@ -192,14 +192,23 @@ def desktop_groups():
     try:
         prefs = json.loads(desktop_config().read_text(encoding="utf-8"))["preferences"]["epitaxyPrefs"]
         out = {}
-        for scope in (prefs.get("dframe-group-scopes") or {}).values():   # 계정마다 하나
+        for key, scope in (prefs.get("dframe-group-scopes") or {}).items():   # 계정마다 하나
             names = {g["id"]: g["name"] for g in scope.get("groups") or [] if g.get("name")}
             for session, group in (scope.get("assignments") or {}).items():
                 if session.startswith("code:local_") and group in names:
-                    out[session[len("code:local_"):]] = names[group]
+                    out[_cli_session(key, session[len("code:"):])] = names[group]
         return out
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None
+
+
+def _cli_session(scope, local) -> str:
+    """사이드바의 세션 id(local_…)와 기록 파일(<세션>.jsonl)의 id는 다를 수 있어요. 앱이 남긴 세션 파일로 이어요."""
+    path = desktop_config().parent / "claude-code-sessions" / scope / (local + ".json")
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))["cliSessionId"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return local[len("local_"):]
 
 
 def after_scan(conn) -> bool:

@@ -130,7 +130,10 @@ class ClaudeCodeReaderTest(SourcesTest):
             self.desktop.write_text(json.dumps({"preferences": {"epitaxyPrefs": {"dframe-group-scopes": {"a/b": scope}}}}),
                                     encoding="utf-8")
         self.session.write_text(jsonl(LINES), encoding="utf-8")
-        group({"code:local_" + SESSION: "cg-1"})
+        app = self.desktop.parent / "claude-code-sessions" / "a" / "b"   # 사이드바 id와 기록 파일 id가 달라요
+        app.mkdir(parents=True)
+        (app / "local_side.json").write_text(json.dumps({"cliSessionId": SESSION}), encoding="utf-8")
+        group({"code:local_side": "cg-1"})
         self.rt.syncer.scan_once(self.conn)
         self.assertEqual(store.chat_row(self.conn, SESSION)["project_id"], "알림 묶음")
         group({})                                             # 그룹에서 빼면 폴더 프로젝트로 돌아가요
