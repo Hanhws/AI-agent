@@ -406,7 +406,8 @@ def show_score(name, result) -> str:
     return "\n".join(lines)
 
 
-def compare(one, two) -> dict:
+def compare(one, two, need=NEED) -> dict:
+    """need: 판정하려면 둘 다 매긴 길이 몇 개는 있어야 하나. 정해 둔 것은 NEED이고, 낮추면 show가 낮췄다고 같이 적어요."""
     ids = [k for k in one if k in two and one[k]["useful"] is not None and two[k]["useful"] is not None]
     a, b = [one[k]["useful"] for k in ids], [two[k]["useful"] for k in ids]
     both = sum(1 for x, y in zip(a, b) if x and y)
@@ -426,8 +427,17 @@ def compare(one, two) -> dict:
         "went": {"of": len(gone), "both": sum(1 for k in gone if one[k]["went"] and two[k]["went"])},
         "useful_but_new": sum(1 for k in gone if one[k]["useful"] and two[k]["useful"]
                               and not one[k]["went"] and not two[k]["went"]),
-        "enough": len(ids) >= NEED, "passed": len(ids) >= NEED and rate is not None and rate >= BAR,
+        "need": need, "enough": len(ids) >= need, "passed": len(ids) >= need and rate is not None and rate >= BAR,
     }
+
+
+def one_away(result):
+    """‘둘 다 쓸모’가 하나만 달랐어도 판정이 달라지면 그때의 수, 아니면 None. 길이 적을 때 판정이 얼마나 아슬아슬한지 보려고요."""
+    n, both = result["paths"], result["both"]
+    other = both - 1 if result["passed"] else both + 1
+    if not result["enough"] or not 0 <= other <= n:
+        return None
+    return other if (round(other / n, 4) >= BAR) != result["passed"] else None
 
 
 def pct(hit, of) -> str:
@@ -445,12 +455,19 @@ def show(result) -> str:
         f"  실제로 그 길로 감         {pct(result['went']['both'], result['went']['of'])}"
         f" · 가지 않았지만 쓸모 있다고 한 길 {result['useful_but_new']}개 (‘생각 못 한 길’)",
     ]
+    need = result.get("need", NEED)
     if not result["enough"]:
-        lines.append(f"  아직 정할 수 없어요: 매긴 길이 {NEED}개가 안 돼요.")
+        lines.append(f"  아직 정할 수 없어요: 매긴 길이 {need}개가 안 돼요.")
     elif result["passed"]:
         lines.append(f"  켤 기준({BAR * 100:.0f}% 이상)을 넘었어요.")
     else:
         lines.append(f"  켤 기준({BAR * 100:.0f}% 이상)에 못 미쳐요. 꺼 둔 채로 둬요.")
+    if result["enough"] and n < NEED:          # --need로 낮춰서 낸 판정은 그렇다고 적어요
+        note, other = f"  ! 정해 둔 최소({NEED}개)보다 적은 {n}개로 낸 판정이에요.", one_away(result)
+        if other is not None:
+            fewer, verdict = ("적었어도", "못 미쳐요") if result["passed"] else ("많았어도", "넘어요")
+            note += f" 둘 다 쓸모 있다고 한 길이 하나만 {fewer} {pct(other, n)}로 {verdict}."
+        lines.append(note)
     for who, key in (("첫째", "one"), ("둘째", "two")):
         odd = (result.get("odd") or {}).get(key) or []
         if odd:
@@ -504,6 +521,8 @@ def main(argv=None) -> int:
     both = sub.add_parser("compare", help="두 사람이 매긴 시트 견주기")
     both.add_argument("one")
     both.add_argument("two")
+    both.add_argument("--need", type=int, default=NEED,
+                      help=f"판정하려면 둘 다 매긴 길이 몇 개는 있어야 하는지 (기본 {NEED}). 낮추면 낮춰서 낸 판정이라고 같이 적어요")
     look = sub.add_parser("check", help="매긴 시트 하나가 읽히는지, 잘못 적은 칸이 없는지 보기")
     look.add_argument("sheets", nargs="+")
     one = sub.add_parser("score", help="한 사람이 매긴 시트의 숫자 (판정은 compare로)")
@@ -546,7 +565,10 @@ def main(argv=None) -> int:
         if not one or not two:
             print("길이 든 줄이 없는 시트가 있어요.")
             return 2
-        print(show(compare(one, two)))
+        if args.need < 1:
+            print("--need는 1 이상이어야 해요.")
+            return 2
+        print(show(compare(one, two, args.need)))
         print("κ는 우연히 맞을 만큼을 뺀 일치도예요. 길의 수가 적으면 크게 흔들려요.")
         return 0
 

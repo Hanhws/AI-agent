@@ -178,6 +178,34 @@ class CompareTest(unittest.TestCase):
         low = cli.compare(a, {k: dict(v, useful=0) for k, v in a.items()})
         self.assertIn("못 미쳐요", cli.show(low))
 
+    def test_a_verdict_from_fewer_paths_says_so(self):
+        """둘 다 매긴 길이 10개가 안 될 때 있는 것으로 판정하면(need를 낮춰서), 낮춰서 낸 판정이라고 같이 적어요."""
+        kinds = ["이어 가기", "다른 길", "미리 챙길 것"]
+
+        def sheet(tmp, name, useful):
+            return cli.read_sheet(self.sheet(tmp, name, {(n, kinds[n % 3]): (mark, "0") for n, mark in enumerate(useful, 1)}))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            five, four, seven = sheet(tmp, "5.csv", "1111100"), sheet(tmp, "4.csv", "1111000"), sheet(tmp, "7.csv", "1111111")
+            twelve = sheet(tmp, "12.csv", "1" * 12)
+        usual = cli.compare(five, five)                                        # 정해 둔 대로면 7개로는 정하지 않아요
+        self.assertEqual((usual["need"], usual["enough"], usual["passed"]), (10, False, False))
+        self.assertIn("매긴 길이 10개가 안 돼요", cli.show(usual))
+        self.assertNotIn("정해 둔 최소", cli.show(usual))
+        fewer = cli.compare(five, five, need=7)
+        self.assertEqual((fewer["need"], fewer["enough"], fewer["passed"], fewer["rate"]), (7, True, True, 0.7143))
+        text = cli.show(fewer)
+        self.assertIn("켤 기준(70% 이상)을 넘었어요", text)
+        self.assertIn("! 정해 둔 최소(10개)보다 적은 7개로 낸 판정이에요. 둘 다 쓸모 있다고 한 길이 하나만 적었어도 57% (4/7)로 못 미쳐요.", text)
+        text = cli.show(cli.compare(four, four, need=7))                       # 못 미친 쪽도 한 줄 차이면 그렇다고
+        self.assertIn("못 미쳐요. 꺼 둔 채로 둬요", text)
+        self.assertIn("적은 7개로 낸 판정이에요. 둘 다 쓸모 있다고 한 길이 하나만 많았어도 71% (5/7)로 넘어요.", text)
+        text = cli.show(cli.compare(seven, seven, need=7))                     # 한 줄로는 달라지지 않는 판정
+        self.assertIn("적은 7개로 낸 판정이에요.", text)
+        self.assertNotIn("하나만", text)
+        self.assertIn("매긴 길이 8개가 안 돼요", cli.show(cli.compare(five, five, need=8)))
+        self.assertNotIn("정해 둔 최소", cli.show(cli.compare(twelve, twelve, need=7)))      # 10개가 넘으면 낮춘 것이 아니에요
+
 
 class FilledSheetTest(unittest.TestCase):
     """사람이 엑셀 · Numbers로 채워 저장한 시트: 형식이 달라도 읽고, 잘못 적은 칸은 조용히 넘기지 않아요."""
@@ -296,6 +324,12 @@ class FilledSheetTest(unittest.TestCase):
             code, said = run("compare", str(good), str(old))                          # 형식이 달라도 같은 시트로 읽혀요
             self.assertEqual(code, 0)
             self.assertIn("둘 다 매긴 길 3개", said)
+            self.assertIn("매긴 길이 10개가 안 돼요", said)
+            code, said = run("compare", str(good), str(old), "--need", "3")           # 있는 것으로 판정: 낮춰서 냈다고 같이 적어요
+            self.assertEqual(code, 0)
+            for line in ("켤 기준(70% 이상)을 넘었어요", "! 정해 둔 최소(10개)보다 적은 3개로 낸 판정이에요."):
+                self.assertIn(line, said)
+            self.assertEqual(run("compare", str(good), str(old), "--need", "0")[0], 2)
             code, said = run("compare", str(good), str(xlsx))
             self.assertEqual((code, "CSV UTF-8" in said), (2, True))
             code, said = run("score", str(good), str(odd))                           # 한 사람씩의 숫자. 켤지는 말하지 않아요
