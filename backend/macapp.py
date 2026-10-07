@@ -50,10 +50,13 @@ FIRST_OPEN = """가닥을 처음 여는 법
 3. 시스템 설정 → 개인정보 보호 및 보안으로 가서, 아래쪽의 “가닥이(가) 차단되었습니다” 옆 ‘그래도 열기’를 눌러요.
    (macOS 14 이하에서는 가닥을 오른쪽 클릭 → 열기 → 열기로도 돼요.)
 4. 한 번 열고 나면 다음부터는 그냥 열려요.
+5. 가닥이 켜지면 ‘AI 연결’ 창이 떠요. Claude 구독 · ChatGPT 구독 · API 키 중 하나를 골라 ‘연결하기’를 누르면 돼요.
+   터미널을 열 일은 없어요. 그림이 든 안내는 같이 들어 있는 ‘가닥 설치 안내.pdf’를 봐 주세요.
 
 가닥은 학교 과제로 만든 앱이라 Apple의 개발자 서명(유료)이 없어요. 그래서 처음 한 번 이 확인이 필요해요.
 대화는 이 Mac에만 저장돼요(~/.gadak). 지우려면 가닥을 휴지통에 넣고 그 폴더도 지워요.
 """
+GUIDE = config.ROOT / "docs" / "가닥-설치-안내.pdf"      # 받은 사람이 보는 설명서 (docs/install-guide/에서 만들어요). 있으면 디스크 이미지에 같이 넣어요
 SOURCES = config.ROOT / "mac"
 APP_SOURCES = ("Gadak.swift", "Float.swift", "FloatCheck.swift")     # 창 · 메뉴 · 백엔드 켜기 / 떠 있는 버튼 / 그 버튼을 스스로 확인
 DIST = config.ROOT / "dist"
@@ -175,6 +178,8 @@ def dmg(app, out=None) -> Path:
         shutil.copytree(app, stage / app.name, symlinks=True)
         (stage / "Applications").symlink_to("/Applications")
         (stage / "처음 여는 법.txt").write_text(FIRST_OPEN, encoding="utf-8")
+        if GUIDE.is_file():
+            shutil.copy2(GUIDE, stage / "가닥 설치 안내.pdf")
         target.unlink(missing_ok=True)
         _run(["hdiutil", "create", "-volname", NAME, "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(target)], "디스크 이미지 만들기")
     return target

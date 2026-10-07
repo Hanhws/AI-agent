@@ -125,6 +125,7 @@ extension FloatController {
             return ["key": "p:" + key, "label": label, "tip": label, "project": key, "color": color]
         }
         var customs: [String] = [], sheets: [NSBitmapImageRep?] = []
+        panel.appearance = NSAppearance(named: .aqua)
         for slots in [[slot("map", "노선도")],
                       [slot("map", "노선도"), slot("환율", "환율", "#6CBE45"), slot("todo", "할 일"), slot("수업", "DB수업", "#0039A6")],
                       [slot("todo", "할 일"), slot("ahead", "앞길"), slot("환율", "환율", "#6CBE45"), slot("help", "도움말"),
@@ -148,6 +149,7 @@ extension FloatController {
             customs.append("\(satellites.count):\(satellites.map { $0.action.label }.joined(separator: ","))/bad=\(bad)")
         }
         write("buttons-custom.png", sheet(sheets, columns: 4))
+        panel.appearance = nil
         pinned = "수업"                      // 보고 있던 프로젝트의 버튼을 빼면 ‘지금 쓰는 대화’로 돌아와요
         applySlots(stock)
         note("slots " + customs.joined(separator: " ") + " back=\(satellites.count) pinnedCleared=\(pinned == nil)")
