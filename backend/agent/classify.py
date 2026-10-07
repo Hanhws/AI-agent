@@ -39,6 +39,16 @@ SCHEMA = {
     "required": ["turns"], "additionalProperties": False,
 }
 
+SEG_SYSTEM = (config.ROOT / "backend" / "prompts" / "segment.txt").read_text(encoding="utf-8")
+SEG_SCHEMA = {
+    "type": "object",
+    "properties": {"segs": {"type": "array", "items": {
+        "type": "object", "properties": {"from": {"type": "string"}, "name": {"type": "string"}},
+        "required": ["from", "name"], "additionalProperties": False,
+    }}},
+    "required": ["segs"], "additionalProperties": False,
+}
+
 CHUNK = 8                 # 한 번에 묻는 턴 수
 USER_CLIP = 500           # 질문은 앞부분
 AI_HEAD, AI_TAIL = 220, 220   # 답은 앞과 끝 (결론은 끝에 있어요)
@@ -46,6 +56,7 @@ STATE_MAINS, STATE_DECISIONS = 12, 8
 TITLE_MAX, SEG_MAX, DEC_MAX, PART_MAX = 18, 12, 40, 60   # 역 라벨은 두 줄(12자 안팎)까지 보여요
 DEC_NOTE_MAX = 120        # 정한 것을 풀어 쓴 한 문장 (이어 가기 요약에 써요)
 MAX_TRIES = 2
+SEG_MIN, SEG_EVERY = 6, 6  # 정리된 역이 이만큼 있고, 지난 구간 나누기 뒤로 이만큼 늘면 대화 전체를 보고 다시 나눠요
 STALE = 600               # 답이 끝났다는 표시 없이 이만큼(초) 지난 턴은 끝난 것으로 봐요
 
 
@@ -184,6 +195,35 @@ def apply_output(conn, rows, batch, output) -> int:
     return done
 
 
+def segment_input(chat, rows) -> dict:
+    """구간 나누기는 대화 전체를 봐야 해요. 글 대신 역 이름만 보내서 호출을 가볍게 해요."""
+    return {"chat": {"title": chat["title"]},
+            "turns": [{"id": str(r["seq"]), "title": r["title"] or _clip(r["user"], TITLE_MAX), "depth": r["depth"],
+                       "topic": r["topic"]} for r in rows]}
+
+
+def apply_segments(conn, rows, output) -> int:
+    """받은 경계로 seg를 다시 써요. 쓸 만한 경계가 하나도 없으면 그대로 둬요. 쓴 구간 수를 돌려줘요."""
+    by_seq = {str(r["seq"]): r for r in rows}
+    cuts = {}
+    for item in (output or {}).get("segs") or []:
+        name = _word(item.get("name"), SEG_MAX) if isinstance(item, dict) else None
+        row = by_seq.get(str(item.get("from"))) if name else None
+        if row is not None:
+            cuts.setdefault(row["seq"], (row["id"], name))
+    if not cuts:
+        return 0
+    order = sorted(cuts)
+    first = rows[0]
+    cuts[first["seq"]] = (first["id"], cuts[order[0]][1])   # 첫 구간은 첫 역부터
+    if order[0] != first["seq"]:
+        del cuts[order[0]]
+    conn.execute("UPDATE turns SET seg = NULL WHERE chat_id = ? AND seq <= ?", (first["chat_id"], rows[-1]["seq"]))
+    for turn_id, name in cuts.values():
+        conn.execute("UPDATE turns SET seg = ? WHERE id = ?", (name, turn_id))
+    return len(cuts)
+
+
 class Classifier:
     """분류할 대화를 줄 세워 하나씩 처리하고, 분류가 끝난 대화는 2단(checker)에 넘겨요.
     엔진은 한 번에 하나만 불러요. 1단을 기다리는 대화가 있으면 그것이 먼저예요."""
@@ -198,6 +238,7 @@ class Classifier:
         self.status = {"engine": None, "running": None, "calls": 0, "turns": 0, "error": None, "paused": False,
                        "checking": None, "checks": 0}
         self.checker = investigate.Investigator(self)
+        self.seg_at = {}               # 대화 id → 마지막으로 구간을 나눴을 때의 역 수 (켤 때마다 비어요)
 
     def engine(self):
         if isinstance(self._engine, str):
@@ -264,8 +305,22 @@ class Classifier:
             usage.record(conn, "classify", turns=len(batch), done=done, seconds=time.time() - began)
             self.rt.bump()
         if total:
+            self.segment_chat(conn, chat, engine)
             usage.note_chat(conn, chat_id)
         return total
+
+    def segment_chat(self, conn, chat, engine) -> None:
+        """턴마다 붙인 seg는 앞만 보고 정해서 잘 안 끊어요. 역이 충분히 쌓이면 전체를 보고 한 번 더 나눠요."""
+        rows = [r for r in store.chat_turns(conn, chat["id"]) if r["classified"] != 0]
+        if len(rows) < SEG_MIN or len(rows) - self.seg_at.get(chat["id"], 0) < SEG_EVERY:
+            return
+        try:
+            output = self.call(SEG_SYSTEM, json.dumps(segment_input(chat, rows), ensure_ascii=False), SEG_SCHEMA, engine)
+        except OutOfCalls:
+            return
+        with conn:
+            apply_segments(conn, rows, output)
+        self.seg_at[chat["id"]] = len(rows)
 
     def step(self, conn) -> bool:
         """줄 맨 앞의 대화 하나를 정리(1단)하거나, 1단이 기다리는 대화가 없으면 2단 확인을 턴 하나만큼 해요.
