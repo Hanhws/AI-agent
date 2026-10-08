@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <title>가닥 전체 지도</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="/ui/mark.js"></script>
 <style>
@@ -13,9 +12,9 @@
 :root {
   --spur: #A7A9AC;
   --paper: #FFFFFF; --ink: #111111; --ink2: #6B6B6B; --ink3: #A6A6A6; --grid: #EFEFEF; --today: #F6F6F6; --band: #111111; --band-fg: #FFFFFF; --poster: #F4F1EA;
-  --font: SUIT, "Apple SD Gothic Neo", Arial, sans-serif;
-  /* 비녤리가 뉴욕 지하철 표지에 쓴 헬베티카. 한글 글자는 헬베티카에 없어서 SUIT로 이어져요 */
-  --vfont: "Helvetica Neue", Helvetica, Arial, SUIT, "Apple SD Gothic Neo", sans-serif;
+  /* 글꼴은 한 벌: 로마자 · 숫자는 헬베티카(비녤리의 뉴욕 지하철), 한글은 Pretendard로 이어져요. 값은 shared/ui/tokens.css와 같아요 */
+  --font: "Helvetica Neue", Helvetica, Pretendard, "Apple SD Gothic Neo", sans-serif; --vfont: var(--font);
+  --tr-title: -0.08em; --tr-body: -0.05em; --tr-small: -0.03em;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; --poster: #171614; } }
@@ -27,8 +26,8 @@ html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink
 /* 지하철 표지판의 검은 띠 */
 header { position: fixed; inset: 0 0 auto 0; height: 48px; white-space: nowrap; background: var(--band); color: var(--band-fg);
   display: flex; align-items: center; gap: 12px; padding: 0 20px; z-index: 3; }
-header b { font-size: 22px; letter-spacing: -0.02em; }
-header b i { font: normal 700 22px var(--vfont); letter-spacing: -0.01em; margin-left: 6px; }
+header b { font-size: 22px; }
+header b i { font: normal 700 22px var(--vfont); margin-left: 6px; }
 /* 가닥 심볼 (shared/ui/mark.js). 검은 띠 위라서 선은 흰색, 지금 점은 가닥의 빨강 */
 header .mark { display: block; overflow: visible; cursor: pointer; margin-right: -4px; }
 header .mark line { stroke: var(--band-fg); }
@@ -59,22 +58,14 @@ text { font-family: var(--font); fill: var(--ink); }
 /* 포스터 보기: 같은 대화를 비녤리 포스터처럼 (굵은 단색 선 · 흰 틈 · 45°와 90° 꺾임 · 큰 제목) */
 #poster { opacity: 0; pointer-events: none; }
 #poster text { font-family: var(--vfont); }
-/* 글자 시안 (?type=close · normal): 한글 Pretendard + 로마자 헬베티카. 제목은 아주 좁게(-0.08em), 본문은 좁게(-0.05em) 또는 보통(0).
-   지도 · 한 줄 노선도 · 포스터가 같이 바뀌어요 */
-html[data-type] { --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif; --vfont: var(--font); --tr-title: -0.08em; }
-html[data-type="close"] { --tr: -0.05em; }
-html[data-type="normal"] { --tr: 0em; }
-html[data-type] :is(text, tspan, header span, .key) { letter-spacing: var(--tr) !important; }
-html[data-type] :is(.p-title, .p-title tspan, .title, .st-title, header b) { letter-spacing: var(--tr-title) !important; }
-header .axis.on { text-decoration: none; font-weight: 700; opacity: 1; }
 .poster-on #poster { opacity: 1; pointer-events: auto; }
 .poster-on #map { opacity: 0; pointer-events: none; }
 .poster-on #key-map { display: none; }
 .p-paper { fill: var(--poster); }
 .p-case { fill: none; stroke: var(--poster); stroke-width: 32; }
 .p-line { fill: none; stroke-width: 22; }
-.p-title { font-size: 168px; font-weight: 800; letter-spacing: -0.04em; }
-.p-latin { font-weight: 700; letter-spacing: -0.03em; }
+.p-title { font-size: 168px; font-weight: 800; }
+.p-latin { font-weight: 700; }
 .p-sub { font-size: 22px; fill: var(--ink2); }
 .p-name, .p-now { font-size: 22px; font-weight: 700; }
 .p-here { stroke: var(--ink); stroke-width: 9; fill: none; }
@@ -85,14 +76,14 @@ header .axis.on { text-decoration: none; font-weight: 700; opacity: 1; }
 .grid text.now { fill: var(--ink); font-weight: 700; }
 .grid text.rest { fill: var(--ink3); font-size: 12px; }
 
-.title { font-weight: 700; letter-spacing: -0.035em; cursor: pointer; }
+.title { font-weight: 700; cursor: pointer; }
 .proj { transition: opacity .25s; }
 .dim .proj:not(.hot) { opacity: .12; }
 [data-chat] { cursor: pointer; }
 path[data-chat]:hover { stroke-opacity: .75; }
 
 .lbl text { font-size: 14px; transition: opacity .25s; }
-.lbl .chat { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+.lbl .chat { font-weight: 700; font-size: 18px; }
 .lbl .dec { font-weight: 700; }
 .lbl .minor { fill: var(--ink2); font-size: 13px; }
 .bullet { font-size: 11px; font-weight: 700; }
@@ -128,7 +119,7 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
   text-decoration: underline; text-underline-offset: 3px; cursor: pointer; opacity: .8; }
 .mst-side { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
 .st-end { font-size: 40px; font-weight: 700; }
-.st-title { font-size: 44px; font-weight: 700; letter-spacing: -0.035em; }
+.st-title { font-size: 44px; font-weight: 700; }
 .st-sub { font-size: 15px; fill: var(--ink2); }
 .todo { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; }
 .todo.done { fill: var(--ink); }
@@ -148,13 +139,16 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
 #key-strip, .strip-on #key-map { display: none; }
 .strip-on #key-strip { display: flex; }
 @media (max-width: 600px) { .key { display: none !important; } header small { display: none; } }
+/* 자간 세 단계: 본문 좁게, 13px 이하 작은 글씨는 덜 좁게, 큰 제목은 아주 좁게 */
+body, text { letter-spacing: var(--tr-body); }
+:is(.grid text, .lbl .minor, .bullet, .xfer-lbl, .chip, .made, .key, header small, header .axis, .ctl button.wide) { letter-spacing: var(--tr-small); }
+:is(.p-title, .p-title tspan, .title, .st-title, .st-end, header b) { letter-spacing: var(--tr-title); }
 </style>
 </head>
 <body>
 <header>
   <b>가닥<i>GADAK</i></b><span class="crumb-map">전체 지도</span>
   <button class="axis" id="poster-btn" type="button">포스터로 보기</button>
-  <span id="types"></span>
   <button id="back">← 전체 지도</button><span id="crumb"></span>
   <button class="open" id="open" type="button">대화 열기</button>
   <small id="meta"></small>
@@ -250,16 +244,6 @@ if (real?.projects?.length) {
   START = new Date(y, m - 1, d); TODAY = real.today; DATA = real;
 }
 
-// 글자 시안: ?type=close(본문 좁게) · normal(본문 보통). 둘 다 제목은 아주 좁게. 없으면 지금 그대로(SUIT)
-const TYPES = [["", "SUIT"], ["close", "본문 좁게"], ["normal", "본문 보통"]];
-const TYPE = TYPES.some(([k]) => k && k === params.get("type")) ? params.get("type") : "";
-if (TYPE) document.documentElement.dataset.type = TYPE;
-for (const [k, name] of TYPES) {
-  const b = document.createElement("button");
-  Object.assign(b, { type: "button", className: "axis" + (k === TYPE ? " on" : ""), textContent: name });
-  b.onclick = () => { const q = new URLSearchParams(location.search); k ? q.set("type", k) : q.delete("type"); location.search = q; };
-  document.getElementById("types").append(b);
-}
 await document.fonts.ready;   // 글자 폭을 재서 자리를 잡으니, 글꼴이 다 온 뒤에 그려요
 
 const NS = "http://www.w3.org/2000/svg";
