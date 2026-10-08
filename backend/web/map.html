@@ -59,15 +59,13 @@ text { font-family: var(--font); fill: var(--ink); }
 /* 포스터 보기: 같은 대화를 비녤리 포스터처럼 (굵은 단색 선 · 흰 틈 · 45°와 90° 꺾임 · 큰 제목) */
 #poster { opacity: 0; pointer-events: none; }
 #poster text { font-family: var(--vfont); }
-/* 글자 시안 (?type=tight · close · duo): 한글 Pretendard + 로마자 헬베티카, 제목과 본문에 같은 자간. 지도 · 한 줄 노선도 · 포스터가 같이 바뀌어요 */
-html[data-type] { --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif; --vfont: var(--font); }
-html[data-type="tight"], html[data-type="duo"] { --tr: -0.08em; }
+/* 글자 시안 (?type=close · normal): 한글 Pretendard + 로마자 헬베티카. 제목은 아주 좁게(-0.08em), 본문은 좁게(-0.05em) 또는 보통(0).
+   지도 · 한 줄 노선도 · 포스터가 같이 바뀌어요 */
+html[data-type] { --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif; --vfont: var(--font); --tr-title: -0.08em; }
 html[data-type="close"] { --tr: -0.05em; }
-html[data-type] :is(text, tspan, header b, header span, .key) { letter-spacing: var(--tr) !important; }
-/* 섞어 쓰기: 좁게 뭉친 한글 옆에 로마자만 넓게 벌려요 (비녤리 포스터의 ‘Vignelli / Massimo’) */
-html[data-type="duo"] :is(.p-small, header b i) { letter-spacing: 0.5em !important; }
-html[data-type="duo"] header b i { font-size: 11px; margin-left: 10px; vertical-align: 3px; }
-.p-small { font: 700 40px var(--vfont); fill: var(--ink2); }
+html[data-type="normal"] { --tr: 0em; }
+html[data-type] :is(text, tspan, header span, .key) { letter-spacing: var(--tr) !important; }
+html[data-type] :is(.p-title, .p-title tspan, .title, .st-title, header b) { letter-spacing: var(--tr-title) !important; }
 header .axis.on { text-decoration: none; font-weight: 700; opacity: 1; }
 .poster-on #poster { opacity: 1; pointer-events: auto; }
 .poster-on #map { opacity: 0; pointer-events: none; }
@@ -252,8 +250,8 @@ if (real?.projects?.length) {
   START = new Date(y, m - 1, d); TODAY = real.today; DATA = real;
 }
 
-// 글자 시안: ?type=tight(아주 좁게) · close(좁게) · duo(섞어 쓰기). 없으면 지금 그대로(SUIT)
-const TYPES = [["", "SUIT"], ["tight", "아주 좁게"], ["close", "좁게"], ["duo", "섞어 쓰기"]];
+// 글자 시안: ?type=close(본문 좁게) · normal(본문 보통). 둘 다 제목은 아주 좁게. 없으면 지금 그대로(SUIT)
+const TYPES = [["", "SUIT"], ["close", "본문 좁게"], ["normal", "본문 보통"]];
 const TYPE = TYPES.some(([k]) => k && k === params.get("type")) ? params.get("type") : "";
 if (TYPE) document.documentElement.dataset.type = TYPE;
 for (const [k, name] of TYPES) {
@@ -741,15 +739,11 @@ function drawPoster() {
   const decs = P.reduce((s, p) => s + p.chats.reduce((t, c) => t + c.turns.filter(u => u.d).length, 0), 0);
   // 제목: 비녤리 포스터처럼 한 줄로 크게 ‘가닥 GADAK’ (로마자는 헬베티카)
   const title = el("text", { "text-anchor": "end", class: "p-title" }, marks);
-  // 섞어 쓰기 시안이면 ‘가닥’ 아래에 작게 넓게 벌린 ‘GADAK’
-  const duo = document.documentElement.dataset.type === "duo";
-  title.textContent = duo ? "가닥" : "가닥 ";
-  if (!duo) el("tspan", { class: "p-latin" }, title).textContent = "GADAK";
+  title.textContent = "가닥 "; el("tspan", { class: "p-latin" }, title).textContent = "GADAK";
   const tw = title.getComputedTextLength();
-  const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + (duo ? 170 : 190) : bot - (duo ? 120 : 70);
+  const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + 190 : bot - 70;
   title.setAttribute("x", tx + tw); title.setAttribute("y", ty);
-  if (duo) el("text", { x: tx + tw + 20, y: ty + 58, "text-anchor": "end", class: "p-small" }, marks).textContent = "GADAK";
-  el("text", { x: tx + tw, y: ty + (duo ? 104 : 48), "text-anchor": "end", class: "p-sub" }, marks).textContent =
+  el("text", { x: tx + tw, y: ty + 48, "text-anchor": "end", class: "p-sub" }, marks).textContent =
     `${dayLabel(0)} – 오늘 · 프로젝트 ${n} · 대화 ${Object.keys(chats).length} · 정함 ${decs}`;
   // 견본 칸 폭은 이름 길이대로
   const names = P.map(p => { const t = el("text", { "text-anchor": "middle", class: "p-name" }, marks); t.textContent = p.name; return t; });
