@@ -196,7 +196,7 @@
         // 이 역과 여기서 갈라진 곁길의 안 한 할 일: 역 바로 아래에 세로로 고리를 쌓아요 (접힌 눈금은 작은 고리 하나)
         var todo = [t].concat(groups[t.id] || [], stubs[t.id] || []).reduce(function (a, n) { return a.concat(g.itemsOf(n)); }, [])
           .filter(function (it) { var s = g.stateOf(it); return s !== 'done' && s !== 'dismissed'; });
-        if (!open && todo.length) { var tt = el('i', 'tick-ti'); tt.style.left = p.x + 'px'; tt.style.top = (Y0 + 14) + 'px'; mapEl.appendChild(tt); }
+        if (!open && todo.length) { var tt = el('i', 'tick-ti'); tt.style.left = p.x + 'px'; tt.style.top = (Y0 + 14) + 'px'; wireTodo(tt, todo); mapEl.appendChild(tt); }
         b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
         b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' 로 이동');
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
@@ -216,9 +216,9 @@
         if (af.length > 1) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); l.appendChild(more); }
         // 그다음 안 한 할 일: 빨간 고리를 하나씩 세로로 (셋까지, 넘으면 +n). 끝낸 할 일은 카드에 그리지 않아요(한 줄 노선도 · 목록에서 회색 고리로)
         if (todo.length) {
-          var col = el('span', 'tis'); col.title = todo.map(function (it) { return '할 일 · ' + it.text; }).join('\n');
-          todo.slice(0, todo.length > 3 ? 2 : 3).forEach(function () { col.appendChild(el('i', 'ti')); });
-          if (todo.length > 3) col.appendChild(el('span', 'tmore', '+' + (todo.length - 2)));
+          var col = el('span', 'tis');
+          todo.slice(0, todo.length > 3 ? 2 : 3).forEach(function (it) { var r = el('i', 'ti'); wireTodo(r, [it]); col.appendChild(r); });
+          if (todo.length > 3) { var tm = el('span', 'tmore', '+' + (todo.length - 2)); wireTodo(tm, todo.slice(2)); col.appendChild(tm); }
           l.appendChild(col);
         }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
@@ -294,6 +294,20 @@
       b.addEventListener('focus', function () { showTip(t, b); });
       b.addEventListener('blur', function () { tip.hidden = true; });
     };
+    // 할 일 고리에 올리면: 종류 · 내용 · 어느 역에서 (역 점과 같은 가닥 툴팁)
+    function wireTodo(b, items) {
+      b.addEventListener('mouseenter', function () {
+        tip.innerHTML = '';
+        items.forEach(function (it, i) {
+          var at = it.at && g.byId[it.at] ? g.byId[it.at] : it.t;
+          tip.appendChild(el('b', null, (G.KIND[it.kind] ? G.KIND[it.kind].label : '할 일')));
+          tipLine(it.text);
+          if (at) tipLine(g.numLabel(at) + ' ' + at.title + '에서', 's');
+        });
+        placeTip(b);
+      });
+      b.addEventListener('mouseleave', function () { tip.hidden = true; });
+    }
     function wireGroup(b, nodes, target, anchor, active) {
       function show() {
         tip.innerHTML = ''; tip.appendChild(el('b', null, active ? '곁길 · 지금 여기' : '곁길 ' + nodes.length + '개'));
