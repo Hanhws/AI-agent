@@ -226,14 +226,16 @@
       });
       // 환승하기: 노선 끝에서 다음 대화로 가는 검은 막대 + 열린 꺾쇠 (전체 지도의 환승과 같은 모양). 누르면 요약을 복사해요
       if (xfer) {
-        var x0 = lastM.x + (tail ? step * tail : 0) + step / 2, x1 = x0 + 52;
-        path('M ' + x0 + ' ' + Y0 + ' H ' + x1, 'var(--fg)', 4).setAttribute('class', 'xfer');
-        path('M ' + (x1 - 9) + ' ' + (Y0 - 9) + ' L ' + (x1 + 1) + ' ' + Y0 + ' L ' + (x1 - 9) + ' ' + (Y0 + 9), 'var(--fg)', 4).setAttribute('class', 'xfer');
+        // 짧은 꼬리 + 끝이 뾰족한 채운 삼각형 머리. 선 끝은 각지게 (둥근 꺾쇠보다 딱딱하게)
+        var x0 = lastM.x + (tail ? step * tail : 0) + step / 2, x1 = x0 + 40;
+        var shaft = path('M ' + x0 + ' ' + Y0 + ' H ' + (x1 - 14), 'var(--fg)', 5); shaft.setAttribute('class', 'xfer'); shaft.setAttribute('stroke-linecap', 'butt');
+        var head = path('M ' + (x1 - 16) + ' ' + (Y0 - 9) + ' L ' + x1 + ' ' + Y0 + ' L ' + (x1 - 16) + ' ' + (Y0 + 9) + ' Z', 'none', 0);
+        head.setAttribute('class', 'xfer'); head.style.fill = 'var(--fg)'; head.removeAttribute('pathLength');
         var xb = el('button', 'xfer-btn'); xb.type = 'button'; xb.style.left = x0 + 'px'; xb.style.top = (Y0 - 18) + 'px'; xb.style.width = (x1 - x0 + 8) + 'px';
         xb.setAttribute('aria-label', '환승하기: 다음 대화에 붙일 요약 복사');
         xb.onclick = function () { g.hooks.handoff(); };
         mapEl.appendChild(xb);
-        var xl = el('div', 'lbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);
+        var xl = el('div', 'lbl xlbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);   // 글자는 화살표 가운데 아래
       }
       // reference arcs (U3 repeats, cross-chat refs) as faint curves under the line
       // 참조 호(빨간 점선)는 그리지 않아요: 빨강은 ‘지금 · 할 일’에만이고, 노선 위가 번잡해져요. 연결은 역 툴팁의 ‘↩ … 와 연결’에 있어요

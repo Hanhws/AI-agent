@@ -140,6 +140,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .lbl .t.dec { font-weight: 700; color: var(--fg); }
 .lbl .f { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: var(--tr-small); }
 .lbl .f.more { padding-left: 13px; color: var(--faint); }
+.lbl.xlbl { transform: translateX(-50%); align-items: center; text-align: center; }   /* ‘환승하기’는 화살표 가운데 아래 */
 /* 역 아래 할 일 고리: 역 점 바로 아래에 세로로 한 줄 (안 한 일 빨간 테두리 · 끝낸 일 회색 테두리). 노선도 카드에서는 역 옆에 붙던 작은 고리를 쓰지 않아요 */
 .map .st.todo::after { display: none; }
 .lbl .tis { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-left: -3.5px; pointer-events: auto; }
