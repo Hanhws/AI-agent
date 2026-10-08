@@ -744,11 +744,34 @@ function drawPoster() {
     names[i].setAttribute("x", x); names[i].setAttribute("y", ky + 70);
   });
 }
+// ── 그려지는 움직임: 노선마다 자기 시작점에서 동시에 그어지고(시작은 살짝씩 어긋나게, 긴 노선일수록 오래),
+//    역 · 이름 · 환승은 노선이 그 자리에 닿을 즈음 떠올라요. 전체 지도를 열 때 · 포스터와 지도를 오갈 때마다
+function drawIn(root) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = root.getBBox(), x0 = box.x, span = Math.max(1, box.width), RUN = 1500;   // 가장 긴 노선이 그어지는 데 1.5초
+  const ease = "cubic-bezier(.2, .8, .2, 1)";
+  for (const p of root.querySelectorAll("path")) {
+    if (p.closest("defs, clipPath") || p.getAttribute("stroke") === "transparent" || p.getAttribute("stroke-dasharray")) continue;
+    const L = p.getTotalLength(); if (!L) continue;
+    const start = p.getPointAtLength(0), lead = Math.random() * 280;   // 각기 다른 시작점에서, 거의 동시에
+    p.style.strokeDasharray = `${L} ${L}`;
+    p.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: 250 + RUN * Math.min(1, L / span), delay: lead + (start.x - x0) / span * 300, easing: ease, fill: "backwards" })
+      .onfinish = () => { p.style.strokeDasharray = ""; };
+  }
+  for (const e of root.querySelectorAll("circle, text, line, rect:not(.p-paper)")) {
+    if (e.closest("defs, clipPath") || e.closest(".grid")) continue;
+    const b = e.getBBox(), at = (b.x + b.width / 2 - x0) / span;
+    e.animate([{ opacity: 0 }, { opacity: 1 }],   // 흐림만: 45° 이름은 회전을 transform 속성으로 걸어 둬서, 움직임에 이동을 넣으면 회전이 풀려 보여요
+      { duration: 380, delay: 200 + at * RUN, easing: ease, fill: "backwards" });
+  }
+}
+
 function togglePoster(on) {
   document.body.classList.toggle("poster-on", on);
   document.getElementById("poster-btn").textContent = on ? "지도로 보기" : "포스터로 보기";
   if (on && !posterDrawn) drawPoster();
   cur().all(true);
+  drawIn(on ? pworld : world);
   const q = new URLSearchParams(location.search); on ? q.set("poster", "") : q.delete("poster"); history.replaceState(null, "", `?${q}`);
 }
 document.getElementById("poster-btn").onclick = () => togglePoster(!document.body.classList.contains("poster-on"));
@@ -911,6 +934,7 @@ mapZ.all(true);
 const deep = new URLSearchParams(location.search).get("chat");
 if (chats[deep]) openStrip(deep);
 else if (new URLSearchParams(location.search).has("poster")) togglePoster(true);
+else drawIn(world);
 </script>
 </body>
 </html>
