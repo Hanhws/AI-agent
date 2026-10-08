@@ -2,8 +2,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from backend import store
+from backend import config, store
 from backend.agent import classify, investigate, tools, trace
 from backend.app import create_app
 from backend.engines import EngineError
@@ -41,16 +42,21 @@ def labels(payload, **by_id):
 
 
 class Engine:
-    """1단 · 2단을 같이 흉내 내요. 2단은 걸음마다 정해 둔 답을 차례로 돌려줘요."""
+    """1단 · 2단을 같이 흉내 내요. 2단과 앞길 살피기(ahead)는 걸음마다 정해 둔 답을 차례로 돌려줘요."""
     name = "fake"
 
-    def __init__(self, classify_answer=labels, steps=()):
+    def __init__(self, classify_answer=labels, steps=(), ahead=()):
         self.classify_answer = classify_answer
         self.steps = list(steps)
+        self.ahead = list(ahead)
         self.calls = []
 
     def complete_json(self, system, prompt, schema):
         payload = json.loads(prompt)
+        if "ahead" in payload:
+            self.calls.append(("ahead", payload, schema))
+            step = self.ahead.pop(0) if self.ahead else {"think": "없어요", "tool": "finish", "arg": None, "goal": None, "paths": []}
+            return step(payload, schema) if callable(step) else step
         if "trigger" in payload:
             self.calls.append(("check", payload, schema))
             step = self.steps.pop(0) if self.steps else finish()

@@ -58,6 +58,24 @@ class RulesTest(unittest.TestCase):
         self.chat("fork", ["조인 개념 질문"], at="2026-10-02T00:00:00+00:00")
         self.assertEqual(self.classify("fork", t1={"title": "JOIN 종류 설명"})[1], [])
 
+    def test_chats_carried_on_from_one_another_are_not_earlier_chats(self):
+        """Claude Code에서 대화를 이어 받으면(fork) 새 대화가 앞 대화의 턴을 처음부터 그대로 담아서 만든 시각이 같아요.
+        그런 대화끼리는 ‘지난 대화’가 아니에요. 같은 대화의 옆 턴과 짝지으면 반복 질문이 아닌 것이 반복 질문이 돼요."""
+        day, talk = "2026-10-02T09:00:00+00:00", ["알림을 어디로 보낼까", "무료로 돼?", "연결했어"]
+        names = {"t1": {"title": "알림 채널 확인"}, "t2": {"title": "텔레그램 봇 연결"}, "t3": {"title": "텔레그램 봇 연결"}}
+        self.chat("first", talk, at=day)
+        self.chat("carried", talk + ["알림 채널은 어디에 적지"], at=day)        # 이어 받은 대화: 앞의 세 턴은 그대로, 한 턴이 늘었어요
+        for chat_id in ("first", "carried", "first"):                            # 어느 쪽을 먼저 정리해도, 다시 정리해도
+            items = self.classify(chat_id, **names, t4={"title": "알림 채널 확인하기"})
+            self.assertEqual([i["kind"] for turn in items.values() for i in turn], [], chat_id)
+        # 정말 다른 대화(먼저 시작했고 이 턴을 담고 있지 않은 대화)의 비슷한 역은 그대로 잡아요
+        self.chat("before", ["봇은 어떻게 붙이지"], at="2026-10-01T00:00:00+00:00")
+        self.classify("before", t1={"title": "텔레그램 봇 연결"})
+        self.chat("later", talk + ["또 물어볼게"], at="2026-10-05T00:00:00+00:00")   # 시각이 달라도 이 턴을 그대로 담은 대화는 빼요
+        items = self.classify("later", **names, t4={"title": "다른 이야기"})
+        at = {i["at"] for turn in items.values() for i in turn if i["kind"] == "repeat"}
+        self.assertEqual(at, {store.chat_turns(self.conn, "before")[0]["id"]})
+
     def test_many_topics_suggest_a_transfer_once(self):
         self.chat("c1", [f"질문 {n}" for n in range(1, 7)])
         segs = {"segs": [{"from": "1", "name": "JOIN"}, {"from": "3", "name": "뷰"}, {"from": "5", "name": "집계"}]}
@@ -78,6 +96,22 @@ class RulesTest(unittest.TestCase):
         with self.conn:
             store.set_items(self.conn, turn, [{"kind": "missing", "text": "표가 빠졌어요"}])
         self.assertEqual([(i["id"][-2:], i["kind"]) for i in store.turn_items(self.conn, turn)], [(":0", "open"), (":1", "missing")])
+
+    def test_rule_items_ahead_paths_and_checker_items_share_a_turn(self):
+        self.chat("c1", ["시작", "a", "b", "c", "본론"])
+        self.classify("c1", t2={"depth": 1}, t3={"depth": 1}, t4={"depth": 1})
+        turn = store.chat_turns(self.conn, "c1")[4]["id"]
+        kinds = lambda: sorted((i["id"][len(turn):], i["kind"]) for i in store.turn_items(self.conn, turn))
+        with self.conn:      # 앞길 살피기가 낸 길(<턴>:a<n>)과 2단이 찾은 할 일이 같은 턴에 붙어요
+            store.set_ahead_items(self.conn, turn, [{"kind": "next", "text": "이어 가기 · 문구 정하기"}])
+            store.set_items(self.conn, turn, [{"kind": "missing", "text": "표가 빠졌어요"}])
+        self.assertEqual(kinds(), [(":0", "open"), (":1", "missing"), (":a0", "next")])
+        with self.conn:      # 2단이 다시 써도 규칙 할 일과 길은 남고, 2단의 것만 바뀌어요
+            store.set_items(self.conn, turn, [{"kind": "unasked", "text": "하나"}, {"kind": "handoff", "text": "둘"}])
+        self.assertEqual(kinds(), [(":0", "open"), (":1", "unasked"), (":2", "handoff"), (":a0", "next")])
+        with self.conn:      # 다시 살피면 길만 바뀌어요
+            store.set_ahead_items(self.conn, turn, [])
+        self.assertEqual(kinds(), [(":0", "open"), (":1", "unasked"), (":2", "handoff")])
 
 
 if __name__ == "__main__":

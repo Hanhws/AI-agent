@@ -20,7 +20,23 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
 .citem.on { background: var(--bubble); color: var(--fg); font-weight: 500; }
 .citem.flash { background: var(--flash); }
 .citem.rep span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent); margin-right: 6px; vertical-align: 1px; }
-.sitemain { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--surface); }
+/* 가운데: 왼쪽 기둥에 노선도 카드와 그 아래 대화, 오른쪽 기둥에 목록(할 일 · 정한 것 · 산출물 · 앞길)을 위에서 아래까지 */
+.sitemain { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 0; min-width: 0; background: var(--surface); }
+.maincol { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.maincol .chat { padding-right: 24px; }
+/* 노선도 카드의 머리줄은 한 줄로: 자리가 모자라면 제목과 상태 글이 줄어들어요 */
+.maincol .dhead { flex-wrap: nowrap; }
+.maincol .dhead > * { flex: none; }
+.maincol .dhead .map-title, .maincol .dhead .map-status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.maincol .dhead .sp { flex: 1 1 0; }
+.maincol .nudge-web { right: 20px; }
+.sidecol { width: 380px; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--surface); }
+.sidecol[hidden] { display: none; }
+@media (max-width: 1180px) { .sidecol { width: 320px; } }
+/* 접어 둔 노선도 카드를 다시 펴는 버튼 */
+.unfold { align-self: flex-start; margin: 10px 16px 0; height: 28px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); font-size: 12.5px; color: var(--muted); cursor: pointer; letter-spacing: var(--tr-small); }
+.unfold:hover { color: var(--fg); border-color: var(--ring); }
+.unfold[hidden] { display: none; }
 .chatwrap { position: relative; flex: 1; min-height: 0; }
 .chat { position: absolute; inset: 0; overflow-y: auto; padding: 22px calc(var(--railw) + 24px) 24px 24px; }
 .appmain .chat { padding-right: 28px; }
@@ -129,6 +145,15 @@ button.citem.on:hover { background: var(--bubble); }
 .srcpop .src .btn { align-self: flex-start; margin-top: 4px; }
 .gone { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--bg); color: var(--muted); font-size: 14px; }
 .gone b { font-family: var(--display); font-size: 22px; color: var(--fg2); font-weight: 600; }
+
+/* AI 연결: 찾은 곳과 같은 자리 · 같은 카드. 지금 쓰는 것은 테두리를 진하게 */
+.aipop { width: min(380px, calc(100vw - 28px)); }
+.aipop .src.now { border-color: var(--fg); }
+.aipop .src .w.fail { color: var(--accent); }
+.aipop .src input { flex: 1; min-width: 0; height: 26px; padding: 0 9px; border: 1px solid var(--ring); border-radius: 6px; background: var(--surface); color: var(--fg); font: inherit; font-size: 12px; letter-spacing: var(--tr-small); }
+.aipop .src input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+.aipop > .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.aipop .btn:disabled { opacity: .45; cursor: default; }
 
 /* 사용 기록 보내기 */
 .srcpop .src .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }

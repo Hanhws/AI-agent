@@ -6,3 +6,10 @@ body { color: var(--fg); font-family: var(--body); letter-spacing: var(--tr-body
 .strip .none { padding: 18px 20px 20px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
 .strip .none b { display: block; font-family: var(--display); font-size: 17px; color: var(--fg2); margin-bottom: 2px; }
 .strip .toast { bottom: 40px; }
+/* 목록 창 (?only=list): 노선도 카드 없이 목록만. 창 높이만큼 차고, 넘치면 목록 안에서 스크롤해요 */
+.strip.listonly { height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; }
+.strip .lcard { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.strip .lcard .dhead { padding-bottom: 6px; flex-wrap: nowrap; }
+.strip .lcard .map-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip .lcard .dhead .sp { flex: 1; }
+.strip .lcard .dhead .mk, .strip .lcard .dhead .btn { flex: none; white-space: nowrap; }

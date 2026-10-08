@@ -6,6 +6,7 @@ agent_runs 테이블과 turns의 look · checked는 2단(확인)을 붙이며 �
 auto_log는 가닥이 직접 보낸 것의 기록이에요 (승인한 종류의 자동 실행 · backend/auto.py).
 chats.hidden은 사용자가 목록에서 뺀 대화예요(1). 읽어 둔 글은 그대로 두고, 화면 · 찾기 · 정리에서만 빠져요.
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
+turns.gist는 답을 간추린 두세 줄이에요(JSON 배열). 1단이 분류할 때 같이 적어요. NULL은 아직 안 적은 것, []는 적을 것이 없던 것.
 """
 import collections
 import json
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS turns(
   classified INTEGER NOT NULL DEFAULT 0,
   look TEXT,
   checked INTEGER NOT NULL DEFAULT 0,
+  gist TEXT,
   UNIQUE(chat_id, message_ref)
 );
 CREATE TABLE IF NOT EXISTS parts(
@@ -136,7 +138,7 @@ CREATE TABLE IF NOT EXISTS auto_log(
 # 먼저 만들어진 DB에 없는 열 (CREATE TABLE IF NOT EXISTS는 열을 더해 주지 않아요)
 ADDED_COLUMNS = {
     "chats": {"via": "TEXT", "cwd": "TEXT", "hidden": "INTEGER NOT NULL DEFAULT 0"},
-    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0", "dec_note": "TEXT"},
+    "turns": {"look": "TEXT", "checked": "INTEGER NOT NULL DEFAULT 0", "gist": "TEXT", "dec_note": "TEXT"},
 }
 
 NO_PROJECT = "_none"
@@ -148,8 +150,11 @@ CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done"}
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
-SCHEMA_VERSION = 8   # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화) · 7: scratch 폴더 대화 묶기 · 8: turns.dec_note
+# 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화)
+# 7 · 8: 두 가지에서 따로 올린 번호예요 (turns.gist 답 간추림 / scratch 폴더 대화 묶기 · turns.dec_note). 9: 둘을 합침
+SCHEMA_VERSION = 9
 _setup = threading.Lock()  # 여러 스레드가 동시에 처음 열면 테이블 만들기가 서로 막혀요
+_checked = set()           # 이 프로세스에서 열 확인을 마친 저장소
 
 
 def now() -> str:
@@ -180,6 +185,12 @@ def connect(db_path) -> sqlite3.Connection:
     if conn.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
         with _setup:
             _create(conn)
+    elif str(path) not in _checked:
+        # 판 번호가 이미 높은 저장소예요(다른 가지의 코드가 먼저 올려 뒀을 수 있어요). 번호만 믿지 않고, 이 코드가 쓰는 열이 있는지 봐요
+        with _setup:
+            _add_columns(conn)
+            conn.commit()
+    _checked.add(str(path))
     return conn
 
 
@@ -188,16 +199,21 @@ def _create(conn) -> None:
         return
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
-    for table, columns in ADDED_COLUMNS.items():
-        have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
-        for name, kind in columns.items():
-            if name not in have:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+    _add_columns(conn)
+    # 폴더 없이 연 데스크톱 대화(임시 폴더)는 한 프로젝트로 묶어요
     if conn.execute("SELECT 1 FROM chats WHERE cwd LIKE '%/scratch-workspaces/%' LIMIT 1").fetchone():
         conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (LOOSE_PROJECT, LOOSE_PROJECT))
         conn.execute("UPDATE chats SET project_id = ? WHERE cwd LIKE '%/scratch-workspaces/%'", (LOOSE_PROJECT,))
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
+
+
+def _add_columns(conn) -> None:
+    for table, columns in ADDED_COLUMNS.items():
+        have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, kind in columns.items():
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
 
 
 def provisional_title(text: str) -> str:
@@ -401,12 +417,15 @@ def add_file(conn, turn_id, name, url=None) -> None:
 
 
 def set_classification(conn, turn_id, *, title, depth, seg=None, topic=None, dec=None, ret=False,
-                       ref=None, parts=None, look=None, dec_note=None) -> None:
-    """1단 분류 결과를 역에 적어요 (backend/agent/classify.py). look은 2단이 확인할 까닭들이에요."""
+                       ref=None, parts=None, look=None, gist=None, dec_note=None) -> None:
+    """1단 분류 결과를 역에 적어요 (backend/agent/classify.py). look은 2단이 확인할 까닭들이에요.
+    gist는 답을 간추린 줄들이에요. 없으면 빈 목록으로 적어 둬요(다시 묻지 않게).
+    dec_note는 정한 것을 대화 밖에서도 읽히게 풀어 쓴 한 문장이에요 (이어 가기 요약에 써요)."""
     conn.execute(
         "UPDATE turns SET title = ?, depth = ?, seg = ?, topic = ?, dec = ?, dec_note = ?, ret = ?, ref = ?, classified = 1,"
-        " look = ?, checked = 0 WHERE id = ?",
-        (title, depth, seg, topic, dec, dec_note, 1 if ret else 0, ref, ",".join(look) if look else None, turn_id),
+        " look = ?, checked = 0, gist = ? WHERE id = ?",
+        (title, depth, seg, topic, dec, dec_note, 1 if ret else 0, ref, ",".join(look) if look else None,
+         json.dumps(list(gist or []), ensure_ascii=False), turn_id),
     )
     conn.execute("DELETE FROM parts WHERE turn_id = ?", (turn_id,))
     for idx, part in enumerate(parts or []):
@@ -418,9 +437,21 @@ def set_classification(conn, turn_id, *, title, depth, seg=None, topic=None, dec
 
 def reset_classification(conn, turn_id) -> None:
     """답이 달라진 턴은 분류 전으로 돌려요. 그 턴에서 나눈 요청과 만든 할 일도 지워요 (다시 정리하면 새로 생겨요)."""
-    conn.execute("UPDATE turns SET classified = 0, look = NULL, checked = 0 WHERE id = ?", (turn_id,))
+    conn.execute("UPDATE turns SET classified = 0, look = NULL, checked = 0, gist = NULL WHERE id = ?", (turn_id,))
     conn.execute("DELETE FROM parts WHERE turn_id = ?", (turn_id,))
     conn.execute("DELETE FROM items WHERE turn_id = ?", (turn_id,))
+
+
+def set_gist(conn, turn_id, lines) -> None:
+    """이미 분류한 역에 답 간추림만 채워요. 분류 · 할 일은 그대로 둬요."""
+    conn.execute("UPDATE turns SET gist = ? WHERE id = ?", (json.dumps(list(lines or []), ensure_ascii=False), turn_id))
+
+
+def without_gist(conn, chat_id) -> list:
+    """분류는 됐는데 답 간추림이 아직 없는 턴 (gist 칸이 생기기 전에 분류한 것)."""
+    return conn.execute(
+        "SELECT * FROM turns WHERE chat_id = ? AND classified = 1 AND gist IS NULL ORDER BY seq", (chat_id,)
+    ).fetchall()
 
 
 def put_in_order(conn, chat_id, turn_ids) -> bool:
@@ -462,9 +493,10 @@ RULE_KINDS = ("open", "repeat", "topic")   # 엔진 없이 규칙으로 만드�
 
 
 def set_items(conn, turn_id, items) -> list:
-    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요."""
-    conn.execute("DELETE FROM items WHERE turn_id = ? AND kind NOT IN (%s)" % ",".join("?" * len(RULE_KINDS)),
-                 (turn_id, *RULE_KINDS))
+    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요.
+    규칙 할 일(RULE_KINDS · add_items)과 앞길 살피기가 낸 길(<turnId>:a<n> · set_ahead_items)은 건드리지 않아요."""
+    conn.execute("DELETE FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) != ':a' AND kind NOT IN (%s)"
+                 % ",".join("?" * len(RULE_KINDS)), (turn_id, *RULE_KINDS))
     return _insert_items(conn, turn_id, items)
 
 
@@ -477,23 +509,38 @@ def add_items(conn, turn_id, items) -> list:
 
 
 def _insert_items(conn, turn_id, items) -> list:
+    """<turnId>:<n>에서 비어 있는 번호에 차례로 넣어요 (남겨 둔 규칙 할 일과 번호가 겹치지 않게)."""
     taken = {r["id"] for r in conn.execute("SELECT id FROM items WHERE turn_id = ?", (turn_id,))}
     ids, n = [], 0
     for item in items:
         while f"{turn_id}:{n}" in taken:
             n += 1
         taken.add(f"{turn_id}:{n}")
-        item_id = f"{turn_id}:{n}"
-        pop = item.get("pop")
-        conn.execute(
-            "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
-            " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
-            (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
-             item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
-             item_id, now()),
-        )
-        ids.append(item_id)
+        ids.append(_add_item(conn, turn_id, f"{turn_id}:{n}", item))
     return ids
+
+
+def set_ahead_items(conn, turn_id, items) -> list:
+    """앞길 살피기(backend/agent/ahead.py)가 그 턴에서 낸 길을 적어요. id는 <turnId>:a<n>.
+    다시 살피면 길이 달라지니, 앞서 낸 길과 그 상태(나중에 · 끝냄)는 지우고 새로 적어요."""
+    old = [r["id"] for r in conn.execute(
+        "SELECT id FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) = ':a'", (turn_id,))]
+    for item_id in old:
+        conn.execute("DELETE FROM item_states WHERE id = ?", (item_id,))
+        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
+    return [_add_item(conn, turn_id, f"{turn_id}:a{n}", item) for n, item in enumerate(items)]
+
+
+def _add_item(conn, turn_id, item_id, item) -> str:
+    pop = item.get("pop")
+    conn.execute(
+        "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
+        " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
+        (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
+         item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
+         item_id, now()),
+    )
+    return item_id
 
 
 def log_auto(conn, chat_id, kind, text, item_id=None) -> None:
@@ -535,11 +582,12 @@ def chat_row(conn, chat_id):
     return conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
 
 
-def now_chat(conn):
-    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None."""
+def now_chat(conn, project=None):
+    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None.
+    project를 주면 그 프로젝트 안에서 골라요 (떠 있는 버튼의 프로젝트 버튼)."""
     return conn.execute(
-        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0"
-        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1"
+        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0 AND (? IS NULL OR c.project_id = ?)"
+        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1", (project, project)
     ).fetchone()
 
 
@@ -573,6 +621,9 @@ def turn_public(conn, row, clip=False, cwd=None) -> dict:
             turn[key] = row[key]
     if row["ret"]:
         turn["ret"] = True
+    gist = json.loads(row["gist"]) if row["gist"] else []
+    if gist:
+        turn["gist"] = gist           # 답을 간추린 두세 줄. 원문은 ai에 있어요 (길면 turn_full)
     files = [
         {"n": shown_name(r["name"], cwd), "u": r["url"]} if r["url"] else shown_name(r["name"], cwd)
         for r in conn.execute("SELECT name, url FROM files WHERE turn_id = ? ORDER BY rowid", (row["id"],))

@@ -3,6 +3,7 @@
 지난 대화를 불러올 때는 턴마다 부르면 너무 느리고 구독 한도를 많이 써서, 한 대화의 턴을 몇 개씩
 묶어 한 번에 물어요. 프롬프트 원문은 backend/prompts/classify.txt (문구는 기획 담당).
 같은 호출에서 2단(investigate.py)이 확인할 후보도 받아요: 빠진 것 같은 요청(open) · 요청보다 넓은 변경(wide).
+답을 간추린 두세 줄(gist)도 같은 호출에서 받아요. 화면이 턴을 접어 보여 줄 때 써요 (호출 수는 그대로, 출력만 조금 늘어요).
 """
 import collections
 import json
@@ -12,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .. import config, store, tokens, usage
-from ..engines import EngineError, OutOfCalls, get_engine, resolve_name
+from ..engines import BadOutput, EngineError, OutOfCalls, get_engine, resolve_name
 from . import investigate, rules, tools
 
 SYSTEM = (config.ROOT / "backend" / "prompts" / "classify.txt").read_text(encoding="utf-8")
@@ -32,8 +33,9 @@ SCHEMA = {
                 "required": ["t", "type", "target", "open"], "additionalProperties": False,
             }},
             "wide": {"type": "boolean"},
+            "gist": {"type": "array", "items": {"type": "string"}},
         },
-        "required": ["id", "title", "depth", "seg", "topic", "chose", "dec", "dec_note", "ref", "parts", "wide"],
+        "required": ["id", "title", "depth", "seg", "topic", "chose", "dec", "dec_note", "ref", "parts", "wide", "gist"],
         "additionalProperties": False,
     }}},
     "required": ["turns"], "additionalProperties": False,
@@ -51,7 +53,8 @@ SEG_SCHEMA = {
 
 CHUNK = 8                 # 한 번에 묻는 턴 수
 USER_CLIP = 500           # 질문은 앞부분
-AI_HEAD, AI_TAIL = 220, 220   # 답은 앞과 끝 (결론은 끝에 있어요)
+AI_HEAD, AI_TAIL = 500, 400   # 답은 앞과 끝 (결론은 끝에 있어요). 간추리려면 분류할 때(220 · 220)보다 넉넉히 봐야 해요
+GIST_LINES, GIST_MAX = 4, 70  # 답 간추림: 줄 수 · 한 줄 길이
 STATE_MAINS, STATE_DECISIONS = 12, 8
 TITLE_MAX, SEG_MAX, DEC_MAX, PART_MAX = 18, 12, 40, 60   # 역 라벨은 두 줄(12자 안팎)까지 보여요
 DEC_NOTE_MAX = 120        # 정한 것을 풀어 쓴 한 문장 (이어 가기 요약에 써요)
@@ -75,6 +78,12 @@ def _word(value, limit):
     if len(value) > limit:
         value = value[:limit - 1].rstrip() + "…"
     return value or None
+
+
+def gist_lines(value) -> list:
+    """엔진이 준 답 간추림을 화면에 실을 모양으로: 글 줄만, 너무 긴 줄은 자르고, 네 줄까지."""
+    lines = [_word(line, GIST_MAX) for line in value] if isinstance(value, list) else []
+    return [line for line in lines if line][:GIST_LINES]
 
 
 def _age(row) -> float:
@@ -181,13 +190,16 @@ def apply_output(conn, rows, batch, output) -> int:
         parts = parts if len(parts) >= 2 else None    # 요청이 하나면 나누지 않아요 (빠질 것도 없어요)
         chose = item.get("chose", True)
         dec = _word(item.get("dec"), DEC_MAX) if chose else None
+        seg = _word(item.get("seg"), SEG_MAX)
         store.set_classification(
             conn, row["id"], title=title, depth=depth,
-            seg=_word(item.get("seg"), SEG_MAX), topic=_word(item.get("topic"), SEG_MAX),
+            seg=seg, topic=_word(item.get("topic"), SEG_MAX),
             # 글 칸은 비워 두라고 해도 채우는 버릇이 있어서, 골랐는지(chose)를 먼저 묻고 아니면 정함을 버려요
             dec=dec, dec_note=_word(item.get("dec_note"), DEC_NOTE_MAX) if dec else None,
             ret=(depth == 0 and previous > 0), ref=earlier(item.get("ref")),
-            parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True),
+            parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True,
+                                                   {"dec": dec, "seg": seg, "depth": depth}),
+            gist=gist_lines(item.get("gist")) if row["ai"].strip() else [],      # 답이 없는 턴은 간추릴 것도 없어요
         )
         depth_of[row["seq"]] = depth
         seen_main = seen_main or depth == 0
@@ -231,6 +243,7 @@ class Classifier:
     def __init__(self, runtime, engine="auto", max_calls=None):
         self.rt = runtime
         self._engine = engine          # "auto" · 엔진 이름 · 엔진 객체 · None
+        self._asked = engine           # 처음에 받은 그대로. 엔진을 다시 고를 때 써요
         self.queue = collections.deque()
         self.wake = threading.Event()
         self.tries = collections.Counter()
@@ -238,6 +251,7 @@ class Classifier:
         self.status = {"engine": None, "running": None, "calls": 0, "turns": 0, "error": None, "paused": False,
                        "checking": None, "checks": 0}
         self.checker = investigate.Investigator(self)
+        self.gist_wanted = set()       # 예전에 분류한 턴에도 답 간추림을 채워 달라는 대화들 (화면이 부탁해요)
         self.seg_at = {}               # 대화 id → 마지막으로 구간을 나눴을 때의 역 수 (켤 때마다 비어요)
 
     def engine(self):
@@ -249,6 +263,14 @@ class Classifier:
             self.status["engine"] = getattr(self._engine, "name", "none") if self._engine else "none"
         return self._engine
 
+    def reset_engine(self) -> None:
+        """엔진을 다시 골라요 (API 키를 넣거나 지운 뒤). 멈춰 있었으면 다시 돌아요."""
+        if isinstance(self._asked, str):
+            self._engine = self._asked
+            self.status["engine"] = None
+            self.checker.forget_engine()
+        self.resume()
+
     def request(self, chat_id, front=False) -> None:
         if not chat_id or chat_id in self.queue:
             return
@@ -257,6 +279,12 @@ class Classifier:
         else:
             self.queue.append(chat_id)
         self.wake.set()
+
+    def want_gist(self, chat_id) -> None:
+        """이 대화의 이미 분류한 턴에 답 간추림이 없으면 채워 달라고 줄을 세워요. 분류 · 할 일은 건드리지 않아요."""
+        if chat_id:
+            self.gist_wanted.add(chat_id)
+            self.request(chat_id, front=True)
 
     def resume(self) -> None:
         self.status.update(error=None, paused=False)
@@ -277,6 +305,18 @@ class Classifier:
         finally:
             tokens.record(self.rt.home, kind, chat, getattr(engine, "last_usage", None))
 
+    def research(self, question, engine=None, chat=None):
+        """웹에서 찾아보기 한 번 (앞길 살피기 · 엔진이 할 줄 알 때만). 정리 호출과 같은 한도를 써요."""
+        engine = engine or self.engine()
+        if self.status["calls"] >= self.max_calls:
+            self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
+            raise OutOfCalls()
+        self.status["calls"] += 1
+        try:
+            return engine.research(question)
+        finally:
+            tokens.record(self.rt.home, "lookup", chat, getattr(engine, "last_usage", None))
+
     def classify_chat(self, conn, chat_id) -> int:
         """그 대화의 밀린 턴을 CHUNK개씩 분류해요. 분류한 턴 수를 돌려줘요."""
         engine = self.engine()
@@ -295,6 +335,8 @@ class Classifier:
                 output = self.call(SYSTEM, payload, SCHEMA, engine, kind="classify", chat=chat_id)
             except OutOfCalls:
                 break
+            except BadOutput:
+                output = None            # 형식이 틀린 답. 이 묶음만 실패로 세요 (거듭되면 임시 제목 그대로 둬요)
             with conn:
                 done = apply_output(conn, rows, batch, output)
                 rules.make(conn, chat_id, {row["id"] for row in batch})   # 엔진 없이 만드는 할 일 (곁길 · 반복 질문)
@@ -311,7 +353,35 @@ class Classifier:
         if total:
             self.segment_chat(conn, chat, engine)
             usage.note_chat(conn, chat_id)
+        if chat_id in self.gist_wanted and not self.status["paused"]:
+            self.gist_wanted.discard(chat_id)
+            self.fill_gist(conn, chat, engine)
         return total
+
+    def fill_gist(self, conn, chat, engine) -> int:
+        """gist 칸이 생기기 전에 분류한 턴에 답 간추림만 채워요. 같은 정리 호출을 쓰되 간추림만 받아 적어요
+        (제목 · 곁길 · 정함 · 할 일은 그대로). 한 묶음에 한 번만 물어요: 못 받은 턴은 빈 것으로 두고 다시 묻지 않아요."""
+        filled = 0
+        while not self.status["paused"]:
+            rows = store.chat_turns(conn, chat["id"])
+            batch = store.without_gist(conn, chat["id"])[:CHUNK]
+            if not batch:
+                break
+            payload = json.dumps(build_input(conn, chat, rows, batch), ensure_ascii=False)
+            try:
+                output = self.call(SYSTEM, payload, SCHEMA, engine, kind="gist", chat=chat["id"])
+            except OutOfCalls:
+                break
+            except BadOutput:
+                output = None
+            answers = {str(item.get("id")): item for item in (output or {}).get("turns") or [] if isinstance(item, dict)}
+            with conn:
+                for row in batch:
+                    lines = gist_lines((answers.get(str(row["seq"])) or {}).get("gist")) if row["ai"].strip() else []
+                    store.set_gist(conn, row["id"], lines)
+                    filled += 1 if lines else 0
+            self.rt.bump()
+        return filled
 
     def segment_chat(self, conn, chat, engine) -> None:
         """턴마다 붙인 seg는 앞만 보고 정해서 잘 안 끊어요. 역이 충분히 쌓이면 전체를 보고 한 번 더 나눠요."""
@@ -322,6 +392,9 @@ class Classifier:
             output = self.call(SEG_SYSTEM, json.dumps(segment_input(chat, rows), ensure_ascii=False), SEG_SCHEMA, engine,
                                kind="segment", chat=chat["id"])
         except OutOfCalls:
+            return
+        except BadOutput:
+            self.seg_at[chat["id"]] = len(rows)   # 형식이 틀린 답. 구간은 그대로 두고, 역이 더 쌓이면 다시 물어요
             return
         with conn:
             apply_segments(conn, rows, output)
@@ -335,7 +408,7 @@ class Classifier:
             return False
         if self.queue:
             chat_id = self.queue.popleft()
-        elif self.checker.queue:
+        elif self.checker.waiting():
             chat_id = None
         else:
             return False

@@ -7,7 +7,7 @@
 import json
 
 from .. import config, store
-from ..engines import EngineError
+from ..engines import BadOutput, EngineError
 from . import tools
 from .investigate import handoff_summary
 
@@ -50,7 +50,7 @@ def write(conn, chat_id, call=None):
     }, ensure_ascii=False)
     try:
         text = _unwrap((call(SYSTEM, payload, SCHEMA).get("text") or "").strip())
-    except EngineError:
+    except (EngineError, BadOutput):      # 엔진이 멈췄거나, 형식 대신 글로 답했어요. 정한 것 · 남은 일을 그대로 늘어놔요
         return plain
     return text or plain
 

@@ -50,7 +50,9 @@ def open_side(rows, at) -> dict | None:
 
 
 def repeat_question(conn, chat, row) -> dict | None:
-    """지난 대화에 이름이 거의 같은 역이 있으면. 포크한 대화가 그대로 복사한 턴은 세지 않아요."""
+    """지난 대화에 이름이 거의 같은 역이 있으면. 한 대화에서 이어진 대화(fork)끼리는 지난 대화로 치지 않아요:
+    이어 받은 대화는 앞 대화의 턴을 처음부터 그대로 담고 있어서 만든 시각이 같고, 같은 자리에 같은 글의 턴이 있어요.
+    (그런 대화를 지난 대화로 보면 같은 대화의 옆 턴과 짝지어져요. 구현 담당의 기록에서 반복 질문 28개 중 19개가 그랬어요)"""
     title = (row["title"] or "").rstrip("…")
     if len(title) < TITLE_MIN or chat["project_id"] == store.NO_PROJECT:
         return None
@@ -58,11 +60,11 @@ def repeat_question(conn, chat, row) -> dict | None:
     for r in conn.execute(
         "SELECT t.id, t.seq, t.title, t.user, t.ai, c.title AS chat_title, c.created_at FROM turns t"
         " JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ? AND c.id != ? AND c.hidden = 0"
-        " AND c.created_at <= ? AND t.classified = 1 AND t.title IS NOT NULL ORDER BY t.created_at DESC",
-        (chat["project_id"], chat["id"], chat["created_at"]),
+        " AND c.created_at < ? AND t.classified = 1 AND t.title IS NOT NULL"      # 같은 시각에 시작한 대화 = 이어 받은 대화
+        " AND NOT EXISTS (SELECT 1 FROM turns x WHERE x.chat_id = c.id AND x.seq = ? AND x.user = ?)"
+        " ORDER BY t.created_at DESC",
+        (chat["project_id"], chat["id"], chat["created_at"], row["seq"], row["user"]),
     ):
-        if r["seq"] == row["seq"] and r["user"] == row["user"]:
-            continue
         if difflib.SequenceMatcher(None, title, r["title"].rstrip("…")).ratio() >= SIMILAR:
             best = r
             break

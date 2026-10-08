@@ -8,8 +8,9 @@
   G.map = function (g) {
     var st = g.st, R = g.R, tip = g.tip;
 
-    /* the drawer is the same in every entry: horizontal map + ledger */
-    g.mountDrawer = function (host, asWindow) {
+    /* the drawer is the same in every entry: horizontal map + ledger.
+       apart이면 목록을 카드에 넣지 않아요. 그 입구가 g.mountSide(자리, true)로 따로 놓아요 (가닥 창의 오른쪽 기둥 · 떠 있는 버튼의 목록 창) */
+    g.mountDrawer = function (host, asWindow, apart) {
       var dr = el('section', 'drawer' + (asWindow ? ' fw' : '')); dr.setAttribute('aria-label', '가닥 노선도'); host.appendChild(dr); R.drawer = dr;
       if (asWindow) { var wb = el('div', 'wbar'), dots = el('div', 'dots'); dots.innerHTML = '<i></i><i></i><i></i>'; wb.appendChild(dots); wb.appendChild(el('b', null, '가닥')); wb.appendChild(el('span', 'r', asWindow)); dr.appendChild(wb); }
       var dh = el('div', 'dhead'); dr.appendChild(dh);
@@ -21,10 +22,15 @@
       R.qbtn = el('button', 'qbtn'); R.qbtn.type = 'button'; R.qbtn.onclick = function (e) { e.stopPropagation(); g.showRevPop(this); }; dh.appendChild(R.qbtn);
       R.ledBtn = el('button', 'ledbtn'); R.ledBtn.type = 'button'; R.ledBtn.onclick = function () { st.ledgerOpen = !st.ledgerOpen; st.focusMap = true; g.track('ui', { what: st.ledgerOpen ? 'list_open' : 'list_close' }); g.render(); }; dh.appendChild(R.ledBtn);
       var fold = el('button', 'btn sm', '접기'); fold.type = 'button'; fold.onclick = g.toggleDrawer; dh.appendChild(fold);
-      var db = el('div', 'dbody'); dr.appendChild(db); R.dbody = db;
+      var db = el('div', 'dbody' + (apart ? ' noled' : '')); dr.appendChild(db); R.dbody = db;
       R.mapScroll = el('div', 'map-scroll'); R.map = el('div', 'map'); R.mapScroll.appendChild(R.map); db.appendChild(R.mapScroll);
       R.mapScroll.addEventListener('scroll', function () { tip.hidden = true; });
-      var side = el('div', 'dside'); db.appendChild(side);
+      if (!apart) g.mountSide(db);
+    };
+    /* 목록: 할 일 · 정한 것 · 산출물 · 앞길과 찾기 칸 (그리는 것은 side.js). apart이면 host가 통째로 목록 자리라서, 접을 때 host를 감춰요 */
+    g.mountSide = function (host, apart) {
+      var side = el('div', 'dside' + (apart ? ' apart' : '')); host.appendChild(side);
+      if (apart) R.sideHost = host;
       R.sideHead = el('div', 'ptabs side-tabs'); side.appendChild(R.sideHead);
       var qw = el('div', 'qwrap'); R.qInput = el('input', 'qin'); R.qInput.type = 'search'; R.qInput.placeholder = '지난 대화에서 찾기 · 예) 이름, Ridge';
       R.qInput.setAttribute('aria-label', '지난 대화에서 찾기'); R.qInput.value = st.q;

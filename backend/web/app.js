@@ -1,4 +1,4 @@
-/* 가닥 창(로컬 웹 페이지). shared/ui의 노선도 카드 · 레일 · 목록 · 한마디를 그대로 쓰고,
+/* 가닥 창(로컬 웹 페이지). shared/ui의 노선도 카드 · 목록 · 한마디를 그대로 쓰고,
    여기에는 이 입구만의 것(프로젝트 · 대화 목록, 읽기 전용 대화, 찾은 곳, 백엔드와 주고받기)만 있어요.
    주소에 ?demo 를 붙이거나 백엔드 없이 열면 미리 정리해 둔 예시(data/demo_conversations.json)를 보여 줘요. */
 (function () {
@@ -16,6 +16,9 @@
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
     nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
+    // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
+    ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
+    aheadAuto: function () { return !!(S.status && S.status.ahead && S.status.ahead.auto); }, setAheadAuto: setAheadAuto,
     // 화면에는 글의 앞부분만 실려 있어서, 찾기는 원문을 가진 백엔드에 맡겨요
     search: function (q) { return api('projects/' + encodeURIComponent(S.project) + '/search?q=' + encodeURIComponent(q)).then(function (d) { return d.hits; }); }
   });
@@ -48,18 +51,29 @@
     fw.appendChild(R.find); bar.appendChild(fw);
     R.lists = el('div', 'lists'); bar.appendChild(R.lists);
     R.foot = el('div', 'foot'); bar.appendChild(R.foot);
+    // 가운데: 왼쪽에 노선도 카드와 그 아래 대화, 오른쪽에 목록(할 일 · 정한 것 · 산출물 · 앞길)을 카드와 떼어 위에서 아래까지.
+    // 대화 옆 세로 레일은 위의 노선도와 겹쳐서 가닥 창에서는 그리지 않아요 (10/7 · 구현 담당. shared/ui/rail.js는 대화가 화면에 있는 다른 입구용으로 남아 있어요)
     var main = el('div', 'sitemain'); site.appendChild(main);
-    g.mountDrawer(main);
-    var cw = el('div', 'chatwrap'); main.appendChild(cw);
+    var col = el('div', 'maincol'); main.appendChild(col);
+    R.unfold = el('button', 'unfold', '노선도 펼치기'); R.unfold.type = 'button'; R.unfold.hidden = true; R.unfold.onclick = function () { g.toggleDrawer(); }; col.appendChild(R.unfold);
+    g.mountDrawer(col, null, true);
+    var cw = el('div', 'chatwrap'); col.appendChild(cw);
     R.chat = el('div', 'chat'); R.thread = el('div', 'thread'); R.chat.appendChild(R.thread); cw.appendChild(R.chat);
-    R.rail = el('nav', 'rail'); R.rail.setAttribute('aria-label', '가닥 레일'); cw.appendChild(R.rail);
     R.nudgeHost = cw;
+    R.sideCol = el('aside', 'sidecol'); R.sideCol.setAttribute('aria-label', '할 일 · 정한 것 · 산출물 · 앞길'); main.appendChild(R.sideCol);
+    g.mountSide(R.sideCol, true);
     R.chat.addEventListener('scroll', onChatScroll);
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
     R.src = el('div', 'pop srcpop'); R.src.hidden = true; document.body.appendChild(R.src);
     R.ask = el('div', 'pop srcpop'); R.ask.hidden = true; R.ask.setAttribute('role', 'dialog'); document.body.appendChild(R.ask);
+    R.ai = el('div', 'pop srcpop aipop'); R.ai.hidden = true; R.ai.setAttribute('role', 'dialog'); R.ai.setAttribute('aria-label', 'AI 연결'); document.body.appendChild(R.ai);
     R.file = el('input'); R.file.type = 'file'; R.file.accept = '.zip,.json'; R.file.hidden = true; R.file.onchange = importFile; shell.appendChild(R.file);
     document.addEventListener('click', function (e) { if (!R.src.hidden && !R.src.contains(e.target) && !(R.srcBtn && R.srcBtn.contains(e.target))) R.src.hidden = true; });
+    // AI 연결 창은 연결하는 동안(브라우저에서 로그인하고 돌아올 때까지)에는 다른 곳을 눌러도 닫지 않아요
+    document.addEventListener('click', function (e) {
+      if (R.ai.hidden || R.ai.contains(e.target) || !document.body.contains(e.target) || (R.aiBtn && R.aiBtn.contains(e.target))) return;
+      if (!(S.engine && S.engine.job.state === 'running')) closeAi();
+    });
     setTimeout(function () { G.playMark(mark); }, 250);
   }
 
@@ -70,9 +84,9 @@
     renderThread();
     R.chat.scrollTop = S.bottom ? R.chat.scrollHeight : keep; S.bottom = false;
     var V = g.buildView(st.scope);
-    R.drawer.classList.toggle('shut', !st.drawerOpen);   // 접고 펴기는 높이가 부드럽게 (gadak.css)
-    if (st.drawerOpen) { g.renderMapHead(V); g.renderSide(); g.renderMap(V); }
-    g.renderRail();
+    R.drawer.classList.toggle('shut', !st.drawerOpen); R.unfold.hidden = st.drawerOpen;   // 접고 펴기는 높이가 부드럽게 (gadak.css)
+    g.renderSide();                    // 목록은 노선도 카드를 접어도 그대로 있어요
+    if (st.drawerOpen) { g.renderMapHead(V); g.renderMap(V); }
     g.renderNudge();
     updateViewing(true);
     renderFoot();
@@ -356,28 +370,35 @@
     else if (!s) text = '준비 중이에요…';
     else if (s.sync.phase === 'scan') text = '지난 대화를 읽는 중 · ' + s.sync.done + '/' + s.sync.total;
     else if (s.classify.error) { text = s.classify.error; hot = true; }
-    else if (s.classify.engine === 'none') text = '정리 엔진이 없어서 제목이 임시예요. docs/usage-guide.md 3번을 봐 주세요.';
+    else if (s.classify.engine === 'none') text = '정리할 AI가 연결되지 않아서 제목이 임시예요. ‘AI 연결’을 눌러 주세요.';
     else if (s.classify.running) text = '보는 대화부터 정리하고 있어요 · 호출 ' + s.classify.calls + '번';
     else if (s.classify.checking) text = '놓친 일이 있는지 확인하고 있어요 · 호출 ' + s.classify.calls + '번';
     else text = '켜 두면 새 대화를 알아서 읽어요' + (s.classify.calls ? ' · 정리 호출 ' + s.classify.calls + '번' : '');
     f.appendChild(el('div', 'state' + (hot ? ' hot' : ''), text));
     if (S.demo) return;
     var row = el('div', 'row');
+    // AI 연결: 정리에 쓸 AI가 없으면 눈에 띄게 (검은 버튼)
+    R.aiBtn = el('button', 'btn sm' + ((s && s.classify.engine === 'none') || S.aiNeed ? ' primary' : ''), 'AI 연결'); R.aiBtn.type = 'button'; R.aiBtn.onclick = toggleAi; row.appendChild(R.aiBtn);
     R.srcBtn = el('button', 'btn sm', '찾은 곳'); R.srcBtn.type = 'button'; R.srcBtn.onclick = toggleSources; row.appendChild(R.srcBtn);
     if (s && s.classify.paused) { var again = el('button', 'btn sm', '정리 다시'); again.type = 'button'; again.onclick = function () { api('classify', 'POST', { pause: false }).then(tick); }; row.appendChild(again); }
     // 2단이 어떤 도구로 무엇을 보고 결론 냈는지는 노선도 카드에 넣지 않고 별도 페이지에서 봐요 (README 3-1)
     var log = el('button', 'btn sm', '판단 기록'); log.type = 'button'; log.onclick = function () { track('ui', { what: 'trace' }); window.open('trace', '_blank'); }; row.appendChild(log);
+    var help = el('button', 'btn sm', '도움말'); help.type = 'button'; help.onclick = openHelp; row.appendChild(help);
     var quit = el('button', 'btn sm', '끄기'); quit.type = 'button'; quit.onclick = quitApp; row.appendChild(quit);
     f.appendChild(row);
   }
+
+  /* 왼쪽 아래에 뜨는 창(찾은 곳 · AI 연결 · 사용 기록 묻기)은 발치 바로 위에 놓아요. 버튼이 두 줄이 되어도 가리지 않게요 */
+  function above(p) { p.style.bottom = Math.max(window.innerHeight - R.foot.getBoundingClientRect().top + 8, 58) + 'px'; p.style.maxHeight = 'calc(100vh - ' + (parseFloat(p.style.bottom) + 20) + 'px)'; }
 
   /* ---------- 찾은 곳: 무엇으로 LLM을 쓰는지, 어떻게 읽는지 ---------- */
   function toggleSources() {
     if (!R.src.hidden) { R.src.hidden = true; return; }
     track('ui', { what: 'sources' });
     R.ask.hidden = true;   // 같은 자리에 떠요. 보내기는 찾은 곳 안에서도 고를 수 있어요
+    closeAi();
     // 먼저 켜 둔 예전 가닥에 붙어 있으면 사용 기록 쪽은 없을 수 있어요. 없으면 그 줄만 빼고 보여 줘요
-    Promise.all([api('sources'), api('usage/state').catch(function () { return null; })]).then(function (d) { S.sources = d[0].sources; S.usage = d[1]; renderSources(); R.src.hidden = false; });
+    Promise.all([api('sources'), api('usage/state').catch(function () { return null; })]).then(function (d) { S.sources = d[0].sources; S.usage = d[1]; renderSources(); above(R.src); R.src.hidden = false; });
   }
   function renderSources() {
     var p = R.src; p.innerHTML = '';
@@ -420,6 +441,102 @@
     if (S.usage && S.usage.configured) p.appendChild(usageBlock());
   }
 
+  /* ---------- AI 연결: 가닥이 대화를 정리할 때 쓰는 AI를 고르고, 한 번 눌러 연결해요 (backend/engines · connect.py) ----------
+     구독(Claude · ChatGPT)은 ‘연결하기’ 한 번이면 가닥이 필요한 것을 받고 브라우저에 로그인 창을 띄워요. API 키는 붙여 넣어요.
+     API 키 칸은 하나예요. 어느 회사 키인지(Anthropic · OpenAI · Gemini)는 가닥이 키를 보고 알아봐요 (backend/engines/keys.py).
+     어디까지 갔는지는 GET /engine의 job에 나와서, 연결하는 동안 2초마다 물어요. */
+  var AI = {
+    claude_cli: { name: 'Claude 구독', sub: 'Pro · Max', note: '내 Claude 구독으로 정리해요. 추가 요금이 없고, 내가 쓰는 Claude와 사용 한도를 같이 써요.' },
+    codex_cli: { name: 'ChatGPT 구독', sub: 'Plus · Pro', note: '내 ChatGPT 구독으로 정리해요. 추가 요금이 없고, 내가 쓰는 ChatGPT(Codex)와 사용 한도를 같이 써요.' },
+    api: { name: 'LLM API 키', sub: 'Anthropic · OpenAI · Gemini', note: '가진 API 키로 정리해요. 어느 회사 키인지는 가닥이 알아봐요. 쓴 만큼 그 키로 요금이 나가요. 키는 이 Mac의 키체인에만 둬요.' }
+  };
+  var GEMINI_NOTE = ' Gemini 무료 키는 요금이 없는 대신, 보낸 글이 Google의 제품 개선에 쓰일 수 있어요.';
+  // API 키 엔진의 이름은 넣은 키의 회사를 따라가요 (anthropic_api · openai_api · gemini_api). 화면에서는 한 칸이에요
+  function isKey(name) { return /_api$/.test(name || ''); }
+  function aiOf(name) { return isKey(name) ? AI.api : AI[name]; }
+  // ‘…으로 정리해요’에 넣을 말. API 키는 어느 회사 키인지까지 말해요
+  function aiBy(name, e) { return isKey(name) ? (e.key && e.key.company ? e.key.company + ' ' : '') + 'API 키로' : AI[name].name + '으로'; }
+  // 안 된 까닭(reason)도 받아야 해서, 실패한 답(400 · 409)도 그대로 읽어요
+  function ask(path, method, body) {
+    return fetch(path, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+      .then(function (r) { return r.json(); }).catch(function () { return { ok: false, reason: '가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.' }; });
+  }
+  function toggleAi() { if (R.ai.hidden) openAi(); else closeAi(); }
+  function closeAi() { R.ai.hidden = true; clearTimeout(S.aiTimer); }
+  function openAi() {
+    R.src.hidden = true; R.ask.hidden = true;
+    api('engine?fresh=1').then(function (d) { S.engine = d; renderAi(); above(R.ai); R.ai.hidden = false; watchAi(); }, function () { g.flashToast('가닥에 닿지 못했어요.'); });
+  }
+  function watchAi() {
+    clearTimeout(S.aiTimer);
+    if (R.ai.hidden || !S.engine || S.engine.job.state !== 'running') return;
+    S.aiTimer = setTimeout(function () {
+      api('engine?fresh=1').then(function (d) {
+        S.engine = d;
+        if (d.job.state === 'done') { g.flashToast(AI[d.job.name].name + '을 연결했어요. 이제 이 AI로 정리해요.'); tick(); }
+        renderAi(); watchAi();
+      }, watchAi);
+    }, 2000);
+  }
+  function gotEngine(r, said) {
+    if (r.engine) S.engine = r.engine;
+    if (!r.ok) g.flashToast(r.reason || '하지 못했어요.'); else if (said) g.flashToast(said);
+    if (!R.ai.hidden) renderAi();
+    watchAi(); tick();
+  }
+  function planName(plan) { return ({ pro: 'Pro', max: 'Max', team: 'Team', enterprise: 'Enterprise' })[plan] || plan; }
+  function renderAi() {
+    var p = R.ai, e = S.engine, job = e.job, busy = job.state === 'running';
+    var ready = {}; e.options.forEach(function (o) { ready[o.name] = o.ready; });
+    var using = ready[e.resolved] ? aiOf(e.resolved) : null;    // 골라져 있어도 아직 로그인 전이면 쓰는 중이 아니에요
+    S.aiNeed = !using;
+    var typed = p.querySelector('input'), key = typed ? typed.value : '', had = typed && document.activeElement === typed;   // 다시 그려도 치던 키는 그대로
+    p.innerHTML = '';
+    p.appendChild(el('b', null, 'AI 연결'));
+    p.appendChild(el('div', 'note', '가닥이 대화를 정리할 때 쓰는 AI예요. 하나만 연결하면 돼요. ' + (using
+      ? '지금은 ' + aiBy(e.resolved, e) + ' 정리해요' + (e.choice === 'auto' ? ' (가닥이 알아서 골랐어요).' : '.')
+      : (e.choice === 'none' ? 'AI 없이 쓰기로 해 둬서 대화를 읽어 보여 주기만 해요.' : '아직 연결한 것이 없어서 대화를 읽어 보여 주기만 해요.'))));
+    e.options.forEach(function (o) {
+      var a = aiOf(o.name), byKey = isKey(o.name), now = e.resolved === o.name && o.ready, d = el('div', 'src' + (now ? ' now' : '')), mine = busy && job.name === o.name;
+      var k = byKey ? (o.ready ? '연결됨 · ' + (o.company ? o.company + ' · ' : '') + o.hint : '키를 넣으면 바로 써요')
+        : (o.ready ? '연결됨' + (o.plan ? ' · ' + planName(o.plan) : '') : (o.found ? '로그인만 하면 돼요' : '아직 연결하지 않았어요'));
+      d.appendChild(el('span', 'k' + (o.ready ? ' on' : ''), (now ? '지금 쓰는 중 · ' : '') + k));
+      d.appendChild(el('span', 't', a.name + ' (' + a.sub + ')'));
+      d.appendChild(el('span', 'w', mine ? job.message : a.note + (byKey && o.company === 'Gemini' ? GEMINI_NOTE : '')));
+      if (!mine && job.state === 'failed' && job.name === o.name) d.appendChild(el('span', 'w fail', job.message));
+      var row = el('div', 'row');
+      if (mine) row.appendChild(button('그만두기', '', function () { ask('engine/cancel', 'POST').then(function (r) { gotEngine(r); }); }));
+      else if (byKey && !o.ready) {
+        var input = el('input'); input.type = 'password'; input.placeholder = 'LLM API 키 넣기'; input.autocomplete = 'off'; input.spellcheck = false; input.value = key;
+        input.setAttribute('aria-label', 'LLM API 키');
+        var save = function () {
+          if (!input.value.trim()) { input.focus(); return; }
+          ask('engine/key', 'POST', { key: input.value }).then(function (r) {
+            if (r.ok) input.value = '';
+            var whose = r.engine && r.engine.key && r.engine.key.company ? r.engine.key.company + ' ' : '';
+            gotEngine(r, r.ok ? whose + 'API 키를 키체인에 넣었어요.' + (r.verified ? '' : ' 맞는 키인지 확인은 못 했어요.') : null);
+          });
+        };
+        input.onkeydown = function (ev) { if (ev.key === 'Enter') save(); };
+        row.appendChild(input); row.appendChild(button('저장', 'primary', save));
+        if (had) setTimeout(function () { input.focus(); }, 0);
+      } else if (!o.ready) {
+        var go = button('연결하기', 'primary', function () { ask('engine/connect', 'POST', { name: o.name }).then(function (r) { gotEngine(r); }); });
+        go.disabled = busy; row.appendChild(go);
+      } else {
+        if (!now) row.appendChild(button('이걸로 정리하기', 'primary', function () { ask('engine/choose', 'POST', { name: o.name }).then(function (r) { gotEngine(r, aiBy(o.name, e) + ' 정리할게요.'); }); }));
+        if (byKey && o.source === 'keychain') row.appendChild(button('키 지우기', '', function () { ask('engine/key', 'DELETE').then(function (r) { gotEngine(r, '키체인에서 키를 지웠어요.'); }); }));
+      }
+      if (row.firstChild) d.appendChild(row);
+      p.appendChild(d);
+    });
+    var foot = el('div', 'row');
+    if (e.choice !== 'auto') foot.appendChild(button('알아서 고르기', '', function () { ask('engine/choose', 'POST', { name: 'auto' }).then(function (r) { gotEngine(r, '쓸 수 있는 AI를 가닥이 알아서 고를게요.'); }); }));
+    if (using) foot.appendChild(button('AI 없이 쓰기', '', function () { ask('engine/choose', 'POST', { name: 'none' }).then(function (r) { gotEngine(r, 'AI 없이 대화를 읽어 보여 주기만 할게요.'); }); }));
+    foot.appendChild(button('닫기', '', closeAi));
+    p.appendChild(foot);
+  }
+
   /* ---------- 사용 기록 보내기: 처음 한 번 묻고, 찾은 곳에서 바꿔요 (README 5장) ---------- */
   var USAGE_NOTE = '어떤 기능을 얼마나 쓰는지 같은 사용 기록을 가닥 팀 서버로 보내요. 대화 글 · 제목 · 파일 이름은 보내지 않아요.';
   function button(label, cls, click) { var b = el('button', 'btn sm' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.onclick = click; return b; }
@@ -428,7 +545,8 @@
     api('usage/state').then(function (u) { S.usage = u; if (u.configured && !u.share) askUsage(); }, function () {});
   }
   function askUsage() {
-    var p = R.ask; p.innerHTML = ''; p.hidden = false;
+    if (!R.ai.hidden) return;        // 같은 자리에 AI 연결 창이 떠 있어요. 사용 기록은 다음에 켤 때 물어요
+    var p = R.ask; p.innerHTML = ''; above(p); p.hidden = false;
     p.appendChild(el('b', null, '가닥을 더 좋게 만드는 데 참여할까요?'));
     p.appendChild(el('div', 'note', USAGE_NOTE + ' 언제든 ‘찾은 곳’에서 끄고, 보낸 기록을 지울 수 있어요.'));
     var seen = el('div'); p.appendChild(seen);
@@ -503,12 +621,11 @@
     var y = R.chat.scrollTop + R.chat.clientHeight * 0.3, v = null;
     Array.prototype.forEach.call(R.thread.children, function (n) { if (n.dataset.id && n.offsetTop <= y) v = n.dataset.id; });
     if (R.chat.scrollTop + R.chat.clientHeight >= R.chat.scrollHeight - 4) { var last = R.thread.lastElementChild; if (last && last.dataset.id) v = last.dataset.id; }
-    if (R.vp && R.rail) { var H = R.rail.clientHeight - 64, sh = Math.max(R.chat.scrollHeight, 1); R.vp.style.top = (48 + R.chat.scrollTop / sh * H - 6) + 'px'; R.vp.style.height = (R.chat.clientHeight / sh * H + 12) + 'px'; }
     if (v === viewing && !force) return;
     viewing = v;
     Array.prototype.forEach.call(R.root.querySelectorAll('.viewing'), function (n) { n.classList.remove('viewing'); });
     if (!v) return;
-    [R.mapDots, R.railDots].forEach(function (set) { if (set && set[v]) set[v].classList.add('viewing'); });
+    if (R.mapDots && R.mapDots[v]) R.mapDots[v].classList.add('viewing');
   }
   function onChatScroll() { if (ticking) return; ticking = true; requestAnimationFrame(function () { ticking = false; updateViewing(); }); }
 
@@ -526,6 +643,25 @@
       track('ui', { what: 'copy' });
       G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
     }, function () { g.flashToast('요약을 만들지 못했어요.'); });
+  }
+  /* 앞길 보기: 이 대화의 마지막 턴에 서서 갈 수 있는 길을 찾아 달라고 해요. 엔진이 뒤에서 돌고, 어디까지 갔는지와 찾은 길은 목록의 ‘앞길’ 칸에 나타나요
+     (기다리는 중 · 살피는 중 · 길 n개 · 낼 길이 없었음 · 못 살핀 까닭). 상태가 바뀌면 백엔드가 알려서(rev) 다시 받아 와요 */
+  function ahead() {
+    if (!g.ACT || !g.ACT.id) { g.flashToast('먼저 대화를 골라 주세요.'); return; }
+    st.sideTab = 'ahead'; st.ledgerOpen = true;
+    api('chats/' + encodeURIComponent(g.ACT.id) + '/ahead', 'POST').then(function (r) {
+      if (!r.ok) { g.SC.ahead = { state: 'failed', reason: r.reason }; g.render(); return; }
+      g.SC.ahead = { state: 'queued' }; g.render();
+    }, function () { g.SC.ahead = { state: 'failed', reason: '가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.' }; g.render(); });
+  }
+  /* 저절로 살피기 켜기 · 끄기: 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 살필지. 가닥이 기억해요 */
+  function setAheadAuto(on) {
+    api('ahead/auto', 'POST', { on: on }).then(function (r) {
+      if (!r.ok) { g.flashToast(r.reason || '바꾸지 못했어요.'); return; }
+      if (S.status && S.status.ahead) S.status.ahead.auto = !!r.auto;
+      g.flashToast(r.auto ? '이제 길이 갈리는 순간마다 앞길을 저절로 살펴요. Claude 사용 한도를 더 써요.' : '저절로 살피기를 껐어요. ‘앞길’ 칸의 ‘앞길 보기’를 누를 때만 살펴요.');
+      g.render();
+    }, function () { g.flashToast('바꾸지 못했어요.'); });
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 
@@ -561,9 +697,9 @@
       if (!S.project) { show({ chats: [] }); return; }
       return api('projects/' + encodeURIComponent(S.project) + '/view' + (S.chat ? '?chat=' + encodeURIComponent(S.chat) : '')).then(function (v) {
         var real = v.project.id !== '_none';  // 프로젝트 · 폴더가 없는 대화는 대화별로만 봐요
-        // 노선 색: 전체 지도와 같은 프로젝트 색 (store.project_color). 노선도 카드 · 레일이 var(--route)로 써요
+        // 노선 색: 전체 지도와 같은 프로젝트 색 (store.project_color). 노선도 카드가 var(--route)로 써요
         R.root.style.setProperty('--route', v.project.color || '');
-        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto });
+        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto, ahead: v.ahead });
       });
     });
   }
@@ -609,11 +745,19 @@
     document.body.appendChild(R.mapFrame); R.mapFrame.focus();
   }
   function closeMap() { if (R.mapFrame) { R.mapFrame.remove(); R.mapFrame = null; } }
+  // 지도 쪽(backend/web/map.html)의 ‘닫기’가 바로 부를 수 있게도 열어 둬요. 메시지가 닿지 않는 경우에도 닫히게요
+  window.gadakMapClose = closeMap;
+  // 글쇠가 지도 안이 아니라 가닥 창에 있을 때도 Esc로 닫혀요
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && R.mapFrame) { e.preventDefault(); closeMap(); } });
   window.addEventListener('message', function (e) {
     if (e.origin !== location.origin || !e.data || !R.mapFrame || e.source !== R.mapFrame.contentWindow) return;
     if (e.data.gadakMap === 'close') closeMap();
     if (e.data.gadakOpen) { closeMap(); window.gadakOpen(e.data.gadakOpen); }
   });
+
+  /* 도움말: 가닥을 쓰는 법과 낱말 풀이 (backend/web/help.html). 새 창으로 열어요. 가닥 앱의 메뉴 ‘도움말’도 이것을 불러요 */
+  function openHelp() { window.open('help', 'gadak-help'); }
+  window.gadakHelp = openHelp;
 
   /* 가닥 앱의 떠 있는 버튼이 부르는 것 (mac/Float.swift): 그 대화의 그 역을 열기 · 대화 찾기 칸으로 가기 */
   window.gadakOpen = function (h) { if (!S.demo && h && h.chat) openFound({ id: h.chat, project: { id: h.project }, turn: h.turn }); };
@@ -626,5 +770,13 @@
   // 주소에 ?find=찾는 말 을 붙이면 그 말로 찾은 채로 열려요
   function startFind() { var q = (params.get('find') || '').trim(); if (q) { R.find.value = q; setFind(q); } }
   if (S.demo) load().then(function () { g.reveal(); startFind(); });
-  else { S.timer = setInterval(tick, POLL); tick().then(function () { g.reveal(); loadUsage(); if (params.get('panel') === 'sources') toggleSources(); startFind(); }); }
+  else { S.timer = setInterval(tick, POLL); tick().then(function () {
+    g.reveal();
+    if (params.get('panel') === 'sources') toggleSources();
+    else if (params.get('panel') === 'ai') openAi();
+    else if (!S.demo) api('engine').then(function (d) {      // 바로 쓸 수 있는 AI가 하나도 없으면 연결부터 보여 줘요
+      if (!d.options.some(function (o) { return o.ready; })) { S.engine = d; renderAi(); R.src.hidden = true; R.ask.hidden = true; renderFoot(); above(R.ai); R.ai.hidden = false; }
+    }, function () {});
+    loadUsage(); startFind();
+  }); }
 })();

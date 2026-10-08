@@ -5,7 +5,7 @@ from pathlib import Path
 
 from backend import store
 from backend.agent import classify
-from backend.engines import EngineError
+from backend.engines import BadOutput, EngineError
 from backend.runtime import Runtime
 
 CHAT = "chat-1"
@@ -145,6 +145,88 @@ class ClassifyTest(unittest.TestCase):
         clf.resume()
         self.assertTrue(clf.step(self.conn))
 
+    def test_an_answer_in_the_wrong_shape_fails_only_that_batch(self):
+        """모델이 형식을 따르지 않고 글로 답한 한 번 때문에 정리 전체가 멈추면 안 돼요 (10/6 평가에서 나온 일)."""
+        answers = iter([BadOutput("글로 답했어요"), None])
+
+        def flaky(payload):
+            answer = next(answers)
+            if answer is not None:
+                raise answer
+            return titled(payload)
+        clf = self.start(flaky)
+        clf.request(CHAT)
+        self.assertTrue(clf.step(self.conn))
+        self.assertEqual((clf.status["paused"], clf.status["error"]), (False, None))     # 로그인 · 한도 문제처럼 멈추지 않아요
+        self.assertEqual([r["classified"] for r in self.rows()], [1, 1, 1])              # 같은 묶음을 다시 물어 붙였어요
+        self.assertEqual((len(self.engine.calls), clf.status["calls"]), (2, 2))
+
+    def test_wrong_shapes_again_and_again_are_given_up(self):
+        def never(_payload):
+            raise BadOutput("글로 답했어요")
+        clf = self.start(never)
+        self.assertEqual(clf.classify_chat(self.conn, CHAT), 0)
+        self.assertEqual([r["classified"] for r in self.rows()], [-1, -1, -1])           # 임시 제목 그대로 두고 더 묻지 않아요
+        self.assertEqual((len(self.engine.calls), clf.status["paused"]), (classify.MAX_TRIES, False))
+
+    def test_the_answer_summary_comes_with_the_same_call(self):
+        """답 간추림(gist)은 분류와 같은 호출에서 받아요. 호출 수는 그대로예요."""
+        clf = self.start(lambda p: titled(
+            p,
+            t1={"gist": ["  임계값을 1,380원으로 바꿨어요  ", "", "테스트도 고쳤어요"]},
+            t2={"gist": ["가"] * 9 + ["나" * 200]},                    # 너무 많고 너무 길면 줄여요
+            t3={"gist": "글 한 덩어리"},                               # 줄 목록이 아니면 버려요
+        ), turns=4)
+        with self.conn:
+            store.upsert_turn(self.conn, chat_id=CHAT, message_ref="g4", user="질문 4", ai="  ", state="done")   # 답이 빈 턴
+        self.assertEqual(clf.classify_chat(self.conn, CHAT), 4)
+        self.assertEqual(len(self.engine.calls), 1)
+        turns = store.view(self.conn, "환율 알리미")["chats"][0]["turns"]
+        self.assertEqual(turns[0]["gist"], ["임계값을 1,380원으로 바꿨어요", "테스트도 고쳤어요"])
+        self.assertEqual((len(turns[1]["gist"]), len(turns[1]["gist"][0])), (classify.GIST_LINES, 1))
+        self.assertNotIn("gist", turns[2])
+        self.assertNotIn("gist", turns[3])
+        self.assertEqual([r["gist"] for r in self.rows()][2:], ["[]", "[]"])      # 없다고 적어 둬요 (다시 묻지 않게)
+        self.assertEqual(classify.SCHEMA["properties"]["turns"]["items"]["required"][-1], "gist")
+        with self.conn:
+            store.reset_classification(self.conn, self.rows()[0]["id"])           # 답이 달라져 다시 분류할 턴은 간추림도 비워요
+        self.assertIsNone(self.rows()[0]["gist"])
+
+    def test_the_decision_note_and_the_answer_summary_arrive_together(self):
+        """10/6에 따로 더한 두 칸(조원의 dec_note · 이쪽의 gist)이 한 호출에서 같이 와서 같이 적혀요."""
+        clf = self.start(lambda p: titled(p, t1={
+            "chose": True, "dec": "임계값 1,380원", "dec_note": "알림 임계값을 1,380원으로 정함", "gist": ["1,380원이 무난하다고 했어요"]}))
+        self.assertEqual(clf.classify_chat(self.conn, CHAT), 3)
+        first = self.rows()[0]
+        self.assertEqual((first["dec"], first["dec_note"], json.loads(first["gist"])),
+                         ("임계값 1,380원", "알림 임계값을 1,380원으로 정함", ["1,380원이 무난하다고 했어요"]))
+        required = classify.SCHEMA["properties"]["turns"]["items"]["required"]
+        self.assertTrue({"dec_note", "gist"} <= set(required))
+        for key in ('"dec_note":null', '"gist":[""]'):                     # 프롬프트의 출력 형식에도 둘 다
+            self.assertIn(key, classify.SYSTEM)
+        self.assertIsNone(self.rows()[1]["dec_note"])                      # 정함이 없으면 풀어 쓴 문장도 없어요
+        self.assertEqual(store.SCHEMA_VERSION, 9)
+
+    def test_turns_classified_before_can_get_their_summary_later(self):
+        """gist 칸이 생기기 전에 정리한 턴: 화면이 부탁하면 간추림만 채워요. 제목 · 정함 · 할 일은 그대로예요."""
+        clf = self.start(lambda p: titled(p, t2={"chose": True, "dec": "임계값 1,380원"}))
+        clf.classify_chat(self.conn, CHAT)
+        with self.conn:
+            self.conn.execute("UPDATE turns SET gist = NULL")                     # 예전에 정리한 턴처럼
+            ids = store.set_items(self.conn, self.rows()[1]["id"], [{"kind": "unasked", "text": "요청하지 않은 곳도 바뀌었어요"}])
+        before = [(r["title"], r["dec"], r["classified"], r["checked"]) for r in self.rows()]
+        self.engine.answer = lambda p: titled(p, t1={"title": "다른 제목", "gist": ["첫 답을 간추렸어요"]},
+                                              t2={"dec": "다른 정함", "gist": ["둘째 답을 간추렸어요"]})
+        clf.want_gist(CHAT)
+        self.assertTrue(clf.step(self.conn))
+        self.assertEqual(len(self.engine.calls), 2)                               # 묶음 하나에 한 번만 물어요
+        self.assertEqual([json.loads(r["gist"]) for r in self.rows()], [["첫 답을 간추렸어요"], ["둘째 답을 간추렸어요"], []])
+        self.assertEqual([(r["title"], r["dec"], r["classified"], r["checked"]) for r in self.rows()], before)
+        self.assertEqual([i["id"] for i in store.turn_items(self.conn, self.rows()[1]["id"])], ids)
+        clf.want_gist(CHAT)
+        clf.step(self.conn)
+        self.assertEqual(len(self.engine.calls), 2)                               # 다 채운 대화는 다시 묻지 않아요
+
     def test_call_limit(self):
         clf = self.start(titled, turns=20, max_calls=1)
         self.assertEqual(clf.classify_chat(self.conn, CHAT), 8)
@@ -163,6 +245,22 @@ class ClassifyTest(unittest.TestCase):
             store.upsert_turn(self.conn, chat_id=CHAT, message_ref="g9", user="질문 9", ai="답 9", state="done")
         clf.classify_chat(self.conn, CHAT)
         self.assertEqual(len(self.engine.calls), 3)          # 한 역 늘었다고 다시 나누지 않아요
+
+    def test_a_badly_shaped_segment_answer_keeps_the_segments_and_the_work_goes_on(self):
+        def answer(p):
+            if "state" in p:
+                return titled(p, t1={"seg": "환율"})
+            raise BadOutput("글로 답했어요")
+        clf = self.start(answer, turns=6)
+        clf.request(CHAT)
+        self.assertTrue(clf.step(self.conn))
+        self.assertEqual((clf.status["paused"], clf.status["error"]), (False, None))     # 정리를 멈추지 않아요
+        self.assertEqual([r["seg"] for r in self.rows()], ["환율", None, None, None, None, None])   # 1단이 붙인 구간 그대로
+        self.assertEqual(list(clf.checker.queue), [CHAT])                                # 2단은 하던 대로 이어서 봐요
+        with self.conn:
+            store.upsert_turn(self.conn, chat_id=CHAT, message_ref="g7", user="질문 7", ai="답 7", state="done")
+        clf.classify_chat(self.conn, CHAT)
+        self.assertEqual(len(self.engine.calls), 3)          # 역이 더 쌓일 때까지는 다시 묻지 않아요
 
     def test_no_engine_means_no_classification(self):
         self.start(titled)

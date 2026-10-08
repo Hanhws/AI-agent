@@ -68,6 +68,7 @@ class AppTest(unittest.TestCase):
             for t in turns:
                 self.assertIn(t["depth"], (0, 1, 2))
                 self.assertTrue(t["title"] and t["user"] and t["ai"])
+                self.assertTrue(1 <= len(t["gist"]) <= 4 and all(isinstance(line, str) and 0 < len(line) <= 70 for line in t["gist"]))
                 self.assertTrue(t.get("ref") is None or t["ref"] in ids)
                 for part in t.get("parts", []):
                     self.assertIn(part["type"], ("q", "task", "rev"))
@@ -227,7 +228,9 @@ class AppTest(unittest.TestCase):
             self.assertEqual(self.client.post("/chats/hidden", json=bad).status_code, 400)
 
     def test_the_floating_button_asks_about_the_chat_in_use(self):
-        self.assertEqual(self.client.get("/float").get_json(), {"rev": self.rt.rev, "chat": None, "todo": 0})
+        empty = self.client.get("/float").get_json()
+        self.assertEqual(len(empty.pop("slots")), 6)                                   # 둘레에 놓을 버튼들 (tests/test_floatbar.py)
+        self.assertEqual(empty, {"rev": self.rt.rev, "chat": None, "todo": 0})
         self.turn("g1", "임계값은 얼마가 좋아?", "1,380원이 무난해요.")                # 환율 알리미 · conv-1
         self.event("prompt", "n1", project="nba-analysis", chat_id="conv-2", text="Ridge로 해 줘")
         now = self.client.get("/float").get_json()
@@ -266,6 +269,59 @@ class AppTest(unittest.TestCase):
         for name in ("gadakStrip", "gadakFind", "gadakOpen"):
             self.assertIn("window." + name, swift)
             self.assertIn("window." + name + " = ", script if name == "gadakStrip" else window)
+        # 목록 창은 노선도 창과 따로 떠요: 앱이 주소에 붙이는 말과 화면이 앱에 부탁하는 말이 서로 맞는지
+        for asks, hears in (('URLQueryItem(name: "only", value: "list")', "params.get('only') === 'list'"),
+                            ('URLQueryItem(name: "app", value: "2")', "params.get('app') === '2'"),
+                            ('what == "list"', "tell({ float: 'list'"), ('what == "close"', "tell({ float: 'close' })"),
+                            ('what == "size"', "tell({ float: 'size'")):
+            self.assertIn(asks, swift)
+            self.assertIn(hears, script)
+        self.assertIn("setProperty('--route'", script)      # 노선 색이 없으면 본선과 역이 같은 색이라 역이 안 보여요
+        # ‘주제 전환’ 한마디의 환승하기(effect: transfer)는 떠 있는 창에서도 요약을 복사해요. 이 창에는 노선도 끝의 환승 표시(handoff)가 없어요
+        nudge = (ROOT / "shared" / "ui" / "nudge.js").read_text(encoding="utf-8")
+        self.assertIn("g.hooks.handoff || g.hooks.transfer", nudge)
+        self.assertIn("transfer: transfer", script)
+        self.assertNotIn("handoff:", script)
+        self.assertIn("'/handoff'", script)
+
+    def test_the_window_keeps_the_list_apart_and_has_help(self):
+        """가닥 창: 목록(할 일 · 정한 것 · 산출물 · 앞길)은 노선도 카드와 떼어 오른쪽에, 대화 옆 레일은 그리지 않아요. 도움말이 있어요."""
+        window = (ROOT / "backend" / "web" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("g.mountDrawer(col, null, true)", window)
+        self.assertIn("g.mountSide(R.sideCol, true)", window)
+        # 가닥 창은 레일을 놓지 않아요. ‘전체 보기’에 남아 있는 레일 다시 그리기(기획 담당의 줄 그대로)는 레일이 없으면 아무 일도 하지 않아요
+        self.assertNotIn("R.rail =", window)
+        self.assertIn("if (!rail) return;", (ROOT / "shared" / "ui" / "rail.js").read_text(encoding="utf-8"))
+        self.assertIn("fillAnswer(para, d.turn.ai); more.remove(); g.renderRail();", window)   # ‘전체 보기’로 받은 답도 구획 · 표 · 코드로
+        side = (ROOT / "shared" / "ui" / "side.js").read_text(encoding="utf-8")
+        for words in ("['ahead', '앞길'", "앞길 저절로 살피기", "살피지 못했어요", "내밀 만한 길을 찾지 못했어요"):
+            self.assertIn(words, side)
+        with self.client.get("/help") as page:
+            html = page.get_data(as_text=True)
+        self.assertEqual(page.status_code, 200)
+        for words in ("가닥 도움말", "노선도 읽기", "낱말 풀이", "앞길 보기", "저절로 살피기", "막힐 때"):
+            self.assertIn(words, html)
+        self.assertNotIn("<textarea", html)
+        # 도움말은 주제별로 나뉘어 한 번에 하나만 보이고(왼쪽에서 고르기), 위의 칸에서 낱말로 찾아요
+        topics = re.findall(r'<section id="(\w+)" data-name="([^"]+)"', html)
+        self.assertEqual([name for _, name in topics],
+                         ["처음 3분", "AI 연결", "대화 읽어 오기", "노선도 읽기", "할 일과 목록", "앞길", "떠 있는 버튼", "낱말 풀이", "막힐 때"])
+        self.assertIn('id="find"', html)
+        for _, name, body in re.findall(r'<section id="(\w+)" data-name="([^"]+)">(.*?)</section>', html, flags=re.S):
+            words = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body)).strip()
+            self.assertLess(len(words), 800, name)                  # 한 주제는 한 화면에 (전에는 한 쪽에 4,500자가 이어져 있었어요)
+        for words in ("AI 연결", "버튼 편집"):                         # 화면의 이름과 같은 말로 안내해요
+            self.assertIn(words, html)
+        self.assertIn("window.open('help'", window)
+        # AI 연결: 정리에 쓸 AI를 화면에서 고르고 연결해요 (구독은 한 번 누르기 · API 키는 붙여 넣기). 키를 치는 칸은 가려져요
+        for words in ("'AI 연결'", "engine/connect", "engine/choose", "engine/key", "input.type = 'password'", "Claude 구독", "ChatGPT 구독", "LLM API 키"):
+            self.assertIn(words, window)
+        swift = (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8")
+        self.assertIn('menu("도움말"', swift)
+        self.assertIn('showPage(helpTitle, path: "help"', swift)
+        # 전체 지도 닫기: 지도 쪽이 가닥 창의 길을 바로 부르고, 가닥 창에서는 Esc로도 닫혀요
+        self.assertIn("window.gadakMapClose = closeMap", window)
+        self.assertIn("parent.gadakMapClose", (ROOT / "backend" / "web" / "map.html").read_text(encoding="utf-8"))
 
     def test_item_state_is_kept(self):
         self.turn()
@@ -321,6 +377,10 @@ class AppTest(unittest.TestCase):
         self.assertEqual((status["queued"], status["paused"]), (1, False))
         self.assertTrue(self.client.post("/classify", json={"pause": True}).get_json()["paused"])
         self.assertFalse(self.client.post("/classify", json={"pause": False}).get_json()["paused"])
+        # 화면이 턴을 접어 보여 줄 때: 예전에 정리한 턴에도 답 간추림을 채워 달라고 해요
+        self.rt.classifier.queue.clear()
+        status = self.client.post("/classify", json={"chats": ["conv-1"], "gist": True}).get_json()
+        self.assertEqual((status["queued"], self.rt.classifier.gist_wanted), (1, {"conv-1"}))
 
 
 if __name__ == "__main__":

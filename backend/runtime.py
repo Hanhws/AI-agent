@@ -71,8 +71,11 @@ class Runtime:
         sync, classify = self.syncer.status, dict(self.classifier.status)
         classify["queued"] = len(self.classifier.queue)
         classify["checkQueued"] = len(self.classifier.checker.queue)   # 2단을 기다리는 대화
+        classify["aheadQueued"] = len(self.classifier.checker.wanted)  # 사용자가 ‘앞길 보기’를 눌러 기다리는 대화
         return {
             "rev": self.rev,
             "sync": {k: sync.get(k) for k in ("phase", "done", "total", "scans", "error")},
             "classify": classify,
+            # 앞길 살피기(backend/agent/ahead.py)가 켜져 있는지. 화면이 ‘앞길 보기’를 보일지 정해요
+            "ahead": {"on": config.AHEAD, "web": config.AHEAD and config.AHEAD_WEB, "files": config.AHEAD and config.AHEAD_FILES},
         }

@@ -34,3 +34,5 @@ docs/agent-prompt.examples.md
 
 # 내보내기로 받은 실제 대화 (커밋하지 않아요)
 내 클로드 데이터/
+# 정확도 평가에서 턴마다 맞고 틀린 것 · 정답을 다는 시트 (실제 대화가 들어 있어요). 숫자만 든 eval/results/는 올려요
+eval/local/

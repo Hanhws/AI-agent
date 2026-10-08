@@ -7,9 +7,9 @@ import time
 
 from flask import Flask, abort, g, jsonify, request, send_from_directory
 
-from . import assemble, auto, config, sources, store, usage
-from .agent import handoff, tools, trace
-from .engines import describe_engine
+from . import assemble, auto, config, engines, floatbar, sources, store, usage
+from .agent import ahead, handoff, tools, trace
+from .engines import connect, describe_engine
 from .runtime import Runtime
 from .sources import exports, pages
 
@@ -33,6 +33,10 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if "db" not in g:
             g.db = store.connect(app.config["DB_PATH"])
         return g.db
+
+    if engine == "auto":      # 사용자가 ‘AI 연결’에서 골라 둔 엔진이 있으면 그것부터 (없으면 설정 GADAK_ENGINE)
+        with rt.connect() as kept:
+            engines.prefer(store.setting(kept, engines.CHOICE_KEY))
 
     @app.teardown_appcontext
     def close_db(_exc):
@@ -83,6 +87,16 @@ def create_app(db_path=None, engine="auto") -> Flask:
         """떠 있는 가닥 버튼이 펼치는 노선도 창 (mac/Float.swift). 가닥 창의 노선도 카드만 따로 띄운 것이에요."""
         return send_from_directory(WEB_DIR, "strip.html", max_age=0)
 
+    @app.get("/float/edit")
+    def float_edit_page():
+        """떠 있는 버튼의 둘레 버튼을 고르는 작은 창 (가닥 버튼 오른쪽 클릭 → 버튼 편집)."""
+        return send_from_directory(WEB_DIR, "float-edit.html", max_age=0)
+
+    @app.get("/help")
+    def help_page():
+        """도움말: 가닥을 쓰는 법과 낱말 풀이. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴가 새 창으로 열어요."""
+        return send_from_directory(WEB_DIR, "help.html", max_age=0)
+
     @app.get("/map")
     def map_page():
         """전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 (쉰 날은 접어요). 노선을 누르면 한 줄 노선도."""
@@ -115,17 +129,110 @@ def create_app(db_path=None, engine="auto") -> Flask:
 
     @app.get("/status")
     def status():
-        return jsonify(rt.status())
+        out = rt.status()
+        out["ahead"]["auto"] = ahead.auto_on(db())      # ‘저절로 살피기’: 사용자가 화면에서 켜고 끈 것 (없으면 설정)
+        return jsonify(out)
 
     @app.get("/float")
     def float_state():
-        """떠 있는 버튼이 묻는 것: 지금 쓰는 대화(가장 최근에 턴이 온 대화)와, 거기 열려 있는 할 일 수."""
-        chat = store.now_chat(db())
+        """떠 있는 버튼이 묻는 것: 지금 쓰는 대화(가장 최근에 턴이 온 대화)와 거기 열려 있는 할 일 수, 둘레에 놓을 버튼들(slots).
+        ?project=를 주면 그 프로젝트에서 가장 최근에 쓴 대화예요 (프로젝트 버튼을 눌렀을 때)."""
+        chat = store.now_chat(db(), request.args.get("project") or None)
+        slots = floatbar.resolved(db())
         if chat is None:
-            return jsonify(rev=rt.rev, chat=None, todo=0)
+            return jsonify(rev=rt.rev, chat=None, todo=0, slots=slots)
         todo = sum(1 for i in tools.open_items(db(), "c.id = ?", [chat["id"]]) if i["state"] == "open")
-        return jsonify(rev=rt.rev, todo=todo,
+        return jsonify(rev=rt.rev, todo=todo, slots=slots,
                        chat={"id": chat["id"], "title": chat["title"], "project": chat["project_id"]})
+
+    @app.get("/float/slots")
+    def float_slots():
+        """버튼 편집 화면이 받는 것: 지금 자리들과, 더할 수 있는 기능 · 프로젝트."""
+        return jsonify(floatbar.editing(db()))
+
+    @app.post("/float/slots")
+    def float_slots_set():
+        """둘레 버튼을 바꿔요. {slots: [{action} | {project, label}]} · {reset: true}면 처음 모양으로. 버튼에는 몇 초 안에 반영돼요."""
+        body = request.get_json(silent=True) or {}
+        conn = db()
+        with conn:
+            if body.get("reset"):
+                floatbar.reset(conn)
+            elif isinstance(body.get("slots"), list):
+                floatbar.save(conn, body["slots"])
+            else:
+                return jsonify(ok=False, reason="바꿀 자리를 받지 못했어요."), 400
+        rt.bump()
+        return jsonify(dict(floatbar.editing(conn), ok=True))
+
+    # ----- 엔진: 무엇으로 정리하는지, 고르기 · 한 번 눌러 연결하기 · API 키 넣기 · 지우기 (backend/engines) -----
+    def engine_info(fresh=False):
+        try:
+            rt.classifier.engine()                   # 아직 고르지 않았으면 지금 골라요
+        except Exception as exc:
+            rt.classifier.status["error"] = str(exc)[:200]
+        info = engines.overview(rt.classifier.status)
+        # ‘AI 연결’ 창이 그리는 것: 엔진마다 깔려 있는지 · 바로 쓸 수 있는지, 지금 연결하는 중인 것
+        info.update(options=engines.options(fresh), job=connect.status())
+        return info
+
+    def choose_engine(name) -> None:
+        """고른 엔진을 적어 두고 그 엔진으로 바꿔요. (연결이 뒤에서 끝났을 때도 불려서, 요청 밖에서도 돌아요)"""
+        conn = store.connect(app.config["DB_PATH"])
+        try:
+            with conn:
+                store.set_setting(conn, engines.CHOICE_KEY, name)
+        finally:
+            conn.close()
+        engines.prefer(name)
+        engines.forget_logins()
+        rt.classifier.reset_engine()
+        rt.bump()
+
+    @app.get("/engine")
+    def engine_state():
+        """정리에 쓰는 엔진과, 없으면 무엇이 필요한지(need). 키는 끝 네 글자만 보여 줘요.
+        ?fresh=1이면 로그인 상태를 다시 물어요 (연결을 기다리는 화면이 써요)."""
+        return jsonify(engine_info(request.args.get("fresh") == "1"))
+
+    @app.post("/engine/choose")
+    def engine_choose():
+        """‘AI 연결’에서 고른 엔진으로 바꾸고 기억해요. auto면 가닥이 알아서 골라요."""
+        name = str((request.get_json(silent=True) or {}).get("name") or "").lower()
+        if name not in engines.CHOICES:
+            return jsonify(ok=False, reason="고를 수 없는 엔진이에요."), 400
+        choose_engine(name)
+        return jsonify(ok=True, engine=engine_info())
+
+    @app.post("/engine/connect")
+    def engine_connect():
+        """구독으로 쓰는 엔진을 한 번 눌러 연결해요: 없으면 받고, 로그인 창을 띄우고, 다 되면 그 엔진을 골라요.
+        뒤에서 돌아요. 어디까지 갔는지는 GET /engine의 job에 나와요."""
+        name = str((request.get_json(silent=True) or {}).get("name") or "").lower()
+        result = connect.start(name, choose_engine)
+        return jsonify(dict(result, engine=engine_info())), (200 if result["ok"] else 409)
+
+    @app.post("/engine/cancel")
+    def engine_cancel():
+        connect.cancel()
+        return jsonify(ok=True, engine=engine_info())
+
+    @app.post("/engine/key")
+    def engine_key_set():
+        """LLM API 키(Anthropic · OpenAI · Gemini)를 그 회사에 확인하고(돈이 들지 않는 요청으로) macOS 키체인에 넣어요.
+        어느 회사 키인지는 키를 보고 알아봐요. 틀린 키는 넣지 않아요."""
+        result = engines.set_key((request.get_json() or {}).get("key"))
+        if result["ok"]:
+            rt.classifier.reset_engine()
+            rt.bump()
+        return jsonify(dict(result, engine=engine_info())), (200 if result["ok"] else 400)
+
+    @app.delete("/engine/key")
+    def engine_key_delete():
+        removed = engines.keys.delete()
+        rt.classifier.reset_engine()
+        rt.bump()
+        return jsonify(ok=True, removed=removed, engine=engine_info())
 
     @app.get("/sources")
     def source_list():
@@ -239,6 +346,9 @@ def create_app(db_path=None, engine="auto") -> Flask:
         data = store.view(db(), project_id, scope=scope, chat_id=request.args.get("chat"))
         if data is None:
             abort(404)
+        # 보고 있는 대화의 앞길 살피기가 어디까지 갔나 (살피는 중 · 길 n개 · 낼 길이 없었음 · 못 살핌). 화면의 ‘앞길’ 칸이 써요
+        shown = next((c["id"] for c in data["chats"] if c.get("active")), None)
+        data["ahead"] = rt.classifier.checker.ahead_state(db(), shown) if shown else {"state": "idle"}
         return jsonify(data)
 
     @app.get("/projects/<project_id>/search")
@@ -259,6 +369,35 @@ def create_app(db_path=None, engine="auto") -> Flask:
         call = (lambda system, payload, schema: rt.classifier.call(system, payload, schema, kind="handoff", chat=chat_id)) \
             if rt.classifier.engine() else None
         return jsonify(text=handoff.write(conn, chat_id, call))
+
+    @app.post("/chats/<chat_id>/ahead")
+    def chat_ahead(chat_id):
+        """사용자가 누른 ‘앞길 보기’: 그 대화의 마지막 턴에 서서 앞길을 살펴요 (backend/agent/ahead.py).
+        엔진이 뒤에서 1~2분 돌고, 찾은 길은 그 턴의 ‘다음 할 일’로 나타나요. 꺼 둔 동안에는 받지 않아요."""
+        if store.chat_row(db(), chat_id) is None:
+            abort(404)
+        if not config.AHEAD:
+            return jsonify(ok=False, reason="앞길 살피기는 꺼져 있어요."), 409
+        if rt.classifier.engine() is None:
+            return jsonify(ok=False, reason="정리에 쓸 엔진이 없어요."), 409
+        rt.classifier.request(chat_id, front=True)       # 아직 정리하지 않은 턴이 있으면 그것부터
+        rt.classifier.checker.want_ahead(chat_id)
+        return jsonify(ok=True)
+
+    @app.post("/ahead/auto")
+    def ahead_auto_set():
+        """‘저절로 살피기’를 켜고 꺼요: 길이 갈리는 순간마다 앞길을 살필지. 화면에서 사용자가 눌렀을 때만 불러요.
+        켜면 구독 한도를 더 써요(한 곳에 Claude Pro 5시간 한도의 0.7%쯤). 꺼 둔 동안에는 ‘앞길 보기’를 누를 때만 살펴요."""
+        body = request.get_json() or {}
+        if not isinstance(body.get("on"), bool):
+            abort(400)
+        if not config.AHEAD:
+            return jsonify(ok=False, reason="앞길 살피기는 꺼져 있어요."), 409
+        conn = db()
+        with conn:
+            store.set_setting(conn, ahead.AUTO_KEY, "1" if body["on"] else "0")
+        rt.bump()
+        return jsonify(ok=True, auto=ahead.auto_on(conn))
 
     @app.get("/turns/<turn_id>")
     def turn(turn_id):
@@ -352,7 +491,10 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if "pause" in body:
             rt.classifier.pause() if body["pause"] else rt.classifier.resume()
         for chat_id in body.get("chats") or []:
-            rt.classifier.request(chat_id, front=True)
+            if body.get("gist") is True:
+                rt.classifier.want_gist(chat_id)       # 예전에 정리한 턴에도 답 간추림을 채워요 (화면이 턴을 접어 보여 줄 때)
+            else:
+                rt.classifier.request(chat_id, front=True)
         return jsonify(rt.status()["classify"])
 
     return app

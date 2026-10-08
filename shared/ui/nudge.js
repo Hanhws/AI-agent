@@ -35,7 +35,9 @@
       g.track('item', { kind: it.kind, did: 'run', at: at || 'list' });
       st.fresh = {};
       if (it.effect === 'split') { st.split = true; finish(it); st.focusMap = true; g.flashToast('주제별 노선으로 나눴어요. 다음 전환부터는 알아서 나눠요.'); g.render(); return; }
-      if (it.effect === 'transfer' && g.hooks.handoff) { finish(it); g.hooks.handoff(); g.render(); return; }   // 주제 전환 → 환승하기 (요약 복사)
+      // 주제 전환 → 환승하기 (요약 복사). 노선도 끝에 환승 표시를 그리지 않는 창(떠 있는 창)은 transfer hook으로 같은 일을 해요
+      var xfer = it.effect === 'transfer' && (g.hooks.handoff || g.hooks.transfer);
+      if (xfer) { finish(it); xfer(); g.render(); return; }
       if (it.effect === 'scopeAll') { st.scope = 'all'; finish(it); st.drawerOpen = true; g.render(); return; }
       if (it.pop) { showItemPop(it, anchor); return; }
       if (g.hooks.act && g.hooks.act(it, anchor) !== false) return;
