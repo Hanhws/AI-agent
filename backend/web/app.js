@@ -15,7 +15,7 @@
 
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
+    nudgeClass: 'nudge-web', statusBits: statusBits, sideFold: sideFold, track: track, setAuto: setAuto, handoff: handoff,
     // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
     ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
     aheadAuto: function () { return !!(S.status && S.status.ahead && S.status.ahead.auto); }, setAheadAuto: setAheadAuto,
@@ -34,6 +34,18 @@
   }
 
   /* ---------- 틀 ---------- */
+  function foldBtn(mark, label, onclick, cls) {
+    var b = el('button', cls || 'colfold', mark); b.type = 'button'; b.setAttribute('aria-label', label); b.title = label; b.onclick = onclick; return b;
+  }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem('gadak.' + k); localStorage.setItem('gadak.' + k, v); } catch (e) { return null; } }
+  function setLeft(open, quiet) {
+    R.site.classList.toggle('left-shut', !open); R.leftOpen.hidden = open;
+    if (!quiet) { store('leftOpen', open ? '1' : '0'); track('ui', { what: open ? 'list_open' : 'list_close' }); }
+  }
+  function sideFold(open, n) {
+    R.sideCol.classList.toggle('shut', !open); R.sideOpen.hidden = open;
+    R.sideOpenN.textContent = n ? '할 일 ' + n : '할 일';
+  }
   function mount() {
     var shell = document.getElementById('shell'); shell.innerHTML = ''; R.root = shell;
     // 맨 위 검은 머리띠: 전체 지도와 같은 지하철 표지판 띠 (심볼 · 가닥 · 전체 지도)
@@ -49,6 +61,10 @@
     R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
     R.find.addEventListener('keydown', function (e) { if (e.key === 'Escape') { R.find.value = ''; setFind(''); } });
     fw.appendChild(R.find); bar.appendChild(fw);
+    // 양옆 기둥은 위의 버튼으로 접고 펴요. 접으면 얇은 띠에 펼치는 버튼만 남고, 폭이 부드럽게 줄어요 (app.css)
+    var lf = foldBtn('‹', '대화 목록 접기', function () { setLeft(false); }); fw.appendChild(lf);
+    R.leftOpen = foldBtn('›', '대화 목록 펼치기', function () { setLeft(true); }, 'colopen'); R.leftOpen.appendChild(el('span', 'vt', '대화')); site.appendChild(R.leftOpen);
+    R.site = site;
     R.lists = el('div', 'lists'); bar.appendChild(R.lists);
     R.foot = el('div', 'foot'); bar.appendChild(R.foot);
     // 가운데: 왼쪽에 노선도 카드와 그 아래 대화, 오른쪽에 목록(할 일 · 정한 것 · 산출물 · 앞길)을 카드와 떼어 위에서 아래까지.
@@ -62,6 +78,10 @@
     R.nudgeHost = cw;
     R.sideCol = el('aside', 'sidecol'); R.sideCol.setAttribute('aria-label', '할 일 · 정한 것 · 산출물 · 앞길'); main.appendChild(R.sideCol);
     g.mountSide(R.sideCol, true);
+    R.sideCol.appendChild(foldBtn('›', '할 일 목록 접기', function () { st.ledgerOpen = false; g.track('ui', { what: 'list_close' }); g.render(); }));
+    R.sideOpen = foldBtn('‹', '할 일 목록 펼치기', function () { st.ledgerOpen = true; g.track('ui', { what: 'list_open' }); g.render(); }, 'colopen');
+    R.sideOpen.appendChild(R.sideOpenN = el('span', 'vt', '할 일')); R.sideCol.appendChild(R.sideOpen);
+    setLeft(store('leftOpen') !== '0', true);
     R.chat.addEventListener('scroll', onChatScroll);
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
     R.src = el('div', 'pop srcpop'); R.src.hidden = true; document.body.appendChild(R.src);

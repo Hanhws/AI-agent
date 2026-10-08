@@ -14,7 +14,7 @@
 
     g.renderSide = function () {
       var n = g.openItems().length;
-      if (R.sideHost) R.sideHost.hidden = !st.ledgerOpen; else if (R.dbody) R.dbody.classList.toggle('noled', !st.ledgerOpen);
+      if (R.sideHost) { if (g.hooks.sideFold) g.hooks.sideFold(st.ledgerOpen, n); else R.sideHost.hidden = !st.ledgerOpen; } else if (R.dbody) R.dbody.classList.toggle('noled', !st.ledgerOpen);
       if (R.ledBtn) {
         R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
         R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);

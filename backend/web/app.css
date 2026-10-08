@@ -198,3 +198,30 @@ button.citem.on:hover { background: var(--bubble); }
 /* 왼쪽 아래 버튼들도 테두리 없이 */
 .foot .btn:not(.primary) { border-color: transparent; background: none; padding: 0 6px; }
 .foot .btn:not(.primary):hover { border-color: transparent; color: var(--fg); }
+
+/* ── 양옆 기둥 접고 펴기 (2026-10-08): 위의 버튼으로 접으면 44px 띠에 펼치는 버튼만 남아요. 폭은 부드럽게 */
+.site { transition: grid-template-columns .42s var(--ease); position: relative; }
+.site.left-shut { grid-template-columns: 44px minmax(0, 1fr); }
+.sitebar > * { transition: opacity .25s; }
+.site.left-shut .sitebar { overflow: hidden; }
+.site.left-shut .sitebar > * { opacity: 0; pointer-events: none; }
+.sitebar .findwrap { display: flex; align-items: center; gap: 4px; }
+.sitebar .findwrap .qin { flex: 1; min-width: 0; }
+.sidecol { position: relative; transition: width .42s var(--ease); overflow: hidden; }
+.sidecol.shut { width: 44px; }
+.sidecol .dside { min-width: 336px; transition: opacity .25s; }
+.sidecol.shut .dside, .sidecol.shut > .colfold { opacity: 0; pointer-events: none; }
+.maincol .ledbtn { display: none; }   /* 목록은 오른쪽 기둥 위의 버튼으로 접고 펴요 */
+/* 접기 버튼: 테두리 없는 작은 꺾쇠 */
+.colfold { flex: none; width: 28px; height: 28px; padding: 0; border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; cursor: pointer; transition: color .2s; }
+.colfold:hover { color: var(--fg); }
+.sidecol > .colfold { position: absolute; top: 6px; right: 8px; z-index: 1; background: var(--surface); }
+/* 접힌 띠의 펼치기 버튼: 꺾쇠 + 세로 글씨 */
+.colopen { position: absolute; top: 0; bottom: 0; width: 44px; padding: 14px 0 0; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; z-index: 2; animation: fadein .3s var(--ease) .2s both; }
+.colopen[hidden] { display: none; }
+.colopen:hover { color: var(--fg); background: var(--side); }
+.colopen .vt { writing-mode: vertical-rl; font-size: 13px; letter-spacing: var(--tr-small); }
+.site > .colopen { left: 0; }
+.sidecol > .colopen { right: 0; }
+@media (prefers-reduced-motion: reduce) { .site, .sidecol, .sitebar > *, .sidecol .dside { transition: none; } .colopen { animation: none; } }
