@@ -5,6 +5,7 @@
 <title>가닥 전체 지도</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="/ui/mark.js"></script>
 <style>
 /* 전체 지도 · 한 줄 노선도 시안 — 마시모 비녤리의 1972 뉴욕 지하철 지도(system map)와 열차 안 노선도(strip map)에서 가져온 것:
@@ -58,6 +59,16 @@ text { font-family: var(--font); fill: var(--ink); }
 /* 포스터 보기: 같은 대화를 비녤리 포스터처럼 (굵은 단색 선 · 흰 틈 · 45°와 90° 꺾임 · 큰 제목) */
 #poster { opacity: 0; pointer-events: none; }
 #poster text { font-family: var(--vfont); }
+/* 글자 시안 (?type=tight · close · duo): 한글 Pretendard + 로마자 헬베티카, 제목과 본문에 같은 자간. 지도 · 한 줄 노선도 · 포스터가 같이 바뀌어요 */
+html[data-type] { --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif; --vfont: var(--font); }
+html[data-type="tight"], html[data-type="duo"] { --tr: -0.08em; }
+html[data-type="close"] { --tr: -0.05em; }
+html[data-type] :is(text, tspan, header b, header span, .key) { letter-spacing: var(--tr) !important; }
+/* 섞어 쓰기: 좁게 뭉친 한글 옆에 로마자만 넓게 벌려요 (비녤리 포스터의 ‘Vignelli / Massimo’) */
+html[data-type="duo"] :is(.p-small, header b i) { letter-spacing: 0.5em !important; }
+html[data-type="duo"] header b i { font-size: 11px; margin-left: 10px; vertical-align: 3px; }
+.p-small { font: 700 40px var(--vfont); fill: var(--ink2); }
+header .axis.on { text-decoration: none; font-weight: 700; opacity: 1; }
 .poster-on #poster { opacity: 1; pointer-events: auto; }
 .poster-on #map { opacity: 0; pointer-events: none; }
 .poster-on #key-map { display: none; }
@@ -145,6 +156,7 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
 <header>
   <b>가닥<i>GADAK</i></b><span class="crumb-map">전체 지도</span>
   <button class="axis" id="poster-btn" type="button">포스터로 보기</button>
+  <span id="types"></span>
   <button id="back">← 전체 지도</button><span id="crumb"></span>
   <button class="open" id="open" type="button">대화 열기</button>
   <small id="meta"></small>
@@ -239,6 +251,18 @@ if (real?.projects?.length) {
   const [y, m, d] = real.start.split("-").map(Number);
   START = new Date(y, m - 1, d); TODAY = real.today; DATA = real;
 }
+
+// 글자 시안: ?type=tight(아주 좁게) · close(좁게) · duo(섞어 쓰기). 없으면 지금 그대로(SUIT)
+const TYPES = [["", "SUIT"], ["tight", "아주 좁게"], ["close", "좁게"], ["duo", "섞어 쓰기"]];
+const TYPE = TYPES.some(([k]) => k && k === params.get("type")) ? params.get("type") : "";
+if (TYPE) document.documentElement.dataset.type = TYPE;
+for (const [k, name] of TYPES) {
+  const b = document.createElement("button");
+  Object.assign(b, { type: "button", className: "axis" + (k === TYPE ? " on" : ""), textContent: name });
+  b.onclick = () => { const q = new URLSearchParams(location.search); k ? q.set("type", k) : q.delete("type"); location.search = q; };
+  document.getElementById("types").append(b);
+}
+await document.fonts.ready;   // 글자 폭을 재서 자리를 잡으니, 글꼴이 다 온 뒤에 그려요
 
 const NS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
@@ -717,11 +741,15 @@ function drawPoster() {
   const decs = P.reduce((s, p) => s + p.chats.reduce((t, c) => t + c.turns.filter(u => u.d).length, 0), 0);
   // 제목: 비녤리 포스터처럼 한 줄로 크게 ‘가닥 GADAK’ (로마자는 헬베티카)
   const title = el("text", { "text-anchor": "end", class: "p-title" }, marks);
-  title.textContent = "가닥 "; el("tspan", { class: "p-latin" }, title).textContent = "GADAK";
+  // 섞어 쓰기 시안이면 ‘가닥’ 아래에 작게 넓게 벌린 ‘GADAK’
+  const duo = document.documentElement.dataset.type === "duo";
+  title.textContent = duo ? "가닥" : "가닥 ";
+  if (!duo) el("tspan", { class: "p-latin" }, title).textContent = "GADAK";
   const tw = title.getComputedTextLength();
-  const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + 190 : bot - 70;
+  const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + (duo ? 170 : 190) : bot - (duo ? 120 : 70);
   title.setAttribute("x", tx + tw); title.setAttribute("y", ty);
-  el("text", { x: tx + tw, y: ty + 48, "text-anchor": "end", class: "p-sub" }, marks).textContent =
+  if (duo) el("text", { x: tx + tw + 20, y: ty + 58, "text-anchor": "end", class: "p-small" }, marks).textContent = "GADAK";
+  el("text", { x: tx + tw, y: ty + (duo ? 104 : 48), "text-anchor": "end", class: "p-sub" }, marks).textContent =
     `${dayLabel(0)} – 오늘 · 프로젝트 ${n} · 대화 ${Object.keys(chats).length} · 정함 ${decs}`;
   // 견본 칸 폭은 이름 길이대로
   const names = P.map(p => { const t = el("text", { "text-anchor": "middle", class: "p-name" }, marks); t.textContent = p.name; return t; });
