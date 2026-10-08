@@ -542,7 +542,7 @@ function drawMap() {
       let x, y, shift;
       if (HORIZ) {
         y = outside(g.t);
-        const gap = ((last + size(g.cls)) / 2 + 4) * Math.SQRT2;
+        const gap = ((last + size(g.cls)) / 2 + 8) * Math.SQRT2;   // 줄 사이 8px: 한글이 위아래로 꽉 차는 글꼴(Pretendard)에서도 줄끼리 닿지 않게
         x = Math.max(g.t + 4, floor + gap + y);
         shift = x - (g.t + 4);
       } else {
@@ -551,7 +551,7 @@ function drawMap() {
         shift = y - (g.t + 5);
       }
       // 자리가 없으면 이름을 빼요(대화 이름은 남겨요). 역과 이름이 멀어지면 틀린 지도예요. 빠진 이름은 한 줄 노선도에 다 있어요
-      if (g.cls !== "chat" && shift > (g.cls === "minor" ? 24 : 40)) continue;
+      if (g.cls !== "chat" && shift > (g.cls === "minor" ? 30 : 48)) continue;
       floor = HORIZ ? x - y : y; last = size(g.cls);
       const e = el("text", { x, y, class: g.cls, ...(HORIZ ? { transform: `rotate(45 ${x} ${y})` } : {}) }, lab);
       // 가로일 때 긴 이름은 줄여요: 45°로 내려가다 아래 줄의 이름 · 노선에 닿기 전에 끊어요 (전체 이름은 마우스를 올리면)

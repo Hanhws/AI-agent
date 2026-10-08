@@ -139,8 +139,15 @@
         mapEl.appendChild(b);
       });
       // side chains
-      var groups = {};
-      V.vis.forEach(function (t) { if (t.depth > 0 && V.anc[t.id] && V.isOpen(V.sIdx[V.anc[t.id]])) (groups[V.anc[t.id]] = groups[V.anc[t.id]] || []).push(t); });
+      var groups = {}, stubs = {};
+      V.vis.forEach(function (t) { if (t.depth > 0 && V.anc[t.id]) ((V.isOpen(V.sIdx[V.anc[t.id]]) ? groups : stubs)[V.anc[t.id]] = (V.isOpen(V.sIdx[V.anc[t.id]]) ? groups : stubs)[V.anc[t.id]] || []).push(t); });
+      // 접힌 구간의 곁길도 짧은 회색 그루터기로 남겨요: 아래로 45° 내려가 조금 달리다 멈춤 (전체 지도처럼 가지 친 결이 늘 보이게). 깊이 2면 한 칸 더
+      Object.keys(stubs).forEach(function (aid) {
+        if (!pos[aid]) return;
+        var deep = stubs[aid].some(function (n) { return n.depth >= 2; }), ax = pos[aid].x + 4, run = L1 - Y0;
+        path('M ' + ax + ' ' + Y0 + ' l ' + run + ' ' + run + ' h 8', 'var(--spur)', 6).classList.add('spur-l');
+        if (deep) path('M ' + (ax + run + 8) + ' ' + L1 + ' l ' + (L2 - L1) + ' ' + (L2 - L1) + ' h 6', 'var(--spur)', 5).classList.add('spur-l');
+      });
       Object.keys(groups).forEach(function (aid) {
         if (!pos[aid]) return;
         var nodes = groups[aid], active = nodes.indexOf(cur) >= 0;
@@ -148,8 +155,8 @@
         var ax = pos[aid].x, run1 = L1 - Y0, run2 = L2 - L1;   // 45°로 내려가요
         var s1 = ax + 18, g1 = Math.max(s1 + run1 + 16, ax + step * 0.62), g2 = g1 + 8 + run2 + 14;
         // 곁길: 전체 지도처럼 굵은 회색 지선 (지금 가 있는 곁길은 진하게)
-        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 10);
-        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 8);
+        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 10).classList.add('spur-l');
+        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 8).classList.add('spur-l');
         function dot(list, level, y) {
           if (!list.length) return;
           var gx = level === 2 ? g2 : g1;
@@ -163,6 +170,8 @@
         dot(l1, 1, L1); dot(l2, 2, L2);
         if (nodes.length > 1) { var c = el('div', 'cnt', String(nodes.length)); c.style.left = ((l2.length ? g2 : g1) + 10) + 'px'; c.style.top = (l2.length ? L2 : L1) + 'px'; mapEl.appendChild(c); }
       });
+      // 곁길은 본선 막대 밑으로 지나가요 (전체 지도처럼)
+      Array.prototype.forEach.call(svg.querySelectorAll('.spur-l'), function (q) { svg.insertBefore(q, svg.firstChild); });
       // detours for rewritten messages (U4)
       mains.forEach(function (t) {
         if (!t.alts || !V.isOpen(V.sIdx[t.id])) return;
