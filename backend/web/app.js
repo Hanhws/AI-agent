@@ -772,7 +772,15 @@
   // 지도 쪽(backend/web/map.html)의 ‘닫기’가 바로 부를 수 있게도 열어 둬요. 메시지가 닿지 않는 경우에도 닫히게요
   window.gadakMapClose = closeMap;
   // 글쇠가 지도 안이 아니라 가닥 창에 있을 때도 Esc로 닫혀요
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && R.mapFrame) { e.preventDefault(); closeMap(); } });
+  // Esc: 먼저 떠 있는 것을 닫고(전체 지도 → 열린 작은 창), 아무것도 없으면 노선도를 접고 펴요. 글 쓰는 칸에서는 그 칸의 일(찾기 비우기)만 해요
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
+    if (R.mapFrame) { e.preventDefault(); closeMap(); return; }
+    var pops = [R.src, R.ask, R.ai].filter(function (p) { return p && !p.hidden; });
+    if (pops.length) { pops.forEach(function (p) { p.hidden = true; }); return; }
+    var t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); g.toggleDrawer();
+  });
   window.addEventListener('message', function (e) {
     if (e.origin !== location.origin || !e.data || !R.mapFrame || e.source !== R.mapFrame.contentWindow) return;
     if (e.data.gadakMap === 'close') closeMap();
