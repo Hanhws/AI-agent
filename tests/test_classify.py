@@ -262,6 +262,25 @@ class ClassifyTest(unittest.TestCase):
         clf.classify_chat(self.conn, CHAT)
         self.assertEqual(len(self.engine.calls), 3)          # 역이 더 쌓일 때까지는 다시 묻지 않아요
 
+    def test_imported_chats_are_grouped_into_projects_in_one_call(self):
+        def answer(p):
+            return {"chats": [{"id": "a", "project": "환율 알리미"}, {"id": "b", "project": "DB 수업"},
+                              {"id": "c", "project": "DB 수업"}, {"id": "d", "project": "한 번뿐"},
+                              {"id": "e", "project": ""}, {"id": "zz", "project": "DB 수업"}]}
+        clf = self.start(answer)
+        with self.conn:
+            for i in "abcde":
+                store.upsert_chat(self.conn, project=None, chat_id=i, site="claude", title="대화 " + i)
+                store.upsert_turn(self.conn, chat_id=i, message_ref=i + "1", user="질문 " + i, ai="답", state="done")
+        clf.want_group(list("abcde") + [CHAT])
+        self.assertTrue(clf.step(self.conn))
+        where = {i: store.chat_row(self.conn, i)["project_id"] for i in "abcde"}
+        self.assertEqual(where, {"a": "환율 알리미", "b": "DB 수업", "c": "DB 수업",
+                                 "d": store.NO_PROJECT, "e": store.NO_PROJECT})   # 혼자뿐인 새 이름 · 빈 이름은 그대로
+        self.assertEqual(len(self.engine.calls), 1)
+        self.assertEqual([c["id"] for c in self.engine.calls[0]["chats"]], list("abcde"))   # 프로젝트가 있는 대화는 묻지 않아요
+        self.assertIn("환율 알리미", self.engine.calls[0]["projects"])
+
     def test_no_engine_means_no_classification(self):
         self.start(titled)
         clf = classify.Classifier(self.rt, None)

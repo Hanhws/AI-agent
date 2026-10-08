@@ -302,6 +302,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
             usage.record(db(), "import", ok=False)
             return jsonify(error=str(exc)), 400
         result = exports.ingest(db(), chats)
+        rt.classifier.want_group(result["ids"])     # 내보내기 파일에는 프로젝트가 없어요. 제목 · 첫 질문을 보고 한 번에 묶어요
         usage.record(db(), "import", ok=True, turns=result["turns"],
                      **{site: sum(1 for c in chats if c["site"] == site) for site in ("claude", "chatgpt")})
         rt.bump()

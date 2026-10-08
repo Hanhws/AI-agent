@@ -51,6 +51,17 @@ SEG_SCHEMA = {
     "required": ["segs"], "additionalProperties": False,
 }
 
+GROUP_SYSTEM = (config.ROOT / "backend" / "prompts" / "group.txt").read_text(encoding="utf-8")
+GROUP_SCHEMA = {
+    "type": "object",
+    "properties": {"chats": {"type": "array", "items": {
+        "type": "object", "properties": {"id": {"type": "string"}, "project": {"type": "string"}},
+        "required": ["id", "project"], "additionalProperties": False,
+    }}},
+    "required": ["chats"], "additionalProperties": False,
+}
+GROUP_BATCH, GROUP_ASKS, GROUP_ASK_MAX, GROUP_NAME_MAX = 60, 3, 120, 20
+
 CHUNK = 8                 # 한 번에 묻는 턴 수
 USER_CLIP = 500           # 질문은 앞부분
 AI_HEAD, AI_TAIL = 500, 400   # 답은 앞과 끝 (결론은 끝에 있어요). 간추리려면 분류할 때(220 · 220)보다 넉넉히 봐야 해요
@@ -214,6 +225,30 @@ def segment_input(chat, rows) -> dict:
                        "topic": r["topic"]} for r in rows]}
 
 
+def group_input(conn, chat_ids) -> dict:
+    """프로젝트 없이 불러온 대화를 묶을 때: 대화마다 제목과 첫 질문 몇 개만 보내요."""
+    projects = [r["id"] for r in conn.execute("SELECT id FROM projects WHERE id != ?", (store.NO_PROJECT,))]
+    chats = []
+    for chat_id in chat_ids:
+        asks = [r["user"] for r in store.chat_turns(conn, chat_id) if r["user"].strip()][:GROUP_ASKS]
+        chat = store.chat_row(conn, chat_id)
+        chats.append({"id": chat_id, "title": chat["title"] or "", "asks": [_clip(a, GROUP_ASK_MAX) for a in asks]})
+    return {"projects": projects, "chats": chats}
+
+
+def apply_groups(conn, chat_ids, output) -> int:
+    """받은 프로젝트로 옮겨요. 이름이 비었거나 대화 하나뿐인 새 이름은 옮기지 않아요. 옮긴 대화 수를 돌려줘요."""
+    known = {r["id"] for r in conn.execute("SELECT id FROM projects")}
+    picks = {}
+    for item in (output or {}).get("chats") or []:
+        name = _word(item.get("project"), GROUP_NAME_MAX) if isinstance(item, dict) else None
+        if name and name != "(프로젝트 없음)" and item.get("id") in chat_ids:
+            picks[item["id"]] = store.project_key(name)
+    sizes = collections.Counter(picks.values())
+    return sum(store.move_chat(conn, chat_id, name) for chat_id, name in picks.items()
+               if name in known or sizes[name] > 1)
+
+
 def apply_segments(conn, rows, output) -> int:
     """받은 경계로 seg를 다시 써요. 쓸 만한 경계가 하나도 없으면 그대로 둬요. 쓴 구간 수를 돌려줘요."""
     by_seq = {str(r["seq"]): r for r in rows}
@@ -253,6 +288,7 @@ class Classifier:
         self.checker = investigate.Investigator(self)
         self.gist_wanted = set()       # 예전에 분류한 턴에도 답 간추림을 채워 달라는 대화들 (화면이 부탁해요)
         self.seg_at = {}               # 대화 id → 마지막으로 구간을 나눴을 때의 역 수 (켤 때마다 비어요)
+        self.group_wanted = []         # 프로젝트 없이 불러온 대화들. 다음 차례에 엔진을 한 번 불러 프로젝트로 묶어요
 
     def engine(self):
         if isinstance(self._engine, str):
@@ -401,11 +437,38 @@ class Classifier:
             rules.transfer(conn, chat["id"])      # 주제가 여럿 쌓이면 환승하기를 권해요
         self.seg_at[chat["id"]] = len(rows)
 
+    def want_group(self, chat_ids) -> None:
+        self.group_wanted.extend(i for i in chat_ids if i not in self.group_wanted)
+        self.wake.set()
+
+    def group_chats(self, conn, engine) -> int:
+        """불러온 대화를 GROUP_BATCH개씩 묶어 물어요. 형식이 틀리거나 한도에 걸리면 그 대화들은 그대로 둬요."""
+        wanted, self.group_wanted = self.group_wanted, []
+        ids = [i for i in wanted if (row := store.chat_row(conn, i)) and row["project_id"] == store.NO_PROJECT]
+        moved = 0
+        for at in range(0, len(ids), GROUP_BATCH):
+            batch = ids[at:at + GROUP_BATCH]
+            try:
+                output = self.call(GROUP_SYSTEM, json.dumps(group_input(conn, batch), ensure_ascii=False),
+                                   GROUP_SCHEMA, engine, kind="group")
+            except (OutOfCalls, BadOutput):
+                return moved
+            with conn:
+                moved += apply_groups(conn, set(batch), output)
+        return moved
+
     def step(self, conn) -> bool:
         """줄 맨 앞의 대화 하나를 정리(1단)하거나, 1단이 기다리는 대화가 없으면 2단 확인을 턴 하나만큼 해요.
         할 일이 없으면 False."""
         if self.status["paused"]:
             return False
+        if self.group_wanted and self.engine() is not None:
+            try:
+                self.group_chats(conn, self.engine())
+            except EngineError as exc:
+                self.status.update(error=str(exc)[:200], paused=True)
+            self.rt.bump()
+            return True
         if self.queue:
             chat_id = self.queue.popleft()
         elif self.checker.waiting():
