@@ -34,9 +34,20 @@
         var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(cur === o[0]));
         if (o[2]) b.appendChild(el('span', 'n', String(o[2])));
         // 사용 기록의 표(backend/usage_schema.py)에 ‘앞길’ 칸은 없어서 적지 않아요. 칸을 더하려면 사람에게 먼저 물어요
-        b.onclick = function () { set(o[0]); if (o[0] !== 'ahead') g.track('ui', { what: 'tab_' + o[0] }); g.render(); };
+        b.onclick = function () {
+          var moved = cur !== o[0];
+          set(o[0]); if (o[0] !== 'ahead') g.track('ui', { what: 'tab_' + o[0] }); g.render();
+          if (moved && !G.reduce) { R.sideBody.classList.remove('tabin'); void R.sideBody.offsetWidth; R.sideBody.classList.add('tabin'); }   // 내용은 살짝 옆에서 들어와요
+        };
         host.appendChild(b);
       });
+      // 고른 탭의 밑줄은 앞 자리에서 미끄러져 와요 (탭은 그릴 때마다 새로 만들어서, 지난 자리를 기억해 둬요)
+      var on = host.querySelector('[aria-selected="true"]'); if (!on) return;
+      var ink = el('span', 'ink'); host.appendChild(ink);
+      var to = [on.offsetLeft, on.offsetWidth], from = host.inkAt || to;
+      ink.style.transform = 'translateX(' + from[0] + 'px)'; ink.style.width = from[1] + 'px';
+      if (from !== to) { void ink.offsetWidth; ink.style.transform = 'translateX(' + to[0] + 'px)'; ink.style.width = to[1] + 'px'; }
+      host.inkAt = to;
     }
 
     /* ---------- 찾기 ---------- */
@@ -217,7 +228,8 @@
       if (s !== 'done') {
         var row = el('div', 'row');
         var a = el('button', 'btn sm primary', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a, 'list'); }; row.appendChild(a);
-        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; g.render(); }; row.appendChild(l); }
+        // 나중에: 그 칸이 옆으로 빠지며 접힌 뒤에 목록을 다시 그려요
+        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; if (G.reduce) g.render(); else { d.classList.add('gone'); setTimeout(g.render, 380); } }; row.appendChild(l); }
         body.appendChild(row);
       }
       return d;

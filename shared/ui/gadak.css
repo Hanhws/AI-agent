@@ -83,7 +83,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .ledbtn.hot { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .map .in-s { animation: popin .42s cubic-bezier(.3,1.5,.5,1) both; }
 .map .in-l { animation: rise-l .4s ease-out both; }
-@keyframes rise-l { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes rise-l { from { opacity: 0; transform: translate(-4px, 6px); } to { opacity: 1; transform: translate(-4px, 0); } }
 .dside { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; max-height: 300px; min-width: 0; overflow: hidden; }
 .map-scroll { overflow-x: auto; min-width: 0; }
 .map { position: relative; min-width: 560px; }
@@ -133,11 +133,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .nm.now { font-weight: 700; color: var(--fg); }
 .map .in-n, .map.reveal .nm { animation: fadein .45s var(--ease) .2s both; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
-.lbl { position: absolute; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; }
+/* 역 아래 칸: 역 점에서 왼쪽으로 맞춰 산출물을 쌓아요 (한 줄 노선도처럼) */
+.lbl { position: absolute; transform: translateX(-4px); text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; pointer-events: none; }
 .lbl .t { font-size: 13px; line-height: 18px; color: var(--fg2); text-wrap: balance; letter-spacing: var(--tr-small); }
 .lbl .t.now { font-weight: 600; color: var(--fg); }
 .lbl .t.dec { font-weight: 700; color: var(--fg); }
-.lbl .f { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); letter-spacing: var(--tr-small); }
+.lbl .f { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: var(--tr-small); }
+.lbl .f.more { padding-left: 13px; color: var(--faint); }
 .lbl .d { font-size: 10.5px; color: var(--faint); letter-spacing: var(--tr-small); }
 .seg { position: absolute; top: 4px; display: flex; align-items: baseline; gap: 6px; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; font-size: 11.5px; color: var(--faint); cursor: pointer; white-space: nowrap; letter-spacing: var(--tr-small); }
 .seg b { font-size: 12px; font-weight: 600; color: var(--fg2); letter-spacing: var(--tr-small); }
@@ -170,9 +172,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .rail .fsq { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--fg); transform: translateY(-50%); pointer-events: none; }
 .rail .tdot { position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--surface); transform: translateY(-50%); pointer-events: none; }
 .rail-seam { position: absolute; left: calc(var(--rx) - 10px); width: 20px; height: 1px; background: var(--line); }
-.ptabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+.ptabs { position: relative; display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+/* 고른 탭의 밑줄: 탭을 바꾸면 옆으로 미끄러져요 */
+.ptabs .ink { position: absolute; left: 0; bottom: -1px; height: 3px; background: var(--fg); transition: transform .35s var(--ease), width .35s var(--ease); pointer-events: none; }
+.pbody.tabin { animation: tabin .35s var(--ease); }
+@keyframes tabin { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
 .ptabs button { position: relative; border: 0; background: transparent; height: 32px; padding: 0 9px; font-size: 12.5px; color: var(--faint); cursor: pointer; letter-spacing: var(--tr-small); }
-.ptabs button[aria-selected="true"] { color: var(--fg); font-weight: 600; box-shadow: inset 0 -2px 0 var(--fg); }
+.ptabs button[aria-selected="true"] { color: var(--fg); font-weight: 600; }
 .ptabs .n { display: inline-block; min-width: 15px; height: 15px; margin-left: 4px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 10px; line-height: 15px; text-align: center; font-weight: 600; padding: 0 3px; box-sizing: border-box; letter-spacing: var(--tr-small); }
 .pbody { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; }
 .pscope { display: flex; padding: 8px 12px 0; }
@@ -180,15 +186,19 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .led { display: flex; flex-direction: column; gap: 14px; }
 .lgrp { display: flex; flex-direction: column; gap: 8px; }
 .lgrp h5 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--faint); display: flex; justify-content: space-between; }
-.litem { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+/* 할 일 줄: 둥근 카드 대신 선으로 나눈 평평한 줄 (시안 docs/design/window-sian.html) */
+.litem { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 4px 10px; padding: 12px 2px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent;
+  overflow: hidden; max-height: 320px; }
+.litem.gone { animation: gone .38s var(--ease) forwards; }
+@keyframes gone { to { opacity: 0; transform: translateX(24px); max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; } }
 .vside .litem { background: var(--bg); }
-.litem .mk { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--accent); margin-top: 5px; box-sizing: border-box; }
+.litem .mk { width: 12px; height: 12px; border-radius: 50%; border: 2.5px solid var(--accent); margin-top: 3px; box-sizing: border-box; }
 .litem.sg .mk { border-color: var(--fg2); border-style: dotted; }
 .litem .k { font-size: 11px; color: var(--faint); letter-spacing: var(--tr-small); }
 .litem .t { font-size: 13px; line-height: 1.45; color: var(--fg); letter-spacing: var(--tr-small); }
 .litem .w { font-size: 12px; line-height: 1.45; color: var(--muted); letter-spacing: var(--tr-small); }
 .litem .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.litem.done { border-style: dashed; background: transparent; }
+.litem.done { background: transparent; }
 .litem.done .mk { background: var(--accent); border-color: var(--accent); }
 .litem.done .t { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--ring); }
 .litem.done.sg .mk { background: var(--fg2); border-style: solid; border-color: var(--fg2); }

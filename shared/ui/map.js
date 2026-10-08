@@ -196,7 +196,13 @@
         nm.style.maxWidth = Math.round((Y0 - 18 - top - (multi ? 20 : 2)) * Math.SQRT2) + 'px';
         nm.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(nm);
         var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 18) + 'px'; l.style.width = (step - 14) + 'px';
-        var af = g.allFiles(t); if (af.length) { var f = el('span', 'f'); f.appendChild(el('span', 'sq')); var vmax = 0; af.forEach(function (fx) { vmax = Math.max(vmax, g.versionOf(t, fx).v); }); f.appendChild(document.createTextNode(String(af.length) + (vmax > 1 ? ' · v' + vmax : ''))); l.appendChild(f); }
+        // 역 아래에 산출물을 쌓아요: 작은 검은 점 + 파일 이름 (한 줄 노선도처럼). 둘까지 보이고 나머지는 +n
+        var af = g.allFiles(t);
+        af.slice(0, af.length > 2 ? 1 : 2).forEach(function (fx) {
+          var f = el('span', 'f'), v = g.versionOf(t, fx).v; f.appendChild(el('span', 'sq'));
+          f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = '산출물 · ' + fname(fx); l.appendChild(f);
+        });
+        if (af.length > 2) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); l.appendChild(more); }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
       });
