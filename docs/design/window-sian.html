@@ -54,8 +54,8 @@ header button[aria-pressed="true"] { background: #fff; color: #111; }
 .spur { fill: none; stroke: var(--spur); stroke-width: 10; }
 .dot { fill: var(--ink); }
 .st-side { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; }
-.todo { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; }
-.todo.done { fill: var(--ink); }
+.todo { fill: var(--paper); stroke: var(--accent); stroke-width: 2.5; }   /* 안 한 할 일: 빨간 테두리 */
+.todo.done { stroke: var(--ink3); }   /* 끝낸 할 일: 회색 테두리 (산출물은 채운 검은 점) */
 .now-ring { fill: var(--halo); }
 .now-dot { fill: var(--accent); }
 .hit { cursor: pointer; }
@@ -93,6 +93,7 @@ header button[aria-pressed="true"] { background: #fff; color: #111; }
 .item { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.45; overflow: hidden; max-height: 200px; }
 .item i { width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; border: 2.5px solid var(--ink); }
 .item i.fill { background: var(--ink); }
+.item i.grey { border-color: var(--ink3); }
 .item i.red { border-color: var(--accent); }
 .item small { display: block; color: var(--ink2); font-size: 12px; letter-spacing: var(--tr-small); }
 .item .acts { margin-top: 8px; display: flex; gap: 6px; }
@@ -235,7 +236,7 @@ function flashMsg(i) {
 
 // 목록: 할 일 · 정한 것 · 산출물 · 앞길
 const panes = document.getElementById("panes"), PANES = [
-  [["빠진 요청 · 테스트", "자동 실행 역에서", "red", 1], ["요청 외 변경 · store.py", "2단 확인 루프 역에서", "", 1], ["이어 가기 · 키 엔진은 나중에", "API 키는? 역에서", "", 1], ["다음 할 일 · README", "끝냄", "fill", 0]],
+  [["빠진 요청 · 테스트", "자동 실행 역에서", "red", 1], ["요청 외 변경 · store.py", "2단 확인 루프 역에서", "", 1], ["이어 가기 · 키 엔진은 나중에", "API 키는? 역에서", "", 1], ["다음 할 일 · README", "끝냄", "grey", 0]],
   [["2단 에이전트", "매 턴 분류 + 조건 걸린 턴만 도구 루프", "fill", 0], ["구독 엔진", "Claude CLI로 구독 한도 안에서", "fill", 0], ["자동 실행", "보낼지는 auto.py 한 곳에서", "fill", 0]],
   [["app.py", "Flask 뼈대", "fill", 0], ["classify.py", "분류 프롬프트", "fill", 0], ["claude_cli.py", "구독 엔진", "fill", 0], ["auto.py", "자동 실행", "fill", 0]],
   [["이어 가기 · 테스트부터 붙이기", "찾아본 것: tests/ 폴더에 auto 테스트 없음", "", 0], ["다른 길 · 키 엔진 먼저", "찾아본 것: README 3-1", "", 0]],

@@ -193,7 +193,7 @@
         var p = pos[t.id], k = V.kind(t), open = V.isOpen(V.sIdx[t.id]), b;
         if (!open) { b = el('button', 'st tick' + (k === 'cur' ? ' tcur' : (t.dec ? ' tdec' : ''))); b.type = 'button'; }
         else { b = el('button', 'st ' + k); b.type = 'button'; }
-        if (open && g.hasTodo(t)) b.classList.add('todo');
+        if (!open && g.hasTodo(t)) b.classList.add('todo');   // 접힌 눈금에만 작은 고리. 펼친 역은 아래에 할 일 고리를 쌓아요
         b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
         b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' 로 이동');
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
@@ -211,6 +211,15 @@
           f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = '산출물 · ' + fname(fx); l.appendChild(f);
         });
         if (af.length > 2) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); l.appendChild(more); }
+        // 그다음 할 일: 안 한 일은 빨간 테두리 고리, 끝낸 일은 회색 테두리 고리. 옆에 ‘할 일 n’ (범례 없이도 읽히게)
+        var its = g.itemsOf(t);
+        if (its.length) {
+          var row = el('span', 'f todos'), left = 0;
+          its.slice(0, 4).forEach(function (it) { var s = g.stateOf(it), done = s === 'done' || s === 'dismissed'; if (!done) left++; var r = el('i', 'ti' + (done ? ' done' : '')); r.title = it.text + (done ? ' (끝냄)' : ''); row.appendChild(r); });
+          its.slice(4).forEach(function (it) { var s = g.stateOf(it); if (s !== 'done' && s !== 'dismissed') left++; });
+          if (left) row.appendChild(document.createTextNode('할 일 ' + left));
+          l.appendChild(row);
+        }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
       });
