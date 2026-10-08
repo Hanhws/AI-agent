@@ -104,7 +104,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
 
     @app.get("/map/data")
     def map_data():
-        return jsonify(store.map_data(db(), days=request.args.get("days", 90, type=int)))
+        return jsonify(store.map_data(db(), days=request.args.get("days", store.MAP_DAYS, type=int)))
 
     @app.get("/web/<path:name>")
     def web_file(name):

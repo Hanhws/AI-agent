@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가닥 창 시안</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+/* 가닥 창 시안 (2026-10-08 · 디자인 담당 · 조원 확인). 나중에 가닥 창을 이 모습 그대로 구현해요.
+   - 노선도 카드를 전체 지도의 한 줄 노선도 문법으로: 프로젝트 색 굵은 막대 · 양 끝 노선 번호 · 역 이름 위로 45° · 곁길 아래로 45° · 역 아래에 산출물 · 할 일
+   - 그림자와 양옆 흐림 없음, 1px 선만. 머리는 전체 지도와 같은 검은 띠
+   - 움직임은 --ease 한 곡선: 노선도 접고 펴기(펼 때 노선이 그어지고 역이 차례로 앉음) · 목록 칸 밀려 들어옴 · 탭 밑줄 미끄러짐 ·
+     한마디 아래에서 올라옴 · 할 일 ‘끝냄’은 접혀 사라짐 · 역 누르면 대화가 그 자리로 · 지금 역의 빛은 숨 쉼
+   - 배치는 조원의 10/7 안(레일 없음 · 오른쪽에 할 일 · 정한 것 · 산출물 · 앞길)
+   - 만든 예시 데이터만 들어 있어요. 브라우저로 바로 열어 봐요 */
+:root {
+  --paper: #FFFFFF; --ink: #111; --ink2: #6B6B6B; --ink3: #A6A6A6; --line: #E5E5E5; --side: #F7F7F7;
+  --accent: #C8401A; --halo: #F6DDD4; --spur: #A7A9AC; --route: #0039A6; --band: #111;
+  --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif;
+  --tr-title: -0.08em; --tr-body: -0.05em; --tr-small: -0.03em;
+  --ease: cubic-bezier(.2, .8, .2, 1);   /* 빠르게 나와서 부드럽게 멈춤 */
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font: 15px var(--font); letter-spacing: var(--tr-body); overflow: hidden; }
+button { font: inherit; letter-spacing: inherit; color: inherit; cursor: pointer; }
+
+/* 검은 띠 (전체 지도와 같은 머리) */
+header { height: 48px; background: var(--band); color: #fff; display: flex; align-items: center; gap: 16px; padding: 0 20px; }
+header b { font-size: 20px; letter-spacing: var(--tr-title); }
+header b i { font-style: normal; margin-left: 6px; }
+header .proj { font-size: 14px; opacity: .8; display: flex; align-items: center; gap: 8px; }
+header .proj::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--route); }
+header .sp { flex: 1; }
+header button { border: 1px solid rgba(255,255,255,.45); background: none; color: #fff; height: 30px; padding: 0 12px; font-size: 13px; letter-spacing: var(--tr-small); transition: background .2s; }
+header button:hover { background: rgba(255,255,255,.12); }
+header button[aria-pressed="true"] { background: #fff; color: #111; }
+
+.app { display: grid; grid-template-rows: auto 1fr; height: calc(100% - 48px); }
+
+/* ── 노선도 카드: 접고 펴기. 높이는 grid 0fr ↔ 1fr로 부드럽게 (그림자 없이 1px 선만) */
+.card { display: grid; grid-template-rows: 1fr; border-bottom: 1px solid var(--line); transition: grid-template-rows .42s var(--ease); }
+.card > div { overflow: hidden; min-height: 0; }
+.folded .card { grid-template-rows: 0fr; }
+.card .head { display: flex; align-items: baseline; gap: 14px; padding: 18px 28px 0; }
+.card h2 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: var(--tr-title); }
+.card .sub { font-size: 13px; color: var(--ink2); letter-spacing: var(--tr-small); }
+.strip { display: block; width: 100%; height: 290px; }
+.strip text { font-family: var(--font); fill: var(--ink); letter-spacing: var(--tr-body); }
+.st-name { font-size: 14px; }
+.st-name.dec { font-weight: 700; }
+.st-name.side { fill: var(--ink2); font-size: 13px; letter-spacing: var(--tr-small); }
+.st-end { font-size: 34px; font-weight: 700; letter-spacing: var(--tr-title); }
+.made { font-size: 12px; fill: var(--ink2); letter-spacing: var(--tr-small); }
+.spur { fill: none; stroke: var(--spur); stroke-width: 10; }
+.dot { fill: var(--ink); }
+.st-side { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; }
+.todo { fill: var(--paper); stroke: var(--accent); stroke-width: 2.5; }   /* 안 한 할 일: 빨간 테두리 */
+.todo.done { stroke: var(--ink3); }   /* 끝낸 할 일: 회색 테두리 (산출물은 채운 검은 점) */
+.now-ring { fill: var(--halo); }
+.now-dot { fill: var(--accent); }
+.hit { cursor: pointer; }
+.sel { fill: none; stroke: var(--ink); stroke-width: 2; }
+
+/* 펼칠 때: 노선이 왼쪽에서 그어지고, 역이 차례로 앉아요 */
+.bar { transition: transform .7s var(--ease); transform-origin: left center; transform-box: fill-box; }
+.drawing .bar { transform: scaleX(0); }
+.stn { transition: opacity .3s, transform .45s var(--ease); transform-box: fill-box; transform-origin: center; }
+.drawing .stn { opacity: 0; transform: translateY(6px); }
+.spur { transition: stroke-dashoffset .6s var(--ease) .25s; }
+.drawing .spur { stroke-dashoffset: var(--len); }
+/* 지금 역의 빛은 천천히 한 번씩 숨 쉬어요 (반짝임 대신) */
+.now-ring { animation: breathe 2.4s var(--ease) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes breathe { 50% { transform: scale(1.25); opacity: .55; } }
+
+/* ── 아래: 대화 | 목록 */
+.body { display: grid; grid-template-columns: 1fr var(--listw, 340px); min-height: 0; transition: grid-template-columns .42s var(--ease); }
+.nolist .body { --listw: 0px; }
+.chat { overflow-y: auto; padding: 24px 28px 80px; }
+.msg { max-width: 640px; margin: 0 0 18px; line-height: 1.6; transition: background .3s; }
+.msg.me { margin-left: auto; width: fit-content; max-width: 520px; padding: 10px 14px; background: #F2F2F2; }
+.msg.flash { background: #FBEDE7; }
+.msg small { display: block; color: var(--ink3); font-size: 12px; letter-spacing: var(--tr-small); margin-bottom: 4px; }
+
+.list { border-left: 1px solid var(--line); background: var(--side); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.list > * { min-width: 340px; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); position: relative; }
+.tabs button { flex: 1; height: 44px; border: 0; background: none; font-size: 14px; color: var(--ink2); }
+.tabs button.on { color: var(--ink); font-weight: 700; }
+.tabs .ink { position: absolute; left: 0; bottom: -1px; height: 3px; background: var(--ink); transition: transform .35s var(--ease), width .35s var(--ease); }
+.panes { flex: 1; overflow: hidden; position: relative; }
+.pane { position: absolute; inset: 0; overflow-y: auto; padding: 14px 16px; transition: opacity .25s, transform .35s var(--ease); }
+.pane:not(.on) { opacity: 0; transform: translateX(14px); pointer-events: none; }
+.item { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.45; overflow: hidden; max-height: 200px; }
+.item i { width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; border: 2.5px solid var(--ink); }
+.item i.fill { background: var(--ink); }
+.item i.grey { border-color: var(--ink3); }
+.item i.red { border-color: var(--accent); }
+.item small { display: block; color: var(--ink2); font-size: 12px; letter-spacing: var(--tr-small); }
+.item .acts { margin-top: 8px; display: flex; gap: 6px; }
+.item .acts button { height: 28px; padding: 0 10px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font-size: 12px; letter-spacing: var(--tr-small); }
+.item .acts button + button { background: none; color: var(--ink); border-color: var(--line); }
+.item.gone { animation: gone .4s var(--ease) forwards; }
+@keyframes gone { to { opacity: 0; transform: translateX(24px); max-height: 0; padding: 0; border-width: 0; } }
+
+/* 한마디: 아래에서 올라오고, 닫으면 내려가요 */
+.nudge { position: fixed; left: 28px; bottom: 24px; width: 380px; background: var(--paper); border: 1px solid var(--ink); padding: 14px 16px;
+  transition: transform .45s var(--ease), opacity .3s; font-size: 14px; line-height: 1.5; }
+.nudge:not(.on) { transform: translateY(24px); opacity: 0; pointer-events: none; }
+.nudge b { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: var(--tr-small); margin-bottom: 6px; }
+.nudge b::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.nudge .acts { margin-top: 10px; display: flex; gap: 6px; }
+.nudge .acts button { height: 28px; padding: 0 10px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font-size: 12px; }
+.nudge .acts button + button { background: none; color: var(--ink); border-color: var(--line); }
+
+.note { position: fixed; right: 16px; bottom: 16px; font-size: 12px; color: var(--ink2); background: var(--paper); border: 1px solid var(--line); padding: 8px 10px; letter-spacing: var(--tr-small); max-width: 300px; }
+@media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <b>가닥<i>GADAK</i></b><span class="proj">가닥 · 3 백엔드</span><span class="sp"></span>
+  <button id="name45" aria-pressed="true">역 이름 45°</button>
+  <button id="nudgeBtn">한마디 띄우기</button>
+  <button id="listBtn" aria-pressed="true">목록</button>
+  <button id="foldBtn">접기</button>
+</header>
+<div class="app">
+  <section class="card"><div>
+    <div class="head"><h2>백엔드</h2><span class="sub">가닥 · 9/28 – 10/4 · 역 11 · 정함 3</span></div>
+    <svg class="strip" id="strip"></svg>
+  </div></section>
+  <div class="body">
+    <main class="chat" id="chat"></main>
+    <aside class="list">
+      <div class="tabs" id="tabs"><button class="on">할 일</button><button>정한 것</button><button>산출물</button><button>앞길</button><span class="ink"></span></div>
+      <div class="panes" id="panes"></div>
+    </aside>
+  </div>
+</div>
+<div class="nudge" id="nudge"><b>빠진 요청</b>테스트를 아직 안 만들었어요. auto.py가 무엇을 보낼지 정하는 곳이라 먼저 챙길 만해요.
+  <div class="acts"><button>넣어 주기</button><button id="nudgeX">나중에</button></div></div>
+<div class="note">시안이에요(만든 예시). 접기 · 목록 · 한마디 · 탭 · 역 누르기로 움직임을 봐요. 할 일의 ‘끝냄’을 누르면 칸이 접혀 사라져요.</div>
+<script>
+const T = (t, o = {}) => ({ t, d: o.d, f: o.f || [], todo: o.todo || [], side: o.side || 0 });
+const turns = [
+  T("Flask 뼈대", { f: ["app.py"] }), T("2단 에이전트", { d: 1 }), T("분류 프롬프트", { f: ["classify.py"] }),
+  T("JSON이 뭐야?", { side: 1 }), T("스키마는 왜 필요해?", { side: 2 }), T("예시 하나만", { side: 1 }),
+  T("기록 파일 읽기", { f: ["claude_code.py"], todo: [1] }), T("구독 엔진", { d: 1, f: ["claude_cli.py"] }),
+  T("API 키는?", { side: 1, todo: [0] }), T("2단 확인 루프", { f: ["investigate.py"], todo: [0] }),
+  T("자동 실행", { d: 1, f: ["auto.py"], todo: [0, 0, 1] }),
+];
+const NS = "http://www.w3.org/2000/svg", svg = document.getElementById("strip");
+const el = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; };
+let deg45 = true, selected = turns.length - 1;
+
+// 둥근 꺾임 (꺾이는 곳마다 반지름 r)
+function rounded(P, r) {
+  let d = `M${P[0][0]} ${P[0][1]}`;
+  for (let i = 1; i < P.length - 1; i++) {
+    const [a, b, c] = [P[i - 1], P[i], P[i + 1]];
+    const u1 = [b[0] - a[0], b[1] - a[1]], u2 = [c[0] - b[0], c[1] - b[1]];
+    const l1 = Math.hypot(...u1), l2 = Math.hypot(...u2), k = Math.min(r, l1 / 2, l2 / 2);
+    d += ` L${b[0] - u1[0] / l1 * k} ${b[1] - u1[1] / l1 * k} Q${b[0]} ${b[1]} ${b[0] + u2[0] / l2 * k} ${b[1] + u2[1] / l2 * k}`;
+  }
+  return d + ` L${P[P.length - 1][0]} ${P[P.length - 1][1]}`;
+}
+
+function draw(animate) {
+  svg.replaceChildren();
+  const W = svg.clientWidth, n = turns.length, BAR = 16, DROP = 34, Y = deg45 ? 120 : 108;
+  const depth = turns.map(u => u.side);
+  const jog = i => Math.abs(depth[i] - (depth[i - 1] || 0)) * 0.35;
+  const step = (W - 200) / (n - 1 + turns.reduce((s, _, i) => s + (i ? jog(i) : 0), 0));
+  const X = [100];
+  for (let i = 1; i < n; i++) X.push(X[i - 1] + step * (1 + jog(i)));
+  const g = el("g", {}, svg);
+  if (animate) svg.classList.add("drawing");
+  // 곁길 지선: 본선 아래로 45°
+  for (let a = 1; a < n; a++) {
+    if (!depth[a] || depth[a - 1]) continue;
+    let b = a; while (b + 1 < n && depth[b + 1]) b++;
+    const pts = [[X[a - 1], Y]];
+    for (let i = a; i <= b; i++) pts.push([X[i], Y + depth[i] * DROP]);
+    pts.push(b + 1 < n ? [X[b + 1], Y] : [X[b] + 30, Y + depth[b] * DROP]);
+    const P = [pts[0]];
+    for (let k = 1; k < pts.length; k++) { const [px, py] = pts[k - 1], [qx, qy] = pts[k], dy = Math.abs(qy - py), m = (px + qx) / 2; if (dy) P.push([m - dy / 2, py], [m + dy / 2, qy]); P.push([qx, qy]); }
+    const s = el("path", { d: rounded(P, 14), class: "spur" }, g);
+    const L = s.getTotalLength(); s.style.setProperty("--len", L); s.style.strokeDasharray = L;
+  }
+  // 본선 막대 (프로젝트 색) + 양 끝 노선 번호
+  el("rect", { x: 70, y: Y - BAR / 2, width: W - 140, height: BAR, fill: "var(--route)", class: "bar" }, g);
+  el("text", { x: 58, y: Y + 12, "text-anchor": "end", class: "st-end" }, g).textContent = "3";
+  el("text", { x: W - 58, y: Y + 12, class: "st-end" }, g).textContent = "3";
+  turns.forEach((u, i) => {
+    const x = X[i], y = Y + u.side * DROP, now = i === n - 1;
+    const s = el("g", { class: "stn hit", style: `transition-delay:${animate ? 0.25 + i * 0.045 : 0}s` }, g);
+    if (i === selected && !now) el("circle", { cx: x, cy: y, r: 13, class: "sel" }, s);
+    if (now) { el("circle", { cx: x, cy: y, r: 16, class: "now-ring" }, s); el("circle", { cx: x, cy: y, r: 9, class: "now-dot" }, s); }
+    else if (u.side) el("circle", { cx: x, cy: y, r: 6, class: "st-side" }, s);
+    else el("circle", { cx: x, cy: y, r: u.d ? 9 : 6, class: "dot" }, s);
+    // 이름: 본선은 위로(45° 또는 가로 두 줄), 곁길은 지선 아래로
+    const cls = `st-name${u.d || now ? " dec" : ""}${u.side ? " side" : ""}`, label = now ? `지금 · ${u.t}` : u.t;
+    if (u.side) {
+      const t = deg45 ? el("text", { x: x + 9, y: y + 20, class: cls, transform: `rotate(45 ${x + 9} ${y + 20})` }, s)
+        : el("text", { x, y: y + 26, "text-anchor": "middle", class: cls }, s);
+      t.textContent = label;
+    } else if (deg45) {
+      el("text", { x: x - 4, y: Y - 22, class: cls, transform: `rotate(-45 ${x - 4} ${Y - 22})` }, s).textContent = label;
+    } else {
+      const lines = [];
+      for (const w of label.split(" ")) { const L = lines[lines.length - 1]; if (L && (L + " " + w).length <= 7) lines[lines.length - 1] = L + " " + w; else lines.push(w); }
+      lines.slice(0, 3).reverse().forEach((ln, k) => { el("text", { x, y: Y - 20 - k * 17, "text-anchor": "middle", class: cls }, s).textContent = ln; });
+    }
+    // 역 아래: 산출물(작은 점 + 파일 이름) · 할 일(동그라미)
+    if (!u.side) {
+      let yy = Y + BAR / 2 + 22;
+      for (const f of u.f) { el("circle", { cx: x, cy: yy, r: 4, class: "dot" }, s); el("text", { x: x + 8, y: yy + 4, class: "made" }, s).textContent = f; yy += 20; }
+      for (const done of u.todo) { el("circle", { cx: x, cy: yy, r: 7, class: `todo${done ? " done" : ""}` }, s); yy += 20; }
+    }
+    s.addEventListener("click", () => { selected = i; draw(false); flashMsg(i); });
+  });
+  if (animate) requestAnimationFrame(() => requestAnimationFrame(() => svg.classList.remove("drawing")));
+}
+
+// 대화 (만든 예시)
+const chat = document.getElementById("chat");
+turns.forEach((u, i) => {
+  chat.insertAdjacentHTML("beforeend", `<div class="msg me" data-i="${i}"><small>${i + 1}번째 역 · ${u.t}</small>${u.t}에 대해 물어볼게요.</div>
+    <div class="msg">${u.t} — 이 자리에는 쓰고 있는 LLM의 답이 와요. ${u.d ? "<b>여기서 정했어요.</b>" : ""}</div>`);
+});
+function flashMsg(i) {
+  const m = chat.querySelector(`[data-i="${i}"]`); if (!m) return;
+  m.scrollIntoView({ behavior: "smooth", block: "center" });
+  m.classList.add("flash"); setTimeout(() => m.classList.remove("flash"), 900);
+}
+
+// 목록: 할 일 · 정한 것 · 산출물 · 앞길
+const panes = document.getElementById("panes"), PANES = [
+  [["빠진 요청 · 테스트", "자동 실행 역에서", "red", 1], ["요청 외 변경 · store.py", "2단 확인 루프 역에서", "", 1], ["이어 가기 · 키 엔진은 나중에", "API 키는? 역에서", "", 1], ["다음 할 일 · README", "끝냄", "grey", 0]],
+  [["2단 에이전트", "매 턴 분류 + 조건 걸린 턴만 도구 루프", "fill", 0], ["구독 엔진", "Claude CLI로 구독 한도 안에서", "fill", 0], ["자동 실행", "보낼지는 auto.py 한 곳에서", "fill", 0]],
+  [["app.py", "Flask 뼈대", "fill", 0], ["classify.py", "분류 프롬프트", "fill", 0], ["claude_cli.py", "구독 엔진", "fill", 0], ["auto.py", "자동 실행", "fill", 0]],
+  [["이어 가기 · 테스트부터 붙이기", "찾아본 것: tests/ 폴더에 auto 테스트 없음", "", 0], ["다른 길 · 키 엔진 먼저", "찾아본 것: README 3-1", "", 0]],
+];
+PANES.forEach((rows, k) => {
+  const p = document.createElement("div"); p.className = "pane" + (k ? "" : " on");
+  p.innerHTML = rows.map(([t, s, c, act]) => `<div class="item"><i class="${c}"></i><div>${t}<small>${s}</small>${act ? '<div class="acts"><button>넣어 주기</button><button class="done">끝냄</button></div>' : ""}</div></div>`).join("");
+  panes.appendChild(p);
+});
+panes.addEventListener("click", e => { if (e.target.matches(".done")) e.target.closest(".item").classList.add("gone"); });
+const tabs = document.getElementById("tabs"), ink = tabs.querySelector(".ink");
+const moveInk = b => { ink.style.width = b.offsetWidth + "px"; ink.style.transform = `translateX(${b.offsetLeft}px)`; };
+[...tabs.querySelectorAll("button")].forEach((b, k) => b.onclick = () => {
+  tabs.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); moveInk(b);
+  panes.querySelectorAll(".pane").forEach((p, j) => p.classList.toggle("on", j === k));
+});
+
+// 머리 버튼
+const fold = document.getElementById("foldBtn");
+fold.onclick = () => { const f = document.body.classList.toggle("folded"); fold.textContent = f ? "펴기" : "접기"; if (!f) setTimeout(() => draw(true), 60); };
+const lb = document.getElementById("listBtn");
+lb.onclick = () => { const off = document.body.classList.toggle("nolist"); lb.setAttribute("aria-pressed", !off); setTimeout(() => draw(false), 430); };
+const nb = document.getElementById("nudge");
+document.getElementById("nudgeBtn").onclick = () => nb.classList.add("on");
+document.getElementById("nudgeX").onclick = () => nb.classList.remove("on");
+const nm = document.getElementById("name45");
+nm.onclick = () => { deg45 = !deg45; nm.setAttribute("aria-pressed", deg45); nm.textContent = deg45 ? "역 이름 45°" : "역 이름 가로"; draw(false); };
+
+document.fonts.ready.then(() => { draw(true); moveInk(tabs.querySelector("button")); });
+addEventListener("resize", () => draw(false));
+</script>
+</body>
+</html>

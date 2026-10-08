@@ -15,7 +15,7 @@
 
   var g = G.create({
     render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    nudgeClass: 'nudge-web', statusBits: statusBits, track: track, setAuto: setAuto, handoff: handoff,
+    nudgeClass: 'nudge-web', statusBits: statusBits, sideFold: sideFold, track: track, setAuto: setAuto, handoff: handoff,
     // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
     ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
     aheadAuto: function () { return !!(S.status && S.status.ahead && S.status.ahead.auto); }, setAheadAuto: setAheadAuto,
@@ -34,14 +34,26 @@
   }
 
   /* ---------- 틀 ---------- */
+  function foldBtn(mark, label, onclick, cls) {
+    var b = el('button', cls || 'colfold', mark); b.type = 'button'; b.setAttribute('aria-label', label); b.title = label; b.onclick = onclick; return b;
+  }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem('gadak.' + k); localStorage.setItem('gadak.' + k, v); } catch (e) { return null; } }
+  function setLeft(open, quiet) {
+    R.site.classList.toggle('left-shut', !open); R.leftOpen.hidden = open;
+    if (!quiet) { store('leftOpen', open ? '1' : '0'); track('ui', { what: open ? 'list_open' : 'list_close' }); }
+  }
+  function sideFold(open, n) {
+    R.sideCol.classList.toggle('shut', !open); R.sideOpen.hidden = open;
+    R.sideOpenN.textContent = n ? '할 일 ' + n : '할 일';
+  }
   function mount() {
     var shell = document.getElementById('shell'); shell.innerHTML = ''; R.root = shell;
     // 맨 위 검은 머리띠: 전체 지도와 같은 지하철 표지판 띠 (심볼 · 가닥 · 전체 지도)
     var brand = el('header', 'brand band'), logo = el('button', 'logo'); shell.appendChild(brand);
     var site = el('div', 'site'); shell.appendChild(site);
     var bar = el('aside', 'sitebar'); site.appendChild(bar); logo.type = 'button'; logo.setAttribute('aria-label', '가닥 심볼 다시 재생');
-    var mark = G.makeMark(26, 10); logo.appendChild(mark.svg); logo.appendChild(el('b', null, '가닥')); logo.onclick = function () { G.playMark(mark); };
-    brand.appendChild(logo);
+    var mark = G.makeMark(30, 10), word = el('b', null, '가닥'); word.appendChild(el('i', null, 'GADAK')); logo.appendChild(mark.svg); logo.appendChild(word); logo.onclick = function () { G.playMark(mark); };
+    brand.appendChild(logo); G.macChrome(brand);
     // 전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 한눈에 (backend/web/map.html). 심볼 옆, 늘 보이는 자리에
     var map = el('button', 'btn sm mapbtn', '전체 지도'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
     var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';
@@ -49,6 +61,10 @@
     R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
     R.find.addEventListener('keydown', function (e) { if (e.key === 'Escape') { R.find.value = ''; setFind(''); } });
     fw.appendChild(R.find); bar.appendChild(fw);
+    // 양옆 기둥은 위의 버튼으로 접고 펴요. 접으면 얇은 띠에 펼치는 버튼만 남고, 폭이 부드럽게 줄어요 (app.css)
+    var lf = foldBtn('‹', '대화 목록 접기', function () { setLeft(false); }); fw.appendChild(lf);
+    R.leftOpen = foldBtn('›', '대화 목록 펼치기', function () { setLeft(true); }, 'colopen'); R.leftOpen.appendChild(el('span', 'vt', '대화')); site.appendChild(R.leftOpen);
+    R.site = site;
     R.lists = el('div', 'lists'); bar.appendChild(R.lists);
     R.foot = el('div', 'foot'); bar.appendChild(R.foot);
     // 가운데: 왼쪽에 노선도 카드와 그 아래 대화, 오른쪽에 목록(할 일 · 정한 것 · 산출물 · 앞길)을 카드와 떼어 위에서 아래까지.
@@ -62,6 +78,10 @@
     R.nudgeHost = cw;
     R.sideCol = el('aside', 'sidecol'); R.sideCol.setAttribute('aria-label', '할 일 · 정한 것 · 산출물 · 앞길'); main.appendChild(R.sideCol);
     g.mountSide(R.sideCol, true);
+    R.sideCol.appendChild(foldBtn('›', '할 일 목록 접기', function () { st.ledgerOpen = false; g.track('ui', { what: 'list_close' }); g.render(); }));
+    R.sideOpen = foldBtn('‹', '할 일 목록 펼치기', function () { st.ledgerOpen = true; g.track('ui', { what: 'list_open' }); g.render(); }, 'colopen');
+    R.sideOpen.appendChild(R.sideOpenN = el('span', 'vt', '할 일')); R.sideCol.appendChild(R.sideOpen);
+    setLeft(store('leftOpen') !== '0', true);
     R.chat.addEventListener('scroll', onChatScroll);
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
     R.src = el('div', 'pop srcpop'); R.src.hidden = true; document.body.appendChild(R.src);
@@ -84,7 +104,7 @@
     renderThread();
     R.chat.scrollTop = S.bottom ? R.chat.scrollHeight : keep; S.bottom = false;
     var V = g.buildView(st.scope);
-    R.drawer.hidden = !st.drawerOpen; R.unfold.hidden = st.drawerOpen;
+    R.drawer.classList.toggle('shut', !st.drawerOpen); R.unfold.hidden = st.drawerOpen;   // 접고 펴기는 높이가 부드럽게 (gadak.css)
     g.renderSide();                    // 목록은 노선도 카드를 접어도 그대로 있어요
     if (st.drawerOpen) { g.renderMapHead(V); g.renderMap(V); }
     g.renderNudge();
@@ -316,16 +336,20 @@
     flush(); if (code) f.appendChild(el('pre', 'code', code.join('\n')));
     return f;
   }
-  // 제목 줄 = 역. 왼쪽에 프로젝트 색 노선을 세로로 긋고(레일과 같은 문법), 누르면 그 구획을 접어요
-  function fillAnswer(box, text) {
+  // 제목 줄 = 역. 왼쪽에 프로젝트 색 노선을 세로로 긋고(레일과 같은 문법), 누르면 그 구획을 펼쳐요.
+  // 처음에는 제목 아래를 접어 둬요: 제목만 훑고 궁금한 곳만 열어요 (제목 앞 머리말은 펼친 채). 연 구획은 기억해서 다시 그려도 열려 있어요
+  var opened = {};
+  function fillAnswer(box, text, key) {
     var blocks = answerBlocks(text);
     box.innerHTML = ''; box.classList.toggle('blocks', !!blocks);
     if (!blocks) { box.appendChild(richText(text)); return; }
     blocks.forEach(function (b) {
       var s = el('div', 'blk' + (b.h ? ' blk-st' : ''));
       if (b.h) {
-        var h = inline(el('button', 'blk-h'), b.h); h.type = 'button'; h.setAttribute('aria-expanded', 'true');
-        h.onclick = function () { var shut = s.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!shut)); };
+        var id = key + ':' + b.h, open = !!opened[id];
+        s.classList.toggle('shut', !open);
+        var h = inline(el('button', 'blk-h'), b.h); h.type = 'button'; h.setAttribute('aria-expanded', String(open));
+        h.onclick = function () { var shut = s.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!shut)); opened[id] = !shut; };
         s.appendChild(h);
       }
       if (b.body) s.appendChild(richText(b.body));
@@ -340,11 +364,11 @@
     if (t.parts) u.appendChild(el('span', 'tag', '요청 ' + t.parts.length + '개'));
     var full = S.full[t.id] || t;  // 화면에는 앞부분만 와요. ‘전체 보기’로 받아 둔 원문이 있으면 그것을
     var up = el('p', null, full.user); u.appendChild(up); w.appendChild(u);
-    var a = el('div', 'a'), para = el('div', 'part'); fillAnswer(para, full.ai); a.appendChild(para);
+    var a = el('div', 'a'), para = el('div', 'part'); fillAnswer(para, full.ai, t.id); a.appendChild(para);
     if (t.parts) R.partEls[t.id + ':0'] = para;
     if (t.long && full === t) {
       var more = el('button', 'linkbtn more', '전체 보기'); more.type = 'button';
-      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; fillAnswer(para, d.turn.ai); more.remove(); g.renderRail(); }); };
+      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; fillAnswer(para, d.turn.ai, t.id); more.remove(); g.renderRail(); }); };
       a.appendChild(more);
     }
     if (t.files) {
@@ -748,7 +772,15 @@
   // 지도 쪽(backend/web/map.html)의 ‘닫기’가 바로 부를 수 있게도 열어 둬요. 메시지가 닿지 않는 경우에도 닫히게요
   window.gadakMapClose = closeMap;
   // 글쇠가 지도 안이 아니라 가닥 창에 있을 때도 Esc로 닫혀요
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && R.mapFrame) { e.preventDefault(); closeMap(); } });
+  // Esc: 먼저 떠 있는 것을 닫고(전체 지도 → 열린 작은 창), 아무것도 없으면 노선도를 접고 펴요. 글 쓰는 칸에서는 그 칸의 일(찾기 비우기)만 해요
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
+    if (R.mapFrame) { e.preventDefault(); closeMap(); return; }
+    var pops = [R.src, R.ask, R.ai].filter(function (p) { return p && !p.hidden; });
+    if (pops.length) { pops.forEach(function (p) { p.hidden = true; }); return; }
+    var t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); g.toggleDrawer();
+  });
   window.addEventListener('message', function (e) {
     if (e.origin !== location.origin || !e.data || !R.mapFrame || e.source !== R.mapFrame.contentWindow) return;
     if (e.data.gadakMap === 'close') closeMap();

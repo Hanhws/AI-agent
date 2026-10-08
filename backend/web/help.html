@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <title>가닥 도움말</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <link rel="stylesheet" href="ui/tokens.css">
 <style>
 /* 가닥 도움말. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴 ‘도움말’이 새 창으로 열어요.
    한 번에 주제 하나만 보여요(왼쪽에서 고르거나 위에서 찾아요). 주소 끝에 #map처럼 주제 이름을 붙이면 그 주제로 열려요.
    색 · 글꼴은 shared/ui/tokens.css 그대로이고, 빨강은 ‘지금 · 할 일’을 가리킬 때만 써요. */
 html, body { margin: 0; height: 100%; background: var(--bg); }
-body { color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.65; display: flex; flex-direction: column; }
+body { color: var(--fg); font-family: var(--body); letter-spacing: var(--tr-body); font-size: 15px; line-height: 1.65; display: flex; flex-direction: column; }
 header { flex: none; height: 48px; padding: 0 20px; display: flex; align-items: center; gap: 12px; background: #111; color: #fff; }
 header b { font-family: var(--display); font-size: 22px; letter-spacing: -0.02em; color: #fff; }   /* 아래의 b 색(본문 글자색)이 검은 머리띠에서는 안 보여요 */
 header span { font-size: 15px; }
@@ -33,10 +33,10 @@ h2 { font-size: 15px; margin: 24px 0 2px; color: var(--muted); font-weight: 600;
 .lead { margin: 0 0 14px; color: var(--fg2); }
 p { margin: 6px 0; color: var(--fg2); }
 b, strong { color: var(--fg); }
-kbd { font: 600 12.5px var(--body); padding: 1px 7px; border: 1px solid var(--ring); border-radius: 4px; color: var(--fg); white-space: nowrap; }
+kbd { font: 600 12.5px var(--body); padding: 1px 7px; border: 1px solid var(--ring); border-radius: 4px; color: var(--fg); white-space: nowrap; letter-spacing: var(--tr-small); }
 ol { margin: 6px 0; padding: 0; list-style: none; counter-reset: step; }
 ol li { counter-increment: step; position: relative; margin: 0; padding: 9px 0 9px 38px; border-bottom: 1px solid var(--line); color: var(--fg2); }
-ol li::before { content: counter(step); position: absolute; left: 4px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--fg); color: var(--surface); font-size: 12.5px; font-weight: 700; line-height: 22px; text-align: center; }
+ol li::before { content: counter(step); position: absolute; left: 4px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--fg); color: var(--surface); font-size: 12.5px; font-weight: 700; line-height: 22px; text-align: center; letter-spacing: var(--tr-small); }
 .note { margin: 14px 0 0; padding: 9px 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--side); font-size: 14px; color: var(--fg2); }
 /* 낱말 한 줄: 왼쪽에 이름, 오른쪽에 한두 문장 */
 dl { margin: 6px 0; }
@@ -51,7 +51,7 @@ summary { padding: 10px 0; cursor: pointer; color: var(--fg); font-weight: 600; 
 summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 details p { margin: 0 0 12px 18px; }
 .none { margin-top: 20px; color: var(--muted); }
-.from { display: none; margin: 22px 0 0; font-size: 13px; color: var(--muted); }
+.from { display: none; margin: 22px 0 0; font-size: 13px; color: var(--muted); letter-spacing: var(--tr-small); }
 body.finding .from { display: block; }
 body.finding h1, body.finding .lead, body.finding h2, body.finding .note, body.finding ol, body.finding section > p { display: none; }
 /* 노선도에 나오는 표시를 작게 그린 것 */

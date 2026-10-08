@@ -86,8 +86,9 @@
         if (g.SC.emptyNote) { var h = el('div', 'hint'); h.appendChild(el('span', null, g.SC.emptyNote)); var eb = el('button', 'btn sm', g.SC.scopeLabel + ' 보기'); eb.type = 'button'; eb.onclick = function () { st.scope = 'all'; g.render(); }; h.appendChild(eb); e.appendChild(h); }
         mapEl.appendChild(e); mapScroll.classList.remove('ovf'); return;
       }
-      var multi = V.multi, top = multi ? 34 : 22, Y0 = top + 64, L1 = Y0 - 36, L2 = Y0 - 62;
-      mapEl.style.height = (Y0 + 82) + 'px';
+      // 한 줄 노선도 문법: 역 이름은 위로 45°, 곁길은 아래로 45° (전체 지도와 같게)
+      var multi = V.multi, top = multi ? 34 : 8, Y0 = top + 128, L1 = Y0 + 34, L2 = Y0 + 62;
+      mapEl.style.height = (Y0 + 96) + 'px';
       var W = Math.max(mapScroll.clientWidth, 560), pad = 64;
       var mains = V.vis.filter(function (t) { return t.depth === 0; });
       if (!mains.length) { mapEl.style.width = ''; return; }
@@ -109,7 +110,10 @@
         if (segX[V.sIdx[m.id]] == null) segX[V.sIdx[m.id]] = x - 8;
         pos[m.id] = { x: x, y: Y0 };
       });
-      var lastM = pos[mains[mains.length - 1].id], xfer = g.hooks.handoff && st.scope === 'chat' ? step / 2 + 64 : 0;   // 지금 역 이름 칸 바깥에 둬요
+      // 환승 화살표는 마지막 역의 산출물 이름이 끝나는 곳 뒤에서 시작해요 (이름과 ‘환승하기’가 겹치지 않게)
+      var lastF = g.allFiles(mains[mains.length - 1])[0], lastV = lastF ? g.versionOf(mains[mains.length - 1], lastF).v : 0;
+      var xoff = lastF ? Math.max(step / 2, Math.min(mctx.measureText(fname(lastF) + (lastV > 1 ? ' · v' + lastV : '')).width + 13, step - 14) + 14) : step / 2;
+      var lastM = pos[mains[mains.length - 1].id], xfer = g.hooks.handoff && st.scope === 'chat' ? xoff + 64 : 0;   // 지금 역 이름 칸 바깥에 둬요
       var need = lastM.x + (tail ? step * tail : 0) + xfer + Math.max(pad, step / 2 + 16);
       var cL = pos[mains[0].id].x - step / 2, cR = lastM.x + (tail ? step * tail : 0) + xfer + step / 2;
       var shift = need < W ? Math.max(0, W / 2 - (cL + cR) / 2) : 0;
@@ -123,7 +127,7 @@
       mains.forEach(function (m, i) { var nx = mains[i + 1]; if (!nx || (st.scope === 'all' && V.sIdx[nx.id] !== V.sIdx[m.id])) { runs.push([runStart, m]); runStart = nx; } });
       runs.forEach(function (r, i) {
         // 본선: 전체 지도처럼 프로젝트 색의 굵은 선 (색이 없으면 검정)
-        path('M ' + pos[r[0].id].x + ' ' + Y0 + ' H ' + pos[r[1].id].x, 'var(--route, var(--fg))', 10).setAttribute('class', 'trunk');
+        var tr = path('M ' + (pos[r[0].id].x - 14) + ' ' + Y0 + ' H ' + (pos[r[1].id].x + 14), 'var(--route, var(--fg))', 16); tr.setAttribute('class', 'trunk'); tr.setAttribute('stroke-linecap', 'butt');
         if (i < runs.length - 1) path('M ' + (pos[r[1].id].x + 12) + ' ' + Y0 + ' H ' + (pos[runs[i + 1][0].id].x - 12), 'var(--ring)', 2.5, '0.1 7');
       });
       if (tail) path('M ' + (lastM.x + 14) + ' ' + Y0 + ' H ' + (lastM.x + step * tail), 'var(--route, var(--fg))', 4, '0.1 8');
@@ -138,22 +142,29 @@
         mapEl.appendChild(b);
       });
       // side chains
-      var groups = {};
-      V.vis.forEach(function (t) { if (t.depth > 0 && V.anc[t.id] && V.isOpen(V.sIdx[V.anc[t.id]])) (groups[V.anc[t.id]] = groups[V.anc[t.id]] || []).push(t); });
+      var groups = {}, stubs = {};
+      V.vis.forEach(function (t) { if (t.depth > 0 && V.anc[t.id]) ((V.isOpen(V.sIdx[V.anc[t.id]]) ? groups : stubs)[V.anc[t.id]] = (V.isOpen(V.sIdx[V.anc[t.id]]) ? groups : stubs)[V.anc[t.id]] || []).push(t); });
+      // 접힌 구간의 곁길도 짧은 회색 그루터기로 남겨요: 아래로 45° 내려가 조금 달리다 멈춤 (전체 지도처럼 가지 친 결이 늘 보이게). 깊이 2면 한 칸 더
+      Object.keys(stubs).forEach(function (aid) {
+        if (!pos[aid]) return;
+        var deep = stubs[aid].some(function (n) { return n.depth >= 2; }), ax = pos[aid].x + 4, run = L1 - Y0;
+        path('M ' + ax + ' ' + Y0 + ' l ' + run + ' ' + run + ' h 8', 'var(--spur)', 6).classList.add('spur-l');
+        if (deep) path('M ' + (ax + run + 8) + ' ' + L1 + ' l ' + (L2 - L1) + ' ' + (L2 - L1) + ' h 6', 'var(--spur)', 5).classList.add('spur-l');
+      });
       Object.keys(groups).forEach(function (aid) {
         if (!pos[aid]) return;
         var nodes = groups[aid], active = nodes.indexOf(cur) >= 0;
         var l1 = nodes.filter(function (n) { return n.depth === 1; }), l2 = nodes.filter(function (n) { return n.depth >= 2; });
-        var ax = pos[aid].x, run1 = (Y0 - L1) * 0.76, run2 = (L1 - L2) * 0.76;
+        var ax = pos[aid].x, run1 = L1 - Y0, run2 = L2 - L1;   // 45°로 내려가요
         var s1 = ax + 18, g1 = Math.max(s1 + run1 + 16, ax + step * 0.62), g2 = g1 + 8 + run2 + 14;
         // 곁길: 전체 지도처럼 굵은 회색 지선 (지금 가 있는 곁길은 진하게)
-        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 6);
-        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 5);
+        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 10).classList.add('spur-l');
+        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 8).classList.add('spur-l');
         function dot(list, level, y) {
           if (!list.length) return;
           var gx = level === 2 ? g2 : g1;
           var t1 = active && list.indexOf(cur) >= 0 ? cur : list[list.length - 1];
-          var b = el('button', 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (t1 === cur ? ' cur' : '') + (list.some(g.hasTodo) ? ' todo' : ''));
+          var b = el('button', 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (t1 === cur ? ' cur' : ''));   // 곁길의 할 일은 갈라진 본선 역 아래에 모아요
           b.type = 'button'; b.style.left = gx + 'px'; b.style.top = y + 'px'; b.dataset.tid = t1.id;
           b.setAttribute('aria-label', level + '차 곁길: ' + list.map(function (n) { return n.title; }).join(', '));
           wireGroup(b, nodes, t1, g.byId[aid], active); mapEl.appendChild(b);
@@ -162,6 +173,8 @@
         dot(l1, 1, L1); dot(l2, 2, L2);
         if (nodes.length > 1) { var c = el('div', 'cnt', String(nodes.length)); c.style.left = ((l2.length ? g2 : g1) + 10) + 'px'; c.style.top = (l2.length ? L2 : L1) + 'px'; mapEl.appendChild(c); }
       });
+      // 곁길은 본선 막대 밑으로 지나가요 (전체 지도처럼)
+      Array.prototype.forEach.call(svg.querySelectorAll('.spur-l'), function (q) { svg.insertBefore(q, svg.firstChild); });
       // detours for rewritten messages (U4)
       mains.forEach(function (t) {
         if (!t.alts || !V.isOpen(V.sIdx[t.id])) return;
@@ -182,44 +195,70 @@
       mains.forEach(function (t) {
         var p = pos[t.id], k = V.kind(t), open = V.isOpen(V.sIdx[t.id]), b;
         if (!open) { b = el('button', 'st tick' + (k === 'cur' ? ' tcur' : (t.dec ? ' tdec' : ''))); b.type = 'button'; }
-        else if (t.parts) b = g.capsule(t, k);
         else { b = el('button', 'st ' + k); b.type = 'button'; }
-        if (open && g.hasTodo(t)) b.classList.add('todo');
+        // 이 역과 여기서 갈라진 곁길의 안 한 할 일: 역 바로 아래에 세로로 고리를 쌓아요 (접힌 눈금은 작은 고리 하나)
+        var todo = [t].concat(groups[t.id] || [], stubs[t.id] || []).reduce(function (a, n) { return a.concat(g.itemsOf(n)); }, [])
+          .filter(function (it) { var s = g.stateOf(it); return s !== 'done' && s !== 'dismissed'; });
+        if (!open && todo.length) { var tt = el('i', 'tick-ti'); tt.style.left = p.x + 'px'; tt.style.top = (Y0 + 14) + 'px'; wireTodo(tt, todo); mapEl.appendChild(tt); }
         b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
         b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' 로 이동');
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
         if (!open) return;
-        var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 20) + 'px'; l.style.width = (step - 14) + 'px';
-        l.appendChild(el('span', 't' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), t.title));   // 정함은 굵은 역 이름 (전체 지도처럼)
-        var af = g.allFiles(t); if (af.length) { var f = el('span', 'f'); f.appendChild(el('span', 'sq')); var vmax = 0; af.forEach(function (fx) { vmax = Math.max(vmax, g.versionOf(t, fx).v); }); f.appendChild(document.createTextNode(String(af.length) + (vmax > 1 ? ' · v' + vmax : ''))); l.appendChild(f); }
+        // 역 이름: 위로 45°. 카드 위 끝(구간 이름 줄)에 닿기 전에 줄여요 — 길이 × sin45°가 쓸 수 있는 높이를 넘지 않게. 전체 이름은 툴팁에
+        var nm = el('div', 'nm' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), k === 'cur' ? '지금 · ' + t.title : t.title);
+        nm.style.left = (p.x - 3) + 'px'; nm.style.top = (Y0 - 34) + 'px';
+        nm.style.maxWidth = Math.round((Y0 - 18 - top - (multi ? 20 : 2)) * Math.SQRT2) + 'px';
+        nm.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(nm);
+        var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 18) + 'px'; l.style.width = (step - 14) + 'px';
+        // 역 아래에 산출물을 쌓아요: 작은 검은 점 + 파일 이름 (한 줄 노선도처럼). 둘까지 보이고 나머지는 +n
+        var af = g.allFiles(t);
+        // 이 역에서 곁길이 갈라지면 파일 이름이 45° 곁길에 걸려요. 그때는 곁길이 다 내려간 줄 밑으로 내려 둬요 (고리는 역 바로 아래 그대로)
+        var br = (groups[t.id] || stubs[t.id] || []), brY = !br.length ? 0 : (br.some(function (n) { return n.depth >= 2; }) ? L2 : L1) + 12;
+        var fl = brY ? el('div', 'lbl') : l;
+        af.slice(0, 1).forEach(function (fx) {   // 카드에는 첫 파일 하나만 (+n). 다 보려면 한 줄 노선도 · 산출물 칸
+          var f = el('span', 'f'), v = g.versionOf(t, fx).v; f.appendChild(el('span', 'sq'));
+          f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = '산출물 · ' + fname(fx); fl.appendChild(f);
+        });
+        if (af.length > 1) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); fl.appendChild(more); }
+        // 그다음 안 한 할 일: 빨간 고리를 하나씩 세로로 (셋까지, 넘으면 +n). 끝낸 할 일은 카드에 그리지 않아요(한 줄 노선도 · 목록에서 회색 고리로)
+        if (todo.length) {
+          var col = el('span', 'tis');
+          todo.slice(0, todo.length > 3 ? 2 : 3).forEach(function (it) { var r = el('i', 'ti'); wireTodo(r, [it]); col.appendChild(r); });
+          if (todo.length > 3) { var tm = el('span', 'tmore', '+' + (todo.length - 2)); wireTodo(tm, todo.slice(2)); col.appendChild(tm); }
+          l.appendChild(col);
+        }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
+        if (fl !== l && af.length) {   // 고리가 내려온 만큼은 피해요
+          var rings = todo.length ? Math.min(todo.length, 3) * 19 : 0;
+          fl.style.left = p.x + 'px'; fl.style.top = Math.max(brY, Y0 + 18 + rings + 4) + 'px'; fl.style.width = (step - 14) + 'px';
+          fl.dataset.seg = l.dataset.seg; mapEl.appendChild(fl);
+          mapEl.style.height = Math.max(mapEl.offsetHeight, fl.offsetTop + fl.offsetHeight + 10) + 'px';   // 내려 둔 만큼 카드가 길어져요
+        }
       });
       // 환승하기: 노선 끝에서 다음 대화로 가는 검은 막대 + 열린 꺾쇠 (전체 지도의 환승과 같은 모양). 누르면 요약을 복사해요
       if (xfer) {
-        var x0 = lastM.x + (tail ? step * tail : 0) + step / 2, x1 = x0 + 52;
-        path('M ' + x0 + ' ' + Y0 + ' H ' + x1, 'var(--fg)', 4).setAttribute('class', 'xfer');
-        path('M ' + (x1 - 9) + ' ' + (Y0 - 9) + ' L ' + (x1 + 1) + ' ' + Y0 + ' L ' + (x1 - 9) + ' ' + (Y0 + 9), 'var(--fg)', 4).setAttribute('class', 'xfer');
+        // 짧은 꼬리 + 끝이 뾰족한 채운 삼각형 머리. 선 끝은 각지게 (둥근 꺾쇠보다 딱딱하게)
+        var x0 = lastM.x + (tail ? step * tail : 0) + xoff, x1 = x0 + 40;
+        var shaft = path('M ' + x0 + ' ' + Y0 + ' H ' + (x1 - 14), 'var(--fg)', 5); shaft.setAttribute('class', 'xfer'); shaft.setAttribute('stroke-linecap', 'butt');
+        var head = path('M ' + (x1 - 16) + ' ' + (Y0 - 9) + ' L ' + x1 + ' ' + Y0 + ' L ' + (x1 - 16) + ' ' + (Y0 + 9) + ' Z', 'none', 0);
+        head.setAttribute('class', 'xfer'); head.style.fill = 'var(--fg)'; head.removeAttribute('pathLength');
         var xb = el('button', 'xfer-btn'); xb.type = 'button'; xb.style.left = x0 + 'px'; xb.style.top = (Y0 - 18) + 'px'; xb.style.width = (x1 - x0 + 8) + 'px';
         xb.setAttribute('aria-label', '환승하기: 다음 대화에 붙일 요약 복사');
         xb.onclick = function () { g.hooks.handoff(); };
         mapEl.appendChild(xb);
-        var xl = el('div', 'lbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);
+        var xl = el('div', 'lbl xlbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);   // 글자는 화살표 가운데 아래
       }
       // reference arcs (U3 repeats, cross-chat refs) as faint curves under the line
-      V.vis.forEach(function (t) {
-        if (!t.ref || !pos[t.ref] || !pos[t.id] || t.depth > 0) return;
-        var a = pos[t.ref], b = pos[t.id]; if (a.y !== Y0 || b.y !== Y0) return;
-        var mid = (a.x + b.x) / 2;
-        path('M ' + a.x + ' ' + (Y0 + 12) + ' Q ' + mid + ' ' + (Y0 + 30) + ' ' + b.x + ' ' + (Y0 + 12), 'var(--accent)', 1.5, '2 4');
-      });
+      // 참조 호(빨간 점선)는 그리지 않아요: 빨강은 ‘지금 · 할 일’에만이고, 노선 위가 번잡해져요. 연결은 역 툴팁의 ‘↩ … 와 연결’에 있어요
       R.mapPos = pos;
       mapScroll.classList.toggle('ovf', mapEl.offsetWidth > mapScroll.clientWidth + 1);
       if (st.popSeg && !G.reduce) {
         var want = st.popSeg === 'cur' ? (cur && V.sIdx[cur.id] != null ? V.segs[V.sIdx[cur.id]] : null) : st.popSeg, kk = 0;
         Array.prototype.forEach.call(mapEl.querySelectorAll('[data-seg]'), function (n) {
           if (n.dataset.seg !== want) return;
-          n.classList.add(n.classList.contains('lbl') ? 'in-l' : 'in-s'); n.style.animationDelay = (0.04 * (n.classList.contains('lbl') ? kk : kk++)).toFixed(2) + 's';
+          var stn = !n.classList.contains('lbl') && !n.classList.contains('nm');
+          n.classList.add(stn ? 'in-s' : n.classList.contains('nm') ? 'in-n' : 'in-l'); n.style.animationDelay = (0.04 * (stn ? kk++ : kk)).toFixed(2) + 's';
         });
       }
       st.popSeg = null;
@@ -269,6 +308,20 @@
       b.addEventListener('focus', function () { showTip(t, b); });
       b.addEventListener('blur', function () { tip.hidden = true; });
     };
+    // 할 일 고리에 올리면: 종류 · 내용 · 어느 역에서 (역 점과 같은 가닥 툴팁)
+    function wireTodo(b, items) {
+      b.addEventListener('mouseenter', function () {
+        tip.innerHTML = '';
+        items.forEach(function (it, i) {
+          var at = it.at && g.byId[it.at] ? g.byId[it.at] : it.t;
+          tip.appendChild(el('b', null, (G.KIND[it.kind] ? G.KIND[it.kind].label : '할 일')));
+          tipLine(it.text);
+          if (at) tipLine(g.numLabel(at) + ' ' + at.title + '에서', 's');
+        });
+        placeTip(b);
+      });
+      b.addEventListener('mouseleave', function () { tip.hidden = true; });
+    }
     function wireGroup(b, nodes, target, anchor, active) {
       function show() {
         tip.innerHTML = ''; tip.appendChild(el('b', null, active ? '곁길 · 지금 여기' : '곁길 ' + nodes.length + '개'));

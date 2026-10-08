@@ -292,7 +292,7 @@ class AppTest(unittest.TestCase):
         # 가닥 창은 레일을 놓지 않아요. ‘전체 보기’에 남아 있는 레일 다시 그리기(기획 담당의 줄 그대로)는 레일이 없으면 아무 일도 하지 않아요
         self.assertNotIn("R.rail =", window)
         self.assertIn("if (!rail) return;", (ROOT / "shared" / "ui" / "rail.js").read_text(encoding="utf-8"))
-        self.assertIn("fillAnswer(para, d.turn.ai); more.remove(); g.renderRail();", window)   # ‘전체 보기’로 받은 답도 구획 · 표 · 코드로
+        self.assertIn("fillAnswer(para, d.turn.ai, t.id); more.remove(); g.renderRail();", window)   # ‘전체 보기’로 받은 답도 구획 · 표 · 코드로
         side = (ROOT / "shared" / "ui" / "side.js").read_text(encoding="utf-8")
         for words in ("['ahead', '앞길'", "앞길 저절로 살피기", "살피지 못했어요", "내밀 만한 길을 찾지 못했어요"):
             self.assertIn(words, side)

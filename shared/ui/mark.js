@@ -13,6 +13,24 @@
     try { return navigator.clipboard.writeText(text).then(null, function () {}); } catch (e) { return Promise.resolve(); }
   };
 
+  /* 가닥 앱(macOS) 안에서는 검은 머리띠가 창의 맨 위예요(mac/Gadak.swift). 신호등 자리만큼 왼쪽을 비우고(.mac),
+     머리띠의 빈 곳을 끌면 창이 움직이고 두 번 누르면 키워요. 전체 지도처럼 겹쳐 뜬 화면은 바깥 창의 전체 화면 표시를 따라가요 */
+  G.macChrome = function (band) {
+    var host = window, native = null;
+    try {
+      for (;;) { native = host.webkit && host.webkit.messageHandlers && host.webkit.messageHandlers.gadak; if (native || host === host.parent) break; host = host.parent; }
+    } catch (e) { native = null; }
+    if (!native || !host.gadakBand || !band) return;   // 예전에 만든 앱은 회색 제목 표시줄이 따로 있어요: 그대로 왼쪽에 붙여요
+    var root = document.documentElement; root.classList.add('mac');
+    if (host !== window) {
+      var outer = host.document.documentElement, sync = function () { root.classList.toggle('fullscreen', outer.classList.contains('fullscreen')); };
+      sync(); new MutationObserver(sync).observe(outer, { attributes: true, attributeFilter: ['class'] });
+    }
+    var busy = 'button, a, input, select, textarea, svg';
+    band.addEventListener('mousedown', function (e) { if (e.button === 0 && !e.target.closest(busy)) native.postMessage({ drag: true }); });
+    band.addEventListener('dblclick', function (e) { if (!e.target.closest(busy)) native.postMessage({ zoom: true }); });
+  };
+
   var MARK = { strokes: [[36,122,64,122],[62,122,90,122],[88,122,116,122],[114,122,142,122],[140,122,166,122],[100,122,116,100],[116,100,132,80],[132,80,154,80]],
     nodes: [{ x: 48, y: 122, r: 9, k: 'main' }, { x: 100, y: 122, r: 9, k: 'main' }, { x: 154, y: 80, r: 7, k: 'spur' }, { x: 154, y: 122, r: 10, k: 'now' }] };
 

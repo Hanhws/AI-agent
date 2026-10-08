@@ -4,27 +4,32 @@
 <meta charset="utf-8">
 <title>가닥 전체 지도</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="/ui/mark.js"></script>
 <style>
 /* 전체 지도 · 한 줄 노선도 시안 — 마시모 비녤리의 1972 뉴욕 지하철 지도(system map)와 열차 안 노선도(strip map)에서 가져온 것:
    90° · 45° 격자, 노선마다 한 색, 흰 틈을 둔 나란한 묶음, 역마다 점, 45°로 선 역 이름, 역 아래에 쌓는 동그라미. */
 :root {
   --spur: #A7A9AC;
-  --paper: #FFFFFF; --ink: #111111; --ink2: #6B6B6B; --ink3: #A6A6A6; --grid: #EFEFEF; --today: #F6F6F6; --band: #111111; --band-fg: #FFFFFF;
-  --font: SUIT, "Apple SD Gothic Neo", Arial, sans-serif;
+  --paper: #FFFFFF; --ink: #111111; --ink2: #6B6B6B; --ink3: #A6A6A6; --grid: #EFEFEF; --today: #F6F6F6; --band: #111111; --band-fg: #FFFFFF; --poster: #F4F1EA;
+  /* 글꼴은 한 벌: 로마자 · 숫자는 헬베티카(비녤리의 뉴욕 지하철), 한글은 Pretendard로 이어져요. 값은 shared/ui/tokens.css와 같아요 */
+  --font: "Helvetica Neue", Helvetica, Pretendard, "Apple SD Gothic Neo", sans-serif; --vfont: var(--font);
+  --tr-title: -0.08em; --tr-body: -0.05em; --tr-small: -0.03em;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; } }
-:root[data-theme="dark"] { --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; }
+  --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; --poster: #171614; } }
+:root[data-theme="dark"] { --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; --poster: #171614; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--font); overflow: hidden; }
 
 /* 지하철 표지판의 검은 띠 */
-header { position: fixed; inset: 0 0 auto 0; height: 48px; white-space: nowrap; background: var(--band); color: var(--band-fg);
+header { position: fixed; inset: 0 0 auto 0; height: 60px; white-space: nowrap; background: var(--band); color: var(--band-fg);
   display: flex; align-items: center; gap: 12px; padding: 0 20px; z-index: 3; }
-header b { font-size: 22px; letter-spacing: -0.02em; }
+header b { font-size: 26px; }
+.mac header { padding-left: 96px; }   /* 가닥 앱: 신호등 버튼 자리 (mac/Gadak.swift) */
+.mac.fullscreen header { padding-left: 20px; }
+header b i { font: normal 700 26px var(--vfont); margin-left: 6px; letter-spacing: var(--tr-title); }
 /* 가닥 심볼 (shared/ui/mark.js). 검은 띠 위라서 선은 흰색, 지금 점은 가닥의 빨강 */
 header .mark { display: block; overflow: visible; cursor: pointer; margin-right: -4px; }
 header .mark line { stroke: var(--band-fg); }
@@ -44,7 +49,7 @@ header button { display: none; border: 0; background: none; color: inherit; font
 #crumb { display: none; }
 .strip-on header .crumb-map { display: none; }
 
-svg.view { position: fixed; inset: 48px 0 0 0; width: 100%; height: calc(100% - 48px); cursor: grab; touch-action: none;
+svg.view { position: fixed; inset: 60px 0 0 0; width: 100%; height: calc(100% - 60px); cursor: grab; touch-action: none;
   transition: opacity .35s, transform .35s; }
 svg.view.drag { cursor: grabbing; }
 #strip { opacity: 0; pointer-events: none; transform: scale(.97); }
@@ -52,20 +57,35 @@ svg.view.drag { cursor: grabbing; }
 .strip-on #map { opacity: 0; pointer-events: none; }
 text { font-family: var(--font); fill: var(--ink); }
 
+/* 포스터 보기: 같은 대화를 비녤리 포스터처럼 (굵은 단색 선 · 흰 틈 · 45°와 90° 꺾임 · 큰 제목) */
+#poster { opacity: 0; pointer-events: none; }
+#poster text { font-family: var(--vfont); }
+.poster-on #poster { opacity: 1; pointer-events: auto; }
+.poster-on #map { opacity: 0; pointer-events: none; }
+.poster-on #key-map { display: none; }
+.p-paper { fill: var(--poster); }
+.p-case { fill: none; stroke: var(--poster); stroke-width: 32; }
+.p-line { fill: none; stroke-width: 22; }
+.p-title { font-size: 168px; font-weight: 800; }
+.p-latin { font-weight: 700; }
+.p-sub { font-size: 22px; fill: var(--ink2); }
+.p-name, .p-now { font-size: 22px; font-weight: 700; }
+.p-here { stroke: var(--ink); stroke-width: 9; fill: none; }
+
 .grid line { stroke: var(--grid); stroke-width: 1; }
 .grid rect { fill: var(--today); }
 .grid text { font-size: 14px; fill: var(--ink2); }
 .grid text.now { fill: var(--ink); font-weight: 700; }
 .grid text.rest { fill: var(--ink3); font-size: 12px; }
 
-.title { font-weight: 700; letter-spacing: -0.035em; cursor: pointer; }
+.title { font-weight: 700; cursor: pointer; }
 .proj { transition: opacity .25s; }
 .dim .proj:not(.hot) { opacity: .12; }
 [data-chat] { cursor: pointer; }
 path[data-chat]:hover { stroke-opacity: .75; }
 
 .lbl text { font-size: 14px; transition: opacity .25s; }
-.lbl .chat { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+.lbl .chat { font-weight: 700; font-size: 18px; }
 .lbl .dec { font-weight: 700; }
 .lbl .minor { fill: var(--ink2); font-size: 13px; }
 .bullet { font-size: 11px; font-weight: 700; }
@@ -101,10 +121,11 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
   text-decoration: underline; text-underline-offset: 3px; cursor: pointer; opacity: .8; }
 .mst-side { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
 .st-end { font-size: 40px; font-weight: 700; }
-.st-title { font-size: 44px; font-weight: 700; letter-spacing: -0.035em; }
+.st-title { font-size: 44px; font-weight: 700; }
 .st-sub { font-size: 15px; fill: var(--ink2); }
-.todo { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; }
-.todo.done { fill: var(--ink); }
+/* 할 일: 안 한 일은 빨간 테두리, 끝낸 일은 회색 테두리 (산출물은 채운 검은 점이라 헷갈리지 않게) */
+.todo { fill: var(--paper); stroke: #C8401A; stroke-width: 2.5; }
+.todo.done { fill: var(--paper); stroke: var(--ink3); }
 .more { fill: var(--paper); stroke: var(--ink3); stroke-width: 1.5; }
 .chip { font-size: 9.5px; font-weight: 700; }
 .made { font-size: 11px; font-weight: 300; fill: var(--ink2); }
@@ -121,11 +142,16 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
 #key-strip, .strip-on #key-map { display: none; }
 .strip-on #key-strip { display: flex; }
 @media (max-width: 600px) { .key { display: none !important; } header small { display: none; } }
+/* 자간 세 단계: 본문 좁게, 13px 이하 작은 글씨는 덜 좁게, 큰 제목은 아주 좁게 */
+body, text { letter-spacing: var(--tr-body); }
+:is(.grid text, .lbl .minor, .bullet, .xfer-lbl, .chip, .made, .key, header small, header .axis, .ctl button.wide) { letter-spacing: var(--tr-small); }
+:is(.p-title, .p-title tspan, .title, .st-title, .st-end, header b) { letter-spacing: var(--tr-title); }
 </style>
 </head>
 <body>
 <header>
-  <b>가닥</b><span class="crumb-map">전체 지도</span>
+  <b>가닥<i>GADAK</i></b><span class="crumb-map">전체 지도</span>
+  <button class="axis" id="poster-btn" type="button">포스터로 보기</button>
   <button id="back">← 전체 지도</button><span id="crumb"></span>
   <button class="open" id="open" type="button">대화 열기</button>
   <small id="meta"></small>
@@ -136,6 +162,10 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
     <path d="M1.5 1.5 L7 5 L1.5 8.5" fill="none" style="stroke: var(--ink)" stroke-width="2" stroke-linecap="square"/></marker></defs>
   <g id="world"></g></svg>
+<svg id="poster" class="view" aria-label="전체 지도를 포스터처럼 그린 그림">
+  <defs><marker id="parrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
+    <path d="M1.5 1.5 L7 5 L1.5 8.5" fill="none" style="stroke: var(--ink)" stroke-width="2" stroke-linecap="square"/></marker></defs>
+  <g id="pworld"></g></svg>
 <svg id="strip" class="view" aria-label="대화 하나의 한 줄 노선도"><g id="sworld"></g></svg>
 <div class="key" id="key-map">
   <span><i style="width:10px;height:10px;border-radius:50%"></i>정함 (큰 점 · 굵은 이름)</span>
@@ -149,8 +179,8 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
   <span><i style="width:16px;height:6px;background:var(--spur)"></i>곁길 (아래로 갈라짐)</span>
   <span><i style="width:16px;height:6px;background:var(--spur);border-right:3px solid var(--paper);box-shadow:3px 0 0 var(--spur)"></i>안 돌아온 곁길</span>
   <span><i style="width:9px;height:9px;border-radius:50%"></i>산출물 (옆에 파일 이름)</span>
-  <span><i class="ring" style="width:12px;height:12px;border-radius:50%"></i>할 일</span>
-  <span><i style="width:12px;height:12px;border-radius:50%"></i>끝낸 일</span>
+  <span><i class="ring" style="width:12px;height:12px;border-radius:50%;border-color:#C8401A"></i>할 일</span>
+  <span><i class="ring" style="width:12px;height:12px;border-radius:50%;border-color:var(--ink3)"></i>끝낸 일</span>
 </div>
 <div class="ctl">
   <button id="out" aria-label="작게">−</button>
@@ -217,6 +247,8 @@ if (real?.projects?.length) {
   START = new Date(y, m - 1, d); TODAY = real.today; DATA = real;
 }
 
+await document.fonts.ready;   // 글자 폭을 재서 자리를 잡으니, 글꼴이 다 온 뒤에 그려요
+
 const NS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
 const days = TODAY + 1;
@@ -227,7 +259,7 @@ for (const p of DATA.projects) p.chats.forEach((c, i) => { c.no = i + 1; c.p = p
 // ── 줌 · 이동: 목표 값을 정하면 화면이 부드럽게 따라가요. 전체 지도와 한 줄 노선도가 같이 써요
 function zoomable(svg, world, onPaint = () => {}, most = 2.2) {   // most: 화면에 맞출 때 가장 크게
   let view = { x: 0, y: 0, k: 1 }, goal = { ...view }, raf = 0, drag = null, moved = 0;
-  const paint = () => { world.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`); onPaint(view.k); };
+  const paint = () => { world.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`); onPaint(view.k, view); };
   const tick = () => {
     const e = 0.18;
     view.x += (goal.x - view.x) * e; view.y += (goal.y - view.y) * e; view.k += (goal.k - view.k) * e;
@@ -304,13 +336,20 @@ function clean(P) {   // 겹친 점 · 한 줄 위의 가운데 점을 빼요
   });
 }
 function offset(P, o) {   // 나란한 줄: 진행 방향 옆으로 o만큼, 꺾이는 곳은 맞춰서
-  return P.map((p, i) => {
+  const Q = P.map((p, i) => {
     const a = i > 0 && unit(P[i - 1], p), b = i < P.length - 1 && unit(p, P[i + 1]);
     const n1 = a && [-a[1], a[0]], n2 = b && [-b[1], b[0]];
     let m = !n1 ? n2 : !n2 ? n1 : null;
     if (!m) { const c = n1[0] * n2[0] + n1[1] * n2[1]; m = [(n1[0] + n2[0]) / (1 + c), (n1[1] + n2[1]) / (1 + c)]; }
     return [p[0] + m[0] * o, p[1] + m[1] * o];
   });
+  // 굵은 묶음의 바깥 줄은 짧은 틈에서 꺾임이 이어지면 밀려난 점이 앞 꺾임을 지나쳐 시간을 거슬러요 → 선이 뒤로 접혀 고리가 돼요.
+  // 시간(가로)이 거꾸로 가는 두 점은 가운데 한 점으로 합쳐요. 세로로 드나드는 곳(가로가 같은 두 점)은 그대로
+  for (let i = 0; i < Q.length - 1;) {
+    if (Q[i + 1][0] < Q[i][0] - 0.5) Q.splice(i, 2, [(Q[i][0] + Q[i + 1][0]) / 2, (Q[i][1] + Q[i + 1][1]) / 2]), i = Math.max(0, i - 1);
+    else i++;
+  }
+  return Q;
 }
 function clip(P, t0, t1) {
   const out = [];
@@ -388,12 +427,29 @@ function layout() {
   return busy;
 }
 
-const mapZ = zoomable(svg, world, k => {
+const mapZ = zoomable(svg, world, (k, v) => {
   // 멀리서 볼수록 노선을 굵게: 한 학기를 한 화면에 넣어도 포스터처럼 읽히게 (나란한 노선은 한 묶음으로 합쳐 보여요)
   svg.style.setProperty("--thick", Math.max(1, Math.min(4, 0.45 / k)).toFixed(2));
   svg.classList.toggle("far", k < 0.38);
   svg.classList.toggle("mid", k >= 0.38 && k < 0.85);
+  placeTitles(k, v);
 }, 1);   // 전체 지도는 실제 크기보다 키워서 맞추지 않아요 (대화가 적어도 제목이 거대해지지 않게)
+
+// 프로젝트 이름은 확대 · 축소와 상관없이 늘 같은 크기(TITLE_PX)로 읽혀요. 노선 머리가 화면 왼쪽 밖으로 나가면
+// 이름이 화면 왼쪽 끝에 붙어 따라오고(노선이 끝나기 전까지), 이름끼리 부딪히면 대화가 적은 쪽을 숨겨요
+const TITLE_PX = 15;
+function placeTitles(k, v) {
+  const left = (16 - v.x) / k, shown = [];
+  for (const t of titlesByVolume) {
+    t.setAttribute("font-size", TITLE_PX / k);
+    const w = t.getComputedTextLength(), x = Math.max(+t.dataset.x, Math.min(left, +t.dataset.end - w)), y = +t.dataset.top - 8 / k;
+    for (const n of [t, ...t.children]) { n.setAttribute("x", x); n.setAttribute("y", y); }
+    const hit = shown.some(o => Math.abs(o.y - y) < TITLE_PX * 1.3 / k && o.x < x + w + 12 / k && x < o.x + o.w + 12 / k);
+    t.style.visibility = hit ? "hidden" : "";
+    if (!hit) shown.push({ x, y, w });
+  }
+}
+let titlesByVolume = [];   // 전체 지도는 실제 크기보다 키워서 맞추지 않아요 (대화가 적어도 제목이 거대해지지 않게)
 
 function drawMap() {
   // 비녤리: 노선을 굵게(20), 나란한 노선 사이는 3px 흰 틈만
@@ -438,6 +494,7 @@ function drawMap() {
     const [nx, ny] = HORIZ ? [hx - 14, hy - 30] : [hx - LINE / 2 - 6, hy - 36 - (words.length - 1) * TITLE * 0.96];
     const title = el("text", { x: nx, y: ny, class: "title", "font-size": TITLE, "data-p": pi }, labels);
     words.forEach((w, i) => { el("tspan", { x: nx, dy: i ? TITLE * 0.96 : 0 }, title).textContent = w; });
+    Object.assign(title.dataset, { x: nx, top: hy - LINE / 2, end: S([Ty(p.last) + dayH[p.last], 0])[0] });
     el("circle", { cx: hx, cy: hy, r: 14, fill: p.color }, labels);
     // 아직 시작하지 않은 구간은 가는 선으로 이름과 이어 줘요
     el("path", { d: rounded(clip(spine, head, t0), LINE / 2), stroke: p.color, "stroke-width": 2, "stroke-opacity": .45, fill: "none" }, g);
@@ -513,7 +570,7 @@ function drawMap() {
       let x, y, shift;
       if (HORIZ) {
         y = outside(g.t);
-        const gap = ((last + size(g.cls)) / 2 + 4) * Math.SQRT2;
+        const gap = ((last + size(g.cls)) / 2 + 8) * Math.SQRT2;   // 줄 사이 8px: 한글이 위아래로 꽉 차는 글꼴(Pretendard)에서도 줄끼리 닿지 않게
         x = Math.max(g.t + 4, floor + gap + y);
         shift = x - (g.t + 4);
       } else {
@@ -522,7 +579,7 @@ function drawMap() {
         shift = y - (g.t + 5);
       }
       // 자리가 없으면 이름을 빼요(대화 이름은 남겨요). 역과 이름이 멀어지면 틀린 지도예요. 빠진 이름은 한 줄 노선도에 다 있어요
-      if (g.cls !== "chat" && shift > (g.cls === "minor" ? 24 : 40)) continue;
+      if (g.cls !== "chat" && shift > (g.cls === "minor" ? 30 : 48)) continue;
       floor = HORIZ ? x - y : y; last = size(g.cls);
       const e = el("text", { x, y, class: g.cls, ...(HORIZ ? { transform: `rotate(45 ${x} ${y})` } : {}) }, lab);
       // 가로일 때 긴 이름은 줄여요: 45°로 내려가다 아래 줄의 이름 · 노선에 닿기 전에 끊어요 (전체 이름은 마우스를 올리면)
@@ -553,6 +610,8 @@ function drawMap() {
     el("text", HORIZ ? { x: lx + 8, y: ly + 4, class: "xfer-lbl" } : { x: lx, y: ly - 10, "text-anchor": "middle", class: "xfer-lbl" }, labels).textContent = why;
   }
 
+  const turnsOf = pi => order[pi].chats.reduce((s, c) => s + c.turns.length, 0);
+  titlesByVolume = [...labels.querySelectorAll(".title")].sort((a, b) => turnsOf(b.dataset.p) - turnsOf(a.dataset.p));
   // 프로젝트 이름: 올리면 그 노선만 또렷하게, 누르면 그 프로젝트로 날아가요
   for (const t of labels.querySelectorAll(".title")) {
     const pi = t.dataset.p, mine = () => [...world.querySelectorAll(`.proj[data-p="${pi}"]`)];
@@ -564,9 +623,10 @@ function drawMap() {
 
 // 가닥 심볼 (가닥 창과 같은 것). 누르면 다시 움직여요
 if (window.Gadak?.makeMark) {
-  const mark = Gadak.makeMark(22, 10);
+  const mark = Gadak.makeMark(30, 10);
   document.querySelector("header b").before(mark.svg);
   mark.svg.addEventListener("click", () => Gadak.playMark(mark));
+  Gadak.macChrome?.(document.querySelector("header"));
   setTimeout(() => Gadak.playMark(mark), 250);
 }
 
@@ -584,6 +644,170 @@ svg.addEventListener("click", () => {
     : { x: b.y - 60, y: b.x - 60, width: b.height + 320, height: b.width + 120 });
   setTimeout(() => openStrip(id), 420);
 });
+
+// ════ 포스터 ════
+// 같은 대화를 비녤리 포스터처럼. 같은 날 함께 달린 프로젝트는 흰 틈 하나만 두고 붙어 달리고, 쉬면 벌어져요(45°).
+// 그날 가장 많이 이야기한 프로젝트가 맨 위로 올라가요. 관심이 옮겨 가면 노선끼리 엇갈려요 (프로젝트끼리 이어진 대화가 없어도 흐름이 보이게)
+// 중간에 시작한 프로젝트는 위나 아래 가장자리에서 들어와 90°로 꺾이고, 끝난 프로젝트는 꺾여 나가요. 오늘까지 달리는 노선은 오른쪽 끝을 뚫고 나가요
+const PL = 22, PG = 5, PP = PL + PG, PMIN = 1700, PFOLD = 40, PAIR = 120, PR = 70, PTOP = 360, PBOT = 280, PM = 120;
+const psvg = document.getElementById("poster"), pworld = document.getElementById("pworld");
+const posterZ = zoomable(psvg, pworld, () => {}, 2);
+let posterDrawn = false;
+
+function drawPoster() {
+  posterDrawn = true;
+  pworld.replaceChildren();
+  const busy = Array.from({ length: days }, (_, d) => d === TODAY || DATA.projects.some(p => p.chats.some(c => turnsOn(c, d) > 0)));
+  // 날이 적어도 포스터 폭은 그대로: 하루 폭을 늘려요 (45° 꺾임이 들어갈 자리도 생겨요)
+  const PDAY = Math.max(104, Math.ceil(PMIN / busy.filter(Boolean).length));
+  const w = busy.map((b, d) => b ? PDAY : d > 0 && !busy[d - 1] ? 0 : PFOLD);
+  // 오래 달린 프로젝트가 맨 위에서 곧게 (등뼈), 나머지가 그 아래로 붙었다 벌어졌다 해요
+  const daysRun = p => busy.filter((b, d) => p.chats.some(c => c.from <= d && d <= c.to)).length;
+  const P = [...DATA.projects].sort((a, b) => daysRun(b) - daysRun(a)), n = P.length;
+  const T0 = d => { let t = 0; for (let k = 0; k < d; k++) t += w[k]; return t; };
+  // 그날 달렸나: 대화가 걸쳐 있으면. 하루 빈 날은 메우고(하루 만에 벌어졌다 붙지 않게), 접힌 쉼 구간은 앞날 그대로
+  const run = P.map(p => {
+    const a = Array.from({ length: days }, (_, d) => p.chats.some(c => c.from <= d && d <= c.to));
+    for (let d = 1; d < days - 1; d++) if (!a[d] && a[d - 1] && a[d + 1]) a[d] = true;
+    for (let d = 1; d < days; d++) if (!busy[d]) a[d] = a[d - 1];
+    return a;
+  });
+  const lanes = P.map(p => 1 + Math.max(...p.chats.map(c => c.lane)));
+  // 그날의 순서: 달린 프로젝트가 위, 그중 그날 턴이 가장 많은 프로젝트가 맨 위. 나머지는 앞날 순서 그대로 (괜히 뒤섞이지 않게)
+  const vol = (i, d) => P[i].chats.reduce((s, c) => s + turnsOn(c, d), 0);
+  const alive = (i, d) => P[i].first <= d && d <= P[i].last;
+  let prev = P.map((_, i) => i), cross = 0;
+  const pos = [], rank = [];
+  for (let d = 0; d < days; d++) {
+    const act = prev.filter(i => run[i][d]);
+    if (busy[d] && act.length) {
+      const head = act.reduce((a, i) => vol(i, d) > vol(a, d) ? i : a);
+      prev = [head, ...act.filter(i => i !== head), ...prev.filter(i => !run[i][d])];
+    }
+    // 위에서부터 쌓아요. 둘 다 달린 이웃 사이는 흰 틈만, 아니면 넓게. 아직 시작 안 했거나 끝난 프로젝트는 자리를 차지하지 않아요
+    const ord = prev.filter(i => alive(i, d)), at = [], r = [];
+    let y = 0;
+    ord.forEach((i, k) => { at[i] = y; r[i] = k / Math.max(1, ord.length - 1); const j = ord[k + 1]; y += lanes[i] * PP + (j !== undefined && run[i][d] && run[j][d] ? 0 : PAIR - PG); });
+    pos.push(at); rank.push(r); cross = Math.max(cross, y);
+  }
+  const L = -PM, R = T0(days) + PM, top = -PTOP, bot = cross + PBOT;
+  const frame = el("clipPath", { id: "pframe" }, el("defs", {}, pworld));
+  el("rect", { x: L, y: top, width: R - L, height: bot - top }, frame);
+  el("rect", { x: L, y: top, width: R - L, height: bot - top, class: "p-paper" }, pworld);
+  const lines = el("g", { "clip-path": "url(#pframe)" }, pworld), marks = el("g", {}, pworld);
+  const block = { top: [], bot: [] };   // 가장자리로 드나드는 선이 지나는 곳 (제목 · 견본을 피해 두려고)
+
+  P.forEach((p, i) => {
+    const g = el("g", {}, lines), cg = el("g", {}, g), lg = el("g", {}, g);
+    const draw = d => { el("path", { d, class: "p-case" }, cg); return el("path", { d, stroke: p.color, class: "p-line" }, lg); };
+    const dA = p.first, dB = p.last, going = dB === TODAY;
+    // 위쪽에 있던 노선은 위 가장자리로, 아래쪽은 아래 가장자리로 드나들어요
+    const sideA = rank[dA][i] < 0.5 ? "top" : "bot", sideB = rank[dB][i] < 0.5 ? "top" : "bot", edge = sd => sd === "top" ? top - 40 : bot + 40;
+    const tA = dA ? T0(dA) + 30 : L - 40, tB = going ? R + 40 : T0(dB) + w[dB] - 30;
+    const band = [[tA, pos[dA][i]]];
+    for (let d = dA; d < dB; d++) {
+      const c = pos[d][i], next = pos[d + 1][i], dc = Math.abs(next - c);
+      if (dc) { const b = T0(d + 1), dt = Math.min(dc, PDAY * 0.8); band.push([b - dt / 2, c], [b + dt / 2, next]); }
+    }
+    band.push([tB, pos[dB][i]]);
+    const B = clean(band), wide = lanes[i] * PP;
+    if (dA) block[sideA].push([tA - wide, tA + wide]);
+    if (!going) block[sideB].push([tB - wide, tB + wide]);
+    const full = clean([...(dA ? [[tA, edge(sideA)]] : []), ...B, ...(going ? [] : [[tB, edge(sideB)]])]);
+    p.pmain = draw(rounded(offset(full, PL / 2), PL / 2, PR));
+    p.pt1 = tB;
+    p.chats.forEach(c => {
+      const o = c.lane * PP + PL / 2, ts = T0(c.from) + 14, te = T0(c.to) + w[c.to] - 14;
+      const path = c.lane ? draw(rounded(clip(offset(B, o), ts, te), o, PR)) : p.pmain;
+      const n = c.turns.length, step = n > 1 ? (te - ts - 34) / (n - 1) : 0, seen = {}, count = {};
+      for (const u of c.turns) if (u.day !== undefined) count[u.day] = (count[u.day] || 0) + 1;
+      const when = (u, k) => u.day === undefined ? ts + 17 + k * step
+        : T0(u.day) + 14 + ((seen[u.day] = (seen[u.day] || 0) + 1) - 0.5) / count[u.day] * (w[u.day] - 28);
+      c.pp = { path, te, times: c.turns.map((u, k) => pointAt(path, when(u, k))) };
+      c.turns.forEach((u, k) => {
+        const [x, y] = c.pp.times[k];
+        if (c.active && k === n - 1) {
+          el("circle", { cx: x, cy: y, r: 18, class: "now-ring" }, marks); el("circle", { cx: x, cy: y, r: 10, class: "now-dot" }, marks);
+          // 비녤리 포스터의 굵은 검은 화살표가 지금 있는 역을 가리켜요
+          // 오른쪽에 이름이 들어갈 자리가 없으면 왼쪽 아래에서
+          const tag = el("text", { y: y + 178, class: "p-now" }, marks);
+          tag.textContent = `지금 · ${u.t}`;
+          const s = x + 182 + tag.getComputedTextLength() > R - 30 ? -1 : 1;
+          tag.setAttribute("x", x + s * 182); tag.setAttribute("text-anchor", s > 0 ? "start" : "end");
+          el("path", { d: `M${x + s * 170} ${y + 170} L${x + s * 26} ${y + 26}`, class: "p-here", "marker-end": "url(#parrow)" }, marks);
+        } else if (u.d) el("circle", { cx: x, cy: y, r: 6.5, class: "dot" }, marks);
+      });
+    });
+  });
+
+  // 환승: 새 대화가 열린 그 시각에, 앞 대화(끝났으면 그 프로젝트 노선)에서 검은 막대 하나와 두 점
+  for (const [a, b] of DATA.links) {
+    const A = chats[a], q = chats[b].pp.times[0];
+    const p = q[0] <= A.pp.te ? pointAt(A.pp.path, q[0]) : q[0] <= A.p.pt1 ? pointAt(A.p.pmain, q[0]) : A.pp.times.at(-1);
+    el("path", { d: `M${p[0]} ${p[1]} V${q[1]} H${q[0]}`, class: "xfer" }, marks);
+    for (const s of [p, q]) el("circle", { cx: s[0], cy: s[1], r: 7, class: "dot" }, marks);
+  }
+
+  // 제목과 프로젝트 색 견본: 가장자리로 드나드는 선을 피해 빈 곳에
+  // 빈 곳이 없으면 선 위에라도 두되, 제목과 견본은 서로 다른 가장자리에 둬요 (둘이 겹치는 일은 어떤 경우에도 없게)
+  const taken = [];
+  const spot = (sides, wid) => {
+    for (const s of sides) for (let x = R - 60 - wid; x >= L + 60; x -= 40)
+      if (block[s].every(([a, b]) => b < x - 50 || a > x + wid + 50)) { block[s].push([x, x + wid]); taken.push(s); return [s, x]; }
+    const s = sides.find(t => !taken.includes(t)) || sides[0], x = Math.max(L + 60, R - 60 - wid);
+    block[s].push([x, x + wid]); taken.push(s); return [s, x];
+  };
+  const decs = P.reduce((s, p) => s + p.chats.reduce((t, c) => t + c.turns.filter(u => u.d).length, 0), 0);
+  // 제목: 비녤리 포스터처럼 한 줄로 크게 ‘가닥 GADAK’ (로마자는 헬베티카)
+  const title = el("text", { "text-anchor": "end", class: "p-title" }, marks);
+  title.textContent = "가닥 "; el("tspan", { class: "p-latin" }, title).textContent = "GADAK";
+  const tw = title.getComputedTextLength();
+  const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + 190 : bot - 70;
+  title.setAttribute("x", tx + tw); title.setAttribute("y", ty);
+  el("text", { x: tx + tw, y: ty + 48, "text-anchor": "end", class: "p-sub" }, marks).textContent =
+    `${dayLabel(0)} – 오늘 · 프로젝트 ${n} · 대화 ${Object.keys(chats).length} · 정함 ${decs}`;
+  // 견본 칸 폭은 이름 길이대로
+  const names = P.map(p => { const t = el("text", { "text-anchor": "middle", class: "p-name" }, marks); t.textContent = p.name; return t; });
+  const cell = names.map(t => Math.max(110, t.getComputedTextLength() + 40));
+  const [ks, kx] = spot(["bot", "top"], cell.reduce((a, b) => a + b, 0)), ky = ks === "top" ? top + 90 : bot - 130;
+  let cx = kx;
+  P.forEach((p, i) => {
+    const x = cx + cell[i] / 2; cx += cell[i];
+    el("circle", { cx: x, cy: ky, r: 30, fill: p.color }, marks);
+    names[i].setAttribute("x", x); names[i].setAttribute("y", ky + 70);
+  });
+}
+// ── 그려지는 움직임: 노선마다 자기 시작점에서 동시에 그어지고(시작은 살짝씩 어긋나게, 긴 노선일수록 오래),
+//    역 · 이름 · 환승은 노선이 그 자리에 닿을 즈음 떠올라요. 전체 지도를 열 때 · 포스터와 지도를 오갈 때마다
+function drawIn(root) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = root.getBBox(), x0 = box.x, span = Math.max(1, box.width), RUN = 1500;   // 가장 긴 노선이 그어지는 데 1.5초
+  const ease = "cubic-bezier(.2, .8, .2, 1)";
+  for (const p of root.querySelectorAll("path")) {
+    if (p.closest("defs, clipPath") || p.getAttribute("stroke") === "transparent" || p.getAttribute("stroke-dasharray")) continue;
+    const L = p.getTotalLength(); if (!L) continue;
+    const start = p.getPointAtLength(0), lead = Math.random() * 280;   // 각기 다른 시작점에서, 거의 동시에
+    p.style.strokeDasharray = `${L} ${L}`;
+    p.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: 250 + RUN * Math.min(1, L / span), delay: lead + (start.x - x0) / span * 300, easing: ease, fill: "backwards" })
+      .onfinish = () => { p.style.strokeDasharray = ""; };
+  }
+  for (const e of root.querySelectorAll("circle, text, line, rect:not(.p-paper)")) {
+    if (e.closest("defs, clipPath") || e.closest(".grid")) continue;
+    const b = e.getBBox(), at = (b.x + b.width / 2 - x0) / span;
+    e.animate([{ opacity: 0 }, { opacity: 1 }],   // 흐림만: 45° 이름은 회전을 transform 속성으로 걸어 둬서, 움직임에 이동을 넣으면 회전이 풀려 보여요
+      { duration: 380, delay: 200 + at * RUN, easing: ease, fill: "backwards" });
+  }
+}
+
+function togglePoster(on) {
+  document.body.classList.toggle("poster-on", on);
+  document.getElementById("poster-btn").textContent = on ? "지도로 보기" : "포스터로 보기";
+  if (on && !posterDrawn) drawPoster();
+  cur().all(true);
+  drawIn(on ? pworld : world);
+  const q = new URLSearchParams(location.search); on ? q.set("poster", "") : q.delete("poster"); history.replaceState(null, "", `?${q}`);
+}
+document.getElementById("poster-btn").onclick = () => togglePoster(!document.body.classList.contains("poster-on"));
 
 // ════ 한 줄 노선도 ════
 // 열차 안 노선도처럼: 굵은 막대 하나, 역마다 점, 이름은 45°, 역 아래에 환승 · 산출물 · 할 일을 쌓아요
@@ -727,7 +951,7 @@ ssvg.addEventListener("click", () => {
   if (turn) openInGadak(shown, turn);
 });
 
-const cur = () => document.body.classList.contains("strip-on") ? stripZ : mapZ;
+const cur = () => document.body.classList.contains("strip-on") ? stripZ : document.body.classList.contains("poster-on") ? posterZ : mapZ;
 document.getElementById("in").onclick = () => cur().zoomAt(1.6, ...cur().center());
 document.getElementById("out").onclick = () => cur().zoomAt(1 / 1.6, ...cur().center());
 document.getElementById("fit").onclick = () => cur().all();
@@ -742,6 +966,8 @@ addEventListener("resize", () => cur().all());
 mapZ.all(true);
 const deep = new URLSearchParams(location.search).get("chat");
 if (chats[deep]) openStrip(deep);
+else if (new URLSearchParams(location.search).has("poster")) togglePoster(true);
+else drawIn(world);
 </script>
 </body>
 </html>
