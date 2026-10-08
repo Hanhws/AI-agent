@@ -192,7 +192,6 @@
       mains.forEach(function (t) {
         var p = pos[t.id], k = V.kind(t), open = V.isOpen(V.sIdx[t.id]), b;
         if (!open) { b = el('button', 'st tick' + (k === 'cur' ? ' tcur' : (t.dec ? ' tdec' : ''))); b.type = 'button'; }
-        else if (t.parts) b = g.capsule(t, k);
         else { b = el('button', 'st ' + k); b.type = 'button'; }
         if (open && g.hasTodo(t)) b.classList.add('todo');
         b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
@@ -227,12 +226,7 @@
         var xl = el('div', 'lbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);
       }
       // reference arcs (U3 repeats, cross-chat refs) as faint curves under the line
-      V.vis.forEach(function (t) {
-        if (!t.ref || !pos[t.ref] || !pos[t.id] || t.depth > 0) return;
-        var a = pos[t.ref], b = pos[t.id]; if (a.y !== Y0 || b.y !== Y0) return;
-        var mid = (a.x + b.x) / 2;
-        path('M ' + a.x + ' ' + (Y0 + 12) + ' Q ' + mid + ' ' + (Y0 + 30) + ' ' + b.x + ' ' + (Y0 + 12), 'var(--accent)', 1.5, '2 4');
-      });
+      // 참조 호(빨간 점선)는 그리지 않아요: 빨강은 ‘지금 · 할 일’에만이고, 노선 위가 번잡해져요. 연결은 역 툴팁의 ‘↩ … 와 연결’에 있어요
       R.mapPos = pos;
       mapScroll.classList.toggle('ovf', mapEl.offsetWidth > mapScroll.clientWidth + 1);
       if (st.popSeg && !G.reduce) {
