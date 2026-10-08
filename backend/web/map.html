@@ -11,12 +11,14 @@
    90° · 45° 격자, 노선마다 한 색, 흰 틈을 둔 나란한 묶음, 역마다 점, 45°로 선 역 이름, 역 아래에 쌓는 동그라미. */
 :root {
   --spur: #A7A9AC;
-  --paper: #FFFFFF; --ink: #111111; --ink2: #6B6B6B; --ink3: #A6A6A6; --grid: #EFEFEF; --today: #F6F6F6; --band: #111111; --band-fg: #FFFFFF;
+  --paper: #FFFFFF; --ink: #111111; --ink2: #6B6B6B; --ink3: #A6A6A6; --grid: #EFEFEF; --today: #F6F6F6; --band: #111111; --band-fg: #FFFFFF; --poster: #F4F1EA;
   --font: SUIT, "Apple SD Gothic Neo", Arial, sans-serif;
+  /* 비녤리가 뉴욕 지하철 표지에 쓴 헬베티카. 한글 글자는 헬베티카에 없어서 SUIT로 이어져요 */
+  --vfont: "Helvetica Neue", Helvetica, Arial, SUIT, "Apple SD Gothic Neo", sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; } }
-:root[data-theme="dark"] { --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; }
+  --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; --poster: #171614; } }
+:root[data-theme="dark"] { --paper: #121212; --ink: #F2F2F2; --ink2: #9A9A9A; --ink3: #5E5E5E; --grid: #1E1E1E; --today: #191919; --band: #000000; --band-fg: #F2F2F2; --poster: #171614; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--font); overflow: hidden; }
@@ -25,6 +27,7 @@ html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink
 header { position: fixed; inset: 0 0 auto 0; height: 48px; white-space: nowrap; background: var(--band); color: var(--band-fg);
   display: flex; align-items: center; gap: 12px; padding: 0 20px; z-index: 3; }
 header b { font-size: 22px; letter-spacing: -0.02em; }
+header b i { font: normal 700 22px var(--vfont); letter-spacing: -0.01em; margin-left: 6px; }
 /* 가닥 심볼 (shared/ui/mark.js). 검은 띠 위라서 선은 흰색, 지금 점은 가닥의 빨강 */
 header .mark { display: block; overflow: visible; cursor: pointer; margin-right: -4px; }
 header .mark line { stroke: var(--band-fg); }
@@ -51,6 +54,21 @@ svg.view.drag { cursor: grabbing; }
 .strip-on #strip { opacity: 1; pointer-events: auto; transform: none; }
 .strip-on #map { opacity: 0; pointer-events: none; }
 text { font-family: var(--font); fill: var(--ink); }
+
+/* 포스터 보기: 같은 대화를 비녤리 포스터처럼 (굵은 단색 선 · 흰 틈 · 45°와 90° 꺾임 · 큰 제목) */
+#poster { opacity: 0; pointer-events: none; }
+#poster text { font-family: var(--vfont); }
+.poster-on #poster { opacity: 1; pointer-events: auto; }
+.poster-on #map { opacity: 0; pointer-events: none; }
+.poster-on #key-map { display: none; }
+.p-paper { fill: var(--poster); }
+.p-case { fill: none; stroke: var(--poster); stroke-width: 32; }
+.p-line { fill: none; stroke-width: 22; }
+.p-title { font-size: 168px; font-weight: 800; letter-spacing: -0.04em; }
+.p-latin { font-weight: 700; letter-spacing: -0.03em; }
+.p-sub { font-size: 22px; fill: var(--ink2); }
+.p-name, .p-now { font-size: 22px; font-weight: 700; }
+.p-here { stroke: var(--ink); stroke-width: 9; fill: none; }
 
 .grid line { stroke: var(--grid); stroke-width: 1; }
 .grid rect { fill: var(--today); }
@@ -125,7 +143,8 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
 </head>
 <body>
 <header>
-  <b>가닥</b><span class="crumb-map">전체 지도</span>
+  <b>가닥<i>GADAK</i></b><span class="crumb-map">전체 지도</span>
+  <button class="axis" id="poster-btn" type="button">포스터로 보기</button>
   <button id="back">← 전체 지도</button><span id="crumb"></span>
   <button class="open" id="open" type="button">대화 열기</button>
   <small id="meta"></small>
@@ -136,6 +155,10 @@ header .axis { display: inline-block; margin-left: 12px; border: 0; background: 
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
     <path d="M1.5 1.5 L7 5 L1.5 8.5" fill="none" style="stroke: var(--ink)" stroke-width="2" stroke-linecap="square"/></marker></defs>
   <g id="world"></g></svg>
+<svg id="poster" class="view" aria-label="전체 지도를 포스터처럼 그린 그림">
+  <defs><marker id="parrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
+    <path d="M1.5 1.5 L7 5 L1.5 8.5" fill="none" style="stroke: var(--ink)" stroke-width="2" stroke-linecap="square"/></marker></defs>
+  <g id="pworld"></g></svg>
 <svg id="strip" class="view" aria-label="대화 하나의 한 줄 노선도"><g id="sworld"></g></svg>
 <div class="key" id="key-map">
   <span><i style="width:10px;height:10px;border-radius:50%"></i>정함 (큰 점 · 굵은 이름)</span>
@@ -582,6 +605,144 @@ svg.addEventListener("click", () => {
   setTimeout(() => openStrip(id), 420);
 });
 
+// ════ 포스터 ════
+// 같은 대화를 비녤리 포스터처럼. 같은 날 함께 달린 프로젝트는 흰 틈 하나만 두고 붙어 달리고, 쉬면 벌어져요(45°).
+// 그날 가장 많이 이야기한 프로젝트가 맨 위로 올라가요. 관심이 옮겨 가면 노선끼리 엇갈려요 (프로젝트끼리 이어진 대화가 없어도 흐름이 보이게)
+// 중간에 시작한 프로젝트는 위나 아래 가장자리에서 들어와 90°로 꺾이고, 끝난 프로젝트는 꺾여 나가요. 오늘까지 달리는 노선은 오른쪽 끝을 뚫고 나가요
+const PL = 22, PG = 5, PP = PL + PG, PMIN = 1700, PFOLD = 40, PAIR = 120, PR = 70, PTOP = 360, PBOT = 280, PM = 120;
+const psvg = document.getElementById("poster"), pworld = document.getElementById("pworld");
+const posterZ = zoomable(psvg, pworld, () => {}, 2);
+let posterDrawn = false;
+
+function drawPoster() {
+  posterDrawn = true;
+  pworld.replaceChildren();
+  const busy = Array.from({ length: days }, (_, d) => d === TODAY || DATA.projects.some(p => p.chats.some(c => turnsOn(c, d) > 0)));
+  // 날이 적어도 포스터 폭은 그대로: 하루 폭을 늘려요 (45° 꺾임이 들어갈 자리도 생겨요)
+  const PDAY = Math.max(104, Math.ceil(PMIN / busy.filter(Boolean).length));
+  const w = busy.map((b, d) => b ? PDAY : d > 0 && !busy[d - 1] ? 0 : PFOLD);
+  // 오래 달린 프로젝트가 맨 위에서 곧게 (등뼈), 나머지가 그 아래로 붙었다 벌어졌다 해요
+  const daysRun = p => busy.filter((b, d) => p.chats.some(c => c.from <= d && d <= c.to)).length;
+  const P = [...DATA.projects].sort((a, b) => daysRun(b) - daysRun(a)), n = P.length;
+  const T0 = d => { let t = 0; for (let k = 0; k < d; k++) t += w[k]; return t; };
+  // 그날 달렸나: 대화가 걸쳐 있으면. 하루 빈 날은 메우고(하루 만에 벌어졌다 붙지 않게), 접힌 쉼 구간은 앞날 그대로
+  const run = P.map(p => {
+    const a = Array.from({ length: days }, (_, d) => p.chats.some(c => c.from <= d && d <= c.to));
+    for (let d = 1; d < days - 1; d++) if (!a[d] && a[d - 1] && a[d + 1]) a[d] = true;
+    for (let d = 1; d < days; d++) if (!busy[d]) a[d] = a[d - 1];
+    return a;
+  });
+  const lanes = P.map(p => 1 + Math.max(...p.chats.map(c => c.lane)));
+  // 그날의 순서: 달린 프로젝트가 위, 그중 그날 턴이 가장 많은 프로젝트가 맨 위. 나머지는 앞날 순서 그대로 (괜히 뒤섞이지 않게)
+  const vol = (i, d) => P[i].chats.reduce((s, c) => s + turnsOn(c, d), 0);
+  const alive = (i, d) => P[i].first <= d && d <= P[i].last;
+  let prev = P.map((_, i) => i), cross = 0;
+  const pos = [], rank = [];
+  for (let d = 0; d < days; d++) {
+    const act = prev.filter(i => run[i][d]);
+    if (busy[d] && act.length) {
+      const head = act.reduce((a, i) => vol(i, d) > vol(a, d) ? i : a);
+      prev = [head, ...act.filter(i => i !== head), ...prev.filter(i => !run[i][d])];
+    }
+    // 위에서부터 쌓아요. 둘 다 달린 이웃 사이는 흰 틈만, 아니면 넓게. 아직 시작 안 했거나 끝난 프로젝트는 자리를 차지하지 않아요
+    const ord = prev.filter(i => alive(i, d)), at = [], r = [];
+    let y = 0;
+    ord.forEach((i, k) => { at[i] = y; r[i] = k / Math.max(1, ord.length - 1); const j = ord[k + 1]; y += lanes[i] * PP + (j !== undefined && run[i][d] && run[j][d] ? 0 : PAIR - PG); });
+    pos.push(at); rank.push(r); cross = Math.max(cross, y);
+  }
+  const L = -PM, R = T0(days) + PM, top = -PTOP, bot = cross + PBOT;
+  const frame = el("clipPath", { id: "pframe" }, el("defs", {}, pworld));
+  el("rect", { x: L, y: top, width: R - L, height: bot - top }, frame);
+  el("rect", { x: L, y: top, width: R - L, height: bot - top, class: "p-paper" }, pworld);
+  const lines = el("g", { "clip-path": "url(#pframe)" }, pworld), marks = el("g", {}, pworld);
+  const block = { top: [], bot: [] };   // 가장자리로 드나드는 선이 지나는 곳 (제목 · 견본을 피해 두려고)
+
+  P.forEach((p, i) => {
+    const g = el("g", {}, lines), cg = el("g", {}, g), lg = el("g", {}, g);
+    const draw = d => { el("path", { d, class: "p-case" }, cg); return el("path", { d, stroke: p.color, class: "p-line" }, lg); };
+    const dA = p.first, dB = p.last, going = dB === TODAY;
+    // 위쪽에 있던 노선은 위 가장자리로, 아래쪽은 아래 가장자리로 드나들어요
+    const sideA = rank[dA][i] < 0.5 ? "top" : "bot", sideB = rank[dB][i] < 0.5 ? "top" : "bot", edge = sd => sd === "top" ? top - 40 : bot + 40;
+    const tA = dA ? T0(dA) + 30 : L - 40, tB = going ? R + 40 : T0(dB) + w[dB] - 30;
+    const band = [[tA, pos[dA][i]]];
+    for (let d = dA; d < dB; d++) {
+      const c = pos[d][i], next = pos[d + 1][i], dc = Math.abs(next - c);
+      if (dc) { const b = T0(d + 1), dt = Math.min(dc, PDAY * 0.8); band.push([b - dt / 2, c], [b + dt / 2, next]); }
+    }
+    band.push([tB, pos[dB][i]]);
+    const B = clean(band), wide = lanes[i] * PP;
+    if (dA) block[sideA].push([tA - wide, tA + wide]);
+    if (!going) block[sideB].push([tB - wide, tB + wide]);
+    const full = clean([...(dA ? [[tA, edge(sideA)]] : []), ...B, ...(going ? [] : [[tB, edge(sideB)]])]);
+    p.pmain = draw(rounded(offset(full, PL / 2), PL / 2, PR));
+    p.pt1 = tB;
+    p.chats.forEach(c => {
+      const o = c.lane * PP + PL / 2, ts = T0(c.from) + 14, te = T0(c.to) + w[c.to] - 14;
+      const path = c.lane ? draw(rounded(clip(offset(B, o), ts, te), o, PR)) : p.pmain;
+      const n = c.turns.length, step = n > 1 ? (te - ts - 34) / (n - 1) : 0, seen = {}, count = {};
+      for (const u of c.turns) if (u.day !== undefined) count[u.day] = (count[u.day] || 0) + 1;
+      const when = (u, k) => u.day === undefined ? ts + 17 + k * step
+        : T0(u.day) + 14 + ((seen[u.day] = (seen[u.day] || 0) + 1) - 0.5) / count[u.day] * (w[u.day] - 28);
+      c.pp = { path, te, times: c.turns.map((u, k) => pointAt(path, when(u, k))) };
+      c.turns.forEach((u, k) => {
+        const [x, y] = c.pp.times[k];
+        if (c.active && k === n - 1) {
+          el("circle", { cx: x, cy: y, r: 18, class: "now-ring" }, marks); el("circle", { cx: x, cy: y, r: 10, class: "now-dot" }, marks);
+          // 비녤리 포스터의 굵은 검은 화살표가 지금 있는 역을 가리켜요
+          // 오른쪽에 이름이 들어갈 자리가 없으면 왼쪽 아래에서
+          const tag = el("text", { y: y + 178, class: "p-now" }, marks);
+          tag.textContent = `지금 · ${u.t}`;
+          const s = x + 182 + tag.getComputedTextLength() > R - 30 ? -1 : 1;
+          tag.setAttribute("x", x + s * 182); tag.setAttribute("text-anchor", s > 0 ? "start" : "end");
+          el("path", { d: `M${x + s * 170} ${y + 170} L${x + s * 26} ${y + 26}`, class: "p-here", "marker-end": "url(#parrow)" }, marks);
+        } else if (u.d) el("circle", { cx: x, cy: y, r: 6.5, class: "dot" }, marks);
+      });
+    });
+  });
+
+  // 환승: 새 대화가 열린 그 시각에, 앞 대화(끝났으면 그 프로젝트 노선)에서 검은 막대 하나와 두 점
+  for (const [a, b] of DATA.links) {
+    const A = chats[a], q = chats[b].pp.times[0];
+    const p = q[0] <= A.pp.te ? pointAt(A.pp.path, q[0]) : q[0] <= A.p.pt1 ? pointAt(A.p.pmain, q[0]) : A.pp.times.at(-1);
+    el("path", { d: `M${p[0]} ${p[1]} V${q[1]} H${q[0]}`, class: "xfer" }, marks);
+    for (const s of [p, q]) el("circle", { cx: s[0], cy: s[1], r: 7, class: "dot" }, marks);
+  }
+
+  // 제목과 프로젝트 색 견본: 가장자리로 드나드는 선을 피해 빈 곳에
+  const spot = (sides, wid) => {
+    for (const s of sides) for (let x = R - 60 - wid; x >= L + 60; x -= 40)
+      if (block[s].every(([a, b]) => b < x - 50 || a > x + wid + 50)) { block[s].push([x, x + wid]); return [s, x]; }
+    return [sides[0], R - 60 - wid];
+  };
+  const decs = P.reduce((s, p) => s + p.chats.reduce((t, c) => t + c.turns.filter(u => u.d).length, 0), 0);
+  // 제목: 비녤리 포스터처럼 한 줄로 크게 ‘가닥 GADAK’ (로마자는 헬베티카)
+  const title = el("text", { "text-anchor": "end", class: "p-title" }, marks);
+  title.textContent = "가닥 "; el("tspan", { class: "p-latin" }, title).textContent = "GADAK";
+  const tw = title.getComputedTextLength();
+  const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + 190 : bot - 70;
+  title.setAttribute("x", tx + tw); title.setAttribute("y", ty);
+  el("text", { x: tx + tw, y: ty + 48, "text-anchor": "end", class: "p-sub" }, marks).textContent =
+    `${dayLabel(0)} – 오늘 · 프로젝트 ${n} · 대화 ${Object.keys(chats).length} · 정함 ${decs}`;
+  // 견본 칸 폭은 이름 길이대로
+  const names = P.map(p => { const t = el("text", { "text-anchor": "middle", class: "p-name" }, marks); t.textContent = p.name; return t; });
+  const cell = names.map(t => Math.max(110, t.getComputedTextLength() + 40));
+  const [ks, kx] = spot(["bot", "top"], cell.reduce((a, b) => a + b, 0)), ky = ks === "top" ? top + 90 : bot - 130;
+  let cx = kx;
+  P.forEach((p, i) => {
+    const x = cx + cell[i] / 2; cx += cell[i];
+    el("circle", { cx: x, cy: ky, r: 30, fill: p.color }, marks);
+    names[i].setAttribute("x", x); names[i].setAttribute("y", ky + 70);
+  });
+}
+function togglePoster(on) {
+  document.body.classList.toggle("poster-on", on);
+  document.getElementById("poster-btn").textContent = on ? "지도로 보기" : "포스터로 보기";
+  if (on && !posterDrawn) drawPoster();
+  cur().all(true);
+  const q = new URLSearchParams(location.search); on ? q.set("poster", "") : q.delete("poster"); history.replaceState(null, "", `?${q}`);
+}
+document.getElementById("poster-btn").onclick = () => togglePoster(!document.body.classList.contains("poster-on"));
+
 // ════ 한 줄 노선도 ════
 // 열차 안 노선도처럼: 굵은 막대 하나, 역마다 점, 이름은 45°, 역 아래에 환승 · 산출물 · 할 일을 쌓아요
 const ssvg = document.getElementById("strip"), sworld = document.getElementById("sworld");
@@ -719,7 +880,7 @@ ssvg.addEventListener("click", () => {
   if (turn) openInGadak(shown, turn);
 });
 
-const cur = () => document.body.classList.contains("strip-on") ? stripZ : mapZ;
+const cur = () => document.body.classList.contains("strip-on") ? stripZ : document.body.classList.contains("poster-on") ? posterZ : mapZ;
 document.getElementById("in").onclick = () => cur().zoomAt(1.6, ...cur().center());
 document.getElementById("out").onclick = () => cur().zoomAt(1 / 1.6, ...cur().center());
 document.getElementById("fit").onclick = () => cur().all();
@@ -734,6 +895,7 @@ addEventListener("resize", () => cur().all());
 mapZ.all(true);
 const deep = new URLSearchParams(location.search).get("chat");
 if (chats[deep]) openStrip(deep);
+else if (new URLSearchParams(location.search).has("poster")) togglePoster(true);
 </script>
 </body>
 </html>
