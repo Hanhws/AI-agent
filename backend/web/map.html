@@ -24,10 +24,10 @@
 html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--font); overflow: hidden; }
 
 /* 지하철 표지판의 검은 띠 */
-header { position: fixed; inset: 0 0 auto 0; height: 48px; white-space: nowrap; background: var(--band); color: var(--band-fg);
+header { position: fixed; inset: 0 0 auto 0; height: 60px; white-space: nowrap; background: var(--band); color: var(--band-fg);
   display: flex; align-items: center; gap: 12px; padding: 0 20px; z-index: 3; }
-header b { font-size: 22px; }
-header b i { font: normal 700 22px var(--vfont); margin-left: 6px; }
+header b { font-size: 26px; }
+header b i { font: normal 700 26px var(--vfont); margin-left: 6px; letter-spacing: var(--tr-title); }
 /* 가닥 심볼 (shared/ui/mark.js). 검은 띠 위라서 선은 흰색, 지금 점은 가닥의 빨강 */
 header .mark { display: block; overflow: visible; cursor: pointer; margin-right: -4px; }
 header .mark line { stroke: var(--band-fg); }
@@ -47,7 +47,7 @@ header button { display: none; border: 0; background: none; color: inherit; font
 #crumb { display: none; }
 .strip-on header .crumb-map { display: none; }
 
-svg.view { position: fixed; inset: 48px 0 0 0; width: 100%; height: calc(100% - 48px); cursor: grab; touch-action: none;
+svg.view { position: fixed; inset: 60px 0 0 0; width: 100%; height: calc(100% - 60px); cursor: grab; touch-action: none;
   transition: opacity .35s, transform .35s; }
 svg.view.drag { cursor: grabbing; }
 #strip { opacity: 0; pointer-events: none; transform: scale(.97); }
@@ -594,7 +594,7 @@ function drawMap() {
 
 // 가닥 심볼 (가닥 창과 같은 것). 누르면 다시 움직여요
 if (window.Gadak?.makeMark) {
-  const mark = Gadak.makeMark(22, 10);
+  const mark = Gadak.makeMark(30, 10);
   document.querySelector("header b").before(mark.svg);
   mark.svg.addEventListener("click", () => Gadak.playMark(mark));
   setTimeout(() => Gadak.playMark(mark), 250);
@@ -719,10 +719,13 @@ function drawPoster() {
   }
 
   // 제목과 프로젝트 색 견본: 가장자리로 드나드는 선을 피해 빈 곳에
+  // 빈 곳이 없으면 선 위에라도 두되, 제목과 견본은 서로 다른 가장자리에 둬요 (둘이 겹치는 일은 어떤 경우에도 없게)
+  const taken = [];
   const spot = (sides, wid) => {
     for (const s of sides) for (let x = R - 60 - wid; x >= L + 60; x -= 40)
-      if (block[s].every(([a, b]) => b < x - 50 || a > x + wid + 50)) { block[s].push([x, x + wid]); return [s, x]; }
-    return [sides[0], R - 60 - wid];
+      if (block[s].every(([a, b]) => b < x - 50 || a > x + wid + 50)) { block[s].push([x, x + wid]); taken.push(s); return [s, x]; }
+    const s = sides.find(t => !taken.includes(t)) || sides[0], x = Math.max(L + 60, R - 60 - wid);
+    block[s].push([x, x + wid]); taken.push(s); return [s, x];
   };
   const decs = P.reduce((s, p) => s + p.chats.reduce((t, c) => t + c.turns.filter(u => u.d).length, 0), 0);
   // 제목: 비녤리 포스터처럼 한 줄로 크게 ‘가닥 GADAK’ (로마자는 헬베티카)

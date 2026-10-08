@@ -163,9 +163,10 @@ button.citem.on:hover { background: var(--bubble); }
 .srcpop pre.sent { max-height: 150px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--bubble); font-family: var(--mono); font-size: 11px; line-height: 1.55; white-space: pre; }
 
 /* 맨 위 검은 머리띠 (전체 지도 backend/web/map.html의 머리와 같아요). 테마와 상관없이 검은 띠 · 흰 글씨 */
-.band { flex: none; height: 48px; padding: 0 18px; background: #111; color: #fff; gap: 14px; }
+.band { flex: none; height: 60px; padding: 0 20px; background: #111; color: #fff; gap: 14px; }
 .band .logo { color: inherit; }
-.band .logo b { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
+.band .logo b { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: var(--tr-title); }
+.band .logo b i { font-style: normal; margin-left: 6px; letter-spacing: var(--tr-title); }   /* ‘가닥 GADAK’: 전체 지도 머리와 같게 */
 .band .mark line { stroke: #fff; }
 .band .mark .m-main { fill: #111; stroke: #fff; }
 .band .mark .m-spur { fill: #111; stroke: #8C8C8C; }
