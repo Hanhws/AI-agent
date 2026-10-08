@@ -527,7 +527,7 @@ class Investigator:
             result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
                                                                                         kind="ahead", chat=chat_id))
         except EngineError as exc:       # 로그인 · 한도. 일꾼이 멈춰요
-            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Claude에 닿지 못했어요: " + str(exc)[:160])
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="정리하는 AI에 닿지 못했어요: " + str(exc)[:160])
             raise
         except BadOutput:
             self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="엔진이 답을 정해 준 형식으로 내지 못했어요. 다시 눌러 보세요.")

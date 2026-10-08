@@ -47,7 +47,8 @@ HOST = os.environ.get("GADAK_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GADAK_PORT", "7311"))
 DB_PATH = Path(os.environ.get("GADAK_DB", HOME / "gadak.db")).expanduser()
 
-# auto | claude_cli | codex_cli | anthropic_api | none  (docs/usage-guide.md 3장). 화면의 ‘AI 연결’에서 고른 것이 이 값보다 먼저예요
+# auto | claude_cli | codex_cli | anthropic_api · openai_api · gemini_api(API 키. 갖고 있는 키의 회사를 따라가요) | none
+# (docs/usage-guide.md 3장). 화면의 ‘AI 연결’에서 고른 것이 이 값보다 먼저예요
 ENGINE = os.environ.get("GADAK_ENGINE", "auto")
 ENGINE_MODEL = os.environ.get("GADAK_ENGINE_MODEL", "haiku")
 # ChatGPT 구독 엔진(codex_cli)이 쓸 모델. 비우면 Codex가 고르는 기본값이고, 위의 모델 이름은 생각 깊이로 옮겨요
@@ -85,7 +86,7 @@ AHEAD_FILES = os.environ.get("GADAK_AHEAD_FILES", "1") == "1"    # 그 대화의
 # 길을 찾는 일은 분류보다 어려워요. 작은 모델(Haiku)은 방금 대화만 되풀이해서(10/7 시범) 이 일만 큰 모델을 기본으로 둬요.
 # 비우면(GADAK_AHEAD_MODEL=) 2단과 같은 모델
 AHEAD_MODEL = os.environ.get("GADAK_AHEAD_MODEL", "sonnet") or None
-AHEAD_EFFORT = os.environ.get("GADAK_AHEAD_EFFORT", "medium")    # 모델을 따로 정했을 때 그 모델의 생각 깊이 (Claude 구독 엔진)
+AHEAD_EFFORT = os.environ.get("GADAK_AHEAD_EFFORT", "medium")    # 모델을 따로 정했을 때 그 모델의 생각 깊이 (구독 엔진 · OpenAI · Gemini 키 엔진)
 AHEAD_STEPS = int(os.environ.get("GADAK_AHEAD_STEPS", "8"))      # 한 번 살필 때 엔진에 묻는 걸음 수의 한도
 AHEAD_EVERY = int(os.environ.get("GADAK_AHEAD_EVERY", "8"))      # 한 대화에서 이만큼의 턴에 한 번까지 (사용자가 누른 것은 세지 않아요)
 AHEAD_FRESH = int(os.environ.get("GADAK_AHEAD_FRESH", "180"))    # 분. 이보다 오래된 턴은 지나간 일이라 살피지 않아요 (0이면 따지지 않아요)

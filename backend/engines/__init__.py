@@ -2,7 +2,8 @@
 
 - claude_cli: Claude 구독(Pro · Max). 내 PC의 Claude Code를 불러요. API 키가 필요 없어요.
 - codex_cli: ChatGPT 구독(Plus · Pro). 내 PC의 Codex를 불러요. API 키가 필요 없어요.
-- anthropic_api: Anthropic API 키. 구독이 없는 사람이 자기 키로 써요. 키는 macOS 키체인에 있어요(keys.py).
+- anthropic_api · openai_api · gemini_api: LLM API 키. 구독이 없는 사람이 자기 키로 써요. 키는 하나를 macOS 키체인에 두고(keys.py),
+  그 키가 어느 회사 것인지(Anthropic · OpenAI · Google Gemini)에 따라 셋 중 하나가 돼요. 화면에서는 ‘LLM API 키’ 한 칸이에요.
 - none: LLM 없이 기록만.
 
 사용자가 화면의 ‘AI 연결’에서 고른 것(prefer)이 있으면 그것을 써요. 없으면 설정(GADAK_ENGINE)이고, 그 기본값 auto는
@@ -31,7 +32,8 @@ class BadOutput(RuntimeError):
 
 from . import keys  # noqa: E402  (위의 오류 클래스를 쓰는 모듈이라 그 뒤에 불러요)
 
-NAMES = ("claude_cli", "codex_cli", "anthropic_api", "none")
+API_NAMES = ("anthropic_api", "openai_api", "gemini_api")      # API 키 엔진. 어느 이름을 골라도 갖고 있는 키의 회사를 따라가요
+NAMES = ("claude_cli", "codex_cli") + API_NAMES + ("none",)
 CHOICES = ("auto",) + NAMES       # 사용자가 ‘AI 연결’에서 고를 수 있는 것
 CHOICE_KEY = "engine.choice"      # 고른 것을 적어 두는 settings 칸
 _choice = {"name": None}          # 고른 것. 고른 적이 없으면 None (그때는 설정 GADAK_ENGINE)
@@ -103,16 +105,22 @@ def forget_logins() -> None:
 
 def resolve_name(name=None) -> str:
     name = (name or preferred() or config.ENGINE).lower()
+    if name in API_NAMES:
+        return keys.engine() or name      # 키가 OpenAI 것인데 anthropic_api를 골라 뒀어도 그 키의 회사로 불러요
     if name != "auto":
         return name
     if cli_found():
-        other = "anthropic_api" if keys.get() else ("codex_cli" if codex_ready() else None)
+        other = keys.engine() or ("codex_cli" if codex_ready() else None)
         if other and not cli_logged_in():
             return other
         return "claude_cli"
-    if keys.get():
-        return "anthropic_api"
-    return "codex_cli" if codex_ready() else "none"
+    return keys.engine() or ("codex_cli" if codex_ready() else "none")
+
+
+def _api(name):
+    """API 키 엔진의 모듈. 회사마다 하나예요 (필요할 때 불러요)."""
+    from . import anthropic_api, gemini_api, openai_api
+    return {"anthropic_api": anthropic_api, "openai_api": openai_api, "gemini_api": gemini_api}[name]
 
 
 def get_engine(name=None):
@@ -126,6 +134,12 @@ def get_engine(name=None):
     if name == "anthropic_api":
         from .anthropic_api import AnthropicApiEngine
         return AnthropicApiEngine()
+    if name == "openai_api":
+        from .openai_api import OpenAiApiEngine
+        return OpenAiApiEngine()
+    if name == "gemini_api":
+        from .gemini_api import GeminiApiEngine
+        return GeminiApiEngine()
     if name == "none":
         return None
     raise EngineError(f"아직 지원하지 않는 엔진이에요: {name}")
@@ -144,7 +158,9 @@ def options(fresh=False) -> list:
     return [
         {"name": "claude_cli", "found": claude, "ready": claude and cli_logged_in(), "plan": _login["plan"] if claude else None},
         {"name": "codex_cli", "found": codex, "ready": codex and codex_logged_in()},
-        {"name": "anthropic_api", "found": True, "ready": key["stored"], "hint": key["hint"], "source": key["source"]},
+        # API 키 칸은 하나예요. 이름은 갖고 있는 키의 회사를 따라가요 (키가 없으면 예전 그대로 anthropic_api)
+        {"name": keys.engine() or "anthropic_api", "found": True, "ready": key["stored"], "hint": key["hint"],
+         "source": key["source"], "company": key["company"]},
     ]
 
 
@@ -162,15 +178,15 @@ def overview(status=None) -> dict:
 
 
 def set_key(key, model=None) -> dict:
-    """API 키를 확인하고 키체인에 넣어요. {ok, verified, reason}"""
+    """API 키를 확인하고 키체인에 넣어요. 어느 회사 키인지는 앞머리로 알아보고, 그 회사에만 물어요. {ok, verified, reason}"""
     key = key.strip() if isinstance(key, str) else ""
-    if not keys.looks_right(key):
-        return {"ok": False, "verified": False, "reason": "API 키 모양이 아니에요. sk-ant-로 시작하는 키를 넣어 주세요."}
+    who = keys.company(key)
+    if not who:
+        return {"ok": False, "verified": False, "reason": keys.WRONG_SHAPE}
     if not keys.can_store():
         return {"ok": False, "verified": False, "reason": f"이 컴퓨터에는 키를 넣어 둘 키체인이 없어요. 환경 변수 {keys.ENV}로 넘겨 주세요."}
     try:
-        from . import anthropic_api
-        result = anthropic_api.verify(key, model)
+        result = _api(keys.ENGINES[who]).verify(key, model)
         if result["ok"]:
             keys.save(key)
     except (EngineError, keys.KeyStoreError) as exc:

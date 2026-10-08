@@ -219,7 +219,8 @@ def create_app(db_path=None, engine="auto") -> Flask:
 
     @app.post("/engine/key")
     def engine_key_set():
-        """Anthropic API 키를 확인하고(돈이 들지 않는 요청으로) macOS 키체인에 넣어요. 틀린 키는 넣지 않아요."""
+        """LLM API 키(Anthropic · OpenAI · Gemini)를 그 회사에 확인하고(돈이 들지 않는 요청으로) macOS 키체인에 넣어요.
+        어느 회사 키인지는 키를 보고 알아봐요. 틀린 키는 넣지 않아요."""
         result = engines.set_key((request.get_json() or {}).get("key"))
         if result["ok"]:
             rt.classifier.reset_engine()

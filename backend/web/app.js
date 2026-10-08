@@ -443,12 +443,19 @@
 
   /* ---------- AI 연결: 가닥이 대화를 정리할 때 쓰는 AI를 고르고, 한 번 눌러 연결해요 (backend/engines · connect.py) ----------
      구독(Claude · ChatGPT)은 ‘연결하기’ 한 번이면 가닥이 필요한 것을 받고 브라우저에 로그인 창을 띄워요. API 키는 붙여 넣어요.
+     API 키 칸은 하나예요. 어느 회사 키인지(Anthropic · OpenAI · Gemini)는 가닥이 키를 보고 알아봐요 (backend/engines/keys.py).
      어디까지 갔는지는 GET /engine의 job에 나와서, 연결하는 동안 2초마다 물어요. */
   var AI = {
     claude_cli: { name: 'Claude 구독', sub: 'Pro · Max', note: '내 Claude 구독으로 정리해요. 추가 요금이 없고, 내가 쓰는 Claude와 사용 한도를 같이 써요.' },
     codex_cli: { name: 'ChatGPT 구독', sub: 'Plus · Pro', note: '내 ChatGPT 구독으로 정리해요. 추가 요금이 없고, 내가 쓰는 ChatGPT(Codex)와 사용 한도를 같이 써요.' },
-    anthropic_api: { name: 'API 키', sub: 'Anthropic', note: 'Anthropic API 키로 정리해요. 쓴 만큼 그 키로 요금이 나가요. 키는 이 Mac의 키체인에만 둬요.' }
+    api: { name: 'LLM API 키', sub: 'Anthropic · OpenAI · Gemini', note: '가진 API 키로 정리해요. 어느 회사 키인지는 가닥이 알아봐요. 쓴 만큼 그 키로 요금이 나가요. 키는 이 Mac의 키체인에만 둬요.' }
   };
+  var GEMINI_NOTE = ' Gemini 무료 키는 요금이 없는 대신, 보낸 글이 Google의 제품 개선에 쓰일 수 있어요.';
+  // API 키 엔진의 이름은 넣은 키의 회사를 따라가요 (anthropic_api · openai_api · gemini_api). 화면에서는 한 칸이에요
+  function isKey(name) { return /_api$/.test(name || ''); }
+  function aiOf(name) { return isKey(name) ? AI.api : AI[name]; }
+  // ‘…으로 정리해요’에 넣을 말. API 키는 어느 회사 키인지까지 말해요
+  function aiBy(name, e) { return isKey(name) ? (e.key && e.key.company ? e.key.company + ' ' : '') + 'API 키로' : AI[name].name + '으로'; }
   // 안 된 까닭(reason)도 받아야 해서, 실패한 답(400 · 409)도 그대로 읽어요
   function ask(path, method, body) {
     return fetch(path, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
@@ -481,30 +488,34 @@
   function renderAi() {
     var p = R.ai, e = S.engine, job = e.job, busy = job.state === 'running';
     var ready = {}; e.options.forEach(function (o) { ready[o.name] = o.ready; });
-    var using = ready[e.resolved] ? AI[e.resolved] : null;      // 골라져 있어도 아직 로그인 전이면 쓰는 중이 아니에요
+    var using = ready[e.resolved] ? aiOf(e.resolved) : null;    // 골라져 있어도 아직 로그인 전이면 쓰는 중이 아니에요
     S.aiNeed = !using;
     var typed = p.querySelector('input'), key = typed ? typed.value : '', had = typed && document.activeElement === typed;   // 다시 그려도 치던 키는 그대로
     p.innerHTML = '';
     p.appendChild(el('b', null, 'AI 연결'));
     p.appendChild(el('div', 'note', '가닥이 대화를 정리할 때 쓰는 AI예요. 하나만 연결하면 돼요. ' + (using
-      ? '지금은 ' + using.name + '으로 정리해요' + (e.choice === 'auto' ? ' (가닥이 알아서 골랐어요).' : '.')
+      ? '지금은 ' + aiBy(e.resolved, e) + ' 정리해요' + (e.choice === 'auto' ? ' (가닥이 알아서 골랐어요).' : '.')
       : (e.choice === 'none' ? 'AI 없이 쓰기로 해 둬서 대화를 읽어 보여 주기만 해요.' : '아직 연결한 것이 없어서 대화를 읽어 보여 주기만 해요.'))));
     e.options.forEach(function (o) {
-      var a = AI[o.name], now = e.resolved === o.name && o.ready, d = el('div', 'src' + (now ? ' now' : '')), mine = busy && job.name === o.name;
-      var k = o.name === 'anthropic_api' ? (o.ready ? '연결됨 · ' + o.hint : '키를 넣으면 바로 써요')
+      var a = aiOf(o.name), byKey = isKey(o.name), now = e.resolved === o.name && o.ready, d = el('div', 'src' + (now ? ' now' : '')), mine = busy && job.name === o.name;
+      var k = byKey ? (o.ready ? '연결됨 · ' + (o.company ? o.company + ' · ' : '') + o.hint : '키를 넣으면 바로 써요')
         : (o.ready ? '연결됨' + (o.plan ? ' · ' + planName(o.plan) : '') : (o.found ? '로그인만 하면 돼요' : '아직 연결하지 않았어요'));
       d.appendChild(el('span', 'k' + (o.ready ? ' on' : ''), (now ? '지금 쓰는 중 · ' : '') + k));
       d.appendChild(el('span', 't', a.name + ' (' + a.sub + ')'));
-      d.appendChild(el('span', 'w', mine ? job.message : a.note));
+      d.appendChild(el('span', 'w', mine ? job.message : a.note + (byKey && o.company === 'Gemini' ? GEMINI_NOTE : '')));
       if (!mine && job.state === 'failed' && job.name === o.name) d.appendChild(el('span', 'w fail', job.message));
       var row = el('div', 'row');
       if (mine) row.appendChild(button('그만두기', '', function () { ask('engine/cancel', 'POST').then(function (r) { gotEngine(r); }); }));
-      else if (o.name === 'anthropic_api' && !o.ready) {
-        var input = el('input'); input.type = 'password'; input.placeholder = 'sk-ant-…'; input.autocomplete = 'off'; input.spellcheck = false; input.value = key;
-        input.setAttribute('aria-label', 'Anthropic API 키');
+      else if (byKey && !o.ready) {
+        var input = el('input'); input.type = 'password'; input.placeholder = 'LLM API 키 넣기'; input.autocomplete = 'off'; input.spellcheck = false; input.value = key;
+        input.setAttribute('aria-label', 'LLM API 키');
         var save = function () {
           if (!input.value.trim()) { input.focus(); return; }
-          ask('engine/key', 'POST', { key: input.value }).then(function (r) { if (r.ok) input.value = ''; gotEngine(r, r.ok ? 'API 키를 키체인에 넣었어요.' + (r.verified ? '' : ' 인터넷이 안 돼 확인은 못 했어요.') : null); });
+          ask('engine/key', 'POST', { key: input.value }).then(function (r) {
+            if (r.ok) input.value = '';
+            var whose = r.engine && r.engine.key && r.engine.key.company ? r.engine.key.company + ' ' : '';
+            gotEngine(r, r.ok ? whose + 'API 키를 키체인에 넣었어요.' + (r.verified ? '' : ' 맞는 키인지 확인은 못 했어요.') : null);
+          });
         };
         input.onkeydown = function (ev) { if (ev.key === 'Enter') save(); };
         row.appendChild(input); row.appendChild(button('저장', 'primary', save));
@@ -513,8 +524,8 @@
         var go = button('연결하기', 'primary', function () { ask('engine/connect', 'POST', { name: o.name }).then(function (r) { gotEngine(r); }); });
         go.disabled = busy; row.appendChild(go);
       } else {
-        if (!now) row.appendChild(button('이걸로 정리하기', 'primary', function () { ask('engine/choose', 'POST', { name: o.name }).then(function (r) { gotEngine(r, a.name + '으로 정리할게요.'); }); }));
-        if (o.name === 'anthropic_api' && o.source === 'keychain') row.appendChild(button('키 지우기', '', function () { ask('engine/key', 'DELETE').then(function (r) { gotEngine(r, '키체인에서 키를 지웠어요.'); }); }));
+        if (!now) row.appendChild(button('이걸로 정리하기', 'primary', function () { ask('engine/choose', 'POST', { name: o.name }).then(function (r) { gotEngine(r, aiBy(o.name, e) + ' 정리할게요.'); }); }));
+        if (byKey && o.source === 'keychain') row.appendChild(button('키 지우기', '', function () { ask('engine/key', 'DELETE').then(function (r) { gotEngine(r, '키체인에서 키를 지웠어요.'); }); }));
       }
       if (row.firstChild) d.appendChild(row);
       p.appendChild(d);

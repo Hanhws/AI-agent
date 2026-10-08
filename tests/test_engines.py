@@ -15,9 +15,13 @@ import httpx2
 
 from backend import config, engines
 from backend.app import create_app
-from backend.engines import BadOutput, EngineError, anthropic_api, claude_cli, codex_cli, connect, keys
+from backend.engines import (BadOutput, EngineError, anthropic_api, claude_cli, codex_cli, connect, gemini_api, keys,
+                             openai_api, rest)
 
 KEY = "sk-ant-api03-" + "Ab1_" * 8 + "wxyz"
+OPENAI_KEY = "sk-proj-" + "Cd2_" * 30 + "qrst"
+GEMINI_KEY = "AIzaSy" + "Ef3-" * 7 + "hijkl"            # 예전부터 쓰던 모양 (39자)
+GEMINI_NEW_KEY = "AQ.Ab8" + "Gh4_" * 12 + "mnop"        # 2026-05-28부터 AI Studio가 주는 모양
 
 SCHEMA = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"], "additionalProperties": False}
 
@@ -238,7 +242,8 @@ class WithKeychain(unittest.TestCase):
                       mock.patch.dict(keys.os.environ, {"GADAK_KEYCHAIN_SERVICE": "local.gadak.test"})):
             patch.start()
             self.addCleanup(patch.stop)
-        keys.os.environ.pop(keys.ENV, None)
+        for name in keys.ENVS:
+            keys.os.environ.pop(name, None)
         self.addCleanup(keys._seen.update, at=0.0, service=None, key=None)
 
 
@@ -250,7 +255,8 @@ class KeysTest(WithKeychain):
         for argv, _stdin in self.keychain.calls:
             self.assertNotIn(KEY, " ".join(argv))                      # 프로세스 목록에 보이지 않게 표준 입력으로만
         self.assertEqual(keys.find(), (KEY, "keychain"))
-        self.assertEqual(keys.describe(), {"stored": True, "source": "keychain", "hint": "sk-ant-…wxyz", "can_store": True})
+        self.assertEqual(keys.describe(), {"stored": True, "source": "keychain", "hint": "sk-ant-…wxyz", "can_store": True,
+                                           "company": "Anthropic"})
         self.assertNotIn(KEY[:-4], json.dumps(keys.describe(), ensure_ascii=False))
         self.assertTrue(keys.delete())
         self.assertEqual(keys.find(), (None, None))
@@ -275,6 +281,41 @@ class KeysTest(WithKeychain):
             with self.assertRaises(keys.KeyStoreError):
                 keys.save(KEY)
         self.assertEqual(self.keychain.calls, [])
+
+    def test_the_head_of_a_key_tells_whose_it_is(self):
+        seen = {key: (keys.company(key), keys.hint(key)) for key in (KEY, OPENAI_KEY, GEMINI_KEY, GEMINI_NEW_KEY)}
+        self.assertEqual(seen, {KEY: ("anthropic", "sk-ant-…wxyz"), OPENAI_KEY: ("openai", "sk-…qrst"),
+                                GEMINI_KEY: ("gemini", "AIza…ijkl"), GEMINI_NEW_KEY: ("gemini", "AQ.…mnop")})
+        for other in ("sk-or-v1-" + "a" * 60, "gsk_" + "a" * 50, "xai-" + "a" * 60, OPENAI_KEY + "!", "AQ." + "가" * 30, "AQ.short"):
+            self.assertIsNone(keys.company(other), other)             # 가닥이 못 쓰는 키는 어느 회사로도 보내지 않아요
+        for key, name in ((KEY, "anthropic_api"), (OPENAI_KEY, "openai_api"), (GEMINI_KEY, "gemini_api"), (GEMINI_NEW_KEY, "gemini_api")):
+            keys.save(key)                                            # 넣어 두는 키는 하나예요. 새로 넣으면 바뀌어요
+            self.assertEqual(self.keychain.items, {("local.gadak.test", keys.ACCOUNT): key})
+            self.assertEqual((keys.engine(), keys.describe()["company"]), (name, keys.COMPANIES[keys.company(key)]))
+            others = [who for who in keys.COMPANIES if who != keys.company(key)]
+            self.assertEqual((keys.get(keys.company(key)), [keys.get(who) for who in others]), (key, [None, None]))   # 다른 회사에는 내주지 않아요
+        keys.delete()
+        self.assertIsNone(keys.engine())
+
+    def test_a_key_left_in_the_old_place_is_still_read_and_then_tidied(self):
+        """Anthropic 키만 받던 때에 넣어 둔 키. 다시 넣으라고 하지 않아요."""
+        old, new = ("local.gadak.test", keys.OLD_ACCOUNT), ("local.gadak.test", keys.ACCOUNT)
+        self.keychain.items[old] = KEY
+        self.assertEqual((keys.find(), keys.engine()), ((KEY, "keychain"), "anthropic_api"))
+        keys.save(OPENAI_KEY)                                         # 새 키를 넣으면 예전 자리는 비워요
+        self.assertEqual((self.keychain.items, keys.engine()), ({new: OPENAI_KEY}, "openai_api"))
+        self.keychain.items[old] = KEY
+        self.assertTrue(keys.delete())                                # 지울 때는 두 자리 다
+        self.assertEqual((self.keychain.items, keys.find()), ({}, (None, None)))
+
+    def test_only_a_key_meant_for_gadak_is_taken_from_the_environment(self):
+        with mock.patch.object(keys, "can_store", lambda: False):
+            with mock.patch.dict(keys.os.environ, {"OPENAI_API_KEY": OPENAI_KEY, "GEMINI_API_KEY": GEMINI_KEY, "GOOGLE_API_KEY": GEMINI_KEY}):
+                self.assertEqual(keys.find(), (None, None))           # 다른 도구에 쓰려고 둔 키로 돈을 쓰지 않아요
+            with mock.patch.dict(keys.os.environ, {keys.ENV: GEMINI_KEY, "ANTHROPIC_API_KEY": KEY}):
+                self.assertEqual((keys.find(), keys.engine()), ((GEMINI_KEY, "env"), "gemini_api"))
+            with mock.patch.dict(keys.os.environ, {"ANTHROPIC_API_KEY": KEY}):
+                self.assertEqual((keys.find(), keys.engine()), ((KEY, "env"), "anthropic_api"))     # 예전부터 보던 이름은 그대로 봐요
 
 
 def reply(text, stop="end_turn", tokens=(1200, 300)):
@@ -348,6 +389,7 @@ class AnthropicApiTest(WithKeychain):
         self.assertEqual((client.calls[0][0], client.calls[0][1]["output_config"]["effort"]), ("messages", "low"))
         self.assertEqual([anthropic_api.model_id(n) for n in ("haiku", "Sonnet", "opus", "claude-haiku-4-5")],
                          ["claude-haiku-4-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5"])
+        self.assertEqual([anthropic_api.model_id(n) for n in ("gpt-6-luna", "gemini-3.8-flash")], ["claude-haiku-4-5"] * 2)   # 남의 모델 이름이면 작은 모델로
 
     def test_a_refusal_a_cut_off_or_prose_fails_only_that_batch(self):
         for answer in (reply("", stop="refusal"), reply('{"dec": nu', stop="max_tokens"), reply("죄송하지만…"), reply("[1, 2]")):
@@ -400,6 +442,354 @@ class AnthropicApiTest(WithKeychain):
         self.assertEqual((result["ok"], result["verified"]), (True, False))  # 인터넷이 안 되면 확인은 못 했지만 넣어는 둬요
 
 
+class FakeWire:
+    """rest.send 흉내. 준 답을 차례로 돌려주고(마지막 답은 되풀이), 받은 요청과 기다린 초를 적어 둬요. 아무 데도 보내지 않아요."""
+
+    def __init__(self, *answers):
+        self.answers, self.calls, self.slept = list(answers), [], []
+
+    def send(self, who, method, url, headers, body=None, timeout=120.0):
+        self.calls.append({"who": who, "method": method, "url": url, "headers": dict(headers), "body": body, "timeout": timeout})
+        answer = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
+        if isinstance(answer, Exception):
+            raise answer
+        status, data, *headers = answer
+        return status, data, (headers[0] if headers else {})
+
+
+class WithWire(WithKeychain):
+    def wire(self, *answers) -> FakeWire:
+        wire = FakeWire(*answers)
+        for patch in (mock.patch.object(rest, "send", wire.send), mock.patch.object(rest.time, "sleep", wire.slept.append)):
+            patch.start()
+            self.addCleanup(patch.stop)
+        return wire
+
+
+class RestTest(WithWire):
+    """OpenAI · Gemini를 HTTP로 직접 부르는 길. 잠깐의 문제는 기다렸다 다시 보내고, 기다려도 안 풀릴 것은 바로 돌려줘요."""
+
+    def test_a_busy_answer_is_sent_again_after_the_wait_the_server_asked_for(self):
+        wire = self.wire((429, {}, {"retry-after": "3"}), (503, {}), (200, {"ok": True}))
+        self.assertEqual(rest.call("OpenAI", "POST", "https://x/y", {}, {"a": 1}), (200, {"ok": True}))
+        self.assertEqual((len(wire.calls), wire.slept), (3, [3.0, 1.0]))          # 서버가 말한 3초. 말이 없으면 조금씩 늘려서
+        wire = self.wire((500, {"error": {"message": "x"}}))
+        self.assertEqual(rest.call("OpenAI", "POST", "https://x/y", {}), (500, {"error": {"message": "x"}}))
+        self.assertEqual((len(wire.calls), wire.slept), (1 + rest.RETRIES, [0.5, 1.0]))   # 두 번 더 보내도 안 되면 마지막 답 그대로
+
+    def test_what_waiting_cannot_fix_comes_straight_back(self):
+        wire = self.wire((429, {}, {"retry-after": "3600"}), (200, {}))
+        self.assertEqual(rest.call("Gemini", "POST", "https://x/y", {})[0], 429)
+        self.assertEqual((len(wire.calls), wire.slept), (1, []))                   # 한 시간 기다리라는 답: 붙잡고 있지 않아요
+        wire = self.wire((401, {}), (200, {}))
+        self.assertEqual((rest.call("Gemini", "GET", "https://x/y", {})[0], len(wire.calls)), (401, 1))   # 틀린 키는 다시 보내도 틀려요
+        wire = self.wire((429, {}), (200, {}))
+        rest.call("Gemini", "POST", "https://x/y", {}, wait=lambda status, data, headers: float("inf"))
+        self.assertEqual(len(wire.calls), 1)
+
+    def test_a_dropped_line_is_tried_again_but_a_slow_answer_is_not(self):
+        wire = self.wire(rest.Unreachable("닿지 못했어요"), (200, {"ok": True}))
+        self.assertEqual(rest.call("OpenAI", "POST", "https://x/y", {}), (200, {"ok": True}))
+        wire = self.wire(rest.Unreachable("닿지 못했어요"))
+        with self.assertRaises(rest.Unreachable):
+            rest.call("OpenAI", "POST", "https://x/y", {})
+        self.assertEqual(len(wire.calls), 1 + rest.RETRIES)
+        wire = self.wire(rest.TooSlow("늦어요"), (200, {}))
+        with self.assertRaises(rest.TooSlow):
+            rest.call("OpenAI", "POST", "https://x/y", {})
+        self.assertEqual(len(wire.calls), 1)                                       # 같은 요청에 돈이 두 번 나가지 않게
+
+    def test_one_request_goes_out_as_json_and_trouble_on_the_line_gets_a_name(self):
+        request = httpx2.Request("POST", "https://x/y")
+        fine = httpx2.Response(200, json={"a": 1}, headers={"Retry-After": "2"}, request=request)
+        with mock.patch.object(httpx2, "request", return_value=fine) as sent:
+            status, data, headers = rest.send("OpenAI", "POST", "https://x/y", {"Authorization": "Bearer k"}, {"q": "한글"}, timeout=7)
+        self.assertEqual((status, data, rest.retry_after(headers)), (200, {"a": 1}, 2.0))
+        self.assertEqual((sent.call_args.args, sent.call_args.kwargs),
+                         (("POST", "https://x/y"), {"headers": {"Authorization": "Bearer k"}, "json": {"q": "한글"}, "timeout": 7}))
+        with mock.patch.object(httpx2, "request", return_value=httpx2.Response(502, text="<html>bad gateway</html>", request=request)):
+            self.assertEqual(rest.send("OpenAI", "GET", "https://x/y", {})[:2], (502, {}))       # JSON이 아닌 답은 빈 것으로
+        for raised, kind, words in ((httpx2.ConnectError("no route"), rest.Unreachable, "OpenAI에 닿지 못했어요"),
+                                    (httpx2.ReadTimeout("slow"), rest.TooSlow, "OpenAI가 7초 안에 답하지 않았어요")):
+            with mock.patch.object(httpx2, "request", side_effect=raised), self.assertRaises(kind) as caught:
+                rest.send("OpenAI", "POST", "https://x/y", {}, {}, timeout=7)
+            self.assertIn(words, str(caught.exception))
+            self.assertIsInstance(caught.exception, EngineError)                   # 가닥 창에 한 줄로 보이는 말
+
+
+def openai_reply(text, status="completed", tokens=(1200, 300), cached=0, **more):
+    """OpenAI Responses API의 답 모양 (2026-10-08의 공식 문서). 생각한 것(reasoning) 항목이 답 앞에 와요."""
+    said = [{"type": "output_text", "text": text, "annotations": [], "logprobs": []}]
+    return 200, dict({"id": "resp_1", "object": "response", "status": status, "error": None, "incomplete_details": None,
+                      "model": "gpt-6-luna", "store": False,
+                      "output": [{"type": "reasoning", "id": "rs_1", "summary": []},
+                                 {"type": "message", "id": "msg_1", "role": "assistant", "status": "completed", "content": said}],
+                      "usage": {"input_tokens": tokens[0], "input_tokens_details": {"cached_tokens": cached, "cache_write_tokens": 0},
+                                "output_tokens": tokens[1], "output_tokens_details": {"reasoning_tokens": 64},
+                                "total_tokens": sum(tokens)}}, **more)
+
+
+def openai_error(status, code=None, message="x", kind="invalid_request_error"):
+    return status, {"error": {"message": message, "type": kind, "param": None, "code": code}}
+
+
+class OpenAiApiTest(WithWire):
+    """OpenAI 키 엔진. 실제 OpenAI는 부르지 않아요: 보내는 길(rest.send)을 가짜로 바꿔 끼워요."""
+
+    def ask(self, *answers, model="haiku", schema=NULLABLE, effort=None, key=OPENAI_KEY):
+        if key:
+            keys.save(key)
+        wire = self.wire(*answers)
+        engine = openai_api.OpenAiApiEngine(model=model, effort=effort)
+        try:
+            return engine.complete_json("정리해", '{"turns": []}', schema), wire, engine
+        except Exception as exc:
+            return exc, wire, engine
+
+    def test_the_smallest_model_is_asked_for_json_in_the_given_shape(self):
+        out, wire, engine = self.ask(openai_reply('{"dec": null, "depth": 1}', cached=200))
+        self.assertEqual(out, {"dec": None, "depth": 1})
+        sent = wire.calls[0]
+        self.assertEqual((sent["who"], sent["method"], sent["url"]), ("OpenAI", "POST", "https://api.openai.com/v1/responses"))
+        self.assertEqual(sent["headers"]["Authorization"], "Bearer " + OPENAI_KEY)
+        body = sent["body"]
+        self.assertEqual((body["model"], body["max_output_tokens"], body["store"]), ("gpt-6-luna", 16000, False))   # OpenAI에 보관해 두지 않게
+        self.assertEqual(body["input"], [{"role": "system", "content": "정리해"}, {"role": "user", "content": '{"turns": []}'}])
+        self.assertEqual(body["text"], {"format": {"type": "json_schema", "name": "gadak", "schema": NULLABLE, "strict": True}})
+        self.assertEqual(body["reasoning"], {"effort": "low"})                   # 분류에는 깊은 생각이 필요 없어요
+        for gone in ("temperature", "tools", "instructions", "stream"):
+            self.assertNotIn(gone, body)
+        self.assertEqual(json.loads(json.dumps(body)), body)                     # 그대로 JSON으로 나갈 수 있는 것만
+        self.assertEqual(engine.last, {"input_tokens": 1200, "output_tokens": 300, "cost": (1200 * 0.1 + 300 * 0.5) / 1_000_000})
+        self.assertEqual(engine.last_usage, {"input_tokens": 1000, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 200,
+                                             "output_tokens": 300, "cost": engine.last["cost"], "model": "gpt-6-luna"})   # 토큰 기록이 읽는 모양
+        self.assertEqual((engine.name, engine.model), ("openai_api", "haiku"))
+
+    def test_the_model_and_the_depth_of_thought_follow_the_settings(self):
+        named = [openai_api.model_id(n) for n in ("haiku", "Sonnet", "opus", "gpt-6.1-sol", "claude-haiku-4-5", "gemini-3.8-flash")]
+        self.assertEqual(named, ["gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-6-luna"])   # 남의 모델 이름이면 작은 모델로
+        for model, effort, sent_model, sent_effort in (("sonnet", None, "gpt-6.1-sol", "low"), ("sonnet", "medium", "gpt-6.1-sol", "medium"),
+                                                       ("opus", "아주 깊게", "gpt-6-astra", "low")):
+            _, wire, _ = self.ask(openai_reply("{}"), model=model, effort=effort)
+            self.assertEqual((wire.calls[0]["body"]["model"], wire.calls[0]["body"]["reasoning"]), (sent_model, {"effort": sent_effort}))
+        _, wire, _ = self.ask(openai_reply("{}"), model="gpt-4.1-mini")
+        self.assertNotIn("reasoning", wire.calls[0]["body"])                     # 생각 단계를 받지 않는 모델에는 보내지 않아요
+
+    def test_a_refusal_a_cut_off_or_prose_fails_only_that_batch(self):
+        refused = openai_reply("")
+        refused[1]["output"][1]["content"] = [{"type": "refusal", "refusal": "I'm sorry, I cannot assist with that request."}]
+        cases = (refused, openai_reply('{"dec": nu', status="incomplete", incomplete_details={"reason": "max_output_tokens"}),
+                 openai_reply("", status="incomplete", incomplete_details={"reason": "content_filter"}),
+                 openai_reply("죄송하지만…"), openai_reply("[1, 2]"),
+                 openai_reply("", status="failed", error={"code": "invalid_prompt", "message": "x"}))
+        for answer in cases:
+            out, wire, engine = self.ask(answer)
+            self.assertIsInstance(out, BadOutput)
+            self.assertNotIsInstance(out, EngineError)
+            self.assertEqual((len(wire.calls), engine.last_usage["output_tokens"]), (1, 300))      # 쓴 토큰은 적어 둬요
+
+    def test_api_trouble_becomes_one_line_for_the_window(self):
+        cases = [
+            (openai_error(401, "invalid_api_key", "Incorrect API key provided: sk-proj-****qrst."), "API 키가 맞지 않아요", 1),
+            (openai_error(403, "unsupported_country_region_territory", "Country, region, or territory not supported"),
+             "이 API 키로는 쓸 수 없어요: Country", 1),
+            (openai_error(404, "model_not_found", "The model `gpt-6-luna` does not exist or you do not have access to it."),
+             "이 키로 쓸 수 없는 모델이에요: gpt-6-luna", 1),
+            (openai_error(429, "rate_limit_exceeded", "Rate limit reached", "rate_limit_error"), "한도에 걸렸어요", 3),
+            (openai_error(429, "credit_balance_exhausted", "Your organization has no prepaid credits remaining"), "크레딧이 모자라요", 1),
+            (openai_error(429, None, "You exceeded your current quota", "insufficient_quota"), "크레딧이 모자라요", 1),
+            (openai_error(400, "invalid_json_schema", "Invalid schema for response_format 'gadak'"), "받아들여지지 않았어요: Invalid schema", 1),
+            (openai_error(503, "server_is_overloaded", "overloaded", "service_unavailable_error"), "서버가 잠시 답하지 못해요", 3),
+            (rest.Unreachable("OpenAI에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), "인터넷 연결", 3),
+            (openai_reply("", status="failed", error={"code": "server_error", "message": "x"}), "답을 만들지 못했어요", 1),
+        ]
+        for answer, words, sent in cases:
+            out, wire, _ = self.ask(answer)
+            self.assertIsInstance(out, EngineError, words)
+            self.assertIn(words, str(out))
+            self.assertNotIn(OPENAI_KEY, str(out))
+            self.assertEqual(len(wire.calls), sent, words)                         # 기다리면 풀릴 것만 다시 보내요
+
+    def test_without_an_openai_key_nothing_is_sent(self):
+        for key in (None, KEY, GEMINI_NEW_KEY):                                    # 키가 없거나, 다른 회사 키만 있을 때
+            keys.delete()
+            out, wire, _ = self.ask(openai_reply("{}"), key=key)
+            self.assertIsInstance(out, EngineError)
+            self.assertIn("API 키가 없어요", str(out))
+            self.assertEqual(wire.calls, [])                                       # 남의 회사 키를 OpenAI로 보내지 않아요
+
+    def test_check_looks_at_the_key_and_the_model_only(self):
+        keys.save(OPENAI_KEY)
+        wire = self.wire((200, {"id": "gpt-6-luna", "object": "model"}))
+        self.assertEqual(openai_api.OpenAiApiEngine(model="haiku").check(), {"ok": True, "model": "gpt-6-luna", "key": "keychain"})
+        self.assertEqual((wire.calls[0]["method"], wire.calls[0]["url"], wire.calls[0]["body"]),
+                         ("GET", "https://api.openai.com/v1/models/gpt-6-luna", None))
+        self.wire(openai_error(401, "invalid_api_key"))
+        self.assertEqual(openai_api.OpenAiApiEngine(model="haiku").check(), {"ok": False, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."})
+
+    def test_a_new_key_is_checked_without_spending_money(self):
+        wire = self.wire((200, {"id": "gpt-6-luna", "object": "model"}))
+        self.assertEqual(openai_api.verify(OPENAI_KEY, "haiku"), {"ok": True, "verified": True, "reason": None})
+        sent = wire.calls[0]
+        self.assertEqual((sent["method"], sent["url"], sent["body"]), ("GET", "https://api.openai.com/v1/models/gpt-6-luna", None))   # 모델 정보만 물어요
+        self.assertEqual((sent["headers"]["Authorization"], len(wire.calls)), ("Bearer " + OPENAI_KEY, 1))
+        self.assertEqual(self.keychain.items, {})                                  # 확인만 해요. 넣는 것은 부른 쪽이 해요
+        for answer, ok, verified, words in ((openai_error(401, "invalid_api_key"), False, True, "API 키가 맞지 않아요"),
+                                            (openai_error(403, None, "Missing scopes: api.model.read"), False, True, "쓸 수 없어요: Missing scopes"),
+                                            (openai_error(404, "model_not_found"), True, False, "이 키로 쓸 수 없는 모델이에요"),
+                                            (openai_error(500), True, False, "서버가 잠시"),
+                                            (rest.Unreachable("OpenAI에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), True, False, "닿지 못했어요")):
+            wire = self.wire(answer)
+            result = openai_api.verify(OPENAI_KEY)
+            self.assertEqual((result["ok"], result["verified"], len(wire.calls)), (ok, verified, 1), words)   # 한 번만 물어요
+            self.assertIn(words, result["reason"])
+
+
+def gemini_reply(text, finish="STOP", tokens=(1200, 300), thoughts=0, cached=0):
+    """Gemini generateContent의 답 모양 (2026-10-08의 공식 문서)."""
+    return 200, {"candidates": [{"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": finish, "index": 0}],
+                 "usageMetadata": {"promptTokenCount": tokens[0], "cachedContentTokenCount": cached, "candidatesTokenCount": tokens[1],
+                                   "thoughtsTokenCount": thoughts, "totalTokenCount": sum(tokens) + thoughts},
+                 "modelVersion": "gemini-3.5-flash-lite"}
+
+
+def gemini_error(status, state, message="x", *details):
+    return status, {"error": {"code": status, "message": message, "status": state, "details": list(details)}}
+
+
+# 틀린 키에 실제 서버가 한 답 그대로 (2026-10-08). 401이 아니라 400이에요
+GEMINI_BAD_KEY = gemini_error(400, "INVALID_ARGUMENT", "API key not valid. Please pass a valid API key.",
+                              {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "API_KEY_INVALID", "domain": "googleapis.com",
+                               "metadata": {"service": "generativelanguage.googleapis.com"}})
+
+
+def gemini_limit(per, wait):
+    return gemini_error(429, "RESOURCE_EXHAUSTED", "You exceeded your current quota, please check your plan and billing details.",
+                        {"@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                         "violations": [{"quotaId": f"GenerateRequestsPer{per}PerProjectPerModel-FreeTier", "quotaValue": "15"}]},
+                        {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": wait})
+
+
+class GeminiApiTest(WithWire):
+    """Gemini 키 엔진. 실제 Gemini는 부르지 않아요: 보내는 길(rest.send)을 가짜로 바꿔 끼워요."""
+
+    def ask(self, *answers, model="haiku", schema=NULLABLE, effort=None, key=GEMINI_NEW_KEY):
+        if key:
+            keys.save(key)
+        wire = self.wire(*answers)
+        engine = gemini_api.GeminiApiEngine(model=model, effort=effort)
+        try:
+            return engine.complete_json("정리해", '{"turns": []}', schema), wire, engine
+        except Exception as exc:
+            return exc, wire, engine
+
+    def test_the_smallest_model_is_asked_for_json_in_the_given_shape(self):
+        out, wire, engine = self.ask(gemini_reply('{"dec": null, "depth": 1}', thoughts=40, cached=200))
+        self.assertEqual(out, {"dec": None, "depth": 1})
+        sent = wire.calls[0]
+        self.assertEqual((sent["who"], sent["method"]), ("Gemini", "POST"))
+        self.assertEqual(sent["url"], "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent")
+        self.assertEqual(sent["headers"]["x-goog-api-key"], GEMINI_NEW_KEY)
+        self.assertNotIn(GEMINI_NEW_KEY, sent["url"])                              # 키는 주소에 싣지 않아요
+        body = sent["body"]
+        self.assertEqual(sorted(body), ["contents", "generationConfig", "systemInstruction"])
+        self.assertEqual(body["systemInstruction"], {"parts": [{"text": "정리해"}]})
+        self.assertEqual(body["contents"], [{"role": "user", "parts": [{"text": '{"turns": []}'}]}])
+        # mimeType은 이 이름이어야 서버가 받아요. Flash-Lite는 처음부터 가장 낮게 생각해서 생각 단계를 보내지 않아요
+        self.assertEqual(body["generationConfig"], {"maxOutputTokens": 16000,
+                                                    "responseFormat": {"text": {"mimeType": "APPLICATION_JSON", "schema": NULLABLE}}})
+        self.assertEqual(json.loads(json.dumps(body)), body)
+        self.assertEqual(engine.last, {"input_tokens": 1200, "output_tokens": 340, "cost": (1200 * 0.3 + 340 * 2.5) / 1_000_000})   # 생각에 쓴 것도 출력 값
+        self.assertEqual(engine.last_usage, {"input_tokens": 1000, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 200,
+                                             "output_tokens": 340, "cost": engine.last["cost"], "model": "gemini-3.5-flash-lite"})
+        self.assertEqual((engine.name, engine.model), ("gemini_api", "haiku"))
+
+    def test_both_shapes_of_gemini_key_go_in_the_same_header(self):
+        for key in (GEMINI_KEY, GEMINI_NEW_KEY):
+            out, wire, _ = self.ask(gemini_reply("{}"), key=key)
+            self.assertEqual((out, wire.calls[0]["headers"]["x-goog-api-key"]), ({}, key))
+
+    def test_the_model_and_the_depth_of_thought_follow_the_settings(self):
+        named = [gemini_api.model_id(n) for n in ("haiku", "Sonnet", "opus", "gemini-3.6-flash", "claude-haiku-4-5", "gpt-6-luna")]
+        self.assertEqual(named, ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.6-flash",
+                                 "gemini-3.5-flash-lite", "gemini-3.5-flash-lite"])           # 남의 모델 이름이면 작은 모델로
+        for model, effort, level in (("sonnet", None, "LOW"), ("sonnet", "medium", "MEDIUM"), ("opus", "아주 깊게", "LOW"), ("haiku", "high", "HIGH")):
+            _, wire, _ = self.ask(gemini_reply("{}"), model=model, effort=effort)
+            self.assertEqual(wire.calls[0]["body"]["generationConfig"]["thinkingConfig"], {"thinkingLevel": level}, (model, effort))
+        self.assertIn("/models/gemini-3.8-flash:generateContent", self.ask(gemini_reply("{}"), model="sonnet")[1].calls[0]["url"])
+        _, wire, _ = self.ask(gemini_reply("{}"), model="gemini-2.5-flash")
+        self.assertNotIn("thinkingConfig", wire.calls[0]["body"]["generationConfig"])        # 생각 단계는 Gemini 3부터 받아요
+
+    def test_a_block_a_cut_off_or_prose_fails_only_that_batch(self):
+        thought = gemini_reply('{"dec": null, "depth": 0}')
+        thought[1]["candidates"][0]["content"]["parts"].insert(0, {"text": "먼저 턴을 훑어보면…", "thought": True})
+        self.assertEqual(self.ask(thought)[0], {"dec": None, "depth": 0})                    # 생각을 간추린 조각은 답이 아니에요
+        blocked = (200, {"promptFeedback": {"blockReason": "PROHIBITED_CONTENT"}, "usageMetadata": {"promptTokenCount": 1200, "totalTokenCount": 1200}})
+        stopped = gemini_reply("", finish="SAFETY")
+        del stopped[1]["candidates"][0]["content"]
+        for answer in (blocked, stopped, gemini_reply('{"dec": nu', finish="MAX_TOKENS"), gemini_reply("죄송하지만…"), gemini_reply("[1, 2]"), (200, {})):
+            out, wire, _ = self.ask(answer)
+            self.assertIsInstance(out, BadOutput)
+            self.assertNotIsInstance(out, EngineError)
+            self.assertEqual(len(wire.calls), 1)
+
+    def test_api_trouble_becomes_one_line_for_the_window(self):
+        cases = [
+            (GEMINI_BAD_KEY, "API 키가 맞지 않아요", 1, []),
+            (gemini_error(401, "UNAUTHENTICATED", "Request had invalid authentication credentials."), "API 키가 맞지 않아요", 1, []),
+            (gemini_error(400, "INVALID_ARGUMENT", "API key expired. Please renew the API key."), "API 키가 맞지 않아요", 1, []),
+            (gemini_error(403, "PERMISSION_DENIED", "Your API key was reported as leaked."), "이 API 키로는 쓸 수 없어요: Your API key was reported", 1, []),
+            (gemini_error(404, "NOT_FOUND", "models/gemini-3.5-flash-lite is not found"), "이 키로 쓸 수 없는 모델이에요: gemini-3.5-flash-lite", 1, []),
+            (gemini_limit("Minute", "7s"), "한도에 걸렸어요", 3, [7.0, 7.0]),                # 분 한도: 서버가 말한 만큼 기다렸다 다시
+            (gemini_limit("Day", "41s"), "하루 사용 한도를 다 썼어요", 1, []),               # 하루 한도: 기다려도 안 풀려요
+            (gemini_error(503, "UNAVAILABLE", "The model is overloaded."), "서버가 잠시 답하지 못해요", 3, [0.5, 1.0]),
+            (gemini_error(400, "FAILED_PRECONDITION", "User location is not supported for the API use."), "받아들여지지 않았어요: User location", 1, []),
+            (rest.Unreachable("Gemini에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), "인터넷 연결", 3, [0.5, 1.0]),
+        ]
+        for answer, words, sent, waited in cases:
+            out, wire, _ = self.ask(answer)
+            self.assertIsInstance(out, EngineError, words)
+            self.assertIn(words, str(out))
+            self.assertNotIn(GEMINI_NEW_KEY, str(out))
+            self.assertEqual((len(wire.calls), wire.slept), (sent, waited), words)
+
+    def test_without_a_gemini_key_nothing_is_sent(self):
+        for key in (None, KEY, OPENAI_KEY):                                        # 키가 없거나, 다른 회사 키만 있을 때
+            keys.delete()
+            out, wire, _ = self.ask(gemini_reply("{}"), key=key)
+            self.assertIsInstance(out, EngineError)
+            self.assertIn("API 키가 없어요", str(out))
+            self.assertEqual(wire.calls, [])                                       # 남의 회사 키를 Google로 보내지 않아요
+
+    def test_check_looks_at_the_key_and_the_model_only(self):
+        keys.save(GEMINI_KEY)
+        wire = self.wire((200, {"name": "models/gemini-3.5-flash-lite", "displayName": "Gemini 3.5 Flash-Lite"}))
+        self.assertEqual(gemini_api.GeminiApiEngine(model="haiku").check(), {"ok": True, "model": "gemini-3.5-flash-lite", "key": "keychain"})
+        self.assertEqual((wire.calls[0]["method"], wire.calls[0]["url"], wire.calls[0]["body"]),
+                         ("GET", "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite", None))
+        self.wire(GEMINI_BAD_KEY)
+        self.assertEqual(gemini_api.GeminiApiEngine(model="haiku").check(), {"ok": False, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."})
+
+    def test_a_new_key_is_checked_without_spending_money(self):
+        wire = self.wire((200, {"name": "models/gemini-3.5-flash-lite"}))
+        self.assertEqual(gemini_api.verify(GEMINI_NEW_KEY, "haiku"), {"ok": True, "verified": True, "reason": None})
+        sent = wire.calls[0]
+        self.assertEqual((sent["method"], sent["url"], sent["body"]),
+                         ("GET", "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite", None))   # 모델 정보만 물어요
+        self.assertEqual((sent["headers"]["x-goog-api-key"], len(wire.calls)), (GEMINI_NEW_KEY, 1))
+        self.assertEqual(self.keychain.items, {})
+        for answer, ok, verified, words in ((GEMINI_BAD_KEY, False, True, "API 키가 맞지 않아요"),
+                                            (gemini_error(401, "UNAUTHENTICATED", "Request had invalid authentication credentials."), False, True, "API 키가 맞지 않아요"),
+                                            (gemini_error(403, "PERMISSION_DENIED", "Requests from unrestricted keys are blocked."), False, True, "쓸 수 없어요: Requests"),
+                                            (gemini_error(404, "NOT_FOUND"), True, False, "이 키로 쓸 수 없는 모델이에요"),
+                                            (gemini_error(503, "UNAVAILABLE"), True, False, "서버가 잠시"),
+                                            (rest.Unreachable("Gemini에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), True, False, "닿지 못했어요")):
+            wire = self.wire(answer)
+            result = gemini_api.verify(GEMINI_NEW_KEY)
+            self.assertEqual((result["ok"], result["verified"], len(wire.calls)), (ok, verified, 1), words)   # 한 번만 물어요
+            self.assertIn(words, result["reason"])
+
+
 class ChoosingTest(WithKeychain):
     def setUp(self):
         super().setUp()
@@ -444,6 +834,24 @@ class ChoosingTest(WithKeychain):
         with mock.patch.object(engines, "cli_found", lambda: False):
             self.assertIsInstance(engines.get_engine(), anthropic_api.AnthropicApiEngine)
 
+    def test_whose_key_it_is_decides_which_api_engine_runs(self):
+        def resolved(name=None, cli=False):
+            with mock.patch.object(engines, "cli_found", lambda: cli), mock.patch.object(engines, "cli_logged_in", lambda: False), \
+                    mock.patch.object(config, "ENGINE", "auto"):
+                return engines.resolve_name(name)
+        for key, name, kind in ((OPENAI_KEY, "openai_api", openai_api.OpenAiApiEngine), (GEMINI_KEY, "gemini_api", gemini_api.GeminiApiEngine),
+                                (GEMINI_NEW_KEY, "gemini_api", gemini_api.GeminiApiEngine), (KEY, "anthropic_api", anthropic_api.AnthropicApiEngine)):
+            keys.save(key)
+            self.assertEqual((resolved(), resolved(cli=True)), (name, name))             # 알아서 고를 때
+            self.assertEqual({resolved(asked) for asked in engines.API_NAMES}, {name})    # API 키 엔진은 어느 이름으로 골라 뒀어도 그 키의 회사로
+            with mock.patch.object(engines, "cli_found", lambda: False), mock.patch.object(config, "ENGINE", "auto"):
+                self.assertIsInstance(engines.get_engine(), kind)
+        self.codex = True
+        self.assertEqual(resolved(), "anthropic_api")                                     # 넣어 둔 키가 ChatGPT 구독보다 먼저인 것은 그대로
+        keys.delete()
+        self.assertEqual((resolved(), resolved("openai_api")), ("codex_cli", "openai_api"))   # 키가 없으면 고른 이름 그대로 (부를 때 키를 넣으라고 해요)
+        self.assertLessEqual(set(engines.API_NAMES), set(engines.CHOICES))
+
 
 class EngineRoutesTest(WithKeychain):
     def setUp(self):
@@ -465,9 +873,9 @@ class EngineRoutesTest(WithKeychain):
         app = create_app(db_path=self.db, engine="auto")
         self.rt, self.client = app.config["GADAK"], app.test_client()
 
-    def post(self, key, verdict=None):
+    def post(self, key, verdict=None, api=anthropic_api):
         verdict = verdict or {"ok": True, "verified": True, "reason": None}
-        with mock.patch.object(anthropic_api, "verify", return_value=verdict) as verify:
+        with mock.patch.object(api, "verify", return_value=verdict) as verify:
             response = self.client.post("/engine/key", json={"key": key})
         return response, verify
 
@@ -476,11 +884,11 @@ class EngineRoutesTest(WithKeychain):
         self.assertEqual(state.pop("job")["state"], "idle")
         self.assertEqual(state, {
             "configured": "auto", "resolved": "none", "model": "haiku", "cli": False, "need": "engine", "error": None, "paused": False,
-            "choice": "auto", "key": {"stored": False, "source": None, "hint": "", "can_store": True},
+            "choice": "auto", "key": {"stored": False, "source": None, "hint": "", "can_store": True, "company": None},
             # ‘AI 연결’ 창이 그리는 것: 엔진마다 깔려 있는지 · 바로 쓸 수 있는지
             "options": [{"name": "claude_cli", "found": False, "ready": False, "plan": None},
                         {"name": "codex_cli", "found": False, "ready": False},
-                        {"name": "anthropic_api", "found": True, "ready": False, "hint": "", "source": None}]})
+                        {"name": "anthropic_api", "found": True, "ready": False, "hint": "", "source": None, "company": None}]})
 
     def test_the_engine_the_user_picks_is_used_and_remembered(self):
         self.ready.update(claude_cli=True, codex_cli=True)
@@ -532,7 +940,8 @@ class EngineRoutesTest(WithKeychain):
         body = response.get_json()
         self.assertEqual((body["ok"], body["verified"]), (True, True))
         self.assertEqual((body["engine"]["resolved"], body["engine"]["need"], body["engine"]["paused"]), ("anthropic_api", None, False))
-        self.assertEqual(body["engine"]["key"], {"stored": True, "source": "keychain", "hint": "sk-ant-…wxyz", "can_store": True})
+        self.assertEqual(body["engine"]["key"], {"stored": True, "source": "keychain", "hint": "sk-ant-…wxyz", "can_store": True,
+                                                 "company": "Anthropic"})
         self.assertNotIn(KEY[:-4], response.get_data(as_text=True))       # 키는 돌려보내지 않아요
         self.assertEqual(self.keychain.items[("local.gadak.test", keys.ACCOUNT)], KEY)
         self.assertIsInstance(self.rt.classifier.engine(), anthropic_api.AnthropicApiEngine)
@@ -547,7 +956,7 @@ class EngineRoutesTest(WithKeychain):
         for key in ("", "hello", None, 42):
             response, verify = self.post(key)
             self.assertEqual(response.status_code, 400)
-            self.assertIn("sk-ant-로 시작하는", response.get_json()["reason"])
+            self.assertIn("API 키 모양이 아니에요", response.get_json()["reason"])
             verify.assert_not_called()                                   # 모양이 아니면 물어보지도 않아요
         response, _ = self.post(KEY, {"ok": False, "verified": True, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."})
         self.assertEqual(response.status_code, 400)
@@ -559,6 +968,26 @@ class EngineRoutesTest(WithKeychain):
         response, _ = self.post(KEY, {"ok": True, "verified": False, "reason": "Anthropic에 닿지 못했어요. 인터넷 연결을 확인해 주세요."})
         self.assertEqual((response.status_code, response.get_json()["verified"]), (200, False))
         self.assertIn(("local.gadak.test", keys.ACCOUNT), self.keychain.items)
+
+    def test_a_key_from_another_company_is_checked_there_and_used(self):
+        for key, api, name, company, hint in ((OPENAI_KEY, openai_api, "openai_api", "OpenAI", "sk-…qrst"),
+                                              (GEMINI_NEW_KEY, gemini_api, "gemini_api", "Gemini", "AQ.…mnop")):
+            with mock.patch.object(anthropic_api, "verify") as elsewhere:
+                response, verify = self.post(key, api=api)
+            verify.assert_called_once_with(key, None)
+            elsewhere.assert_not_called()                                # 그 키의 회사에만 물어요
+            engine = response.get_json()["engine"]
+            self.assertEqual((response.status_code, engine["resolved"], engine["need"]), (200, name, None))
+            self.assertEqual(engine["key"], {"stored": True, "source": "keychain", "hint": hint, "can_store": True, "company": company})
+            self.assertEqual(engine["options"][2], {"name": name, "found": True, "ready": True, "hint": hint, "source": "keychain",
+                                                    "company": company})   # ‘AI 연결’의 API 키 칸은 하나예요
+            self.assertEqual(self.keychain.items, {("local.gadak.test", keys.ACCOUNT): key})     # 넣어 두는 키도 하나예요
+            self.assertEqual(self.rt.classifier.engine().name, name)
+            self.assertNotIn(key[:-4], response.get_data(as_text=True))
+        picked = self.client.post("/engine/choose", json={"name": "anthropic_api"}).get_json()["engine"]
+        self.assertEqual((picked["choice"], picked["resolved"]), ("anthropic_api", "gemini_api"))   # 예전에 골라 둔 이름이어도 지금 키의 회사로
+        response, verify = self.post(OPENAI_KEY, {"ok": False, "verified": True, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."}, api=openai_api)
+        self.assertEqual((response.status_code, self.keychain.items), (400, {("local.gadak.test", keys.ACCOUNT): GEMINI_NEW_KEY}))   # 틀린 키는 있던 키를 밀어내지 않아요
 
     def test_a_key_that_stops_working_shows_as_one_line_in_the_status(self):
         keys.save(KEY)

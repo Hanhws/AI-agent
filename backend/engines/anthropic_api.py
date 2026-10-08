@@ -1,6 +1,7 @@
 """Anthropic API 키로 부르는 엔진.
 
 Claude Code(구독)가 없는 사람은 자기 API 키를 넣어 써요. 키는 macOS 키체인에 있어요(keys.py).
+넣은 키가 OpenAI · Gemini 것이면 이 엔진 대신 openai_api · gemini_api가 불려요.
 구독 엔진(claude_cli)과 같은 모양으로 불려요: complete_json(system, prompt, schema) → dict.
 부를 때마다 그 사람의 키로 돈이 나가요. Haiku 4.5로 턴 8개를 한 번에 물으면 한 번에 1~2센트예요 (README 3-5).
 """
@@ -26,7 +27,9 @@ USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input
 
 def model_id(name=None) -> str:
     name = (name or config.ENGINE_MODEL or "haiku").strip()
-    return MODELS.get(name.lower(), name)
+    if name.lower() in MODELS:
+        return MODELS[name.lower()]
+    return name if name.lower().startswith("claude-") else MODELS["haiku"]      # 다른 회사 모델 이름(gpt-… · gemini-…)이 적혀 있으면 작은 모델로
 
 
 def api_schema(schema):
@@ -87,7 +90,7 @@ class AnthropicApiEngine:
     def client(self):
         if self._client is None:
             anthropic = _sdk()
-            key = keys.get()
+            key = keys.get("anthropic")      # 다른 회사 키가 들어 있으면 쓰지 않아요 (그 키는 그 회사 엔진이 써요)
             if not key:
                 raise EngineError("API 키가 없어요. 키를 넣어 주세요.")
             self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout)

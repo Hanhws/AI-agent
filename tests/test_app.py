@@ -314,7 +314,7 @@ class AppTest(unittest.TestCase):
             self.assertIn(words, html)
         self.assertIn("window.open('help'", window)
         # AI 연결: 정리에 쓸 AI를 화면에서 고르고 연결해요 (구독은 한 번 누르기 · API 키는 붙여 넣기). 키를 치는 칸은 가려져요
-        for words in ("'AI 연결'", "engine/connect", "engine/choose", "engine/key", "input.type = 'password'", "Claude 구독", "ChatGPT 구독"):
+        for words in ("'AI 연결'", "engine/connect", "engine/choose", "engine/key", "input.type = 'password'", "Claude 구독", "ChatGPT 구독", "LLM API 키"):
             self.assertIn(words, window)
         swift = (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8")
         self.assertIn('menu("도움말"', swift)
