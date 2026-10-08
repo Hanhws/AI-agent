@@ -316,16 +316,20 @@
     flush(); if (code) f.appendChild(el('pre', 'code', code.join('\n')));
     return f;
   }
-  // 제목 줄 = 역. 왼쪽에 프로젝트 색 노선을 세로로 긋고(레일과 같은 문법), 누르면 그 구획을 접어요
-  function fillAnswer(box, text) {
+  // 제목 줄 = 역. 왼쪽에 프로젝트 색 노선을 세로로 긋고(레일과 같은 문법), 누르면 그 구획을 펼쳐요.
+  // 처음에는 제목 아래를 접어 둬요: 제목만 훑고 궁금한 곳만 열어요 (제목 앞 머리말은 펼친 채). 연 구획은 기억해서 다시 그려도 열려 있어요
+  var opened = {};
+  function fillAnswer(box, text, key) {
     var blocks = answerBlocks(text);
     box.innerHTML = ''; box.classList.toggle('blocks', !!blocks);
     if (!blocks) { box.appendChild(richText(text)); return; }
     blocks.forEach(function (b) {
       var s = el('div', 'blk' + (b.h ? ' blk-st' : ''));
       if (b.h) {
-        var h = inline(el('button', 'blk-h'), b.h); h.type = 'button'; h.setAttribute('aria-expanded', 'true');
-        h.onclick = function () { var shut = s.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!shut)); };
+        var id = key + ':' + b.h, open = !!opened[id];
+        s.classList.toggle('shut', !open);
+        var h = inline(el('button', 'blk-h'), b.h); h.type = 'button'; h.setAttribute('aria-expanded', String(open));
+        h.onclick = function () { var shut = s.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!shut)); opened[id] = !shut; };
         s.appendChild(h);
       }
       if (b.body) s.appendChild(richText(b.body));
@@ -340,11 +344,11 @@
     if (t.parts) u.appendChild(el('span', 'tag', '요청 ' + t.parts.length + '개'));
     var full = S.full[t.id] || t;  // 화면에는 앞부분만 와요. ‘전체 보기’로 받아 둔 원문이 있으면 그것을
     var up = el('p', null, full.user); u.appendChild(up); w.appendChild(u);
-    var a = el('div', 'a'), para = el('div', 'part'); fillAnswer(para, full.ai); a.appendChild(para);
+    var a = el('div', 'a'), para = el('div', 'part'); fillAnswer(para, full.ai, t.id); a.appendChild(para);
     if (t.parts) R.partEls[t.id + ':0'] = para;
     if (t.long && full === t) {
       var more = el('button', 'linkbtn more', '전체 보기'); more.type = 'button';
-      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; fillAnswer(para, d.turn.ai); more.remove(); g.renderRail(); }); };
+      more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; fillAnswer(para, d.turn.ai, t.id); more.remove(); g.renderRail(); }); };
       a.appendChild(more);
     }
     if (t.files) {

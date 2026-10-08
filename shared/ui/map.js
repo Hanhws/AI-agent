@@ -206,19 +206,17 @@
         var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 18) + 'px'; l.style.width = (step - 14) + 'px';
         // 역 아래에 산출물을 쌓아요: 작은 검은 점 + 파일 이름 (한 줄 노선도처럼). 둘까지 보이고 나머지는 +n
         var af = g.allFiles(t);
-        af.slice(0, af.length > 2 ? 1 : 2).forEach(function (fx) {
+        af.slice(0, 1).forEach(function (fx) {   // 카드에는 첫 파일 하나만 (+n). 다 보려면 한 줄 노선도 · 산출물 칸
           var f = el('span', 'f'), v = g.versionOf(t, fx).v; f.appendChild(el('span', 'sq'));
           f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = '산출물 · ' + fname(fx); l.appendChild(f);
         });
-        if (af.length > 2) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); l.appendChild(more); }
-        // 그다음 할 일: 안 한 일은 빨간 테두리 고리, 끝낸 일은 회색 테두리 고리. 옆에 ‘할 일 n’ (범례 없이도 읽히게)
-        var its = g.itemsOf(t);
-        if (its.length) {
-          var row = el('span', 'f todos'), left = 0;
-          its.slice(0, 4).forEach(function (it) { var s = g.stateOf(it), done = s === 'done' || s === 'dismissed'; if (!done) left++; var r = el('i', 'ti' + (done ? ' done' : '')); r.title = it.text + (done ? ' (끝냄)' : ''); row.appendChild(r); });
-          its.slice(4).forEach(function (it) { var s = g.stateOf(it); if (s !== 'done' && s !== 'dismissed') left++; });
-          if (left) row.appendChild(document.createTextNode('할 일 ' + left));
-          l.appendChild(row);
+        if (af.length > 1) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); l.appendChild(more); }
+        // 그다음 안 한 할 일: 빨간 고리 하나 + 둘 이상이면 숫자. 끝낸 할 일은 카드에 그리지 않아요(한 줄 노선도 · 목록에서 회색 고리로)
+        var left = g.itemsOf(t).filter(function (it) { var s = g.stateOf(it); return s !== 'done' && s !== 'dismissed'; });
+        if (left.length) {
+          var row = el('span', 'f todos'); row.appendChild(el('i', 'ti'));
+          if (left.length > 1) row.appendChild(document.createTextNode(String(left.length)));
+          row.title = left.map(function (it) { return '할 일 · ' + it.text; }).join('\n'); l.appendChild(row);
         }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
