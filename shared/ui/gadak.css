@@ -140,8 +140,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .lbl .t.dec { font-weight: 700; color: var(--fg); }
 .lbl .f { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: var(--tr-small); }
 .lbl .f.more { padding-left: 13px; color: var(--faint); }
-/* 역 아래 할 일 고리: 안 한 일 빨간 테두리 · 끝낸 일 회색 테두리 (빨강은 ‘지금 · 할 일’에만) */
-.lbl .todos { gap: 4px; color: var(--accent); }
+/* 역 아래 할 일 고리: 역 점 바로 아래에 세로로 한 줄 (안 한 일 빨간 테두리 · 끝낸 일 회색 테두리). 노선도 카드에서는 역 옆에 붙던 작은 고리를 쓰지 않아요 */
+.map .st.todo::after { display: none; }
+.lbl .tis { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-left: -2px; pointer-events: auto; }
+.lbl .tmore { font-size: 11px; color: var(--accent); letter-spacing: var(--tr-small); }
+.tick-ti { position: absolute; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--accent); box-sizing: border-box; transform: translate(-50%, 0); pointer-events: none; }
 .lbl .ti { width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid var(--accent); box-sizing: border-box; flex: none; }
 .lbl .ti.done { border-color: var(--ring); }
 .lbl .d { font-size: 10.5px; color: var(--faint); letter-spacing: var(--tr-small); }

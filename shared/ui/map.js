@@ -161,7 +161,7 @@
           if (!list.length) return;
           var gx = level === 2 ? g2 : g1;
           var t1 = active && list.indexOf(cur) >= 0 ? cur : list[list.length - 1];
-          var b = el('button', 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (t1 === cur ? ' cur' : '') + (list.some(g.hasTodo) ? ' todo' : ''));
+          var b = el('button', 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (t1 === cur ? ' cur' : ''));   // 곁길의 할 일은 갈라진 본선 역 아래에 모아요
           b.type = 'button'; b.style.left = gx + 'px'; b.style.top = y + 'px'; b.dataset.tid = t1.id;
           b.setAttribute('aria-label', level + '차 곁길: ' + list.map(function (n) { return n.title; }).join(', '));
           wireGroup(b, nodes, t1, g.byId[aid], active); mapEl.appendChild(b);
@@ -193,7 +193,10 @@
         var p = pos[t.id], k = V.kind(t), open = V.isOpen(V.sIdx[t.id]), b;
         if (!open) { b = el('button', 'st tick' + (k === 'cur' ? ' tcur' : (t.dec ? ' tdec' : ''))); b.type = 'button'; }
         else { b = el('button', 'st ' + k); b.type = 'button'; }
-        if (!open && g.hasTodo(t)) b.classList.add('todo');   // 접힌 눈금에만 작은 고리. 펼친 역은 아래에 할 일 고리를 쌓아요
+        // 이 역과 여기서 갈라진 곁길의 안 한 할 일: 역 바로 아래에 세로로 고리를 쌓아요 (접힌 눈금은 작은 고리 하나)
+        var todo = [t].concat(groups[t.id] || [], stubs[t.id] || []).reduce(function (a, n) { return a.concat(g.itemsOf(n)); }, [])
+          .filter(function (it) { var s = g.stateOf(it); return s !== 'done' && s !== 'dismissed'; });
+        if (!open && todo.length) { var tt = el('i', 'tick-ti'); tt.style.left = p.x + 'px'; tt.style.top = (Y0 + 14) + 'px'; mapEl.appendChild(tt); }
         b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
         b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' 로 이동');
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
@@ -211,12 +214,12 @@
           f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = '산출물 · ' + fname(fx); l.appendChild(f);
         });
         if (af.length > 1) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); l.appendChild(more); }
-        // 그다음 안 한 할 일: 빨간 고리 하나 + 둘 이상이면 숫자. 끝낸 할 일은 카드에 그리지 않아요(한 줄 노선도 · 목록에서 회색 고리로)
-        var left = g.itemsOf(t).filter(function (it) { var s = g.stateOf(it); return s !== 'done' && s !== 'dismissed'; });
-        if (left.length) {
-          var row = el('span', 'f todos'); row.appendChild(el('i', 'ti'));
-          if (left.length > 1) row.appendChild(document.createTextNode(String(left.length)));
-          row.title = left.map(function (it) { return '할 일 · ' + it.text; }).join('\n'); l.appendChild(row);
+        // 그다음 안 한 할 일: 빨간 고리를 하나씩 세로로 (셋까지, 넘으면 +n). 끝낸 할 일은 카드에 그리지 않아요(한 줄 노선도 · 목록에서 회색 고리로)
+        if (todo.length) {
+          var col = el('span', 'tis'); col.title = todo.map(function (it) { return '할 일 · ' + it.text; }).join('\n');
+          todo.slice(0, todo.length > 3 ? 2 : 3).forEach(function () { col.appendChild(el('i', 'ti')); });
+          if (todo.length > 3) col.appendChild(el('span', 'tmore', '+' + (todo.length - 2)));
+          l.appendChild(col);
         }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
