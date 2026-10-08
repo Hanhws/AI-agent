@@ -14,6 +14,7 @@
   --display: 'Helvetica Neue', Helvetica, Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --body: 'Helvetica Neue', Helvetica, Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   --tr-title: -0.08em; --tr-body: -0.05em; --tr-small: -0.03em;
+  --ease: cubic-bezier(.2, .8, .2, 1);   /* 움직임은 한 곡선: 빠르게 나와서 부드럽게 멈춤 */
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {

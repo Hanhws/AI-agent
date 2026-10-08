@@ -18,7 +18,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .wbar .dots { padding: 0; }
 .wbar b { font-weight: 600; color: var(--fg2); }
 .wbar .r { margin-left: auto; font-size: 11.5px; color: var(--faint); letter-spacing: var(--tr-small); }
-.drawer.fw { box-shadow: var(--shadow); }
 .drawer.fw .wbar { height: 28px; }
 .side-h { padding: 10px 14px 0; font-size: 12px; font-weight: 600; color: var(--fg2); letter-spacing: var(--tr-small); }
 .litem .t.lk { cursor: pointer; }
@@ -26,7 +25,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .sq { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); display: inline-block; flex: none; }   /* 산출물: 작은 검은 점 (전체 지도 · 한 줄 노선도와 같게) */
 /* ---------- 가닥: horizontal map drawer (web) ---------- */
-.drawer { flex: none; margin: 14px 16px 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden; z-index: 2; }
+/* 노선도 카드: 그림자 · 둥근 모서리 없이 1px 선만 (전체 지도처럼 평평한 종이). 접고 펼 때 높이가 부드럽게 */
+.drawer { flex: none; margin: 14px 16px 0; background: var(--surface); border: 1px solid var(--line); overflow: hidden; z-index: 2; max-height: 720px;
+  transition: max-height .42s var(--ease), opacity .3s, margin-top .42s var(--ease); }
+.drawer.shut { max-height: 0; opacity: 0; margin-top: 0; border-width: 0; }
 .drawer[hidden] { display: none; }
 .dhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 12px 18px 0; }
 .dhead .mk { display: flex; align-items: center; gap: 8px; }
@@ -41,7 +43,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .linkbtn { border: 0; background: transparent; padding: 0; font-size: 12.5px; color: var(--faint); cursor: pointer; letter-spacing: var(--tr-small); }
 .linkbtn:hover { color: var(--fg); }
 .qbtn { border: 0; background: transparent; padding: 0; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; letter-spacing: var(--tr-small); }
-.dbody { display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+.dbody { display: grid; grid-template-columns: minmax(0, 1fr) 290px; transition: grid-template-columns .42s var(--ease); }
 .side-tabs { padding: 0 8px; }
 .qwrap { padding: 8px 12px 0; }
 .qin { width: 100%; box-sizing: border-box; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); padding: 0 10px; font: inherit; font-size: 12.5px; letter-spacing: var(--tr-small); }
@@ -60,17 +62,17 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .fold-v { display: flex; gap: 8px; padding: 5px 10px 5px 25px; border: 0; border-top: 1px dashed var(--line); background: transparent; cursor: pointer; text-align: left; font-size: 12px; color: var(--faint); letter-spacing: var(--tr-small); }
 .fold-v span:first-child { font-variant-numeric: tabular-nums; min-width: 22px; }
 .st.found, .cap.found { box-shadow: 0 0 0 5px var(--halo) !important; }
-.dbody.noled { grid-template-columns: minmax(0, 1fr); }
-.dbody.noled .dside { display: none; }
+/* 목록 칸은 옆으로 밀려 들어오고 나가요 */
+.dbody.noled { grid-template-columns: minmax(0, 1fr) 0px; }
+.dbody.noled .dside { visibility: hidden; }
 .ledbtn { height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; letter-spacing: var(--tr-small); }
 .ledbtn:hover { color: var(--fg); border-color: var(--ring); }
 .ledbtn.hot { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .map .in-s { animation: popin .42s cubic-bezier(.3,1.5,.5,1) both; }
 .map .in-l { animation: rise-l .4s ease-out both; }
 @keyframes rise-l { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
-.dside { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; max-height: 260px; }
+.dside { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; max-height: 300px; min-width: 0; overflow: hidden; }
 .map-scroll { overflow-x: auto; min-width: 0; }
-.map-scroll.ovf { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); }
 .map { position: relative; min-width: 560px; }
 .map svg.lines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .map-empty { padding: 28px 24px 34px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: var(--muted); }
@@ -86,7 +88,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 /* 역: 전체 지도의 문법. 굵은 노선 위의 검은 점, 정함은 더 큰 점(+ 굵은 역 이름), 지금만 빨강 */
 .st.main { width: 11px; height: 11px; border: 0; background: var(--fg); }
 .st.dec { width: 16px; height: 16px; border: 0; background: var(--fg); }
-.st.cur { width: 20px; height: 20px; border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); }
+.st.cur { width: 20px; height: 20px; border: 0; background: var(--accent); box-shadow: 0 0 0 6px var(--halo); animation: breathe 2.4s var(--ease) infinite; }
+/* 지금 역의 빛은 반짝이지 않고 천천히 숨 쉬어요 */
+@keyframes breathe { 50% { box-shadow: 0 0 0 10px var(--halo); } }
 .st.br { width: 12px; height: 12px; border: 2.5px solid var(--fg); }
 .st.closed { width: 12px; height: 12px; border: 2px solid var(--ring); }
 .st.closed.l2 { width: 10px; height: 10px; border-color: var(--stem); }
@@ -109,6 +113,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .cell.open { background: transparent; border: 1.5px solid var(--accent); }
 .cap.cur .cell.open { border-color: var(--surface); }
 
+/* 역 이름: 위로 45° (전체 지도의 한 줄 노선도와 같게). 정함은 굵게, 지금은 진하게 */
+.nm { position: absolute; transform-origin: 0 100%; transform: rotate(-45deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 13px; line-height: 16px; color: var(--fg2); pointer-events: none; letter-spacing: var(--tr-small); }
+.nm.dec { font-weight: 700; color: var(--fg); }
+.nm.now { font-weight: 700; color: var(--fg); }
+.map .in-n, .map.reveal .nm { animation: fadein .45s var(--ease) .2s both; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 .lbl { position: absolute; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none; }
 .lbl .t { font-size: 13px; line-height: 18px; color: var(--fg2); text-wrap: balance; letter-spacing: var(--tr-small); }
 .lbl .t.now { font-weight: 600; color: var(--fg); }
@@ -212,7 +223,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .popover .ph b { font-family: var(--display); font-size: 15px; }
 .toast { position: absolute; z-index: 7; left: 50%; bottom: 80px; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px; background: var(--tip); color: var(--tip-fg); font-size: 12.5px; white-space: nowrap; pointer-events: none; animation: rise .3s ease-out; letter-spacing: var(--tr-small); }
 .tip[hidden], .pop[hidden], .popover[hidden], .toast[hidden] { display: none; }
-@media (prefers-reduced-motion: reduce) { .turn.enter, .nudge, .litem.new, .toast { animation: none; } .st, .cap { transition: none; } .caret { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .turn.enter, .nudge, .litem.new, .toast, .st.cur, .nm { animation: none; } .st, .cap, .drawer, .dbody { transition: none; } .caret { animation: none; } }
 
 /* ---------- 프로토타입에 없던 것 ---------- */
 /* 실제 대화의 역 제목은 예시보다 길 수 있어요. 두 줄까지만 보이고, 전체는 툴팁에 나와요 */

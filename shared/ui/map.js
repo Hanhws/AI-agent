@@ -80,8 +80,9 @@
         if (g.SC.emptyNote) { var h = el('div', 'hint'); h.appendChild(el('span', null, g.SC.emptyNote)); var eb = el('button', 'btn sm', g.SC.scopeLabel + ' 보기'); eb.type = 'button'; eb.onclick = function () { st.scope = 'all'; g.render(); }; h.appendChild(eb); e.appendChild(h); }
         mapEl.appendChild(e); mapScroll.classList.remove('ovf'); return;
       }
-      var multi = V.multi, top = multi ? 34 : 22, Y0 = top + 64, L1 = Y0 - 36, L2 = Y0 - 62;
-      mapEl.style.height = (Y0 + 82) + 'px';
+      // 한 줄 노선도 문법: 역 이름은 위로 45°, 곁길은 아래로 45° (전체 지도와 같게)
+      var multi = V.multi, top = multi ? 34 : 8, Y0 = top + 128, L1 = Y0 + 34, L2 = Y0 + 62;
+      mapEl.style.height = (Y0 + 96) + 'px';
       var W = Math.max(mapScroll.clientWidth, 560), pad = 64;
       var mains = V.vis.filter(function (t) { return t.depth === 0; });
       if (!mains.length) { mapEl.style.width = ''; return; }
@@ -117,7 +118,7 @@
       mains.forEach(function (m, i) { var nx = mains[i + 1]; if (!nx || (st.scope === 'all' && V.sIdx[nx.id] !== V.sIdx[m.id])) { runs.push([runStart, m]); runStart = nx; } });
       runs.forEach(function (r, i) {
         // 본선: 전체 지도처럼 프로젝트 색의 굵은 선 (색이 없으면 검정)
-        path('M ' + pos[r[0].id].x + ' ' + Y0 + ' H ' + pos[r[1].id].x, 'var(--route, var(--fg))', 10).setAttribute('class', 'trunk');
+        var tr = path('M ' + (pos[r[0].id].x - 14) + ' ' + Y0 + ' H ' + (pos[r[1].id].x + 14), 'var(--route, var(--fg))', 16); tr.setAttribute('class', 'trunk'); tr.setAttribute('stroke-linecap', 'butt');
         if (i < runs.length - 1) path('M ' + (pos[r[1].id].x + 12) + ' ' + Y0 + ' H ' + (pos[runs[i + 1][0].id].x - 12), 'var(--ring)', 2.5, '0.1 7');
       });
       if (tail) path('M ' + (lastM.x + 14) + ' ' + Y0 + ' H ' + (lastM.x + step * tail), 'var(--route, var(--fg))', 4, '0.1 8');
@@ -138,11 +139,11 @@
         if (!pos[aid]) return;
         var nodes = groups[aid], active = nodes.indexOf(cur) >= 0;
         var l1 = nodes.filter(function (n) { return n.depth === 1; }), l2 = nodes.filter(function (n) { return n.depth >= 2; });
-        var ax = pos[aid].x, run1 = (Y0 - L1) * 0.76, run2 = (L1 - L2) * 0.76;
+        var ax = pos[aid].x, run1 = L1 - Y0, run2 = L2 - L1;   // 45°로 내려가요
         var s1 = ax + 18, g1 = Math.max(s1 + run1 + 16, ax + step * 0.62), g2 = g1 + 8 + run2 + 14;
         // 곁길: 전체 지도처럼 굵은 회색 지선 (지금 가 있는 곁길은 진하게)
-        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 6);
-        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 5);
+        path('M ' + s1 + ' ' + Y0 + ' L ' + (s1 + run1) + ' ' + L1 + ' H ' + g1, active ? 'var(--muted)' : 'var(--spur)', 10);
+        if (l2.length) path('M ' + g1 + ' ' + L1 + ' H ' + (g1 + 8) + ' L ' + (g1 + 8 + run2) + ' ' + L2 + ' H ' + g2, active ? 'var(--muted)' : 'var(--spur)', 8);
         function dot(list, level, y) {
           if (!list.length) return;
           var gx = level === 2 ? g2 : g1;
@@ -183,8 +184,12 @@
         b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' 로 이동');
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
         if (!open) return;
-        var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 20) + 'px'; l.style.width = (step - 14) + 'px';
-        l.appendChild(el('span', 't' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), t.title));   // 정함은 굵은 역 이름 (전체 지도처럼)
+        // 역 이름: 위로 45°. 카드 위 끝(구간 이름 줄)에 닿기 전에 줄여요 — 길이 × sin45°가 쓸 수 있는 높이를 넘지 않게. 전체 이름은 툴팁에
+        var nm = el('div', 'nm' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), k === 'cur' ? '지금 · ' + t.title : t.title);
+        nm.style.left = (p.x - 3) + 'px'; nm.style.top = (Y0 - 34) + 'px';
+        nm.style.maxWidth = Math.round((Y0 - 18 - top - (multi ? 20 : 2)) * Math.SQRT2) + 'px';
+        nm.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(nm);
+        var l = el('div', 'lbl'); l.style.left = p.x + 'px'; l.style.top = (Y0 + 18) + 'px'; l.style.width = (step - 14) + 'px';
         var af = g.allFiles(t); if (af.length) { var f = el('span', 'f'); f.appendChild(el('span', 'sq')); var vmax = 0; af.forEach(function (fx) { vmax = Math.max(vmax, g.versionOf(t, fx).v); }); f.appendChild(document.createTextNode(String(af.length) + (vmax > 1 ? ' · v' + vmax : ''))); l.appendChild(f); }
         if (st.scope === 'all' && g.SC.groups) l.appendChild(el('span', 'd', t.chat.date));
         l.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(l);
@@ -213,7 +218,8 @@
         var want = st.popSeg === 'cur' ? (cur && V.sIdx[cur.id] != null ? V.segs[V.sIdx[cur.id]] : null) : st.popSeg, kk = 0;
         Array.prototype.forEach.call(mapEl.querySelectorAll('[data-seg]'), function (n) {
           if (n.dataset.seg !== want) return;
-          n.classList.add(n.classList.contains('lbl') ? 'in-l' : 'in-s'); n.style.animationDelay = (0.04 * (n.classList.contains('lbl') ? kk : kk++)).toFixed(2) + 's';
+          var stn = !n.classList.contains('lbl') && !n.classList.contains('nm');
+          n.classList.add(stn ? 'in-s' : n.classList.contains('nm') ? 'in-n' : 'in-l'); n.style.animationDelay = (0.04 * (stn ? kk++ : kk)).toFixed(2) + 's';
         });
       }
       st.popSeg = null;

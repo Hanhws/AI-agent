@@ -70,7 +70,7 @@
     renderThread();
     R.chat.scrollTop = S.bottom ? R.chat.scrollHeight : keep; S.bottom = false;
     var V = g.buildView(st.scope);
-    R.drawer.hidden = !st.drawerOpen;
+    R.drawer.classList.toggle('shut', !st.drawerOpen);   // 접고 펴기는 높이가 부드럽게 (gadak.css)
     if (st.drawerOpen) { g.renderMapHead(V); g.renderSide(); g.renderMap(V); }
     g.renderRail();
     g.renderNudge();
