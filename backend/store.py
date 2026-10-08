@@ -9,11 +9,11 @@ parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단�
 """
 import collections
 import json
+import re
 import sqlite3
 import threading
 import unicodedata
 import uuid
-import zlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -203,9 +203,15 @@ def _create(conn) -> None:
 def provisional_title(text: str) -> str:
     """분류 전까지 쓰는 임시 역 제목. 제목은 원래 에이전트가 만들어요(README 3-1)."""
     first = next((line.strip() for line in (text or "").splitlines() if line.strip()), "")
+    # 목록 번호 · 머리 기호는 떼고, 첫 마디(문장 끝 · 쉼표 앞)만. ‘지금’ 역은 늘 막 온 턴이라 이 제목이 가장 자주 보여요
+    first = re.sub(r"^(\d+[.)]|[-*•■#>]+)\s*", "", first)
+    first = re.split(r"(?<=[.?!])\s|[,，]", first)[0].strip()
     if not first:
         return "(질문 없음)"
-    return first if len(first) <= TITLE_LEN else first[:TITLE_LEN] + "…"
+    if len(first) <= TITLE_LEN:
+        return first
+    cut = first[:TITLE_LEN]
+    return (cut.rsplit(" ", 1)[0] if " " in cut[4:] else cut) + "…"   # 낱말 중간에서 끊지 않아요
 
 
 def folder_project(cwd):
@@ -629,7 +635,7 @@ def projects(conn) -> list:
         " FROM chats c LEFT JOIN turns t ON t.chat_id = c.id WHERE c.hidden = 0 GROUP BY c.id ORDER BY last DESC"
     ):
         lists[c["project_id"]].append({"id": c["id"], "title": c["title"], "date": display_date(c["last"])})
-    return [{**dict(r), "color": project_color(r["id"]), "list": lists[r["id"]]} for r in rows]   # 노선 색: 목록의 색 동그라미
+    return [{**dict(r), "color": project_color(conn, r["id"]), "list": lists[r["id"]]} for r in rows]   # 노선 색: 목록의 색 동그라미
 
 
 def view(conn, project_id, scope="all", chat_id=None):
@@ -681,7 +687,7 @@ def view(conn, project_id, scope="all", chat_id=None):
         if r["id"].split(":")[0] in turn_ids
     }
     auto = {kind: setting(conn, "auto." + kind) == "1" for kind in AUTO_KINDS}
-    return {"project": {"id": project["id"], "name": project["name"], "color": project_color(project["id"])},
+    return {"project": {"id": project["id"], "name": project["name"], "color": project_color(conn, project["id"])},
             "chats": out, "itemStates": states, "auto": auto}
 
 
@@ -690,9 +696,13 @@ MAP_COLORS = ("#0039A6", "#FF6319", "#00933C", "#FCCC0A", "#B933AD", "#EE352E", 
 MAP_LINKS = {"handoff": "이어 가기", "repeat": "지난 대화 참조"}   # 다른 대화를 근거(at)로 든 할 일 → 환승
 
 
-def project_color(project_id) -> str:
-    """프로젝트의 노선 색. 프로젝트 id로 정해서 가닥 창 노선도 · 레일 · 전체 지도가 늘 같은 색을 써요 (회색은 곁길 몫이라 빼요)."""
-    return MAP_COLORS[zlib.crc32(str(project_id).encode()) % (len(MAP_COLORS) - 1)]
+def project_color(conn, project_id) -> str:
+    """프로젝트의 노선 색. 가닥 창 노선도 · 레일 · 전체 지도가 늘 같은 색을 써요 (회색은 곁길 몫이라 빼요).
+    만들어진 차례대로 색을 하나씩 나눠서, 프로젝트가 13개를 넘기 전에는 두 프로젝트가 같은 색을 쓰지 않아요
+    (id 해시로 고르던 때는 다섯 개만 돼도 겹쳤어요). 프로젝트는 지우지 않아서 차례가 바뀌지 않아요."""
+    n = conn.execute("SELECT COUNT(*) FROM projects WHERE rowid < (SELECT rowid FROM projects WHERE id = ?)",
+                     (project_id,)).fetchone()[0]
+    return MAP_COLORS[n % (len(MAP_COLORS) - 1)]
 
 
 def map_data(conn, days=90, today=None) -> dict:
@@ -735,7 +745,7 @@ def map_data(conn, days=90, today=None) -> dict:
                 chats.append({"id": chat["id"], "title": chat["title"] or turns[0]["t"], "from": turns[0]["day"],
                               "to": turns[-1]["day"], "active": False, "turns": turns})
         if chats:
-            color = project_color(project["id"])
+            color = project_color(conn, project["id"])
             out.append({"id": project["id"], "name": project["name"], "color": color, **({"ink": "#111"} if color == "#FCCC0A" else {}),
                         "chats": chats})
     links = [[chat_of[at], chat, why] for at, chat, why in links if at in chat_of and chat_of[at] != chat]

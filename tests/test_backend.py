@@ -125,5 +125,26 @@ class ScratchFolderTest(unittest.TestCase):
             conn.close()
 
 
+class ProjectColorTest(unittest.TestCase):
+    def test_first_projects_never_share_a_color(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            conn = store.connect(Path(tmp) / "gadak.db")
+            names = ["etc", "폴더 없는 대화", "가닥", "SNU KDT 데이터베이스", "SNU KDT AI응용", "토익"]
+            for i, name in enumerate(names):
+                store.upsert_chat(conn, project=name, chat_id=f"c{i}", site="claude")
+            colors = [store.project_color(conn, r["id"]) for r in conn.execute("SELECT id FROM projects")]
+            self.assertEqual(len(set(colors)), len(names))
+            self.assertNotIn("#8C8C8C", colors)   # 회색은 곁길 몫
+            conn.close()
+
+
+class ProvisionalTitleTest(unittest.TestCase):
+    def test_first_clause_without_list_number(self):
+        self.assertEqual(store.provisional_title("1. 포스터가 뭔가 덜 역동적이네. 데이터가 적어서"), "포스터가 뭔가 덜 역동적이네.")
+        self.assertEqual(store.provisional_title("색 겹치는 거 project_color 고쳐주고, 지금 역도"), "색 겹치는 거…")
+        self.assertEqual(store.provisional_title("짧은 질문"), "짧은 질문")
+        self.assertEqual(store.provisional_title("  \n"), "(질문 없음)")
+
+
 if __name__ == "__main__":
     unittest.main()
