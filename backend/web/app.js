@@ -53,7 +53,7 @@
     var site = el('div', 'site'); shell.appendChild(site);
     var bar = el('aside', 'sitebar'); site.appendChild(bar); logo.type = 'button'; logo.setAttribute('aria-label', '가닥 심볼 다시 재생');
     var mark = G.makeMark(30, 10), word = el('b', null, '가닥'); word.appendChild(el('i', null, 'GADAK')); logo.appendChild(mark.svg); logo.appendChild(word); logo.onclick = function () { G.playMark(mark); };
-    brand.appendChild(logo);
+    brand.appendChild(logo); G.macChrome(brand);
     // 전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 한눈에 (backend/web/map.html). 심볼 옆, 늘 보이는 자리에
     var map = el('button', 'btn sm mapbtn', '전체 지도'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
     var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';

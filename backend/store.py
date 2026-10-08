@@ -756,7 +756,10 @@ def project_color(conn, project_id) -> str:
     return MAP_COLORS[n % (len(MAP_COLORS) - 1)]
 
 
-def map_data(conn, days=90, today=None) -> dict:
+MAP_DAYS = 30   # 전체 지도 · 포스터는 최근 30일만 (10/8 · 90일을 넘기니 노선이 엉켜 읽히지 않았어요)
+
+
+def map_data(conn, days=MAP_DAYS, today=None) -> dict:
     """전체 지도(backend/web/map.html)용: 최근 days일의 프로젝트 · 대화 · 턴을 날짜(시작일부터 센 번호)와 함께.
     턴마다 정함 · 곁길 깊이 · 산출물 · 할 일을 싣고, 다른 대화를 근거로 든 할 일은 환승으로 이어요."""
     local = lambda ts: datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().date()

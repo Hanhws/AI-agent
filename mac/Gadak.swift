@@ -48,6 +48,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var float: FloatController?     // 떠 있는 가닥 버튼. 숨겨 뒀으면 nil
     var floatItem: NSMenuItem?
 
+    // 회색 제목 표시줄 대신 화면의 검은 머리띠(60px · backend/web/app.css .band)가 창의 맨 위예요.
+    // 신호등 버튼은 머리띠 가운데 높이에 두고, 머리띠의 빈 곳을 끌면 창이 움직여요(화면이 알려 줘요 · shared/ui/mark.js G.macChrome)
+    let bandHeight: CGFloat = 60
+    var bandDown: NSEvent?          // 머리띠 안에서 마지막으로 누른 것. 화면이 ‘끌기’를 알리면 이걸로 창을 옮겨요
+
     // MARK: 켜기
 
     func applicationDidFinishLaunching(_ note: Notification) {
@@ -86,9 +91,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func buildWindow() {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1320, height: 860),
-                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "가닥"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 900, height: 600)
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
@@ -100,6 +107,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let content = window.contentView!
         let configuration = WKWebViewConfiguration()
         configuration.userContentController.add(self, name: "gadak")          // 화면이 앱에 부탁하는 길 (복사)
+        // 이 앱은 머리띠가 창의 맨 위예요. 화면이 알고 신호등 자리를 비우게 해요 (shared/ui/mark.js G.macChrome)
+        configuration.userContentController.addUserScript(WKUserScript(source: "window.gadakBand = true", injectionTime: .atDocumentStart,
+                                                                       forMainFrameOnly: true))
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true  // 판단 기록 창
         webView = WKWebView(frame: content.bounds, configuration: configuration)
         webView.autoresizingMask = [.width, .height]
@@ -121,6 +131,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             status.centerYAnchor.constraint(equalTo: content.centerYAnchor),
         ])
         window.makeKeyAndOrderFront(nil)
+        placeLights()
+        NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            if let self = self, event.window === self.window, event.locationInWindow.y > self.window.frame.height - self.bandHeight {
+                self.bandDown = event
+            }
+            return event
+        }
+    }
+
+    /// 신호등 버튼을 머리띠 높이 가운데로. 창 크기가 바뀌면 시스템이 제자리로 돌려놓아서 그때마다 다시 둬요
+    func placeLights() {
+        guard let close = window.standardWindowButton(.closeButton), let bar = close.superview?.superview else { return }
+        var frame = bar.frame
+        frame.size.height = bandHeight
+        frame.origin.y = window.frame.height - bandHeight
+        bar.frame = frame
+        for (i, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
+            guard let button = window.standardWindowButton(kind) else { continue }
+            button.setFrameOrigin(NSPoint(x: 20 + CGFloat(i) * 20, y: (bandHeight - button.frame.height) / 2))
+        }
+    }
+
+    func windowDidResize(_ note: Notification) { if (note.object as? NSWindow) === window { placeLights() } }
+
+    /// 전체 화면에서는 신호등이 숨어서 머리띠 왼쪽을 비워 둘 필요가 없어요
+    func windowDidEnterFullScreen(_ note: Notification) { setFullScreen(true, note) }
+    func windowDidExitFullScreen(_ note: Notification) { setFullScreen(false, note); placeLights() }
+    func setFullScreen(_ on: Bool, _ note: Notification) {
+        guard (note.object as? NSWindow) === window else { return }
+        webView.evaluateJavaScript("document.documentElement.classList.toggle('fullscreen', \(on))", completionHandler: nil)
     }
 
     /// Finder에서 켠 앱은 터미널과 달리 PATH가 짧아서 claude 같은 명령을 못 찾아요.
@@ -334,7 +374,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     /// 실행 버튼은 글을 클립보드에 담아요(shared/ui/mark.js의 G.copy). 웹 화면의 복사는 막힐 때가 있어서 앱이 직접 담아요.
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "gadak", let body = message.body as? [String: Any], let text = body["copy"] as? String else { return }
+        guard message.name == "gadak", let body = message.body as? [String: Any] else { return }
+        // 머리띠의 빈 곳: 끌면 창을 옮기고, 두 번 누르면 시스템 설정대로 키우기
+        if body["drag"] != nil {
+            if let down = bandDown, NSEvent.pressedMouseButtons & 1 == 1 { window.performDrag(with: down) }
+            return
+        }
+        if body["zoom"] != nil {
+            let action = UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") ?? "Maximize"
+            if action == "Minimize" { window.miniaturize(nil) } else if action != "None" { window.zoom(nil) }
+            return
+        }
+        guard let text = body["copy"] as? String else { return }
         let board = NSPasteboard.general
         board.clearContents()
         board.setString(text, forType: .string)

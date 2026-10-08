@@ -110,7 +110,10 @@
         if (segX[V.sIdx[m.id]] == null) segX[V.sIdx[m.id]] = x - 8;
         pos[m.id] = { x: x, y: Y0 };
       });
-      var lastM = pos[mains[mains.length - 1].id], xfer = g.hooks.handoff && st.scope === 'chat' ? step / 2 + 64 : 0;   // 지금 역 이름 칸 바깥에 둬요
+      // 환승 화살표는 마지막 역의 산출물 이름이 끝나는 곳 뒤에서 시작해요 (이름과 ‘환승하기’가 겹치지 않게)
+      var lastF = g.allFiles(mains[mains.length - 1])[0], lastV = lastF ? g.versionOf(mains[mains.length - 1], lastF).v : 0;
+      var xoff = lastF ? Math.max(step / 2, Math.min(mctx.measureText(fname(lastF) + (lastV > 1 ? ' · v' + lastV : '')).width + 13, step - 14) + 14) : step / 2;
+      var lastM = pos[mains[mains.length - 1].id], xfer = g.hooks.handoff && st.scope === 'chat' ? xoff + 64 : 0;   // 지금 역 이름 칸 바깥에 둬요
       var need = lastM.x + (tail ? step * tail : 0) + xfer + Math.max(pad, step / 2 + 16);
       var cL = pos[mains[0].id].x - step / 2, cR = lastM.x + (tail ? step * tail : 0) + xfer + step / 2;
       var shift = need < W ? Math.max(0, W / 2 - (cL + cR) / 2) : 0;
@@ -236,7 +239,7 @@
       // 환승하기: 노선 끝에서 다음 대화로 가는 검은 막대 + 열린 꺾쇠 (전체 지도의 환승과 같은 모양). 누르면 요약을 복사해요
       if (xfer) {
         // 짧은 꼬리 + 끝이 뾰족한 채운 삼각형 머리. 선 끝은 각지게 (둥근 꺾쇠보다 딱딱하게)
-        var x0 = lastM.x + (tail ? step * tail : 0) + step / 2, x1 = x0 + 40;
+        var x0 = lastM.x + (tail ? step * tail : 0) + xoff, x1 = x0 + 40;
         var shaft = path('M ' + x0 + ' ' + Y0 + ' H ' + (x1 - 14), 'var(--fg)', 5); shaft.setAttribute('class', 'xfer'); shaft.setAttribute('stroke-linecap', 'butt');
         var head = path('M ' + (x1 - 16) + ' ' + (Y0 - 9) + ' L ' + x1 + ' ' + Y0 + ' L ' + (x1 - 16) + ' ' + (Y0 + 9) + ' Z', 'none', 0);
         head.setAttribute('class', 'xfer'); head.style.fill = 'var(--fg)'; head.removeAttribute('pathLength');
