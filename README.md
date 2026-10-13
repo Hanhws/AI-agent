@@ -38,6 +38,8 @@
 
 **10/12 갱신 · Windows 설치 파일 · Intel Mac** — 건네는 설치 파일을 넷으로 늘렸어요: Mac용 디스크 이미지 둘(Apple Silicon · **Intel**)과 **Windows용 설치 프로그램 · 풀어서 쓰는 zip**. Windows에 깐 가닥은 파이썬까지 같이 깔려서 터미널을 열 일이 없고, Edge의 주소창 없는 창으로 떠서 그 창을 닫으면 꺼져요. API 키는 Windows 자격 증명 관리자에 둬요. **Windows에는 아직 없는 것**: 떠 있는 버튼 · Claude Code와 Codex를 대신 받아 주기 · Cursor 연결과 자동 실행 · Claude 사용 한도 게이지. **이 Mac에는 Windows가 없어서 Wine으로만 확인했어요. 진짜 Windows PC에서는 아직 켜 보지 못했어요.** 받는 사람이 보는 **설치 안내 PDF도 다시 썼어요**(아홉 쪽): Windows 설치 · Intel Mac · 새 노선 문법 · 전체 지도 · 낮 · 밤 스위치 · 사용 한도까지, 그림은 지금 화면으로 다시 찍었어요. 바뀐 곳은 `docs/changes-detail.md` 28번, 쓰는 법은 `docs/usage-guide.md` 1-3.
 
+**10/13 갱신 · 배포 사이트** — 가닥을 소개하고 받게 하는 사이트를 올렸어요: https://hanhws.github.io/AI-agent/ (소개 · OS별 받기와 처음 여는 법 · 설치 없이 눌러 보는 데모 · 토큰과 비용 · 한국어와 영어). 원본은 `homepage/`이고 `./.venv/bin/python -m homepage.build`로 만들어요. 설치 파일 넷과 크롬 확장 zip은 GitHub Releases(`v0.1.0`)에 올렸어요. 사이트의 데모는 가닥 창(`backend/web` · `shared/ui`)을 복사해 만든 예시만 보여 주게 한 것이라, 가닥 창을 고치면 `tests/test_homepage.py`가 데모가 깨지지 않는지 봐요. 자세한 것은 `docs/changes-detail.md` 29번.
+
 **10/3 갱신 (3) · 2단** — 놓친 일을 찾는 2단(도구 넷 · 도구 루프 · 판단 기록)을 만들었어요. 1단이 같은 호출에서 후보를 내고, 걸린 턴만 2단이 기록을 다시 읽어 빠진 요청 · 요청 외 변경 · 이어 가기를 할 일에 올려요. 판단 기록은 `/trace`. 바뀐 곳은 3-1과 `docs/changes-detail.md` 8번.
 
 ---
@@ -52,6 +54,7 @@
 ├─ 가닥 설치.command            ← 한 번 더블클릭하면 가닥 앱이 응용 프로그램 폴더에 생겨요 (macOS). 쓰는 법은 docs/usage-guide.md
 ├─ CLAUDE.md                    ← Claude Code가 자동으로 읽는 작업 규칙
 ├─ .cursor/rules/gadak.mdc      ← Cursor가 자동으로 읽는 작업 규칙 (내용은 CLAUDE.md와 같음)
+├─ homepage/                   ← 배포 사이트의 원본 (소개 · 받기 · 바로 써 보는 데모 · 한국어 · 영어). 만드는 법은 homepage/README.md
 ├─ prototype/
 │  ├─ index.html                ← ★ 화면의 정답. 브라우저로 바로 열림 (파일 하나, 라이브러리 없음)
 │  └─ symbol.html               ← 심볼 시안 A · B · C (A 채택)
@@ -401,7 +404,7 @@ LLM으로 보고서 · 데이터 분석 · 발표 자료 · 코드처럼 여러 
 - **hook 이벤트는 `/events`로**: hook은 질문 · 파일 수정 · 답변을 따로따로 보내요. 백엔드가 같은 대화 · 같은 질문끼리 모아 Turn 하나로 만들어요. 완성된 턴을 하나씩 보내는 입구는 `/turns`, 화면을 통째로 보내는 웹 확장은 `/pages`(10/4).
 - **엔진**: 가닥이 판단에 쓰는 LLM은 `backend/engines/`에서 갈아 끼워요. 지금은 Claude 구독 엔진(`claude_cli`)과 엔진 없음(`none`). 고르는 법은 `docs/usage-guide.md`.
 - **재생**: 저장해 둔 hook 입력이나 예시 대화를 같은 경로로 다시 흘려보내요(`backend/replay.py`). 정확도 평가 · 측정 · 데모 백업에 써요.
-- **배포 웹 데모**: 미리 분류해 둔 예시 대화만 보여 줘요(10/3 결정). LLM을 부르지 않아서 API 키도 비용도 없어요. 방문자가 자기 대화를 올리는 기능은 넣지 않아요. 예시는 만든 대화로 준비해요(실제 대화는 공개하지 않음).
+- **배포 웹 데모**: 미리 분류해 둔 예시 대화만 보여 줘요(10/3 결정). LLM을 부르지 않아서 API 키도 비용도 없어요. 방문자가 자기 대화를 올리는 기능은 넣지 않아요. 예시는 만든 대화로 준비해요(실제 대화는 공개하지 않음). 10/13에 배포 사이트의 ‘바로 써 보는 데모’로 올렸어요(`homepage/` · 가닥 창의 정적 사본).
 - **2단 (10/3 밤)**: 1단 호출이 후보를 같이 내고(`turns.look`), 걸린 턴만 같은 일꾼이 이어서 확인해요. 할 일은 `items`, 판단 기록은 `agent_runs`에 남고, 화면은 `/view`의 `todo` · `parts[].open`으로 프로토타입 그대로 그려요. 1단의 후보(`parts.open` = 2)는 2단이 확인하기 전까지 화면에 보내지 않아요.
 - **사용 기록 (10/4)**: 가닥을 어떻게 쓰는지를 PC에 적어 두고(`backend/usage.py`), 사용자가 동의하면 가닥 팀 서버(`server/`)로 보내요. 적을 수 있는 이름과 칸은 `backend/usage_schema.py`의 표가 전부이고, 값은 숫자 · 참거짓 · 정해 둔 낱말뿐이에요. 글이 들어갈 칸이 없어서 대화 내용은 실수로도 실리지 않고, 서버도 같은 표로 한 번 더 걸러요. 동의하기 전에 적힌 기록은 보내지 않아요. 누가 보냈는지는 무작위 설치 번호로만 알고, 사용자는 언제든 끄고 서버의 자기 기록을 지울 수 있어요. 서버 주소(`GADAK_COLLECT_URL`)가 없으면 묻지도 보내지도 않아요. 모은 기록을 어떻게 읽고 무엇을 고치는 데 쓰는지는 `docs/changes-detail.md` 13번.
 - **웹 확장은 `/pages`로 (10/4)**: 웹 화면에서는 턴을 하나씩 받을 수 없고(지난 대화를 열면 한꺼번에 보이고, Claude 화면에는 메시지 id가 없어요), 내보내기 파일로 넣은 대화와도 맞춰야 해서, 확장은 보이는 대화를 통째로 보내고 맞추기는 가닥이 해요(`backend/sources/pages.py`). 맞추는 차례는 메시지 id → 질문 글 + 같은 글 중 몇 번째. 화면에서 읽은 지난 턴은 이미 있는 답을 덮어쓰지 않고(내보내기 파일의 글이 원문), 지켜보는 동안 달라진 답만 고쳐 쓰고 다시 정리해요. 주소만 먼저 바뀌고 화면은 앞 대화 그대로인 순간에는 보내지 않아요(확장이 기다리고, 가닥도 같은 메시지 id가 다른 대화에 있으면 받지 않아요). **확장이 보내는 곳은 내 PC의 가닥(127.0.0.1:7311) 하나뿐**이고, `tests/test_extension.py`가 코드에 다른 주소나 다른 보내는 길이 없는지 확인해요.
@@ -428,6 +431,7 @@ gadak/
 ├─ mac/                  macOS 앱의 겉: Gadak.swift(창 · Dock · 메뉴. 켜지면 백엔드를 뒤에서 돌림) · Float.swift(다른 앱 위에 떠 있는 가닥 버튼 · 위쪽 노선도 창) · FloatCheck.swift(그 버튼을 앱이 스스로 확인) · backend_main.py(앱 안에 묶는 백엔드의 첫 줄) · icon.swift(아이콘)
 ├─ prototype/            지금 이 프로토타입 (화면 기준점, 수정 금지에 가깝게)
 ├─ win/                  Windows 설치 프로그램의 틀(gadak.nsi · NSIS) · 아이콘(gadak.ico). 만드는 것은 backend/winapp.py
+├─ homepage/             배포 사이트: build.py(만들기 · dist/site/) · strings/(글 · 한국어와 영어) · pages/(쪽의 틀) · static/(모양 · 움직이는 노선도) · downloads.json(받기 버튼의 주소 · 크기 · 확인 값). 데모는 backend/web · shared/ui의 정적 사본
 ├─ docs/                 schema · agent-prompt · design · survey
 ├─ data/                 example_conversations.json (각자 PC) · demo_conversations.json (만든 예시)
 ├─ shared/ui/            ★ 모든 입구가 같이 쓰는 화면 (prototype에서 분리)
@@ -838,6 +842,7 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 | 10/7 | 도움말을 주제 아홉으로 나누고 낱말로 찾게. 받아서 쓰는 사람용 설명서(PDF 일곱 쪽)를 따로 둠 | 구현 담당이 정한 것. 한 쪽에 4,500자가 이어져 있어 필요한 것을 찾기 힘들었어요. 설명 한 개의 길이는 평균 61자에서 40자로 줄였어요 |
 | 10/8 | ‘AI 연결’의 API 키 칸이 OpenAI · Gemini 키도 받음. 칸은 하나(이름 ‘LLM API 키’)이고 회사는 가닥이 키를 보고 알아봄. 엔진 `openai_api` · `gemini_api`를 더함 | 구현 담당이 정한 것. Anthropic 키만 받으면 다른 회사 키를 가진 사람은 쓸 수 없었어요. 10/3에 정한 ‘분류용 LLM은 Claude’와 달라져요(그 키로는 GPT · Gemini가 분류해요). 그 모델들로는 정확도를 재지 않았고, 실제 키로 불러 보지도 못했어요 |
 | 10/12 | 건네는 설치 파일을 Mac용 둘(Apple Silicon · Intel)과 Windows용 둘(설치 프로그램 · zip)로. Windows 판은 파이썬과 코드를 폴더째 깔고, 창은 Edge의 주소창 없는 창, 키는 자격 증명 관리자. 떠 있는 버튼 · 대신 받아 주기 · hook 연결 · Claude 한도 게이지는 Windows에서 뺌 | 구현 담당이 정한 것. Windows를 쓰는 사람도 받아서 쓸 수 있게 하려고요. 돌려 보지 못한 hook을 남의 프로그램 설정에 적지 않으려고 그쪽은 막았어요. Windows PC가 없어 Wine으로만 확인했고, 진짜 Windows에서는 아직 켜 보지 못했어요 |
+| 10/13 | 배포 사이트를 GitHub Pages에(https://hanhws.github.io/AI-agent/), 설치 파일은 GitHub Releases에. 사이트의 데모는 가닥 창의 정적 사본(만든 예시만) · 한국어와 영어 · 만든 사람은 실명 없이 과정 이름만 | 구현 담당이 정한 것. 둘 다 무료이고 저장소와 같은 곳에 있어요. 설치 파일을 깃에 넣으면 지울 수 없이 쌓여서 Releases에 뒀어요. 10/3에 정한 ‘배포 웹 데모는 미리 분류해 둔 예시만’을 그대로 지켰어요. 사이트의 글 · 모양 · 토큰 숫자는 기획 담당 확인 전이에요 |
 
 ---
 

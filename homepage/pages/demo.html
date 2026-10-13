@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, down %}
+{# 바로 써 보는 데모: 가닥 창과 전체 지도를 화면 가득 띄워요. 둘 다 app/ 의 정적 사본이에요(만든 예시). #}
+{% block title %}{{ t.meta.title_demo }}{% endblock %}
+{% block nav %}
+<div class="demo-tabs" role="tablist" aria-label="{{ t.demo.page_title }}">
+  <button type="button" role="tab" aria-selected="true" aria-controls="pane-app">{{ t.demo.tab_app }}</button>
+  <button type="button" role="tab" aria-selected="false" aria-controls="pane-map">{{ t.demo.tab_map }}</button>
+</div>
+{% endblock %}
+{% block main %}
+<div class="demo-full">
+  <iframe id="pane-app" title="{{ t.demo.frame }}" src="{{ root }}app/index.html"></iframe>
+  <iframe id="pane-map" title="{{ t.demo.frame_map }}" data-src="{{ root }}app/map.html" hidden></iframe>
+</div>
+{% endblock %}
+{% block foot %}{% endblock %}

@@ -1,0 +1,444 @@
+{
+  "meta": {
+    "name": "Gadak",
+    "title": "Gadak — long LLM chats as a transit map",
+    "title_download": "Download Gadak — macOS · Windows",
+    "title_demo": "Gadak — live demo",
+    "desc": "Gadak is an agent that sits beside your LLM conversations. It draws the questions, decisions and files of a long session as a transit map and tells you what you missed. Free for Mac and Windows.",
+    "skip": "Skip to content"
+  },
+  "nav": {
+    "features": "Features",
+    "demo": "Demo",
+    "start": "Get started",
+    "download": "Download",
+    "faq": "FAQ",
+    "lang": "한국어",
+    "lang_label": "View in Korean",
+    "theme": "Light or dark",
+    "day": "Day",
+    "night": "Night",
+    "menu": "Menu",
+    "home": "Gadak home"
+  },
+  "hero": {
+    "eyebrow": "An agent for long LLM conversations",
+    "title": "Keep the thread<br>of long chats.",
+    "lead": "Work with an LLM long enough and the questions, decisions and files sink into the scroll. Gadak redraws the conversation as a transit map and tells you first about what slipped past.",
+    "keeping": "Holding on to",
+    "kept": [
+      "a question that wandered off",
+      "what you decided yesterday",
+      "a file that changed quietly",
+      "a request that got no answer"
+    ],
+    "cta": "Download",
+    "get_for": "Download for {os}",
+    "try": "Try it without installing",
+    "note": "Free · macOS and Windows · v{version}",
+    "map_alt": "A Gadak map drawing itself. Each project is a coloured line, each question a station; side trips branch off in grey and a red dot marks where you are now.",
+    "replay": "Play again",
+    "legend": {
+      "station": "Question",
+      "decided": "Decided",
+      "spur": "Side trip",
+      "file": "File",
+      "todo": "To do",
+      "now": "Now"
+    },
+    "lines": [
+      "Gadak",
+      "TOEIC",
+      "Data project",
+      "Grad show"
+    ],
+    "stops": [
+      "Alert channel",
+      "Skeleton",
+      "Compare to target",
+      "Change threshold",
+      "Once a day",
+      "Listening notes",
+      "Mock test",
+      "Collect data",
+      "Modelling",
+      "Poster concept",
+      "Leaflet"
+    ],
+    "files": [
+      "plan.md",
+      "main.py",
+      "report.pdf"
+    ]
+  },
+  "why": {
+    "station": "Problem",
+    "eyebrow": "Why it exists",
+    "title": "A chat piles up in one line. Work branches.",
+    "body": "You talk, wander off on a side question, come back, decide, and the same file changes three times. Scrolling alone will not tell you where you decided something or what you left out.",
+    "chat": "As a chat",
+    "chat_note": "One column, top to bottom. A decision looks the same as a detour.",
+    "route": "As a Gadak map",
+    "route_note": "The main line and the side trip split apart. You can see what was decided and where you are.",
+    "bubbles": [
+      "I want a bot that alerts me on exchange rates",
+      "How is polling different from a webhook?",
+      "Polling it is, then",
+      "Compare with my target and send an alert",
+      "Just change the threshold to 1,380"
+    ],
+    "labels": [
+      "Alert bot",
+      "Polling vs webhook",
+      "Chose polling",
+      "Compare to target",
+      "Now · threshold"
+    ]
+  },
+  "features": {
+    "station": "Features",
+    "eyebrow": "What Gadak does",
+    "title": "It reads, sorts, and speaks up about what you missed.",
+    "body": "Gadak stays beside the conversation. It never answers for the model. It draws the flow.",
+    "list": [
+      {
+        "id": "route",
+        "title": "Read a conversation as a map",
+        "body": "One question is one station. A decision is a large dot with a bold name, a side trip is a grey branch that drops below the line, and a red dot shows where you are. Click a station to jump to that moment.",
+        "img": "feature-route.png",
+        "alt": "The route card in the Gadak window: a made-up project drawn as a main line with a side trip, a decided station and the current station."
+      },
+      {
+        "id": "todo",
+        "title": "Hear about missed work first",
+        "body": "A file that changed without being asked, a request that never got an answer, the context to carry into a new chat. Gadak rereads the record, lists only what it could verify, and keeps a trace of how it decided.",
+        "img": "feature-todo.png",
+        "alt": "The to-do list in the Gadak window, with items for an unrequested change, something left for you to do, and a missed request."
+      },
+      {
+        "id": "map",
+        "title": "See a month on one sheet",
+        "body": "Every project is a line with its own colour, laid over the last 7, 15 or 30 days. Conversations that continue each other are joined as transfers, and clicking a line opens its strip map.",
+        "img": "map.png",
+        "alt": "The Gadak system map: four projects drawn as blue, yellow, orange and green lines over a row of dates."
+      },
+      {
+        "id": "float",
+        "title": "Float it over the app you are in",
+        "body": "On a Mac, a Gadak button rests at the edge of the screen. Click it and the map of your current conversation appears over whatever you are working in, with small buttons for to-dos, decisions and files. You choose which buttons it shows.",
+        "img": "float-fan.png",
+        "alt": "The Gadak button at the screen edge with six small buttons fanned around it.",
+        "tag": "macOS"
+      },
+      {
+        "id": "ahead",
+        "title": "Scout the road ahead",
+        "body": "Press Look ahead and Gadak reads what you are trying to do, searches your past records and the documents in your working folder, and offers up to three ways forward. They are questions to take to your LLM, not answers. A path with nothing found behind it is not offered.",
+        "draw": "ahead",
+        "alt": "Three dotted routes leaving the current station: carry on, another way, and something to prepare.",
+        "ways": [
+          "Carry on",
+          "Another way",
+          "Prepare first"
+        ]
+      }
+    ]
+  },
+  "trust": {
+    "station": "On your PC",
+    "eyebrow": "Private and in your hands",
+    "title": "Your chats stay on your computer. Sending stays with you.",
+    "cards": [
+      {
+        "title": "Conversations are stored on your computer",
+        "body": "What Gadak reads lives only in the <code>.gadak</code> folder on this machine. Only while sorting does a slice of that turn (the start of the question, the ends of the answer, the names and line counts of changed files) go to the AI you connected. API keys are kept only in the macOS Keychain or Windows Credential Manager."
+      },
+      {
+        "title": "Gadak does not answer",
+        "body": "There is no chat box in Gadak. It prepares what to say and hands it to you; you send it. Only the two kinds you switch on (undoing an unrequested change, and a summary to carry on) are sent by Gadak itself."
+      }
+    ]
+  },
+  "demo": {
+    "station": "Demo",
+    "eyebrow": "Try it now",
+    "title": "Click around before you install.",
+    "body": "This is the real Gadak window running on a made-up conversation about an exchange-rate alert bot. Click a station, work through the to-dos, open the system map.",
+    "note": "A prepared example. Not a real conversation.",
+    "open": "Open full screen",
+    "frame": "Gadak window demo",
+    "small": "The demo is laid out for a wide screen. Open it on a computer to click around.",
+    "tab_app": "Gadak window",
+    "tab_map": "System map",
+    "back": "Back to the site",
+    "page_title": "Live demo",
+    "frame_map": "System map demo",
+    "korean_only": "The app itself is in Korean for now, so the demo is too."
+  },
+  "start": {
+    "station": "Get started",
+    "eyebrow": "Three stops",
+    "title": "Leave it on and it reads by itself.",
+    "steps": [
+      {
+        "title": "Install",
+        "body": "On a Mac, drag Gadak from the disk image into Applications. On Windows, open the installer. No Python, no terminal."
+      },
+      {
+        "title": "Connect an AI",
+        "body": "Pick one AI for the sorting: a Claude subscription, a ChatGPT subscription, or an LLM API key (Anthropic, OpenAI or Gemini)."
+      },
+      {
+        "title": "Leave it on",
+        "body": "Gadak finds the Claude Code and Codex conversations on this computer and sorts the one you are looking at first. Web chats on Claude and ChatGPT are read through a Chrome extension."
+      }
+    ]
+  },
+  "cost": {
+    "station": "Tokens",
+    "eyebrow": "Tokens and cost",
+    "title": "Gadak added about 2⁠–⁠3% to what I already used.",
+    "body": "Gadak sorts your conversations with the AI you connect. Sorting runs on a small, cheap model, and a large model is used only when you press Look ahead. These are the makers' own measurements.",
+    "share": {
+      "mine": "What I spent on Claude",
+      "more": "What Gadak added, 2–3%",
+      "alt": "A bar: my own Claude usage as a long black line, and the 2–3% Gadak added as a short red line at its end."
+    },
+    "figs": [
+      {
+        "n": "2–3%",
+        "label": "Added by Gadak on top of my Claude usage",
+        "note": "7–12 Oct · one maker's real records"
+      },
+      {
+        "n": "About 1¢",
+        "label": "One automatic sorting pass",
+        "note": "Classifying, checking, sectioning and summarising together"
+      },
+      {
+        "n": "6–17¢",
+        "label": "One Look ahead",
+        "note": "Runs only when you press it"
+      }
+    ],
+    "table": {
+      "caption": "What it took to sort one conversation · measured on a real 55-turn chat",
+      "head": [
+        "Small model (Haiku)",
+        "Large model (Sonnet)"
+      ],
+      "head_note": [
+        "What Gadak uses for sorting · range over four runs",
+        "One run, for comparison"
+      ],
+      "rows": [
+        [
+          "Input tokens",
+          "68,000 – 95,000",
+          "68,000"
+        ],
+        [
+          "Output tokens",
+          "13,000 – 18,000",
+          "18,000"
+        ],
+        [
+          "Calls to the AI",
+          "12 – 14",
+          "9"
+        ],
+        [
+          "Time taken",
+          "2 – 5 min",
+          "4 min"
+        ],
+        [
+          "At API prices",
+          "$0.19 – 0.24 · 0.3–0.5¢ per turn",
+          "$0.34"
+        ],
+        [
+          "Result",
+          "Finds six or seven side trips out of ten",
+          "No better. It finds every side trip but calls twice as many turns a side trip"
+        ]
+      ]
+    },
+    "notes": [
+      "<b>With a subscription</b> nothing extra is charged; Gadak shares that plan's limit. <b>With an API key</b> the usage is billed to that key.",
+      "<b>Look ahead</b> uses about 0.7% of a Claude Pro five-hour limit per spot. Left to run by itself it would take about 4% for one 58-turn conversation, so automatic scouting is off by default.",
+      "<b>Importing past chats in bulk</b> costs in proportion. Sorting 90 days of chats (35 conversations, 408 turns) came to $2.41 at API prices and took about 40 minutes. On a subscription it stopped at 97% of the five-hour limit.",
+      "Every call Gadak makes is logged with its token count on your own computer. Nothing is sent to a server."
+    ],
+    "source": "Costs are converted at Anthropic API prices. They come from one conversation and one person's records, so they vary with the length of your chats and the model you choose.",
+    "source_link": "See the measurement records (GitHub)"
+  },
+  "getit": {
+    "station": "Download",
+    "eyebrow": "Get Gadak",
+    "title": "The Gadak for your computer",
+    "body": "It is free. The first launch needs one confirmation, and the download page shows how.",
+    "primary": "Download",
+    "more": "Other computers · first launch",
+    "version": "v{version} · {date}",
+    "img_alt": "The whole Gadak window: conversations on the left, the map and the chat in the middle, to-dos on the right.",
+    "detected": "This is the file for this computer.",
+    "mobile": "Gadak runs on a computer (macOS or Windows). Open this page there to download it."
+  },
+  "os": {
+    "mac": "macOS",
+    "win": "Windows",
+    "mac_arm": "Apple Silicon Mac",
+    "mac_intel": "Intel Mac",
+    "win_setup": "Windows installer",
+    "win_zip": "Windows zip (no install)"
+  },
+  "faq": {
+    "station": "FAQ",
+    "eyebrow": "Questions",
+    "title": "Before you download",
+    "list": [
+      {
+        "q": "Is it free?",
+        "a": "Yes. Gadak is a free app made as a class project, and the code is public on GitHub. For the sorting it uses the subscription or API key you already have, so what Gadak uses counts against that plan's limit or that key's bill."
+      },
+      {
+        "q": "Which conversations does it read?",
+        "a": "Claude Code and Codex conversations are read automatically while Gadak is on. Web chats on Claude and ChatGPT are read once you add the Chrome extension, and past conversations can be brought in at once from an export file. Cursor connects with one click on a Mac. ChatGPT on the web, Cursor and export files have not been verified end to end in real use yet. Chats in the desktop and mobile apps cannot be read directly."
+      },
+      {
+        "q": "Where do my conversations go?",
+        "a": "The full text is stored only on your computer. While sorting, the start of that turn's question, the ends of the answer, and the names and line counts of changed files go to the company behind the AI you connected. A turn being checked for missed work sends a little more. The app you download here sends no usage records to the Gadak team."
+      },
+      {
+        "q": "Which AI do I need?",
+        "a": "One of these: a Claude subscription (Pro or Max), a ChatGPT subscription (Plus or Pro), or an LLM API key (Anthropic, OpenAI or Gemini). Choose it under AI 연결 (Connect AI) in the Gadak window. Without one, Gadak only reads and shows your conversations."
+      },
+      {
+        "q": "I get a warning on first launch",
+        "a": "Gadak is a class project and has no paid signature from Apple or Microsoft, so the first launch needs one confirmation. On a Mac: System Settings → Privacy & Security → Open Anyway. On Windows: More info → Run anyway. You can check the file against the SHA-256 values on the download page."
+      },
+      {
+        "q": "What is different on Windows?",
+        "a": "The Windows version is a first release. The makers have no Windows PC, so it was checked only under Wine on a Mac and has not been run on a real PC yet. The floating button, the one-click setup that fetches Claude Code or Codex for you, the Cursor connection with auto-send, and the Claude usage gauge are not there yet."
+      },
+      {
+        "q": "How far can I trust the sorting?",
+        "a": "An AI does the sorting, so it can be wrong. In the conversation we measured it found six or seven side trips out of ten, and the Decided mark still wavers between runs. That is why a to-do appears only when Gadak has checked the evidence itself, and why it keeps a record of what it looked at."
+      },
+      {
+        "q": "How do I remove it?",
+        "a": "On a Mac, move Gadak from Applications to the Trash. On Windows, uninstall it under Settings → Apps. To delete the conversations it read as well, remove the <code>.gadak</code> folder in your home folder."
+      }
+    ]
+  },
+  "foot": {
+    "tagline": "Keep the thread of every long chat.",
+    "made": "Made as a team project for the AI applications course of the SNU Big Data & FinTech programme (KDT), cohort 13.",
+    "sample": "Every screenshot and the demo on this site use a made-up conversation.",
+    "indie": "Gadak is a student project and is not affiliated with Anthropic, OpenAI or Google.",
+    "design": "The line grammar is learned from Massimo Vignelli's 1972 New York subway map.",
+    "links": "Links",
+    "github": "GitHub repository",
+    "guide": "Install guide (PDF, Korean)",
+    "releases": "All files (GitHub Releases)",
+    "usage": "Full usage guide (Korean)",
+    "top": "Back to top"
+  },
+  "dl": {
+    "eyebrow": "Download",
+    "title": "Download Gadak",
+    "lead": "It is free. Pick the file for your computer and confirm once on first launch.",
+    "version": "v{version} · {date}",
+    "pick": "Choose an operating system",
+    "detected": "This computer",
+    "button": "Download",
+    "size": "{mb} MB",
+    "mac": {
+      "title": "macOS",
+      "arm": {
+        "name": "Apple Silicon Mac",
+        "need": "M1 or later · macOS 12 or later"
+      },
+      "intel": {
+        "name": "Intel Mac",
+        "need": "macOS 13 or later"
+      },
+      "which": "Not sure which? Open the Apple menu → About This Mac. If the Chip line says Apple M…, it is Apple Silicon. If the Processor line says Intel, it is Intel.",
+      "steps_title": "First launch on a Mac",
+      "steps": [
+        "Open the disk image (<code>.dmg</code>) and drag Gadak (가닥) onto the Applications folder beside it.",
+        "Open Gadak from Applications. The first time, macOS blocks it as coming from an unidentified developer. Click Done to close the notice.",
+        "Go to <b>System Settings → Privacy & Security</b> and click <b>Open Anyway</b> near the bottom. On macOS 14 or earlier, right-click Gadak → Open → Open also works.",
+        "When Gadak starts, choose an AI in the <b>AI 연결</b> (Connect AI) window. From then on it opens normally."
+      ],
+      "tip": "Move it to Applications before you launch it. Run straight from the disk image, the Cursor and Claude Code connections will not work."
+    },
+    "win": {
+      "title": "Windows",
+      "setup": {
+        "name": "Installer",
+        "need": "Windows 10 or 11 (64-bit)"
+      },
+      "zip": {
+        "name": "Zip (no install)",
+        "need": "Unzip and run 가닥 켜기.cmd"
+      },
+      "first": "<b>This is a first release.</b> The makers have no Windows PC, so it was checked only under Wine on a Mac and has not been run on a real PC yet. If it does not start, please open a GitHub issue with <code>C:\\Users\\you\\.gadak\\gadak.log</code>.",
+      "steps_title": "First launch on Windows",
+      "steps": [
+        "Open the installer (<code>.exe</code>). If a blue <b>Windows protected your PC</b> window appears, click <b>More info → Run anyway</b>.",
+        "Next → Install. It installs for your account only, so no administrator password is needed. Python is included.",
+        "Start <b>가닥</b> (Gadak) from the Start menu or the desktop. It opens in an Edge or Chrome window without an address bar. <b>Closing that window quits Gadak.</b>",
+        "Choose an AI under <b>AI 연결</b> (Connect AI) at the bottom left. If Claude Code or Codex is already installed it is used as is; otherwise paste an LLM API key."
+      ],
+      "missing_title": "Not in the Windows version yet",
+      "missing": [
+        "The floating Gadak button",
+        "One-click setup that fetches Claude Code or Codex",
+        "The Cursor connection and auto-send",
+        "The Claude usage gauge"
+      ]
+    },
+    "why_warn": "<b>Why the warning?</b> Gadak is a class project without a paid signature from Apple (US$99 a year) or Microsoft. The warning means the app is unsigned. You can check that the file is the right one with the values below.",
+    "sums": {
+      "title": "Verify your download (SHA-256)",
+      "body": "If the value for your file matches the one below character for character, it is the same file.",
+      "file": "File",
+      "value": "SHA-256",
+      "copy_btn": "Copy",
+      "copied": "Copied",
+      "how_mac": "Mac Terminal",
+      "how_win": "Windows PowerShell",
+      "names": "The install guide PDF shows the file names in Korean (가닥-0.1.0-…). They are the same files."
+    },
+    "ext": {
+      "title": "Chrome extension",
+      "sub": "Reads Claude and ChatGPT on the web",
+      "body": "With the extension added, conversations you open on claude.ai and chatgpt.com in Chrome are read and sent only to the Gadak on your own computer. It is not on the Web Store, so you add it in developer mode.",
+      "download": "Download the extension zip",
+      "steps": [
+        "Unzip the download. If Gadak is already installed you can skip this: <b>찾은 곳 → 폴더 경로 복사</b> (Sources → Copy folder path) in the Gadak window gives you the copy inside the app.",
+        "Enter <code>chrome://extensions</code> in Chrome's address bar and turn on <b>Developer mode</b> at the top right.",
+        "Click <b>Load unpacked</b> and choose the unzipped folder (<code>gadak-extension</code>).",
+        "Reload any Claude or ChatGPT tabs that were already open. With Gadak running, a conversation you open shows up in its list."
+      ],
+      "note": "Reading Claude on the web has been confirmed. ChatGPT on the web has not been confirmed yet. Temporary chats and incognito windows are never read."
+    },
+    "guide": {
+      "title": "Illustrated install guide",
+      "body": "Nine pages, from installing to reading the map. The same file is inside the Mac disk image and the Windows packages. It is written in Korean.",
+      "open": "Open the install guide (PDF)"
+    },
+    "remove": {
+      "title": "Removing Gadak",
+      "body": "On a Mac, move Gadak from Applications to the Trash. On Windows, uninstall it under Settings → Apps. To delete the conversations it read as well, remove the <code>.gadak</code> folder in your home folder."
+    },
+    "source": {
+      "title": "Build it yourself",
+      "body": "All the code is public. Clone the repository to build or change it yourself.",
+      "open": "View on GitHub"
+    },
+    "all": "See all files (GitHub Releases)"
+  }
+}

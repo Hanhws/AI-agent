@@ -1,0 +1,70 @@
+{# 모든 쪽의 틀: 검은 머리띠 · 본문 · 발치. 길은 전부 상대 경로({{ root }})라 어느 주소 아래에 놓아도 돌아요. #}
+{% from "_macros.html" import mark, down %}
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}{{ t.meta.title }}{% endblock %}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="{{ t.meta.desc }}">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ self.title() }}">
+<meta property="og:description" content="{{ t.meta.desc }}">
+<link rel="icon" href="{{ root }}assets/gadak.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="{{ other }}" href="{{ other_link }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="{{ root }}assets/site.css">
+<script>try { var th = localStorage.getItem('gadak.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}</script>
+</head>
+<body class="page-{{ page }}">
+<a class="skip" href="#main">{{ t.meta.skip }}</a>
+<header class="band">
+  <div class="band-in">
+    <a class="brand" href="{{ link.index }}" aria-label="{{ t.nav.home }}">{{ mark() }}<span class="word">가닥 GADAK</span></a>
+    {% block nav %}
+    <nav class="nav" aria-label="{{ t.nav.menu }}">
+      <a href="{{ link.index }}#features">{{ t.nav.features }}</a>
+      <a href="{{ link.index }}#demo">{{ t.nav.demo }}</a>
+      <a href="{{ link.index }}#start">{{ t.nav.start }}</a>
+      <a href="{{ link.index }}#faq">{{ t.nav.faq }}</a>
+    </nav>
+    {% endblock %}
+    <div class="band-tools">
+      <a class="lang" href="{{ other_link }}" lang="{{ other }}" hreflang="{{ other }}" aria-label="{{ t.nav.lang_label }}">{{ t.nav.lang }}</a>
+      <button class="gswitch" type="button" role="switch" id="theme" aria-checked="false" aria-label="{{ t.nav.theme }}"><span class="sd off">{{ t.nav.day }}</span><i class="trk"></i><span class="sd on">{{ t.nav.night }}</span></button>
+      {% block band_cta %}<a class="btn btn-band" href="{{ link.download }}">{{ t.nav.download }}</a>{% endblock %}
+    </div>
+  </div>
+</header>
+<main id="main">
+{% block main %}{% endblock %}
+</main>
+{% block foot %}
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <a class="brand" href="{{ link.index }}" aria-label="{{ t.nav.home }}">{{ mark() }}<span class="word">가닥 GADAK</span></a>
+      <p class="foot-tag">{{ t.foot.tagline }}</p>
+      <p>{{ t.foot.made }}</p>
+      <p>{{ t.foot.sample }} {{ t.foot.indie }}</p>
+      <p>{{ t.foot.design }}</p>
+    </div>
+    <nav aria-label="{{ t.foot.links }}">
+      <h2>{{ t.foot.links }}</h2>
+      <ul>
+        <li><a href="{{ link.download }}">{{ t.nav.download }}</a></li>
+        <li><a href="{{ link.demo }}">{{ t.demo.page_title }}</a></li>
+        <li><a href="{{ guide }}">{{ t.foot.guide }}</a></li>
+        <li><a href="{{ dl.repo }}">{{ t.foot.github }}</a></li>
+        <li><a href="{{ dl.repo }}/blob/main/docs/usage-guide.md">{{ t.foot.usage }}</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+{% endblock %}
+<script>window.GADAK = { lang: {{ lang|tojson }}, root: {{ root|tojson }}, download: {{ link.download|tojson }}, os: {{ t.os|tojson }}, getFor: {{ t.hero.get_for|tojson }}, detected: {{ t.dl.detected|tojson }} };</script>
+<script src="{{ root }}assets/site.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

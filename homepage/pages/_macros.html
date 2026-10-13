@@ -1,0 +1,11 @@
+{# 여러 쪽이 같이 쓰는 작은 그림: 가닥 심볼(검은 띠 위) · 받기 화살표 #}
+{% macro mark() %}
+<svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+{% endmacro %}
+{% macro down() %}<svg class="dl" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.5v9M4 7l4 4 4-4M2 14.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>{% endmacro %}

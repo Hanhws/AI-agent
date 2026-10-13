@@ -1,0 +1,32 @@
+{
+  "version": "0.1.0",
+  "tag": "v0.1.0",
+  "date": "2026-10-12",
+  "files": {
+    "mac-arm64": {
+      "asset": "Gadak-0.1.0-mac-arm64.dmg",
+      "bytes": 25727957,
+      "sha256": "d9f28037b179e1b91f2d643191dbf8c47a3786da6375ac1babe6ec01eff5e579"
+    },
+    "mac-x86_64": {
+      "asset": "Gadak-0.1.0-mac-x86_64.dmg",
+      "bytes": 25587919,
+      "sha256": "fc7560b07023b903d3c02d5cb049a5e10c88f4bdbb283c4718e067eed318471c"
+    },
+    "win-setup": {
+      "asset": "Gadak-0.1.0-windows-x64-setup.exe",
+      "bytes": 15001599,
+      "sha256": "13082f0a618a5084bd31b9c181288843d80315aec0608bc95473a9413e2602f9"
+    },
+    "win-zip": {
+      "asset": "Gadak-0.1.0-windows-x64.zip",
+      "bytes": 19476777,
+      "sha256": "364baeb666b1c52398b6a8254d93891e27f2574ac9ef5bdaaa1ebdb38db8cb2c"
+    },
+    "extension": {
+      "asset": "Gadak-0.1.0-chrome-extension.zip",
+      "bytes": 28407,
+      "sha256": "9aab3042d0bf1296cdb547a38412b5fe8119ea6e3032eea8ffd27592904d87ee"
+    }
+  }
+}
