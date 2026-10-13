@@ -172,8 +172,7 @@
     "tab_map": "System map",
     "back": "Back to the site",
     "page_title": "Live demo",
-    "frame_map": "System map demo",
-    "korean_only": "The app itself is in Korean for now, so the demo is too."
+    "frame_map": "System map demo"
   },
   "start": {
     "station": "Get started",
@@ -312,7 +311,7 @@
       },
       {
         "q": "Which AI do I need?",
-        "a": "One of these: a Claude subscription (Pro or Max), a ChatGPT subscription (Plus or Pro), or an LLM API key (Anthropic, OpenAI or Gemini). Choose it under AI 연결 (Connect AI) in the Gadak window. Without one, Gadak only reads and shows your conversations."
+        "a": "One of these: a Claude subscription (Pro or Max), a ChatGPT subscription (Plus or Pro), or an LLM API key (Anthropic, OpenAI or Gemini). Choose it under Connect AI in the Gadak window. Without one, Gadak only reads and shows your conversations."
       },
       {
         "q": "I get a warning on first launch",
@@ -340,9 +339,9 @@
     "design": "The line grammar is learned from Massimo Vignelli's 1972 New York subway map.",
     "links": "Links",
     "github": "GitHub repository",
-    "guide": "Install guide (PDF, Korean)",
+    "guide": "Install guide (PDF)",
     "releases": "All files (GitHub Releases)",
-    "usage": "Full usage guide (Korean)",
+    "usage": "Full usage guide",
     "top": "Back to top"
   },
   "dl": {
@@ -350,6 +349,8 @@
     "title": "Download Gadak",
     "lead": "It is free. Pick the file for your computer and confirm once on first launch.",
     "version": "v{version} · {date}",
+    "edition": "These files are the English edition. Every screen is in English, and so are the station names and summaries Gadak writes, whatever language you chat in.",
+    "edition_other": "Get the Korean edition (한국어판)",
     "pick": "Choose an operating system",
     "detected": "This computer",
     "button": "Download",
@@ -367,10 +368,10 @@
       "which": "Not sure which? Open the Apple menu → About This Mac. If the Chip line says Apple M…, it is Apple Silicon. If the Processor line says Intel, it is Intel.",
       "steps_title": "First launch on a Mac",
       "steps": [
-        "Open the disk image (<code>.dmg</code>) and drag Gadak (가닥) onto the Applications folder beside it.",
+        "Open the disk image (<code>.dmg</code>) and drag Gadak onto the Applications folder beside it.",
         "Open Gadak from Applications. The first time, macOS blocks it as coming from an unidentified developer. Click Done to close the notice.",
         "Go to <b>System Settings → Privacy & Security</b> and click <b>Open Anyway</b> near the bottom. On macOS 14 or earlier, right-click Gadak → Open → Open also works.",
-        "When Gadak starts, choose an AI in the <b>AI 연결</b> (Connect AI) window. From then on it opens normally."
+        "When Gadak starts, choose an AI in the <b>Connect AI</b> window. From then on it opens normally."
       ],
       "tip": "Move it to Applications before you launch it. Run straight from the disk image, the Cursor and Claude Code connections will not work."
     },
@@ -382,15 +383,15 @@
       },
       "zip": {
         "name": "Zip (no install)",
-        "need": "Unzip and run 가닥 켜기.cmd"
+        "need": "Unzip and run Start Gadak.cmd"
       },
       "first": "<b>This is a first release.</b> The makers have no Windows PC, so it was checked only under Wine on a Mac and has not been run on a real PC yet. If it does not start, please open a GitHub issue with <code>C:\\Users\\you\\.gadak\\gadak.log</code>.",
       "steps_title": "First launch on Windows",
       "steps": [
         "Open the installer (<code>.exe</code>). If a blue <b>Windows protected your PC</b> window appears, click <b>More info → Run anyway</b>.",
-        "Next → Install. It installs for your account only, so no administrator password is needed. Python is included.",
-        "Start <b>가닥</b> (Gadak) from the Start menu or the desktop. It opens in an Edge or Chrome window without an address bar. <b>Closing that window quits Gadak.</b>",
-        "Choose an AI under <b>AI 연결</b> (Connect AI) at the bottom left. If Claude Code or Codex is already installed it is used as is; otherwise paste an LLM API key."
+        "Press <b>Install</b>, then <b>Finish</b>. It installs for your account only, so no administrator password is needed. Python is included.",
+        "Start <b>Gadak</b> from the Start menu or the desktop. It opens in an Edge or Chrome window without an address bar. <b>Closing that window quits Gadak.</b>",
+        "Choose an AI under <b>Connect AI</b> at the bottom left. If Claude Code or Codex is already installed it is used as is; otherwise paste an LLM API key."
       ],
       "missing_title": "Not in the Windows version yet",
       "missing": [
@@ -410,7 +411,7 @@
       "copied": "Copied",
       "how_mac": "Mac Terminal",
       "how_win": "Windows PowerShell",
-      "names": "The install guide PDF shows the file names in Korean (가닥-0.1.0-…). They are the same files."
+      "names": "These values belong to the English edition. The Korean edition’s files have similar names but are different files, so their values differ."
     },
     "ext": {
       "title": "Chrome extension",
@@ -418,7 +419,7 @@
       "body": "With the extension added, conversations you open on claude.ai and chatgpt.com in Chrome are read and sent only to the Gadak on your own computer. It is not on the Web Store, so you add it in developer mode.",
       "download": "Download the extension zip",
       "steps": [
-        "Unzip the download. If Gadak is already installed you can skip this: <b>찾은 곳 → 폴더 경로 복사</b> (Sources → Copy folder path) in the Gadak window gives you the copy inside the app.",
+        "Unzip the download. If Gadak is already installed you can skip this: <b>Sources → Copy folder path</b> in the Gadak window gives you the copy inside the app.",
         "Enter <code>chrome://extensions</code> in Chrome's address bar and turn on <b>Developer mode</b> at the top right.",
         "Click <b>Load unpacked</b> and choose the unzipped folder (<code>gadak-extension</code>).",
         "Reload any Claude or ChatGPT tabs that were already open. With Gadak running, a conversation you open shows up in its list."
@@ -427,7 +428,7 @@
     },
     "guide": {
       "title": "Illustrated install guide",
-      "body": "Nine pages, from installing to reading the map. The same file is inside the Mac disk image and the Windows packages. It is written in Korean.",
+      "body": "Nine pages, from installing to reading the map. The same file is inside the Mac disk image and the Windows packages.",
       "open": "Open the install guide (PDF)"
     },
     "remove": {

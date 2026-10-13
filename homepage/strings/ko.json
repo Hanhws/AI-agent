@@ -172,8 +172,7 @@
     "tab_map": "전체 지도",
     "back": "가닥 사이트로",
     "page_title": "바로 써 보는 데모",
-    "frame_map": "전체 지도 데모",
-    "korean_only": ""
+    "frame_map": "전체 지도 데모"
   },
   "start": {
     "station": "시작하기",
@@ -350,6 +349,8 @@
     "title": "가닥 받기",
     "lead": "무료예요. 내 컴퓨터에 맞는 파일을 받고, 처음 열 때 한 번만 확인해 주세요.",
     "version": "v{version} · {date}",
+    "edition": "이 쪽의 파일은 한국어판이에요. 화면도, 가닥이 붙이는 역 이름과 간추림도 한국어예요.",
+    "edition_other": "영어판 받기 (English edition)",
     "pick": "운영 체제 고르기",
     "detected": "이 컴퓨터",
     "button": "받기",
@@ -410,7 +411,7 @@
       "copied": "복사했어요",
       "how_mac": "Mac 터미널",
       "how_win": "Windows PowerShell",
-      "names": "설치 안내 PDF에는 파일 이름이 한글(가닥-0.1.0-…)로 적혀 있어요. 같은 파일이에요."
+      "names": "설치 안내 PDF에는 파일 이름이 한글(가닥-0.1.0-…)로 적혀 있어요. 같은 파일이에요. 영어판의 파일은 이름이 비슷해도 다른 파일이라 확인 값이 달라요."
     },
     "ext": {
       "title": "크롬 확장",

@@ -286,6 +286,9 @@ html.theming, html.theming *, html.theming *::before, html.theming *::after {
 /* ---------- 받기 쪽 ---------- */
 .dl-top { max-width: var(--wide); margin: 0 auto; padding: clamp(40px, 6vw, 80px) var(--gut) clamp(20px, 3vw, 36px); display: flex; flex-direction: column; gap: 18px; }
 .dl-top h1 { font-size: clamp(40px, 5.4vw, 72px); }
+/* 이 쪽의 파일이 어느 판인지(한국어판 · 영어판)와 다른 판으로 가는 길 */
+.edition { max-width: 46em; font-size: 15px; letter-spacing: var(--tr-small); color: var(--fg2); border-left: 4px solid var(--fg); padding-left: 14px; }
+.edition .more { white-space: nowrap; }
 .jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .jump a { font-size: 14px; font-weight: 700; letter-spacing: var(--tr-small); text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 12px; }
 .jump a:hover { border-color: var(--fg); }
