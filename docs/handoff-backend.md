@@ -58,7 +58,7 @@ python3 -m venv .venv && ./.venv/bin/python -m pip install -r requirements.txt
 - 작업마다 가지를 따로 내요(`feat/…` · `fix/…`). `main`에 직접 push하지 않아요.
 - 커밋: `feat:` `fix:` `docs:` `refactor:` + 한 줄 한국어.
 - **먼저 사람에게 묻고 바꾸는 파일**: `docs/schema.md` · `prototype/` · `backend/prompts/`. 사용 기록 칸(`backend/usage_schema.py`)과 자동 실행 종류(`store.AUTO_KINDS`)도 마찬가지예요.
-- 규칙 전체는 `CLAUDE.md`, 구조는 `README.md`, 쓰는 법은 `docs/usage-guide.md`.
+- 규칙 전체는 `CLAUDE.md`, 구조는 `docs/spec.md`, 쓰는 법은 `docs/usage-guide.md`.
 
 ---
 
@@ -148,7 +148,6 @@ python3 -m venv .venv && ./.venv/bin/python -m pip install -r requirements.txt
 ### B10. 정리 — 10/13
 
 - PR #2(`docs/readme-1003`) → PR #4(`docs/survey-17`)가 쌓여 있어요. 순서대로 `main`에 합쳐요.
-- GitHub의 닫힌 PR #1과 예전 커밋 주소로 실명 · 실제 대화가 아직 읽혀요. 제출 전에 저장소를 새로 올릴지 정해요.
 
 ---
 

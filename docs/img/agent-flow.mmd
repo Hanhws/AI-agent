@@ -1,0 +1,11 @@
+flowchart LR
+  C["1단 · 분류<br>모든 턴 · 작은 모델"]:::stage
+  C -->|"그 밖의 턴"| M["노선도의 역"]
+  C -->|"조건이 걸린 턴만"| L["2단 · 확인 루프<br>도구를 골라 쓰고<br>근거를 직접 봄"]:::stage
+  L -->|"근거 없음"| D["버림<br>까닭은 판단 기록에"]:::drop
+  L -->|"근거 있음"| N["할 일 · 한마디"]
+  N --> H["사람이 보고 보냄"]
+  N -->|"켜 둔 2종류만"| A["가닥이 직접 보냄"]:::auto
+  classDef stage fill:#111111,stroke:#111111,color:#ffffff
+  classDef drop fill:#ffffff,stroke:#A7A9AC,color:#5F5F5F,stroke-dasharray:4 3
+  classDef auto fill:#ffffff,stroke:#C8401A,color:#C8401A,stroke-width:2px

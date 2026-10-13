@@ -1,6 +1,6 @@
 # 영어판 인계 (10/13 기준)
 
-작성: 한윤주 (Claude Code와 함께) → 영어판 배포를 맡을 조원
+작성: 기획 담당 (Claude Code와 함께) → 영어판 배포를 맡을 조원
 10/13 오후 갱신: 구현 담당 (Claude Code와 함께) — 2장의 일을 하고, 한 것 · 고친 것 · 확인한 것을 적었어요 (2 · 4 · 5장)
 10/13 저녁 갱신: `main`에 이 브랜치를 통째로 가져다 둔 사본(`english/` 폴더)을 뒀어요 (6장)
 
@@ -21,11 +21,12 @@
 | 받는 곳 | https://hanhws.github.io/AI-agent/download/ | https://hanhws.github.io/AI-agent/en/download/ |
 | 설치 안내 PDF | `docs/가닥-설치-안내.pdf` | `docs/gadak-install-guide.pdf` (아홉 쪽) |
 | 쓰는 법 | `docs/usage-guide.md` | `docs/usage-guide.en.md` (10/13에 새로 씀) |
-| 저장소 첫머리 | `README.md` (인수인계) | `README.en.md` (사용자용 · 짧게) |
+| 저장소 첫 화면 | `README.md` (소개 · 한국어) | `README.en.md` (소개 · 영어 · 두 브랜치에 같은 파일). `english` 브랜치의 `README.md`는 그 판의 짧은 안내 |
+| 설계 명세 | `docs/spec.md` (10/13까지 README.md이던 인수인계 문서) | 같은 문서 (설치 스크립트 이름 4곳만 다름) |
 
 기능은 한국어판과 같아요. 테스트는 `english`에서 387개 통과(21개 건너뜀 — 사이트 만들기 확인 16개는 `main`에서만 돌아요).
 
-**두 브랜치에 같이 있는 파일**: `homepage/` · `tests/test_homepage.py` · `README.en.md` · `docs/gadak-install-guide.pdf` · `docs/usage-guide.en.md` · 이 문서 · `CHANGES.md` · `docs/changes-detail.md` · `CLAUDE.md`. 한쪽에서 고치면 다른 쪽에도 같은 내용으로 올려요(그래야 `main`을 `english`에 합칠 때 안 부딪혀요). 사이트의 원본은 `main`의 `homepage/`이고, 이 브랜치의 것은 따라가는 사본이에요.
+**두 브랜치에 같이 있는 파일**: `homepage/` · `tests/test_homepage.py` · `README.en.md` · `docs/gadak-install-guide.pdf` · `docs/usage-guide.en.md` · 이 문서 · `docs/CHANGES.md` · `docs/changes-detail.md` · `CLAUDE.md`. 한쪽에서 고치면 다른 쪽에도 같은 내용으로 올려요(그래야 `main`을 `english`에 합칠 때 안 부딪혀요). 사이트의 원본은 `main`의 `homepage/`이고, 이 브랜치의 것은 따라가는 사본이에요.
 
 ## 1. 영어판에서 바뀐 것
 
@@ -136,6 +137,6 @@ GADAK_BUILD_PYTHON=<x86_64 파이썬>/bin/python .venv/bin/python -m backend.mac
 
 - 영어 설치 안내가 바뀌었으면 `main` 뿌리의 `docs/gadak-install-guide.pdf`도 폴더의 것으로 같이 바꿔요(둘이 같은 파일인지 `main`의 테스트가 봐요).
 - **폴더에서 영어판을 돌리고 만들 수 있어요**: `main`에서 `cd english` 뒤 `../.venv/bin/python -m backend.launch` · `-m unittest discover -s tests` · `-m backend.macapp --dmg`. Mac에서는 `english/Install Gadak.command`를 더블클릭하면 가지를 바꾸지 않고도 `Gadak.app`이 깔려요(그 앱은 `english/` 폴더의 코드를 돌려요).
-- **폴더 안의 `homepage/` · `docs/` · `README.md` · `CHANGES.md`는 딸려 온 사본**이에요. 사이트와 문서의 원본은 `main` 뿌리의 것이에요.
+- **폴더 안의 `homepage/` · `docs/`는 딸려 온 사본**이에요. 사이트와 문서의 원본은 `main` 뿌리의 것이에요. 폴더 안의 `README.md`는 영어판의 짧은 안내예요(이 브랜치의 첫 화면).
 - 한국어판 고친 것을 영어판에 옮길 때는 전과 같아요(3장): `main`을 이 브랜치에 머지 → 충돌은 영어 쪽을 남김. 다만 **`main`의 `english/` 폴더는 이 브랜치에 들어오면 안 돼요**(영어판 안에 영어판이 또 생겨요). 머지한 뒤 `git rm -r -q english`로 빼고 커밋해요.
 - **봐 주실 것**: 영어판을 두 군데(브랜치 · 폴더)에 두는 것이 괜찮은지. 폴더만 원본으로 삼고 브랜치를 없애는 길도 있어요(정해 주시면 바꿔요).
