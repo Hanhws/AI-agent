@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, down %}
+{% block main %}
+<section class="hero" id="top">
+  <div class="hero-in">
+    <div class="hero-text">
+      <p class="eyebrow">{{ t.hero.eyebrow }}</p>
+      <h1>{{ t.hero.title|safe }}</h1>
+      <p class="lead">{{ t.hero.lead }}</p>
+      <p class="kept"><span class="kept-k">{{ t.hero.keeping }}</span><span class="kept-v" id="kept">{{ t.hero.kept[0] }}</span></p>
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href="{{ link.download }}" data-get>{{ down() }}<span data-get-label>{{ t.hero.cta }}</span></a>
+        <a class="btn btn-lg" href="#demo">{{ t.hero.try }}</a>
+      </div>
+      <p class="fine">{{ t.hero.note|replace("{version}", dl.version) }}</p>
+    </div>
+    <figure class="hero-map">
+      <svg id="hero-map" viewBox="0 0 760 536" role="img" aria-label="{{ t.hero.map_alt }}"></svg>
+      <figcaption class="legend" id="legend" aria-hidden="true">
+        <span data-k="station"><i><svg viewBox="0 0 18 14"><path class="rt-line" d="M1 7H17" stroke="var(--track)" stroke-width="6"/><circle class="rt-dot-in" cx="9" cy="7" r="2"/></svg></i>{{ t.hero.legend.station }}</span>
+        <span data-k="decided"><i><svg viewBox="0 0 18 14"><path class="rt-line" d="M1 7H17" stroke="var(--track)" stroke-width="6"/><circle class="rt-big" cx="9" cy="7" r="5" stroke-width="2"/></svg></i>{{ t.hero.legend.decided }}</span>
+        <span data-k="spur"><i><svg viewBox="0 0 18 14"><path class="rt-spur" d="M1 3L7 10H17" stroke-width="5"/></svg></i>{{ t.hero.legend.spur }}</span>
+        <span data-k="file"><i><svg viewBox="0 0 18 14"><circle class="rt-file" cx="9" cy="7" r="3.2"/></svg></i>{{ t.hero.legend.file }}</span>
+        <span data-k="todo"><i><svg viewBox="0 0 18 14"><circle class="rt-ring" cx="9" cy="7" r="4.4" stroke-width="2.4"/></svg></i>{{ t.hero.legend.todo }}</span>
+        <span data-k="now"><i><svg viewBox="0 0 18 14"><circle class="rt-halo" cx="9" cy="7" r="7"/><circle class="rt-now" cx="9" cy="7" r="4.5"/></svg></i>{{ t.hero.legend.now }}</span>
+      </figcaption>
+      <button class="replay" type="button" id="replay" hidden>{{ t.hero.replay }}</button>
+    </figure>
+  </div>
+</section>
+
+<div class="track">
+  <nav class="rail" id="rail" aria-label="{{ t.nav.menu }}"></nav>
+  <div class="sections">
+
+    <section class="sec" id="why" data-station="{{ t.why.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.why.eyebrow }}</p>
+        <h2>{{ t.why.title }}</h2>
+        <p class="sec-lead">{{ t.why.body }}</p>
+      </header>
+      <div class="versus">
+        <div>
+          <h3>{{ t.why.chat }}</h3>
+          <ul class="bubbles">
+            {% for line in t.why.bubbles %}
+            <li>{{ line }}</li>
+            <li class="a" aria-hidden="true"></li>
+            {% endfor %}
+          </ul>
+          <p>{{ t.why.chat_note }}</p>
+        </div>
+        <div>
+          <h3>{{ t.why.route }}</h3>
+          <svg id="why-map" viewBox="0 0 440 232" role="img" aria-label="{{ t.why.route_note }}"></svg>
+          <p>{{ t.why.route_note }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="features" data-station="{{ t.features.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.features.eyebrow }}</p>
+        <h2>{{ t.features.title }}</h2>
+        <p class="sec-lead">{{ t.features.body }}</p>
+      </header>
+      <div class="feat" id="feat">
+        <div class="feat-list">
+          {% for f in t.features.list %}
+          <div class="feat-item{% if loop.first %} is-open{% endif %}" data-feat="{{ f.id }}" style="--c: var(--r{{ loop.index }})">
+            <h3><button type="button" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="feat-{{ f.id }}"><span class="dot"></span><span>{{ f.title }}</span>{% if f.tag is defined %}<span class="tag">{{ f.tag }}</span>{% endif %}<span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-{{ f.id }}"><div>
+              <p>{{ f.body }}</p>
+              <div class="feat-fig-inline">{{ figure(f, false) }}</div>
+            </div></div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="feat-media" aria-hidden="true">
+          {% for f in t.features.list %}
+          <figure data-feat="{{ f.id }}"{% if loop.first %} class="on"{% endif %}>{{ figure(f, true) }}</figure>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="trust" data-station="{{ t.trust.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.trust.eyebrow }}</p>
+        <h2>{{ t.trust.title }}</h2>
+      </header>
+      <div class="cards">
+        {% for c in t.trust.cards %}
+        <article class="card"><h3>{{ c.title }}</h3><p>{{ c.body|safe }}</p></article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="sec" id="demo" data-station="{{ t.demo.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.demo.eyebrow }}</p>
+        <h2>{{ t.demo.title }}</h2>
+        <p class="sec-lead">{{ t.demo.body }}</p>
+      </header>
+      <div class="window window-live">
+        <div class="window-bar"><span>{{ t.demo.frame }}</span><a href="{{ link.demo }}">{{ t.demo.open }} ↗</a></div>
+        <div class="window-body" id="demo-body"><iframe id="demo-frame" title="{{ t.demo.frame }}" data-src="{{ app }}index.html" width="1440" height="900" loading="lazy"></iframe></div>
+      </div>
+      <div class="demo-still">
+        <a class="shot" href="{{ link.demo }}">{{ shot("window.png", t.getit.img_alt) }}</a>
+        <p class="fine" style="margin-top: 12px">{{ t.demo.small }}</p>
+      </div>
+      <p class="fine demo-note"><span>{{ t.demo.note }}</span></p>
+    </section>
+
+    <section class="sec" id="start" data-station="{{ t.start.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.start.eyebrow }}</p>
+        <h2>{{ t.start.title }}</h2>
+      </header>
+      <ol class="stops">
+        {% for s in t.start.steps %}
+        <li><span class="n" aria-hidden="true">{{ loop.index }}</span><h3>{{ s.title }}</h3><p>{{ s.body }}</p></li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="sec" id="cost" data-station="{{ t.cost.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.cost.eyebrow }}</p>
+        <h2>{{ t.cost.title }}</h2>
+        <p class="sec-lead">{{ t.cost.body }}</p>
+      </header>
+      <div class="share" role="img" aria-label="{{ t.cost.share.alt }}">
+        <div class="share-bar"><span class="mine"></span><span class="more"></span></div>
+        <div class="share-key"><span>{{ t.cost.share.mine }}</span><b>{{ t.cost.share.more }}</b></div>
+      </div>
+      <div class="figs">
+        {% for f in t.cost.figs %}
+        <div class="fig"><b>{{ f.n }}</b><span>{{ f.label }}</span><small>{{ f.note }}</small></div>
+        {% endfor %}
+      </div>
+      <h3 class="tbl-cap" id="cost-table">{{ t.cost.table.caption }}</h3>
+      <div class="tbl-wrap">
+        <table class="tbl" aria-labelledby="cost-table">
+          <thead>
+            <tr><td></td>{% for h in t.cost.table.head %}<th scope="col">{{ h }}<small>{{ t.cost.table.head_note[loop.index0] }}</small></th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in t.cost.table.rows %}
+            <tr><th scope="row">{{ row[0] }}</th><td>{{ row[1] }}</td><td>{{ row[2] }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <ul class="notes">
+        {% for n in t.cost.notes %}
+        <li>{{ n|safe }}</li>
+        {% endfor %}
+      </ul>
+      <p class="fine" style="margin-top: 18px; max-width: 50em">{{ t.cost.source }} <a class="more" href="{{ dl.repo }}/tree/main/eval/results">{{ t.cost.source_link }}</a></p>
+    </section>
+
+    <section class="sec" id="get" data-station="{{ t.getit.station }}">
+      <div class="get">
+        <figure class="shot get-shot">{{ shot("window.png", t.getit.img_alt) }}</figure>
+        <div class="get-text">
+          <p class="eyebrow">{{ t.getit.eyebrow }}</p>
+          <h2>{{ t.getit.title }}</h2>
+          <p>{{ t.getit.body }}</p>
+          <div class="cta"><a class="btn btn-primary btn-lg" href="{{ link.download }}" data-get>{{ down() }}<span data-get-label>{{ t.getit.primary }}</span></a></div>
+          <p class="fine" data-get-note data-detected="{{ t.getit.detected }}" data-mobile="{{ t.getit.mobile }}" hidden></p>
+          <p><a class="more" href="{{ link.download }}">{{ t.getit.more }} →</a></p>
+          <p class="fine">{{ t.getit.version|replace("{version}", dl.version)|replace("{date}", date) }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="faq" data-station="{{ t.faq.station }}">
+      <header class="sec-head">
+        <p class="eyebrow">{{ t.faq.eyebrow }}</p>
+        <h2>{{ t.faq.title }}</h2>
+      </header>
+      <div class="qa-list">
+        {% for q in t.faq.list %}
+        <details class="qa"{% if loop.first %} open{% endif %}>
+          <summary><h3>{{ q.q }}</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>{{ q.a|safe }}</p>
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+{% macro figure(f, big) %}
+{% if f.img is defined %}
+<div class="shot{% if f.id == 'float' %} pad narrow{% endif %}">{{ shot(f.img, f.alt) }}</div>
+{% elif f.draw is defined %}
+<div class="drawn"><svg class="draw-{{ f.draw }}" viewBox="0 0 560 300" role="img" aria-label="{{ f.alt }}"></svg></div>
+{% endif %}
+{% endmacro %}
+{% block scripts %}
+<script type="application/json" id="map-data">{{ {"lines": t.hero.lines, "stops": t.hero.stops, "files": t.hero.files, "kept": t.hero.kept, "why": t.why.labels, "ways": t.features.list[4].ways, "now": t.hero.legend.now}|tojson }}</script>
+<script src="{{ root }}assets/routes.js"></script>
+{% endblock %}

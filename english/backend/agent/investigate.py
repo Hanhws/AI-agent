@@ -1,0 +1,560 @@
+"""2단 · 확인 (README 3-1). 조건이 걸린 턴에서만 돌아요.
+
+에이전트가 도구를 골라 쓰고, 결과를 보고, 더 볼지 끝낼지 스스로 정해요. 엔진에는 한 걸음씩 물어요:
+지금까지 본 것을 주면 엔진이 다음 도구(또는 끝)를 고르고, 가닥이 그 도구를 돌려(tools.py) 본 것을 붙여
+다시 물어요. 그래서 구조화 출력(complete_json)만 되면 어느 엔진이든 같아요. 프롬프트는 prompts/investigate.txt.
+
+2단을 켜는 조건 — 1단이 분류할 때 정해서 turns.look에 적어요 (triggers)
+- missing: 1단이 빠진 것 같은 요청을 냄 (parts.open = 2)
+- unasked: 이 턴에서 파일이 바뀌었고, 1단이 요청보다 넓게 바뀐 것 같다고 봄 (wide)
+- handoff: 같은 프로젝트에 새 대화가 열림 — 그 프로젝트에서 가장 새 대화의 첫 턴이고, 앞 대화에 정한 것이 있을 때
+- ahead: (사용자가 ‘저절로 살피기’를 켰을 때 · ahead.auto_on) 길이 갈리는 순간 — 방금 정함 · 구간이 바뀜 · 사용자가 다음 할 일을 물음.
+         기본은 사용자가 ‘앞길 보기’를 눌렀을 때만이에요. 그건 조건이 아니라 want_ahead로 바로 받아요.
+         앞길 살피기(ahead.py)가 따로 돌아 ‘다음 할 일’(next)을 내요. 프롬프트 · 도구 · 근거 검사가 달라서 루프도 따로예요
+어느 턴을 볼지는 정해 둔 개수가 아니라 이 조건으로 정해요. 보는 대화가 먼저, 그 안에서는 지금에 가까운 턴부터.
+얼마나 멀리 볼지(앞 턴 · 지난 대화)는 에이전트가 도구로 정해요.
+
+규칙
+- 걸음은 MAX_STEPS번까지(초깃값 5). 마지막 걸음에서는 끝내는 것만 고를 수 있어요.
+- 근거를 도구로 직접 보지 못한 한마디는 버려요 (missing은 get_request, unasked는 get_diff, handoff는 search_decisions).
+- 한마디의 버튼 · 바뀐 곳 · 다시 보낼 글은 엔진의 말이 아니라 저장된 기록으로 만들어요.
+- 판단 기록(agent_runs)에 쓴 도구와 순서, 본 것, 결론을 남겨요 (trace.py, /trace).
+"""
+import collections
+import json
+import time
+
+from .. import config, store, usage
+from ..engines import BadOutput, EngineError, Refused
+from . import ahead, tools, trace
+
+SYSTEM = (config.ROOT / "backend" / "prompts" / "investigate.txt").read_text(encoding="utf-8")
+
+TRIGGERS = ("missing", "unasked", "handoff", "ahead")
+KINDS = ("missing", "unasked", "handoff")      # 이 루프가 만드는 한마디. 앞길 살피기(ahead)는 next를 따로 만들어요
+MAX_TRIES = 2
+OUTLINE = 40          # 노선 상태로 보여 주는 역 수 (지금 턴 둘레). 그 밖의 역은 도구로 찾아 봐요
+USER_CLIP = 600
+TEXT_MAX, WHY_MAX, NOUN_MAX, ARG_MAX = 60, 200, 30, 200
+DIFF_SHOWN = 40       # ‘바뀐 곳 보기’ 창에 보이는 줄
+EARLIER_CHATS = 10
+
+_TEXT = {"type": ["string", "null"]}
+ITEM = {
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string", "enum": list(KINDS)},
+        "text": {"type": "string"}, "why": {"type": "string"},
+        "part": {"type": ["integer", "null"]}, "file": _TEXT, "asked": _TEXT, "what": _TEXT,
+        "use": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["kind", "text", "why", "part", "file", "asked", "what", "use"],
+    "additionalProperties": False,
+}
+
+
+def _schema(choices) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "think": {"type": "string"},
+            "tool": {"type": "string", "enum": list(choices)},
+            "arg": _TEXT,
+            "items": {"type": "array", "items": ITEM},
+        },
+        "required": ["think", "tool", "arg", "items"],
+        "additionalProperties": False,
+    }
+
+
+STEP_SCHEMA = _schema(tools.NAMES + ("finish",))
+LAST_SCHEMA = _schema(("finish",))   # 마지막 걸음: 끝내는 것만
+
+
+def _line(value, limit):
+    value = " ".join(value.split()) if isinstance(value, str) else ""
+    return value[:limit - 1].rstrip() + "…" if len(value) > limit else value
+
+
+def _noun(value):
+    """한마디 틀에 끼울 짧은 말. 너무 길면 쓰지 않아요."""
+    value = _line(value, 200).strip("“”‘’\"' ")
+    return value if 0 < len(value) <= NOUN_MAX else None
+
+
+def _arg(value):
+    if isinstance(value, int) and not isinstance(value, bool):
+        value = str(value)
+    return _line(value, ARG_MAX) or None
+
+
+# ---------- 2단을 켜는 조건 ----------
+
+def handoff_due(conn, chat) -> bool:
+    """같은 프로젝트에서 가장 새 대화이고, 앞 대화에서 정한 것이 있으면."""
+    if chat is None or chat["project_id"] == store.NO_PROJECT:
+        return False
+    newer = conn.execute(
+        "SELECT 1 FROM chats WHERE project_id = ? AND id != ? AND created_at > ? AND hidden = 0 LIMIT 1",
+        (chat["project_id"], chat["id"], chat["created_at"]),
+    ).fetchone()
+    if newer:
+        return False
+    return conn.execute(
+        "SELECT 1 FROM turns t JOIN chats c ON c.id = t.chat_id"
+        " WHERE c.project_id = ? AND c.id != ? AND c.created_at <= ? AND c.hidden = 0 AND t.dec IS NOT NULL LIMIT 1",
+        (chat["project_id"], chat["id"], chat["created_at"]),
+    ).fetchone() is not None
+
+
+def triggers(conn, chat, rows, row, parts, wide, made=None) -> list:
+    """1단이 이 턴을 분류할 때 부르는 곳. 걸린 조건이 없으면 빈 목록이고, 그 턴은 2단을 건너뛰어요.
+    made는 1단이 이 턴에 방금 붙인 값(dec · seg · depth)이에요. 아직 저장하기 전이라 따로 받아요."""
+    look = []
+    if any(part.get("open") == store.MAYBE_MISSING for part in parts or []):
+        look.append("missing")
+    if wide and conn.execute("SELECT 1 FROM files WHERE turn_id = ? LIMIT 1", (row["id"],)).fetchone():
+        look.append("unasked")
+    # 가닥이 시작할 때 이미 요약을 넣은 대화(승인한 자동 실행)에는 다시 권하지 않아요
+    if rows and row["seq"] == rows[0]["seq"] and handoff_due(conn, chat) and not store.auto_sent(conn, chat["id"], "handoff"):
+        look.append("handoff")
+    # 앞길을 저절로도 살피게 켰을 때만(AHEAD_AUTO): 길이 갈리는 순간에, 지금 하고 있는 대화의 마지막 턴에서 (ahead.due)
+    if ahead.due(chat, rows, row, made or {}, auto=ahead.auto_on(conn)):
+        look.append("ahead")
+    return look
+
+
+# ---------- 엔진에 주는 것 ----------
+
+def earlier_chats(conn, chat) -> list:
+    rows = conn.execute(
+        "SELECT c.title, c.created_at, COUNT(t.id) AS turns, COUNT(t.dec) AS decisions FROM chats c"
+        " LEFT JOIN turns t ON t.chat_id = c.id WHERE c.project_id = ? AND c.id != ? AND c.created_at <= ? AND c.hidden = 0"
+        " GROUP BY c.id ORDER BY c.created_at DESC LIMIT ?",
+        (chat["project_id"], chat["id"], chat["created_at"], EARLIER_CHATS),
+    ).fetchall()
+    return [{"title": r["title"], "date": store.display_date(r["created_at"]), "turns": r["turns"],
+             "decisions": r["decisions"]} for r in rows]
+
+
+def step_input(ctx, looks, steps, left) -> dict:
+    conn, row = ctx.conn, ctx.row
+    rows = store.chat_turns(conn, row["chat_id"])
+    at = next((i for i, r in enumerate(rows) if r["id"] == row["id"]), 0)
+    start = max(0, min(at - OUTLINE // 2, len(rows) - OUTLINE))
+    turn = {"id": row["id"], "seq": row["seq"], "title": row["title"], "user": _line(row["user"], USER_CLIP)}
+    parts = [{"no": r["idx"], "t": r["t"], "type": r["type"], "maybe_missing": r["open"] == store.MAYBE_MISSING}
+             for r in conn.execute("SELECT idx, t, type, open FROM parts WHERE turn_id = ? ORDER BY idx", (row["id"],))]
+    if parts:
+        turn["parts"] = parts
+    names = [ctx.shown(r["name"]) for r in conn.execute("SELECT name FROM files WHERE turn_id = ? ORDER BY rowid", (row["id"],))]
+    if names:
+        turn["edited_files"] = names[:20]
+    lines = {ctx.shown(name): sum(tools.changed_count(old, new) for old, new in pairs)
+             for name, pairs in ctx.edits(row["id"]).items()}
+    if lines:
+        turn["changed_lines"] = lines
+    project = conn.execute("SELECT name FROM projects WHERE id = ?", (ctx.chat["project_id"],)).fetchone()
+    payload = {
+        "project": None if ctx.only_chat else project["name"],
+        "chat": {"title": ctx.chat["title"] or (rows[0]["title"] if rows else None), "turns": len(rows)},
+        "turn": turn,
+        "trigger": looks,
+        "outline": [dict({"id": r["id"], "seq": r["seq"], "title": r["title"], "depth": r["depth"]},
+                         **({"dec": r["dec"]} if r["dec"] else {})) for r in rows[start:start + OUTLINE]],
+        "steps": [{"tool": s["tool"], "arg": s["arg"], "think": s["think"], "saw": s["data"]} for s in steps],
+        "left": left,
+    }
+    if "handoff" in looks:
+        payload["earlier_chats"] = earlier_chats(conn, ctx.chat)
+    return payload
+
+
+# ---------- 루프 ----------
+
+def check(ctx, looks, call, max_steps=None) -> dict:
+    """한 턴을 확인해요. call(system, payload, schema)은 엔진 호출 한 번이에요."""
+    max_steps = max(1, max_steps or config.MAX_STEPS)
+    steps, out, calls, ended = [], {}, 0, "limit"
+    for n in range(max_steps):
+        left = max_steps - n - 1
+        payload = json.dumps(step_input(ctx, looks, steps, left), ensure_ascii=False)
+        out = call(SYSTEM, payload, STEP_SCHEMA if left else LAST_SCHEMA) or {}
+        calls += 1
+        tool = out.get("tool")
+        if tool == "finish":
+            ended = "finish"
+            break
+        if tool not in tools.NAMES:
+            ended = "odd"
+            break
+        arg = _arg(out.get("arg"))
+        data = tools.run(ctx, tool, arg)
+        steps.append({"tool": tool, "arg": arg, "think": _line(out.get("think"), WHY_MAX),
+                      "saw": tools.summary(tool, data), "data": data})
+    result = conclude(ctx, looks, steps, out if ended == "finish" else None)
+    result.update(steps=steps, calls=calls, ended=ended,
+                  think=_line(out.get("think"), WHY_MAX) if ended == "finish" else None)
+    return result
+
+
+def conclude(ctx, looks, steps, out) -> dict:
+    """엔진이 낸 결론을 기록과 맞춰 봐요. 근거를 직접 보지 않았거나 기록에 없는 것을 가리키면 버려요."""
+    def looked(tool, own=True):
+        return any(s["tool"] == tool and not s["data"].get("error")
+                   and (not own or s["data"].get("id") == ctx.turn_id) for s in steps)
+
+    parts = {r["idx"]: r["t"] for r in ctx.conn.execute("SELECT idx, t FROM parts WHERE turn_id = ?", (ctx.turn_id,))}
+    missing, made, dropped, files = [], [], [], set()
+
+    def drop(kind, why):
+        dropped.append({"kind": kind, "why": why})
+
+    for raw in (out or {}).get("items") or []:
+        if not isinstance(raw, dict):
+            continue
+        kind, why = raw.get("kind"), _line(raw.get("why"), WHY_MAX)
+        if kind == "missing":
+            no = raw.get("part")
+            if not looked("get_request"):
+                drop(kind, "Dropped: concluded without reading the original request")
+            elif not isinstance(no, int) or isinstance(no, bool) or no not in parts:
+                drop(kind, "Dropped: no request with that number in this turn")
+            elif all(m["no"] != no for m in missing):
+                missing.append({"no": no, "t": parts[no], "why": why})
+        elif kind == "unasked":
+            path, pairs = match_file(ctx, raw.get("file"))
+            if not looked("get_diff"):
+                drop(kind, "Dropped: concluded without looking at what changed")
+            elif pairs is None:
+                drop(kind, "Dropped: that file was not changed in this turn")
+            elif path not in files:
+                files.add(path)
+                made.append(unasked_item(ctx, path, pairs, raw, why))
+        elif kind == "handoff":
+            item = handoff_item(ctx, raw.get("use"), why) if "handoff" in looks else None
+            if "handoff" not in looks:
+                drop(kind, "Dropped: not the first turn of a new chat")
+            elif not looked("search_decisions", own=False):
+                drop(kind, "Dropped: concluded without looking up decisions")
+            elif item is None:
+                drop(kind, "Dropped: no past decisions or leftovers worth carrying over")
+            elif not any(i["kind"] == "handoff" for i in made):
+                made.append(item)
+        else:
+            drop(str(kind), "Dropped: unknown kind")
+    return {"missing": missing, "items": made, "dropped": dropped}
+
+
+def match_file(ctx, given):
+    """엔진이 말한 파일 이름을 이 턴의 실제 변경과 맞춰요. 없으면 (None, None)."""
+    given = (given or "").strip() if isinstance(given, str) else ""
+    if not given:
+        return None, None
+    edits = ctx.edits(ctx.turn_id)
+    for path, pairs in edits.items():
+        if given in (path, ctx.shown(path)):
+            return path, pairs
+    wanted = given.replace("\\", "/")
+    for path, pairs in edits.items():
+        plain = path.replace("\\", "/")              # Windows에서 온 경로(C:\…)도 같은 규칙으로 맞춰요
+        if plain.endswith("/" + wanted) or plain.rsplit("/", 1)[-1] == wanted.rsplit("/", 1)[-1]:
+            return path, pairs
+    return None, None
+
+
+def unasked_item(ctx, path, pairs, raw, why) -> dict:
+    shown = ctx.shown(path)
+    asked, what = _noun(raw.get("asked")), _noun(raw.get("what"))
+    text = _line(raw.get("text"), 200)
+    if not text or len(text) > TEXT_MAX:
+        if asked and what:
+            text = f"You asked only for “{asked}”, but “{what}” changed too"
+        else:
+            text = f"“{what}” changed too, which you did not ask for" if what else f"{shown} changed too, which you did not ask for"
+    lines = tools.file_diff(pairs)
+    diff = lines[:DIFF_SHOWN]
+    if len(lines) > DIFF_SHOWN:
+        diff.append([" ", f"…({len(lines) - DIFF_SHOWN} more changed line" + ("" if len(lines) - DIFF_SHOWN == 1 else "s") + ")"])
+    part = f"the “{what}” part" if what else "the changed part"
+    prompt = f"I didn't ask for {part} in {shown}. " + (
+        f"Put it back and keep only the “{asked}” change." if asked else "Put it back the way it was.")
+    return {
+        "kind": "unasked", "text": text,
+        "why": why or f"Parts of {shown} that look unrelated to the request changed.",
+        "btn": "See what changed",
+        "pop": {"title": f"Unrequested change · {shown}", "diff": diff,
+                "note": f"Changed outside what you asked for (“{asked}”)." if asked else "Changed outside what you asked for.",
+                "btn": "Ask to undo", "prompt": prompt},
+    }
+
+
+def _said(decision) -> str:
+    """정한 것: 풀어 쓴 문장이 있으면 그걸로 (역 이름은 대화 밖에서 읽으면 뜻이 흐려요)."""
+    return (decision["dec_note"] if "dec_note" in decision.keys() else None) or decision["dec"]
+
+
+def handoff_summary(decisions, leftovers) -> str:
+    """이어 가기 요약의 글. 한마디의 ‘요약 붙이기’와, 승인한 자동 실행이 새 대화에 넣는 글이 같아요."""
+    lines = []
+    if decisions:
+        chats = {d["chat_id"] for d in decisions}
+        if len(chats) == 1:
+            first = decisions[0]
+            lines.append(f"Decided in the last chat ({store.display_date(first['created_at'])} {first['chat_title']})")
+            lines += [f"{n}. {_said(d)}" for n, d in enumerate(decisions, 1)]
+        else:
+            lines.append("Decided in the last chat")
+            lines += [f"{n}. {_said(d)} ({store.display_date(d['created_at'])} {d['chat_title']})"
+                      for n, d in enumerate(decisions, 1)]
+    if leftovers:
+        lines.append("Still to do")
+        lines += [f"- {i['text']}" for i in leftovers]
+    lines.append("Keep these decisions as they are and carry on from here." if decisions else "Please carry on with this work.")
+    return "\n".join(lines)
+
+
+def handoff_item(ctx, use, why):
+    """지난 대화에서 정한 것 · 남은 일 중 엔진이 고른 것으로 이어 가기 요약을 만들어요. 고른 게 없으면 None."""
+    ids = [u for u in (use or []) if isinstance(u, str)][:30]
+    if not ids:
+        return None
+    conn, chat = ctx.conn, ctx.chat
+    decisions = conn.execute(
+        "SELECT t.id, t.dec, t.dec_note, c.id AS chat_id, c.title AS chat_title, c.created_at FROM turns t"
+        " JOIN chats c ON c.id = t.chat_id WHERE t.id IN (%s) AND c.project_id = ? AND c.id != ? AND c.hidden = 0"
+        " AND t.dec IS NOT NULL ORDER BY c.created_at, t.seq" % ",".join("?" * len(ids)),
+        ids + [chat["project_id"], chat["id"]],
+    ).fetchall()
+    wanted = set(ids)
+    leftovers = [i for i in tools.open_items(conn, "c.project_id = ? AND c.id != ? AND c.hidden = 0", [chat["project_id"], chat["id"]])
+                 if i["id"] in wanted]
+    if not decisions and not leftovers:
+        return None
+    summary = handoff_summary(decisions, leftovers)
+    if decisions and leftovers:
+        text = f"Paste {store.many(len(decisions), 'decision')} and {store.many(len(leftovers), 'leftover')} from the last chat into this one?"
+    elif decisions:
+        text = f"Paste {store.many(len(decisions), 'decision')} from the last chat into this one?"
+    else:
+        text = f"Paste {store.many(len(leftovers), 'leftover')} from the last chat into this one?"
+    return {
+        "kind": "handoff", "text": text,
+        "why": why or "This is a new chat in the same project. It starts without knowing what was decided before.",
+        "btn": "Paste summary",
+        "pop": {"title": "Carry-on summary", "text": summary,
+                "note": "A new chat starts without knowing past decisions. Paste this and you won't have to explain it all again.",
+                "btn": "Paste summary", "prompt": summary},
+    }
+
+
+# ---------- 일꾼 ----------
+
+class Investigator:
+    """2단을 기다리는 대화를 줄 세워, 한 번에 턴 하나씩 확인해요.
+    엔진 호출은 1단과 같은 일꾼 · 같은 한도(Classifier.call)를 써요. 엔진은 한 번에 하나만 불러요."""
+
+    def __init__(self, classifier):
+        self.clf = classifier
+        self.queue = collections.deque()
+        self.wanted = collections.deque()      # 사용자가 ‘앞길 보기’를 누른 대화 (ahead.py)
+        self.seen_ahead = {}                   # 대화 id → 앞길 살피기가 어디까지 갔나 (화면의 ‘앞길’ 칸이 보여 줘요. 다시 켜면 비워져요)
+        self.tries = collections.Counter()
+        self._engine = None
+        self._scout = None
+
+    def engine(self):
+        """2단 모델을 따로 정했으면(GADAK_CHECK_MODEL) 그 모델로, 아니면 1단과 같은 엔진."""
+        base = self.clf.engine()
+        model = config.CHECK_MODEL
+        if base is None or not model or getattr(base, "model", model) == model:
+            return base
+        if self._engine is None or type(self._engine) is not type(base):
+            self._engine = type(base)(model=model)
+        return self._engine
+
+    def scout_engine(self):
+        """앞길 살피기에 쓸 모델을 따로 정했으면(GADAK_AHEAD_MODEL) 그 모델로, 아니면 2단과 같은 엔진."""
+        engine = self.engine()
+        model = config.AHEAD_MODEL
+        if engine is None or not model or getattr(engine, "model", model) == model:
+            return engine
+        if self._scout is None or type(self._scout) is not type(engine) or self._scout.model != model:
+            self._scout = type(engine)(model=model)
+            if hasattr(self._scout, "effort"):           # 길을 찾는 일은 분류보다 깊이 봐야 해요. 그만큼 오래 걸려요
+                self._scout.effort, self._scout.timeout = config.AHEAD_EFFORT, 300
+        return self._scout
+
+    def forget_engine(self) -> None:
+        self._engine = self._scout = None
+
+    def request(self, chat_id, front=True) -> None:
+        if not chat_id:
+            return
+        if chat_id in self.queue:
+            self.queue.remove(chat_id)
+        if front:
+            self.queue.appendleft(chat_id)
+        else:
+            self.queue.append(chat_id)
+        self.clf.wake.set()
+
+    def want_ahead(self, chat_id) -> bool:
+        """사용자가 누른 ‘앞길 보기’. 그 대화의 마지막 턴에 서서 살펴요. 꺼 둔 동안에는 받지 않아요."""
+        if not config.AHEAD or not chat_id:
+            return False
+        if chat_id not in self.wanted:
+            self.wanted.append(chat_id)
+        self.note_ahead(chat_id, "queued")
+        self.clf.wake.set()
+        return True
+
+    def note_ahead(self, chat_id, state, **more) -> None:
+        """앞길 살피기가 어디까지 갔는지 적어 둬요. 눌렀는데 아무것도 안 뜰 때, 찾은 것이 없어서인지 못 살펴서인지 화면이 말해 주려고요.
+        queued 차례를 기다림 · looking 살피는 중 · done 길을 냄 · none 살폈지만 낼 길이 없었음 · failed 살피지 못함(reason)."""
+        self.seen_ahead[chat_id] = dict(more, state=state, at=store.now())
+        self.clf.rt.bump()
+
+    def ahead_state(self, conn, chat_id) -> dict:
+        """화면의 ‘앞길’ 칸이 보여 줄 것. 이번에 켠 뒤로 살핀 적이 없으면 판단 기록에서 마지막으로 살핀 것을 찾아요."""
+        seen = self.seen_ahead.get(chat_id)
+        if seen:
+            return dict(seen)
+        last = conn.execute(
+            "SELECT r.turn_id, r.steps_json, r.created_at FROM agent_runs r JOIN turns t ON t.id = r.turn_id"
+            " WHERE t.chat_id = ? AND r.trigger = 'ahead' ORDER BY r.created_at DESC, r.rowid DESC LIMIT 1", (chat_id,)).fetchone()
+        if last is None:
+            return {"state": "idle"}
+        body = json.loads(last["steps_json"] or "{}")
+        made = len(body.get("items") or [])
+        return {"state": "done" if made else "none", "at": last["created_at"], "turn": last["turn_id"], "why": body.get("why"),
+                "paths": made, "dropped": len(body.get("dropped") or []), "goal": body.get("goal")}
+
+    def waiting(self) -> bool:
+        return bool(self.queue or self.wanted)
+
+    def step(self, conn) -> bool:
+        """줄 맨 앞 대화에서 확인할 턴 하나를 봐요. 볼 것이 없으면 False."""
+        if self.engine() is None:
+            for chat_id in self.wanted:
+                self.note_ahead(chat_id, "failed", reason="No engine is available for sorting.")
+            self.queue.clear()     # 엔진이 없으면 기록만 해요
+            self.wanted.clear()
+            return False
+        while self.wanted:         # 사용자가 누른 것이 먼저예요
+            chat_id = self.wanted.popleft()
+            chat = store.chat_row(conn, chat_id)
+            rows = [r for r in store.chat_turns(conn, chat["id"]) if r["classified"] == 1] if chat is not None else []
+            if not rows or chat["hidden"]:
+                self.note_ahead(chat_id, "failed", reason="No turns have been sorted yet, so there is nowhere to look from. Press again once sorting finishes.")
+                continue
+            try:
+                self.look_ahead(conn, rows[-1], "button")
+            except BadOutput:
+                pass               # 엔진이 형식을 못 지켰어요. 까닭은 look_ahead가 적어 뒀고, 다시 누르면 다시 살펴요
+            return True
+        while self.queue:
+            waiting = store.waiting_checks(conn, self.queue[0])
+            if not waiting:
+                self.queue.popleft()
+                continue
+            self.check_turn(conn, waiting[0])
+            return True
+        return False
+
+    def check_turn(self, conn, row):
+        looks = [t for t in (row["look"] or "").split(",") if t in TRIGGERS]
+        if not looks or self.tries[row["id"]] >= MAX_TRIES:
+            with conn:   # 볼 까닭이 없거나 거듭 실패한 턴은 다시 보지 않아요
+                store.set_checked(conn, row["id"], 1 if not looks else -1)
+            return None
+        regular = [t for t in looks if t != "ahead"]      # 앞길 살피기는 루프가 따로예요 (look_ahead)
+        result = self.check_regular(conn, row, regular) if regular else None
+        if "ahead" in looks and ahead.auto_on(conn):     # 끄기 전에 갈림길로 적어 둔 턴도 끈 뒤에는 살피지 않아요
+            try:
+                self.look_ahead(conn, row, ahead.reason(row["user"], row["dec"], row["seg"], row["depth"]) or "decided")
+            except EngineError:
+                raise        # 로그인 · 한도 문제. 이 턴은 확인하지 않은 채로 남아서, 다시 켜면 처음부터 봐요
+            except BadOutput:
+                pass         # 엔진이 형식을 못 지켰어요. 앞길을 못 살폈어도 이 턴의 확인은 끝난 거예요 (다시 살피려면 사용자가 눌러요)
+            except Exception as exc:
+                self.clf.status["error"] = str(exc)[:200]     # 그 밖의 문제는 보이게 남기되, 같은 턴을 되풀이해 살피지는 않아요
+        with conn:
+            store.set_checked(conn, row["id"], 1)
+        self.clf.rt.bump()
+        return result
+
+    def check_regular(self, conn, row, looks):
+        engine = self.engine()
+        self.clf.status["checking"] = row["id"]
+        began = time.time()
+        try:
+            result = check(tools.Context(conn, row), looks,
+                           lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
+                                                                         kind="check", chat=row["chat_id"]))
+        except EngineError:
+            raise        # 로그인 · 한도 문제는 턴 탓이 아니라서 실패로 세지 않아요. 일꾼이 멈추고, 다시 켜면 처음부터 봐요
+        except Exception:
+            self.tries[row["id"]] += 1
+            raise
+        finally:
+            self.clf.status["checking"] = None
+        with conn:
+            store.confirm_missing(conn, row["id"], [m["no"] for m in result["missing"]])
+            ids = store.set_items(conn, row["id"], result["items"])
+            result["saved"] = [{"id": i, "kind": item["kind"], "text": item["text"]}
+                               for i, item in zip(ids, result["items"])]
+            trace.save(conn, row["id"], looks, result, engine)
+        self.clf.status["checks"] += 1
+        used = collections.Counter(s["tool"] for s in result["steps"])
+        usage.record(conn, "check", {name: True for name in looks}, steps=len(result["steps"]), calls=result["calls"],
+                     made=len(ids), dropped=len(result["dropped"]), ended=result["ended"],
+                     seconds=time.time() - began, **used)
+        for item in result["items"]:
+            usage.record(conn, "item", kind=item["kind"], did="made", at="auto")
+        return result
+
+    def look_ahead(self, conn, row, why):
+        """앞길 살피기 한 번 (ahead.scout). 길을 ‘다음 할 일’로 적고 판단 기록을 남겨요."""
+        engine = self.scout_engine()
+        ctx = tools.Context(conn, row)
+        searcher = self.engine()          # 웹에서 찾아 간추리는 일은 2단의 (작은) 모델로 충분해요
+        if config.AHEAD_WEB and callable(getattr(searcher, "research", None)):
+            ctx.lookup = lambda question: self.clf.research(question, searcher, chat=row["chat_id"])
+        chat_id = row["chat_id"]
+        self.note_ahead(chat_id, "looking", turn=row["id"], why=why)
+        self.clf.status["checking"] = row["id"]
+        began = time.time()
+        try:
+            result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
+                                                                                        kind="ahead", chat=chat_id))
+        except EngineError as exc:       # 로그인 · 한도. 일꾼이 멈춰요
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Could not reach the sorting AI: " + str(exc)[:160])
+            raise
+        except Refused:
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why,
+                            reason="The AI's safety filter blocked the text at this point. This sometimes happens when keys or security come up. Try again after the chat has moved on a little.")
+            raise
+        except BadOutput:
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="The engine did not answer in the required format. Try pressing again.")
+            raise
+        except Exception as exc:
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Something went wrong while looking ahead: " + str(exc)[:160])
+            raise
+        finally:
+            self.clf.status["checking"] = None
+        with conn:
+            ids = store.set_ahead_items(conn, row["id"], result["items"])
+            result["saved"] = [{"id": i, "kind": item["kind"], "text": item["text"]}
+                               for i, item in zip(ids, result["items"])]
+            trace.save(conn, row["id"], ["ahead"], result, engine)
+        self.clf.status["checks"] += 1
+        # 사용 기록의 표에는 앞길 살피기의 칸이 없어요(까닭 · 새 도구). 있는 칸만 적어요. 칸을 더하려면 사람에게 먼저 물어요
+        used = collections.Counter(s["tool"] for s in result["steps"] if s["tool"] in tools.NAMES)
+        usage.record(conn, "check", steps=len(result["steps"]), calls=result["calls"], made=len(ids),
+                     dropped=len(result["dropped"]), ended=result["ended"], seconds=time.time() - began, **used)
+        for item in result["items"]:
+            usage.record(conn, "item", kind=item["kind"], did="made", at="auto")
+        self.note_ahead(chat_id, "done" if ids else "none", turn=row["id"], why=why, paths=len(ids), dropped=len(result["dropped"]),
+                        goal=result.get("goal"), seconds=round(time.time() - began))
+        return result

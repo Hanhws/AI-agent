@@ -1,0 +1,66 @@
+{
+  "ko": {
+    "version": "0.1.0",
+    "tag": "v0.1.0",
+    "date": "2026-10-12",
+    "files": {
+      "mac-arm64": {
+        "asset": "Gadak-0.1.0-mac-arm64.dmg",
+        "bytes": 25727957,
+        "sha256": "d9f28037b179e1b91f2d643191dbf8c47a3786da6375ac1babe6ec01eff5e579"
+      },
+      "mac-x86_64": {
+        "asset": "Gadak-0.1.0-mac-x86_64.dmg",
+        "bytes": 25587919,
+        "sha256": "fc7560b07023b903d3c02d5cb049a5e10c88f4bdbb283c4718e067eed318471c"
+      },
+      "win-setup": {
+        "asset": "Gadak-0.1.0-windows-x64-setup.exe",
+        "bytes": 15001599,
+        "sha256": "13082f0a618a5084bd31b9c181288843d80315aec0608bc95473a9413e2602f9"
+      },
+      "win-zip": {
+        "asset": "Gadak-0.1.0-windows-x64.zip",
+        "bytes": 19476777,
+        "sha256": "364baeb666b1c52398b6a8254d93891e27f2574ac9ef5bdaaa1ebdb38db8cb2c"
+      },
+      "extension": {
+        "asset": "Gadak-0.1.0-chrome-extension.zip",
+        "bytes": 28407,
+        "sha256": "9aab3042d0bf1296cdb547a38412b5fe8119ea6e3032eea8ffd27592904d87ee"
+      }
+    }
+  },
+  "en": {
+    "version": "0.1.0",
+    "tag": "v0.1.0-en",
+    "date": "2026-10-13",
+    "files": {
+      "mac-arm64": {
+        "asset": "Gadak-0.1.0-arm64.dmg",
+        "bytes": 25740417,
+        "sha256": "b7bdc6ef0c8fb37f10a90c9f35a0b73c6e15d8fef3f3445738f652cd28a2df1f"
+      },
+      "mac-x86_64": {
+        "asset": "Gadak-0.1.0-x86_64.dmg",
+        "bytes": 26335281,
+        "sha256": "6172b3ea349e51d91d5fc3baed48f2e11510ed2f8fc679ecd9d00448b6b44fa9"
+      },
+      "win-setup": {
+        "asset": "Gadak-0.1.0-windows-x64-setup.exe",
+        "bytes": 15119088,
+        "sha256": "b6099736bb4cb38437c4a20919690833506cf489d76fd69bdc4c685dab2eebe8"
+      },
+      "win-zip": {
+        "asset": "Gadak-0.1.0-windows-x64.zip",
+        "bytes": 19603185,
+        "sha256": "2f8563c7b09c07950c3458e98b51daab0dd3c2bba64f123911c167f7fc615c44"
+      },
+      "extension": {
+        "asset": "Gadak-0.1.0-chrome-extension.zip",
+        "bytes": 28296,
+        "sha256": "fd0baa8d0d6fe13508da31ee958290bdfeeeb149016bbc5f0a92d0e8298cbc60"
+      }
+    }
+  }
+}

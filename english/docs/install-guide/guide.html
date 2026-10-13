@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Installing Gadak</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+/* 가닥 설치 안내 (받아서 쓰는 사람이 보는 설명서). 이 파일을 크롬으로 PDF로 찍은 것이 docs/gadak-install-guide.pdf예요.
+   만드는 법: docs/install-guide/README.md. 그림(img/)은 지어낸 예시 대화로 띄운 가닥에서 찍었어요.
+   모양은 가닥 창의 표기 그대로(shared/ui/tokens.css): 글꼴 Helvetica Neue + Pretendard, 흰 종이와 중립 회색, 모서리는 작게,
+   빨강은 ‘지금 · 꼭 볼 것’에만. 10/12에 Windows · Intel Mac · 새 노선 문법 · 전체 지도에 맞춰 다시 썼어요. */
+@page { size: A4; margin: 14mm 16mm 14mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; color: #111; font-family: "Helvetica Neue", Helvetica, Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 10.4pt; line-height: 1.6; letter-spacing: -0.05em; word-break: keep-all; }
+h1 { margin: 0; font-size: 30pt; letter-spacing: -0.08em; line-height: 1.2; }
+h2 { margin: 0 0 3mm; font-size: 17pt; display: flex; align-items: center; gap: 3mm; }
+h2 .n { flex: none; width: 9mm; height: 9mm; border-radius: 50%; background: #111; color: #fff; font-size: 12pt; display: flex; align-items: center; justify-content: center; letter-spacing: 0; }
+h2 .os { margin-left: auto; padding: 0.6mm 2.6mm; border: 0.3mm solid #111; border-radius: 1mm; font-size: 8.6pt; font-weight: 600; letter-spacing: -0.03em; }
+h3 { margin: 4.4mm 0 1.4mm; font-size: 11.4pt; }
+p { margin: 0 0 2.2mm; color: #3a3a3a; }
+b { color: #111; }
+section { break-before: page; }
+section.first { break-before: auto; }
+.lead { font-size: 11.2pt; color: #111; }
+.small, figcaption, .note, table, .legend { letter-spacing: -0.03em; }
+.kbd { display: inline-block; padding: 0 1.5mm; border: 0.3mm solid #b5b5b5; border-radius: 1mm; font-weight: 600; font-size: 9.3pt; color: #111; white-space: nowrap; line-height: 1.5; letter-spacing: -0.03em; }
+.note { margin: 3mm 0; padding: 2.4mm 3.4mm; border: 0.3mm solid #e5e5e5; border-radius: 1mm; background: #f5f5f5; font-size: 9.6pt; color: #3a3a3a; }
+.note.hot { border-color: #c8401a; background: #fff; }
+.note.hot b:first-child { color: #c8401a; }
+.win { color: #5f5f5f; }
+.win b:first-child, .tag { display: inline-block; margin-right: 1mm; padding: 0 1.4mm; border: 0.3mm solid #111; border-radius: 0.8mm; font-size: 8.2pt; font-weight: 700; color: #111; line-height: 1.5; vertical-align: 0.2mm; }
+ol.steps { margin: 2mm 0; padding: 0; list-style: none; counter-reset: s; }
+ol.steps > li { counter-increment: s; position: relative; padding: 0 0 2.8mm 9mm; color: #3a3a3a; }
+ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 0.2mm; width: 5.6mm; height: 5.6mm; border-radius: 50%; background: #111; color: #fff; font-size: 8.8pt; font-weight: 700; letter-spacing: 0; display: flex; align-items: center; justify-content: center; }
+ol.steps > li::after { content: ""; position: absolute; left: 2.2mm; top: 6.2mm; bottom: 0.2mm; width: 1.2mm; background: #0039a6; }
+ol.steps > li:last-child::after { display: none; }
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; font-size: 9.6pt; }
+th, td { text-align: left; vertical-align: top; padding: 1.8mm 2.2mm; border-bottom: 0.3mm solid #e5e5e5; }
+th { font-weight: 700; color: #111; white-space: nowrap; }
+thead th { border-bottom: 0.5mm solid #111; font-size: 9pt; color: #3a3a3a; }
+td { color: #3a3a3a; }
+figure { margin: 3mm 0; break-inside: avoid; }
+figure img { display: block; max-width: 100%; border: 0.3mm solid #e5e5e5; border-radius: 1mm; }
+figcaption { margin-top: 1.3mm; font-size: 8.6pt; color: #767676; }
+.cols { display: flex; gap: 6mm; align-items: flex-start; }
+.cols > * { flex: 1; min-width: 0; }
+.cols > .narrow { flex: none; }
+
+/* 표지 */
+.cover { height: 268mm; display: flex; flex-direction: column; }
+.cover > * { flex: none; }
+.band { padding: 9mm 12mm 10mm; border-radius: 1mm; background: #111; color: #fff; }
+.band .mark { display: flex; align-items: center; gap: 3mm; font-size: 15pt; font-weight: 800; margin-bottom: 9mm; letter-spacing: -0.05em; }
+.band p { color: #d4d4d4; font-size: 12.6pt; margin: 3.4mm 0 0; }
+.route { position: relative; margin: 7mm 4mm 4mm; height: 24mm; }
+.route::before { content: ""; position: absolute; left: 3mm; right: 3mm; top: 3.4mm; height: 3.4mm; background: #0039a6; }
+.route div { position: absolute; top: 0; width: 40mm; margin-left: -20mm; text-align: center; font-size: 10pt; font-weight: 700; }
+.route div i { display: block; width: 3.4mm; height: 3.4mm; margin: 3.4mm auto 3.6mm; border-radius: 50%; background: #111; }
+.route div.now i { width: 6.4mm; height: 6.4mm; margin: 1.9mm auto 2.1mm; background: #c8401a; box-shadow: 0 0 0 1.8mm #f6ddd4; }
+.route div span { display: block; font-weight: 400; font-size: 8.6pt; color: #767676; letter-spacing: -0.03em; }
+.files td:first-child { width: 66mm; }
+.files td:last-child { width: 12mm; color: #767676; white-space: nowrap; }
+.cover .foot { margin-top: auto; padding-top: 4mm; font-size: 8.6pt; color: #767676; letter-spacing: -0.03em; }
+.toc { margin: 1mm 0 0; padding: 0; list-style: none; columns: 2; column-gap: 8mm; font-size: 9.8pt; letter-spacing: -0.03em; }
+.toc li { display: flex; gap: 2mm; padding: 1.3mm 0; border-bottom: 0.3mm solid #e5e5e5; break-inside: avoid; }
+.toc li b { flex: none; width: 5mm; }
+.toc li span { flex: 1; color: #3a3a3a; }
+.toc li em { font-style: normal; color: #767676; }
+
+/* macOS · Windows 창을 본떠 그린 그림 (실제 화면을 찍은 것이 아니에요) */
+.mac { border: 0.4mm solid #b5b5b5; border-radius: 2.4mm; background: #fff; overflow: hidden; break-inside: avoid; letter-spacing: -0.03em; }
+.mac .bar { height: 7mm; background: #ededed; display: flex; align-items: center; gap: 1.4mm; padding: 0 2.6mm; font-size: 8.4pt; color: #5f5f5f; }
+.mac .bar i { width: 2.6mm; height: 2.6mm; border-radius: 50%; background: #c8c8c8; }
+.mac .bar span { margin-left: 2mm; }
+.dmg { display: flex; align-items: center; justify-content: center; gap: 9mm; padding: 7mm 4mm 5mm; }
+.icon { width: 30mm; text-align: center; font-size: 8.6pt; color: #111; }
+.icon .app, .alert .ico { margin: 0 auto 1.6mm; border-radius: 22%; background: #faf9f6; border: 0.3mm solid #e5e5e5; display: flex; align-items: center; justify-content: center; }
+.icon .app { width: 17mm; height: 17mm; }
+.icon .folder { width: 17mm; height: 13mm; margin: 2mm auto 3.6mm; border-radius: 1.2mm; background: #7fb3e8; position: relative; }
+.icon .folder::before { content: ""; position: absolute; left: 0; top: -2mm; width: 7mm; height: 3mm; border-radius: 1.2mm 1.2mm 0 0; background: #7fb3e8; }
+.arrow { font-size: 16pt; color: #111; margin-top: -5mm; }
+.alert { width: 62mm; margin: 0 auto; padding: 5mm 5mm 4mm; text-align: center; }
+.alert .ico { width: 12mm; height: 12mm; margin-bottom: 2.4mm; }
+.alert b { display: block; font-size: 9.4pt; margin-bottom: 1.4mm; }
+.alert p { font-size: 8pt; line-height: 1.45; margin: 0 0 3mm; }
+.alert .b { display: block; margin: 1.4mm 0 0; padding: 1.6mm; border-radius: 1.6mm; background: #e6e6e6; font-size: 8.6pt; font-weight: 600; }
+.go { outline: 0.6mm solid #c8401a; outline-offset: 0.5mm; }
+.settings { padding: 4mm 5mm 5mm; font-size: 8.6pt; }
+.settings .path { color: #767676; margin-bottom: 2.4mm; }
+.settings .row { display: flex; align-items: center; gap: 3mm; padding: 2.4mm 3mm; border: 0.3mm solid #e5e5e5; border-radius: 2mm; }
+.settings .row span { flex: 1; }
+.settings .row em { flex: none; font-style: normal; font-weight: 700; padding: 1mm 3mm; border-radius: 1.6mm; background: #e6e6e6; }
+.pc { flex: 1; display: flex; flex-direction: column; border: 0.4mm solid #b5b5b5; background: #fff; break-inside: avoid; letter-spacing: -0.03em; font-size: 8.4pt; }
+.pc .bar { height: 6.4mm; display: flex; align-items: center; padding: 0 2.4mm; font-size: 8.2pt; color: #3a3a3a; border-bottom: 0.3mm solid #e5e5e5; }
+.pc .bar span { margin-left: auto; letter-spacing: 0.3mm; color: #767676; }
+.story { display: flex; gap: 4mm; align-items: stretch; margin: 2mm 0 1mm; }
+.story > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.story .cap { margin-bottom: 1.4mm; font-size: 8.8pt; font-weight: 700; color: #111; letter-spacing: -0.03em; display: flex; align-items: center; gap: 1.4mm; }
+.story .cap i { flex: none; width: 4.6mm; height: 4.6mm; border-radius: 50%; background: #111; color: #fff; font-style: normal; font-size: 7.8pt; letter-spacing: 0; display: flex; align-items: center; justify-content: center; }
+.smart { flex: 1; background: #0c5fb8; color: #fff; padding: 4mm 4.4mm 3.6mm; break-inside: avoid; letter-spacing: -0.03em; display: flex; flex-direction: column; }
+.smart b { display: block; color: #fff; font-size: 10.6pt; font-weight: 400; margin-bottom: 2mm; white-space: nowrap; }
+.smart p { color: #fff; font-size: 7.6pt; line-height: 1.5; margin: 0 0 1.8mm; }
+.smart u { align-self: flex-start; font-size: 7.6pt; padding: 0 0.6mm; }
+.smart .btns { display: flex; justify-content: flex-end; gap: 2mm; margin-top: auto; padding-top: 3mm; }
+.smart .btns span { padding: 0.9mm 3.2mm; border: 0.4mm solid #fff; font-size: 7.6pt; white-space: nowrap; }
+.smart .go { outline-color: #ffb199; }
+.setup { display: flex; flex: 1; }
+.setup .side { flex: none; width: 12mm; background: #f2f2f2; display: flex; align-items: flex-start; justify-content: center; padding-top: 4mm; }
+.setup .body { flex: 1; padding: 3.4mm 4mm 2mm; }
+.setup .body b { display: block; font-size: 9.6pt; margin-bottom: 1.6mm; }
+.setup .body p { font-size: 7.8pt; line-height: 1.5; margin: 0 0 1.4mm; }
+.setup .check { display: flex; align-items: center; gap: 1.6mm; font-size: 8.2pt; margin-top: 1.2mm; color: #111; }
+.setup .check i { flex: none; width: 2.8mm; height: 2.8mm; border: 0.3mm solid #5f5f5f; font-style: normal; font-size: 6.6pt; line-height: 2.4mm; text-align: center; }
+.pc .btns { display: flex; justify-content: flex-end; gap: 2mm; padding: 2mm 3mm 2.6mm; border-top: 0.3mm solid #e5e5e5; }
+.pc .btns span { padding: 0.8mm 2.6mm; white-space: nowrap; border: 0.3mm solid #8f8f8f; border-radius: 0.8mm; font-size: 8pt; background: #f5f5f5; }
+.drawn { margin-top: 1.4mm; font-size: 8.4pt; color: #767676; letter-spacing: -0.03em; }
+
+/* 화면 그림 위의 번호 */
+.shot { position: relative; }
+.shot img { display: block; width: 100%; border: 0.3mm solid #e5e5e5; border-radius: 1mm; }
+.pin { position: absolute; width: 6.2mm; height: 6.2mm; margin: -3.1mm 0 0 -3.1mm; border-radius: 50%; background: #c8401a; border: 0.6mm solid #fff; color: #fff; font-size: 8.6pt; font-weight: 700; letter-spacing: 0; display: flex; align-items: center; justify-content: center; }
+.legend { columns: 2; column-gap: 6mm; margin: 2mm 0 0; padding: 0; list-style: none; font-size: 9.4pt; color: #3a3a3a; }
+.legend li { break-inside: avoid; margin-bottom: 1.5mm; padding-left: 6.6mm; position: relative; }
+.legend li i { position: absolute; left: 0; top: 0.5mm; width: 4.6mm; height: 4.6mm; border-radius: 50%; background: #c8401a; color: #fff; font-style: normal; font-size: 7.8pt; font-weight: 700; letter-spacing: 0; display: flex; align-items: center; justify-content: center; }
+/* 노선도의 표시 */
+.signs td:first-child { width: 29mm; padding-top: 0.7mm; padding-bottom: 0.2mm; }
+.signs td:first-child svg { display: block; width: 25mm; height: 6.7mm; }
+.signs th { width: 21mm; }
+.signs th, .signs td { vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<!-- ───────── 표지 ───────── -->
+<section class="first cover">
+  <div class="band">
+    <div class="mark">
+      <svg width="46" height="23" viewBox="0 0 120 60" aria-hidden="true"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#fff" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#111"/><circle cx="56" cy="22" r="4" fill="#111"/><circle cx="98" cy="44" r="6" fill="#111" stroke="#fff" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#F0704A"/></svg>
+      가닥 GADAK
+    </div>
+    <h1>Installing Gadak</h1>
+    <p>From install to first launch on a Mac or Windows. No terminal needed.</p>
+  </div>
+
+  <p class="lead" style="margin-top:6mm">Gadak turns long conversations with AIs such as Claude and ChatGPT into a <b>transit map</b> and tells you first about what slipped past. You keep chatting where you always do; Gadak only organises the flow alongside.</p>
+
+  <div class="route">
+    <div style="left:6%"><i></i>Install<span>One file · 1 min</span></div>
+    <div style="left:35.3%"><i></i>First launch<span>Allow once · 1 min</span></div>
+    <div style="left:64.6%"><i></i>Connect AI<span>One button · 2 min</span></div>
+    <div class="now" style="left:94%"><i></i>Use it<span>Leave it on</span></div>
+  </div>
+
+  <h3>The file for your computer</h3>
+  <table class="files">
+    <thead><tr><th>Your computer</th><th>File you got</th><th>See</th></tr></thead>
+    <tr><td><b>Mac · Apple silicon</b> (M1 or later · macOS 12 or later)</td><td><b>Gadak-0.1.0-arm64.dmg</b></td><td>p. 2</td></tr>
+    <tr><td><b>Mac · Intel</b> (macOS 13 or later)</td><td><b>Gadak-0.1.0-x86_64.dmg</b></td><td>p. 2</td></tr>
+    <tr><td><b>Windows 10 · 11</b> (64-bit)</td><td><b>Gadak-0.1.0-windows-x64-setup.exe</b><br>To use it without installing: Gadak-0.1.0-windows-x64.zip</td><td>p. 3</td></tr>
+  </table>
+  <p class="small" style="font-size:9.2pt;color:#5f5f5f">Which Mac? Apple menu → <b>About This Mac</b>: ‘Chip Apple M…’ is Apple silicon, ‘Processor … Intel …’ is Intel.</p>
+  <div class="note" style="margin-top:2mm"><b>You need just one AI for sorting.</b> A Claude subscription (Pro · Max), a ChatGPT subscription (Plus · Pro) or an LLM API key (Anthropic · OpenAI · Gemini). Gadak starts without one, but then it only reads and shows your chats, and station names are just the start of each question.</div>
+
+  <h3>Contents</h3>
+  <ol class="toc">
+    <li><b>1</b><span>Installing on a Mac · first launch</span><em>p. 2</em></li>
+    <li><b>2</b><span>Installing on Windows · first launch</span><em>p. 3</em></li>
+    <li><b>3</b><span>Connect AI — one button</span><em>p. 4</em></li>
+    <li><b>4</b><span>Reading chats</span><em>p. 5</em></li>
+    <li><b>5</b><span>The Gadak window</span><em>p. 6</em></li>
+    <li><b>6</b><span>Reading the map · system map</span><em>p. 7</em></li>
+    <li><b>7</b><span>Floating button (Mac)</span><em>p. 8</em></li>
+    <li><b>8</b><span>Settings · when you’re stuck · removing it</span><em>p. 9</em></li>
+  </ol>
+  <div class="foot"><b>Help</b> in the Gadak window covers reading the screen and a glossary. · Gadak 0.1.0 · October 2026</div>
+</section>
+
+<!-- ───────── 1 · Mac ───────── -->
+<section>
+  <h2><span class="n">1</span>Installing on a Mac<span class="os">Mac</span></h2>
+  <div class="cols">
+    <ol class="steps">
+      <li><b>Double-click the dmg file you got.</b> A window opens. Apple silicon Macs use the arm64 file; Intel Macs use x86_64.</li>
+      <li><b>Drag Gadak onto the Applications folder on the right.</b></li>
+      <li><b>Close the window.</b> That’s the whole install.</li>
+    </ol>
+    <div class="mac" style="max-width:86mm">
+      <div class="bar"><i></i><i></i><i></i><span>Gadak</span></div>
+      <div class="dmg">
+        <div class="icon"><div class="app"><svg width="46" height="23" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#faf9f6"/><circle cx="56" cy="22" r="4" fill="#faf9f6"/><circle cx="98" cy="44" r="6" fill="#faf9f6" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>Gadak</div>
+        <div class="arrow">→</div>
+        <div class="icon"><div class="folder"></div>Applications</div>
+      </div>
+    </div>
+  </div>
+  <div class="note"><b>Always move it to Applications before you open it.</b> Opened straight from the dmg window, some features such as the Cursor connection don’t work. ‘How to open Gadak.txt’ and this guide in the window are for reading and don’t need moving.</div>
+
+  <h3 style="margin-top:8mm;font-size:13.4pt">First launch — the Mac blocks it once</h3>
+  <p>Gadak was made as a class project and has no paid Apple developer signature. So you need to allow it yourself <b>once</b>.</p>
+  <div class="cols">
+    <ol class="steps">
+      <li><b>Open Gadak from Applications (or Launchpad).</b></li>
+      <li>A window says it can’t be opened. Press <span class="kbd">Done</span>. <br><span style="color:#767676">Don’t press ‘Move to Trash’.</span></li>
+      <li>Open <b>System Settings → Privacy &amp; Security</b> and scroll down.</li>
+      <li>Next to ‘“Gadak” was blocked …’, press <span class="kbd">Open Anyway</span>.</li>
+      <li>In the window that asks again, press <span class="kbd">Open Anyway</span> and confirm with your Mac password or Touch ID.</li>
+    </ol>
+    <div>
+      <div class="mac">
+        <div class="alert">
+          <div class="ico"><svg width="32" height="16" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="98" cy="44" r="6" fill="#faf9f6" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>
+          <b>“Gadak” Not Opened</b>
+          <p>Apple could not verify “Gadak” is free of malware that may harm your Mac or compromise your privacy.</p>
+          <span class="b">Move to Trash</span><span class="b go">Done</span>
+        </div>
+      </div>
+      <div class="mac" style="margin-top:4mm">
+        <div class="bar"><i></i><i></i><i></i><span>System Settings</span></div>
+        <div class="settings">
+          <div class="path">Privacy &amp; Security › Security</div>
+          <div class="row"><span>“Gadak” was blocked to protect your Mac.</span><em class="go">Open Anyway</em></div>
+        </div>
+      </div>
+      <div class="drawn">A drawing, not a screenshot. Wording varies a little by macOS version.</div>
+    </div>
+  </div>
+  <div class="note">After it opens once, it opens normally from then on. On macOS 14 or earlier you can also <b>right-click Gadak → Open → Open</b>. Once it’s running, the top of the window is a black bar; drag an empty part of the bar to move the window.</div>
+</section>
+
+<!-- ───────── 2 · Windows ───────── -->
+<section>
+  <h2><span class="n">2</span>Installing on Windows<span class="os">Windows</span></h2>
+  <p class="lead">Windows 10 or 11 is all you need. Everything Gadak needs is in one installer, so there’s nothing else to install.</p>
+  <ol class="steps">
+    <li><b>Double-click ‘Gadak-0.1.0-windows-x64-setup.exe’.</b></li>
+    <li><b>If a blue “Windows protected your PC” window appears,</b> press <span class="kbd">More info</span>, then <span class="kbd">Run anyway</span>. <span style="color:#767676">Gadak was made as a class project and has no paid signature, so this check is needed once.</span></li>
+    <li><b>Press <span class="kbd">Install</span> in the installer.</b> It installs for your account only, so it won’t ask for an administrator password.</li>
+    <li><b>With ‘Start Gadak’ ticked, press <span class="kbd">Finish</span>.</b> The Gadak window opens. From then on, start Gadak from the <b>Start menu</b> or the <b>desktop</b>.</li>
+  </ol>
+  <div class="story">
+    <div>
+      <div class="cap"><i>2</i>In the blue window, ‘More info’</div>
+      <div class="smart">
+        <b>Windows protected your PC</b>
+        <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</p>
+        <u class="go">More info</u>
+        <div class="btns"><span>Don’t run</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="cap"><i>2</i>Then ‘Run anyway’</div>
+      <div class="smart">
+        <b>Windows protected your PC</b>
+        <p>App: Gadak-0.1.0-windows-x64-setup.exe<br>Publisher: Unknown publisher</p>
+        <div class="btns"><span class="go">Run anyway</span><span>Don’t run</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="cap"><i>4</i>When it’s done, ‘Finish’</div>
+      <div class="pc">
+        <div class="bar">Gadak Setup<span>— ☐ ✕</span></div>
+        <div class="setup">
+          <div class="side"><svg width="30" height="15" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#f2f2f2"/><circle cx="56" cy="22" r="4" fill="#f2f2f2"/><circle cx="98" cy="44" r="6" fill="#f2f2f2" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>
+          <div class="body">
+            <b>Completing Gadak Setup</b>
+            <p>Gadak has been installed on your computer.</p>
+            <div class="check"><i>✓</i>Start Gadak</div>
+            <div class="check"><i></i>Show how to open Gadak</div>
+          </div>
+        </div>
+        <div class="btns"><span>&lt; Back</span><span class="go">Finish</span><span>Cancel</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="drawn">A drawing, not a screenshot. It looks a little different depending on your version of Windows.</div>
+
+  <h3>How Windows is different</h3>
+  <table>
+    <tr><th>Gadak window</th><td>Opens on its own as an Edge (or, failing that, Chrome) <b>window without an address bar</b>. <b>Closing the window turns Gadak off.</b> To start it again, use Gadak in the Start menu.</td></tr>
+    <tr><th>Connect AI</th><td>Gadak can’t download Claude Code or Codex for you. If one is already installed and signed in on this PC, just pick it; if not, add an <b>LLM API key</b> (section 3). The key is kept only in <b>Windows Credential Manager</b> on this PC.</td></tr>
+    <tr><th>Not there yet</th><td>The floating button (section 7) · Cursor connection · Gadak sending by itself · the Claude usage gauge. Everything else is the same as on a Mac.</td></tr>
+    <tr><th>Use without installing</th><td>Unzip ‘Gadak-0.1.0-windows-x64.zip’ and run <b>Start Gadak.cmd</b> inside it.</td></tr>
+    <tr><th>Removing it</th><td>Settings → Apps → Installed apps → Gadak → <b>Uninstall</b>. To delete the chats it read as well, delete the <b>C:\Users\your name\.gadak</b> folder too.</td></tr>
+  </table>
+  <div class="note hot"><b>The Windows version first came out in 0.1.0.</b> It hasn’t been tried on many PCs yet. If it doesn’t start or behaves oddly, please send <b>C:\Users\your name\.gadak\gadak.log</b> to the makers.</div>
+</section>
+
+<!-- ───────── 3 · AI 연결 ───────── -->
+<section>
+  <h2><span class="n">3</span>Connect AI — one button</h2>
+  <p class="lead">Connect the AI Gadak uses to sort your chats. The <b>Connect AI</b> window opens by itself when Gadak starts. Set up <b>just one</b> of the three you have.</p>
+  <div class="cols">
+    <figure class="narrow" style="width:60mm;margin-top:0"><img src="img/ai-first.png" alt="Connect AI window"><figcaption>On first launch. If you closed it, open it again with the <b>Connect AI</b> button at the bottom left.</figcaption></figure>
+    <div>
+      <table style="margin-top:0">
+        <thead><tr><th>What you have</th><th>What to do</th></tr></thead>
+        <tr><th>Claude subscription<br><span style="font-weight:400">Pro · Max</span></th><td>Press <span class="kbd">Connect</span> in the ‘Claude subscription’ row.</td></tr>
+        <tr><th>ChatGPT subscription<br><span style="font-weight:400">Plus · Pro</span></th><td>Press <span class="kbd">Connect</span> in the ‘ChatGPT subscription’ row.</td></tr>
+        <tr><th>LLM API key<br><span style="font-weight:400">Anthropic · OpenAI · Gemini</span></th><td>Paste your key in the ‘LLM API key’ box and press <span class="kbd">Save</span>. Gadak works out which company the key is from.</td></tr>
+      </table>
+      <h3>When you press ‘Connect’ <span class="tag">Mac</span></h3>
+      <ol class="steps">
+        <li><b>Gadak downloads the program it needs.</b> ‘Claude Code’ for Claude, ‘Codex’ for ChatGPT. These are each company’s official releases, about 200 MB, so it takes about a minute. Skipped if already there.</li>
+        <li><b>Your browser opens.</b> Sign in with your usual account and press Allow. Meanwhile Gadak shows ‘Finish signing in in your browser’.</li>
+        <li><b>Back in the Gadak window it says ‘Connected’.</b> Gadak now sorts with that AI.</li>
+      </ol>
+      <p class="win small" style="font-size:9.4pt"><b>Windows</b> Gadak can’t download the program for you. Install Claude Code or Codex yourself and sign in, and Gadak finds it; otherwise connect with an LLM API key.</p>
+    </div>
+  </div>
+  <div class="cols" style="margin-top:2mm">
+    <figure class="narrow" style="width:54mm;margin-top:0"><img src="img/ai-done.png" alt="Connected"><figcaption>Once connected. The AI in use has a darker border.</figcaption></figure>
+    <div class="note" style="margin-top:0"><b>Good to know</b><br>
+      · With a subscription there is <b>no extra charge</b>, but Gadak shares the usage limit with your own Claude or ChatGPT use. How much is used shows at the bottom right of the Gadak window (section 5).<br>
+      · An API key is <b>billed for what it uses</b>. The key is kept only in this Mac’s Keychain (Credential Manager on Windows), and only its last four characters are shown.<br>
+      · A <b>free Gemini key</b> from Google AI Studio works too. It costs nothing, but the limit is low and what you send may be used by Google to improve its products.<br>
+      · Gadak never sees your password. You sign in to the company directly in your browser.<br>
+      · If you connected several, switch with <span class="kbd">Sort with this</span> in the same window.<br>
+      · To go without, choose <span class="kbd">Use without AI</span>. Gadak then only reads and shows your chats.<br>
+      · If sign-in doesn’t finish within 5 minutes it stops by itself. Just press <span class="kbd">Connect</span> again.</div>
+  </div>
+</section>
+
+<!-- ───────── 4 · 대화 읽어 오기 ───────── -->
+<section>
+  <h2><span class="n">4</span>Reading chats</h2>
+  <p class="lead">Gadak finds and reads the AI chats on this computer. What you need to do depends on where you chat. What it’s reading now is shown under <b>Sources</b> at the bottom left.</p>
+  <div class="cols">
+    <div>
+      <table>
+        <thead><tr><th>Where you use AI</th><th>What to do</th></tr></thead>
+        <tr><th>Claude Code · Codex</th><td><b>Nothing.</b> Turn Gadak on and it reads them by itself, following the chat in progress too.</td></tr>
+        <tr><th>Cursor <span class="tag">Mac</span></th><td>Press <span class="kbd">Sources</span> → <span class="kbd">Connect</span> once. It reads from the next chat on.</td></tr>
+        <tr><th>Claude · ChatGPT on the web<br><span style="font-weight:400">(Chrome)</span></th><td>Add the Gadak extension to Chrome once, following the steps below.</td></tr>
+        <tr><th>Past chats in bulk</th><td>Add the file you got from Settings → Export data in each service with <span class="kbd">Sources</span> → <span class="kbd">Choose file</span>. With an AI connected, Gadak groups them by project.</td></tr>
+      </table>
+      <h3>Adding the Chrome extension (once · 2 min)</h3>
+      <ol class="steps">
+        <li>Under <span class="kbd">Sources</span> at the bottom left of the Gadak window, press <span class="kbd">Copy folder path</span>.</li>
+        <li>Type <b>chrome://extensions</b> in Chrome’s address bar and turn on <b>Developer mode</b> at the top right.</li>
+        <li>Press <b>Load unpacked</b>. In the folder picker press <span class="kbd">⌘ ⇧ G</span>, paste and open. <span class="win"><b>Windows</b>Paste it into the address box of the folder picker.</span></li>
+        <li>Reload any Claude or ChatGPT tabs that were already open.</li>
+      </ol>
+      <div class="note">The extension sends the chats you open in Chrome <b>only to Gadak on this computer</b>. It doesn’t read incognito windows or temporary chats. It isn’t on the Chrome Web Store, which is why Developer mode is needed.</div>
+      <div class="note"><b>Connect auto-run</b> <span class="tag">Mac</span> The button in the Claude Code row under ‘Sources’. It adds Gadak to the Claude Code settings so Gadak can send the two kinds you turned on (undoing unrequested changes · carry-on summary) itself. Reading works the same without it.</div>
+    </div>
+    <figure class="narrow" style="width:58mm;margin-top:0"><img src="img/sources.png" alt="Sources panel"><figcaption><b>Sources</b>. What it’s reading shows as ‘Reading by itself’ or ‘Connected’.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ───────── 5 · 가닥 창 ───────── -->
+<section>
+  <h2><span class="n">5</span>The Gadak window</h2>
+  <div class="shot">
+    <img src="img/window.png" alt="Gadak window">
+    <span class="pin" style="left:8.7%;top:28%">1</span>
+    <span class="pin" style="left:42.4%;top:14.4%">2</span>
+    <span class="pin" style="left:39.4%;top:64.6%">3</span>
+    <span class="pin" style="left:90.2%;top:9.3%">4</span>
+    <span class="pin" style="left:41.8%;top:81.9%">5</span>
+    <span class="pin" style="left:3.4%;top:89.6%">6</span>
+    <span class="pin" style="left:25%;top:3.5%">7</span>
+    <span class="pin" style="left:90.4%;top:3.5%">8</span>
+    <span class="pin" style="left:83.3%;top:72.5%">9</span>
+  </div>
+  <figcaption style="margin-top:1.3mm">A made-up example chat. Gadak doesn’t answer, so there is no message box.</figcaption>
+  <ul class="legend">
+    <li><i>1</i><b>Chat list.</b> Grouped by project. Search in the box above; hover over a chat you don’t need and press × to remove it. Press ‹ to fold the list.</li>
+    <li><i>2</i><b>Strip map.</b> One chat is one line. Each dot is one question (a station); click it to go there. Fold and unfold with <span class="kbd">Esc</span>.</li>
+    <li><i>3</i><b>Chat text.</b> Read only. You keep chatting where you always do.</li>
+    <li><i>4</i><b>Lists.</b> To do · Decided · Files · Ahead. Press a to-do’s button to copy text to send to the AI. Remove a to-do you don’t need with ×.</li>
+    <li><i>5</i><b>Note.</b> The card that pops up when a new to-do appears. Do it now or put it off with ‘Later’.</li>
+    <li><i>6</i><b>Status and buttons.</b> One line on what Gadak is doing now. Below it: Connect AI · Sources · Decision trace · Help · Quit.</li>
+    <li><i>7</i><b>System map.</b> Draws every project and chat on one sheet (section 6).</li>
+    <li><i>8</i><b>Day · Night.</b> Switches between a light and a dark screen. The Mac app also has a <b>Gadak button</b> switch to its left that shows or hides the floating button.</li>
+    <li><i>9</i><b>Usage limit.</b> With a subscription, shows how much of the 5-hour and weekly limits is used. Only shown when it can be read.</li>
+  </ul>
+  <h3>The four lists</h3>
+  <table>
+    <tr><th>To do</th><td><b>Missed work</b> Gadak found (missed request · unrequested change · unfinished side trip) and <b>suggestions</b> (carry on · repeated question · topic change · next step).</td></tr>
+    <tr><th>Decided</th><td>Everything decided so far, newest first. Click one to go to where it was decided.</td></tr>
+    <tr><th>Files</th><td>Files that came out of the chat. A file changed several times is grouped into versions (v1 · v2).</td></tr>
+    <tr><th>Ahead</th><td>Press <span class="kbd">Look ahead</span> and Gadak finds up to three ways this chat could go. It takes 30 seconds to 2 minutes and uses a little of your AI usage limit.</td></tr>
+  </table>
+</section>
+
+<!-- ───────── 6 · 노선도 · 전체 지도 ───────── -->
+<section>
+  <h2><span class="n">6</span>Reading the map · system map</h2>
+  <p class="lead">One chat is one line. The left is the start, the right is now. Station names are Gadak’s short version of each question.</p>
+  <table class="signs" style="margin-top:0">
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>Main line</th><td>A thick line in the project’s colour. The same colour on the system map.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/><circle cx="52" cy="14" r="3.2" fill="#111"/></svg></td><th>Station</th><td>A small black dot. One question and its answer. Click it to go there.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/><circle cx="52" cy="14" r="9" fill="#e6e6e6"/><circle cx="52" cy="14" r="6" fill="#111"/></svg></td><th>Decided</th><td>A large black dot with a bold station name. Something was decided there.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H52" stroke="#0039A6" stroke-width="9"/><circle cx="56" cy="14" r="11" fill="#f6ddd4"/><circle cx="56" cy="14" r="6.4" fill="#C8401A"/></svg></td><th>Now</th><td>A red dot with a glow. Where the chat is now.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M34 8L50 23H84" fill="none" stroke="#A7A9AC" stroke-width="5"/><path d="M4 8H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>Side trip</th><td>A grey line dropping below. A question that wandered off for a while.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 7H100" stroke="#0039A6" stroke-width="9"/><circle cx="34" cy="21" r="4.2" fill="#fff" stroke="#C8401A" stroke-width="2"/><circle cx="66" cy="21" r="4.2" fill="#fff" stroke="#B5B5B5" stroke-width="2"/></svg></td><th>To do</th><td>A red ring below a station is still to do; a grey ring is done. Hover to see it.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 7H100" stroke="#0039A6" stroke-width="9"/><circle cx="30" cy="21" r="2.4" fill="#111"/><text x="37" y="24.6" font-size="9.5" font-family="Helvetica Neue, Helvetica, sans-serif" fill="#3a3a3a">main.py</text></svg></td><th>File</th><td>A small dot with a file name. A file was made or changed there.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><text x="6" y="9.5" font-size="9.5" font-weight="700" font-family="Helvetica Neue, Pretendard, sans-serif" fill="#111">Today · Build</text><path d="M4 20H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>Section</th><td>The label above the line: a stage of the conversation. Past sections fold into ticks; click the label to unfold.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H34" stroke="#0039A6" stroke-width="9"/><circle cx="34" cy="14" r="6.4" fill="#C8401A"/><path d="M56 14H90M80 6l11 8-11 8" fill="none" stroke="#111" stroke-width="4"/></svg></td><th>Transfer</th><td>The black arrow at the end of the line. Copies a summary of this chat to paste at the start of a new one.</td></tr>
+  </table>
+  <p class="small" style="font-size:9.4pt;color:#5f5f5f">Use <b>This chat · Whole project</b> on the strip map card to see one chat or the project’s chats joined up. The other marks and words are in <span class="kbd">Help</span> in the Gadak window → ‘Reading the map’ · ‘Glossary’.</p>
+
+  <h3 style="margin-top:4mm;font-size:13.4pt">System map — every chat on one sheet</h3>
+  <figure style="margin:1.6mm auto 2.4mm;width:112mm"><img src="img/map.png" alt="System map"><figcaption>Opens with <b>System map</b> in the black bar at the top. A made-up example.</figcaption></figure>
+  <table>
+    <tr><th>How to read it</th><td>Each row is a project; each thick segment is a chat. Dates run from left to right. A vertical black line marks where one chat carried on into another (a transfer).</td></tr>
+    <tr><th>Period</th><td>Choose the last <b>7 · 15 · 30 days</b>. Zoom with − · Fit · + at the bottom right.</td></tr>
+    <tr><th>Strip map</th><td>Click a line to unfold that chat’s map as a single strip.</td></tr>
+    <tr><th>View as poster</th><td>Draws the same map like a transit poster. Close the system map with <span class="kbd">Esc</span>.</td></tr>
+  </table>
+</section>
+
+<!-- ───────── 7 · 떠 있는 버튼 ───────── -->
+<section class="tight">
+  <h2><span class="n">7</span>Floating button — watch while you use other apps<span class="os">Mac</span></h2>
+  <p class="lead">When Gadak is on, the Gadak button rests half over the edge of the screen. It stays visible while you use other apps, so you can see the map without going to the Gadak window. Not on Windows yet.</p>
+  <div class="cols">
+    <figure class="narrow" style="width:15mm"><img src="img/float-peek.png" alt="Resting button"><figcaption>Usually</figcaption></figure>
+    <figure class="narrow" style="width:34mm"><img src="img/float-fan.png" alt="Fanned-out buttons"><figcaption>On hover</figcaption></figure>
+    <div>
+      <table>
+        <tr><th>Gadak (centre)</th><td>Shows or hides the strip map window. Drag it to move it to another edge.</td></tr>
+        <tr><th>Map</th><td>Shows the strip map of the chat you’re in at the top of the screen.</td></tr>
+        <tr><th>To do · Decided · Files</th><td>Opens a separate list window on that tab.</td></tr>
+        <tr><th>Search · Window</th><td>Opens the Gadak window. Search goes straight to the chat search box.</td></tr>
+        <tr><th>Red number</th><td>How many to-dos are open in the current chat.</td></tr>
+      </table>
+      <p>Close floating windows with <span class="kbd">Esc</span>. While the button is showing, closing the Gadak window doesn’t turn Gadak off. To quit, press <span class="kbd">⌘ Q</span>.</p>
+    </div>
+  </div>
+  <div class="note"><b>Hide · show again.</b> Right-click the Gadak button → <span class="kbd">Hide Button</span>. Four ways to show it again: the <b>Gadak button</b> switch at the top right of the Gadak window, <span class="kbd">⇧ ⌘ B</span>, the menu <b>View → Floating Button</b>, or right-click the Gadak icon in the Dock → <b>Show Floating Button</b>.</div>
+
+  <h3>Your own buttons — Edit Buttons</h3>
+  <div class="cols">
+    <div>
+      <p><b>Right-click the Gadak button → Edit Buttons</b> to open a small window. Changes save right away and reach the button within a few seconds.</p>
+      <table>
+        <tr><th>Remove</th><td>Press <span class="kbd">Remove</span> on a button you don’t use.</td></tr>
+        <tr><th>Add</th><td>Press a dotted one below, such as <b>+ Ahead</b> or <b>+ Help</b>. Up to six.</td></tr>
+        <tr><th>Reorder</th><td>Move with <span class="kbd">↑</span> <span class="kbd">↓</span>.</td></tr>
+        <tr><th>Project buttons</th><td>Press <b>+ project name</b> to make a button for that project. It opens <b>that project’s strip map</b> without opening the Gadak window. The name on the button can be up to four characters.</td></tr>
+        <tr><th>Reset to default</th><td>Back to the six (Map · To do · Decided · Files · Search · Window).</td></tr>
+      </table>
+    </div>
+    <figure class="narrow" style="width:50mm"><img src="img/float-edit.png" alt="Edit Buttons window"><figcaption>Project buttons have a border in the project’s line colour.</figcaption></figure>
+    <figure class="narrow" style="width:29mm"><img src="img/float-six.png" alt="Changed buttons"><figcaption>An example after changes</figcaption></figure>
+  </div>
+</section>
+
+<!-- ───────── 8 · 바꿀 수 있는 것 ───────── -->
+<section class="tight">
+  <h2><span class="n">8</span>Settings at a glance</h2>
+  <style>.tight td, .tight th { padding-top: 0.9mm; padding-bottom: 0.9mm; font-size: 8.9pt; }</style>
+  <table>
+    <thead><tr><th>What</th><th>Where</th><th>Default</th></tr></thead>
+    <tr><th>AI for sorting</th><td><span class="kbd">Connect AI</span> at the bottom left</td><td>Gadak picks one of those connected</td></tr>
+    <tr><th>Where chats are read</th><td><span class="kbd">Sources</span> at the bottom left (Cursor connection · Chrome extension · import file)</td><td>Claude Code · Codex read automatically</td></tr>
+    <tr><th>Light · dark screen</th><td>The <b>Day · Night</b> switch on the right of the black bar at the top</td><td>Follows your computer’s appearance</td></tr>
+    <tr><th>System map period</th><td>Last 7 · 15 · 30 days at the top of the system map</td><td>30 days</td></tr>
+    <tr><th>Look ahead automatically</th><td>Below the To do tab on the right. Uses more of your AI usage limit when on</td><td>Off (only when you press Look ahead)</td></tr>
+    <tr><th>Gadak sending by itself <span class="tag">Mac</span></th><td>Below the To do tab on the right. Two kinds: undoing unrequested changes · carry-on summary</td><td>Off</td></tr>
+    <tr><th>Floating button <span class="tag">Mac</span></th><td>Drag to place it, right-click → <span class="kbd">Edit Buttons</span> to arrange, hide with the <b>Gadak button</b> switch</td><td>Left edge · six buttons · shown</td></tr>
+    <tr><th>Removing a chat from the list</th><td>Hover over the chat and press ×. Restore it under ‘removed’ at the bottom of the list</td><td>—</td></tr>
+    <tr><th>Removing a to-do</th><td>The × to the right of the to-do. It also leaves the ring on the map and the count</td><td>—</td></tr>
+  </table>
+
+  <h3>When you’re stuck</h3>
+  <table>
+    <tr><th>It won’t open the first time</th><td>On a <b>Mac</b>, check you did ‘Open Anyway’ from section 1; Gadak must be in Applications. On <b>Windows</b>, ‘More info → Run anyway’ from section 2.</td></tr>
+    <tr><th>Station names are just the start of my questions</th><td>No AI is connected. Connect one under <span class="kbd">Connect AI</span> at the bottom left.</td></tr>
+    <tr><th>‘Connect’ never finishes</th><td>Check that you finished signing in in your browser. It stops by itself after 5 minutes; just press it again.</td></tr>
+    <tr><th>It says in red that it stopped</th><td>You hit the AI usage limit or were signed out. Once the limit resets, press <span class="kbd">Resume sorting</span>.</td></tr>
+    <tr><th>I don’t see any chats</th><td>Check <span class="kbd">Sources</span>. If you have never used an AI on this computer, there is nothing to read.</td></tr>
+    <tr><th>I can’t see the floating button <span class="tag">Mac</span></th><td>It’s hidden. Turn on the <b>Gadak button</b> switch at the top right of the Gadak window. If it still isn’t there, check all four edges of the screen.</td></tr>
+    <tr><th>Clicking Gadak doesn’t open a window <span class="tag">Windows</span></th><td>The reason is written in <b>C:\Users\your name\.gadak\gadak.log</b>. If the installer stops saying “Gadak is running”, close the Gadak window and try again.</td></tr>
+  </table>
+
+  <div class="cols" style="margin-top:3mm">
+    <div class="note" style="margin:0"><b>Where do my chats go?</b><br>Chat text is stored <b>only on this computer</b>. Only while sorting does part of a chat go to the AI you connected (your own account). Chat text never goes to the Gadak team’s server.</div>
+    <div class="note" style="margin:0"><b>Removing Gadak</b><br><b>Mac</b>: move Gadak from Applications to the Trash. To delete the chats it read as well, press <span class="kbd">⌘ ⇧ G</span> in Finder and delete the <b>~/.gadak</b> folder too.<br><b>Windows</b>: uninstall Gadak under Settings → Apps → Installed apps, and delete the <b>C:\Users\your name\.gadak</b> folder too.</div>
+  </div>
+</section>
+
+</body>
+</html>

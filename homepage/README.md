@@ -7,12 +7,12 @@
 | | 한국어 쪽 | 영어 쪽 (`en/`) |
 |---|---|---|
 | 받는 파일 | 릴리스 `v0.1.0` | 릴리스 `v0.1.0-en` |
-| 데모 (`app/` · `en/app/`) | 이 브랜치의 `backend/web` · `shared/ui` | `homepage/english/`의 `backend/web` · `shared/ui` |
-| 화면 그림 | `static/shots/` · `docs/install-guide/img/` | `static/shots/en/` · `homepage/english/docs/install-guide/img/` |
+| 데모 (`app/` · `en/app/`) | 뿌리의 `backend/web` · `shared/ui` | `english/`의 `backend/web` · `shared/ui` |
+| 화면 그림 | `static/shots/` · `docs/install-guide/img/` | `static/shots/en/` · `english/docs/install-guide/img/` |
 | 설치 안내 PDF | `docs/가닥-설치-안내.pdf` | `docs/gadak-install-guide.pdf` |
 | 쓰는 법 (발치의 링크) | `docs/usage-guide.md` | `docs/usage-guide.en.md` |
 
-영어판은 `english` 브랜치에 있어요(같은 자리의 파일을 영어로 바꾼 것이라 이 브랜치에 같이 둘 수 없어요). 그래서 **사이트가 쓰는 영어판 파일만** `homepage/english/`에 같은 경로로 가져와 두고, 사이트는 `main`에서 만들어요. `homepage/english/`의 파일은 여기서 고치지 않아요.
+영어판은 `english` 브랜치에서 고쳐요(같은 자리의 파일을 영어로 바꾼 것). **`main`의 `english/` 폴더는 그 브랜치를 통째로 가져다 둔 사본**이고, 사이트의 영어 쪽은 그 폴더를 읽어요. 사이트는 `main`에서만 만들어요(`english` 브랜치에서는 만들기가 멈춰요). `english/` 안의 `homepage/`는 브랜치에 딸려 온 사본이라 쓰이지 않아요. 사이트의 원본은 이 폴더예요.
 
 ## 만들기와 미리 보기
 
@@ -33,7 +33,7 @@
 | 모양 | `static/site.css` — 색 · 글꼴 · 자간은 가닥 창(`shared/ui/tokens.css`)과 같은 값이에요 |
 | 움직이는 노선도 | `static/routes.js` — 첫 화면의 지도 · ‘채팅과 노선도’ · ‘앞길’ 그림 |
 | 받기 버튼 · 낮 밤 · 왼쪽 세로 노선 | `static/site.js` |
-| 화면 그림 | `static/shots/`(기능 그림 · 영어는 `en/`) · `docs/install-guide/img/`(설치 안내와 같이 쓰는 그림) |
+| 화면 그림 | `static/shots/`(기능 그림 · 영어는 `en/`) · `docs/install-guide/img/`(설치 안내와 같이 쓰는 그림 · 영어는 `english/` 아래의 같은 경로) |
 
 화면 그림과 데모는 만든 예시 대화만 써요. 실제 대화를 찍은 그림은 넣지 않아요.
 
@@ -43,29 +43,25 @@
 
 ## 영어판의 화면이 바뀌면
 
-`english` 브랜치를 받아 둔 폴더가 있어야 해요 (예: `git worktree add ../gadak-english english`).
+`english` 브랜치에서 고쳐 올린 뒤, `main`에서 `english/` 폴더를 다시 가져오면 사이트의 영어 쪽에 반영돼요(가져오는 두 줄은 `docs/handoff-english.md` 6장).
 
-```bash
-./.venv/bin/python -m homepage.build --pull-english ../gadak-english    # 가닥 창 · shared/ui · 예시 · 그림 셋 · 설치 안내 PDF
-```
-
-- 가져오는 것: `backend/web`의 다섯 파일 · `shared/ui` 전부 · `data/demo_conversations.json` · 설치 안내 그림 셋(`window` · `map` · `float-fan`) → `homepage/english/`, 영어 설치 안내 → `docs/gadak-install-guide.pdf`.
+- 영어 설치 안내가 바뀌었으면 뿌리의 `docs/gadak-install-guide.pdf`도 `english/docs/`의 것으로 바꿔요(둘이 같은 파일인지 테스트가 봐요).
 - `static/shots/en/`의 기능 그림 둘(`feature-route` · `feature-todo`)은 영어판 가닥 창을 `?demo`로 열어 찍은 것이에요(밝은 화면 · 1320×860 · 배율 2 · 노선도 카드와 오른쪽 목록). 화면이 바뀌면 다시 찍어요.
-- `english` 브랜치에도 이 폴더가 똑같이 있어요. 거기서는 사이트를 만들지 않고(만들기가 멈춰요), 테스트가 `homepage/english/`가 그 브랜치의 지금 파일과 같은지 봐요. 다르면 그 브랜치에서 `python -m homepage.build --pull-english .`을 돌리고, 같은 바뀜을 `main`에도 올려요.
 
 ## 설치 파일과 받기 버튼
 
 설치 파일은 사이트에 넣지 않고 GitHub Releases에 올려요. 받기 버튼의 주소 · 크기 · 확인 값(SHA-256)은 `downloads.json`에서 와요(판마다 한 칸: `ko` · `en`).
 
 ```bash
-# 한국어판: 이 폴더의 dist/ 에서. 올릴 이름(로마자)으로 복사하고 downloads.json 을 다시 적어요
+# 한국어판: 뿌리의 dist/ 에서. 올릴 이름(로마자)으로 복사하고 downloads.json 을 다시 적어요
 ./.venv/bin/python -m homepage.build --stamp --stage <빈 폴더>
-# 영어판: english 브랜치를 받아 둔 폴더의 dist/ 에서 (거기서 backend.macapp · backend.winapp 으로 만든 뒤)
-./.venv/bin/python -m homepage.build --stamp-english ../gadak-english --stage <빈 폴더>
+# 영어판: english/dist/ 에서 (cd english 뒤 ../.venv/bin/python -m backend.macapp · backend.winapp 으로 만든 뒤)
+./.venv/bin/python -m homepage.build --stamp-english --stage <빈 폴더>
 ```
 
 - 한국어판은 GitHub가 한글 파일 이름을 지워 버려서 `Gadak-0.1.0-mac-arm64.dmg`처럼 로마자로 올려요.
 - 영어판은 만든 이름 그대로 올려요(`Gadak-0.1.0-arm64.dmg` …). 영어 설치 안내와 ‘How to open Gadak.txt’에 적힌 이름과 같아요. Windows용 둘은 한국어판과 이름이 같아서 **릴리스로만 구분돼요**(받기 쪽에 판을 적어 뒀어요).
+- 영어판을 다른 곳에 받아 둔 `english` 브랜치에서 만들었으면 `--stamp-english <그 폴더>`.
 - `--stage` 폴더에는 설치 파일 넷 · 크롬 확장 zip(그 판의 `extension/`) · `SHA256SUMS.txt`가 모여요. 그대로 릴리스에 올려요.
 - 버전을 올릴 때는 `downloads.json`의 그 판 칸에서 `version` · `tag` · `date`를 먼저 고쳐요.
 

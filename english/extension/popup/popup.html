@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gadak</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <!-- 심볼 A: 본선 + 위로 빠지는 지선 + 보통 역 하나 + 빨갛게 채운 ‘지금’ (README 7-12) -->
+    <svg viewBox="20 56 164 92" width="34" height="19" aria-hidden="true">
+      <path d="M36 122H166M100 122L132 80H154" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="100" cy="122" r="13" fill="var(--surface)" stroke="currentColor" stroke-width="10"/>
+      <circle cx="154" cy="122" r="16" fill="var(--accent)"/>
+    </svg>
+    <b>Gadak</b>
+  </header>
+  <p id="app" class="line">Looking for Gadak…</p>
+  <p id="tab" class="line"></p>
+  <label class="toggle"><input type="checkbox" id="reading" checked> <span>Read chats in this browser</span></label>
+  <p class="note">Chats it reads go only to Gadak on this computer.</p>
+  <div class="row">
+    <button id="diag" class="btn" type="button">Copy diagnostics</button>
+    <span id="done" class="note"></span>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

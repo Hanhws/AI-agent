@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>보고서 목차 - Claude</title>
+</head>
+<body>
+<nav><a href="/project/9999">다른 프로젝트</a></nav>
+<header><a href="/project/1234">발표 준비</a><button data-testid="chat-menu-trigger">보고서 목차</button></header>
+<main><div id="thread"></div></main>
+<script src="/harness.js"></script>
+<script>
+/* claude.ai 화면을 흉내 낸 것. 대화는 만든 것이에요 (보고서 목차). */
+(function () {
+  'use strict';
+  var A = 'aaaaaaaa-1111-4111-8111-111111111111', B = 'bbbbbbbb-2222-4222-8222-222222222222';
+  var thread = document.getElementById('thread');
+
+  function user(text) {
+    var w = document.createElement('div');
+    w.innerHTML = '<div class="group relative"><div data-testid="user-message"><p class="whitespace-pre-wrap break-words"></p></div><button>Edit</button></div>';
+    w.querySelector('p').textContent = text; thread.appendChild(w);
+    return w;
+  }
+  /* 답 한 덩어리. 접힌 ‘생각 과정’(높이 0)과 그 안의 겹친 표시가 같이 있어요 */
+  function ai(html, streaming) {
+    var w = document.createElement('div');
+    w.innerHTML = '<div data-is-streaming="' + (streaming ? 'true' : 'false') + '" class="group relative"><div class="font-claude-response">' +
+      '<div class="thinking"><button><span>생각 과정</span></button><div style="height: 0px; opacity: 0;"><div class="font-claude-response"><p>사용자는 목차를 원한다(생각)</p></div></div></div>' +
+      '<div class="grid-cols-1 grid gap-2.5 body"></div></div><div class="actions"><button>Copy</button><button>Retry</button></div></div>';
+    w.querySelector('.body').innerHTML = html; thread.appendChild(w);
+    return w;
+  }
+
+  var Q1 = '목차를 잡아 줘.\n세 장으로', A1 = '<p class="whitespace-normal break-words">세 장으로 나눌게요.</p><ul><li>1장 배경</li><li>2장 방법<ul><li>자료</li></ul></li></ul>';
+  var A1_TEXT = '세 장으로 나눌게요.\n\n- 1장 배경\n- 2장 방법\n  - 자료';
+  user(Q1); ai(A1, false);
+
+  H.load(['/ext/content/text.js', '/ext/content/sites/claude.js', '/ext/content/reader.js']);
+
+  // 1. 새 질문과 답. 답이 다 오면 속성만 바뀌어요 (data-is-streaming true → false)
+  H.at(4000, function () {
+    user('2장을 더 자세히');
+    var w = ai('<p></p>', true), p = w.querySelector('.body p');
+    ['2장을 ', '넷으로 ', '나눴', '어요.'].forEach(function (word, i) { H.at(250 + i * 700, function () { p.appendChild(document.createTextNode(word)); }); });
+    H.at(3300, function () { w.firstChild.setAttribute('data-is-streaming', 'false'); });
+  });
+  // 2. 첫 질문을 고쳐 써요. 뒤의 턴은 사라지고 답이 새로 와요
+  H.at(12000, function () { thread.innerHTML = ''; user('목차를 네 장으로 잡아 줘'); ai('<p>네 장으로 나눌게요.</p>', false); });
+  // 3. 시크릿 채팅은 읽지 않아요
+  H.at(16000, function () { history.pushState({}, '', '/incognito/' + B); user('비밀'); ai('<p>네.</p>', false); });
+
+  H.at(20000, function () {
+    var P = H.posts.map(H.brief);
+    H.eq('보낸 횟수', P.length, 4);
+    H.eq('처음 읽기: 줄바꿈은 그대로, 접힌 생각 과정과 버튼은 빼고', P[0], { chat: A, title: '보고서 목차', project: '발표 준비', sure: false,
+      turns: [[null, Q1, A1_TEXT, false, false]] });
+    H.check('새 질문은 답이 오는 중에 한 번', P[1] && P[1].turns.length === 2 && P[1].turns[1][3] === true && P[1].turns[1][4] === true && P[1].turns[0][2] === null, P[1]);
+    H.eq('속성이 바뀌면 끝으로 봄', P[2] && P[2].turns[1], [null, '2장을 더 자세히', '2장을 넷으로 나눴어요.', true, false]);
+    H.check('표시가 사라지면 바로', H.posts[2] && H.posts[2].at < 8500, H.posts[2] && H.posts[2].at);
+    H.eq('고쳐 쓴 질문은 바뀐 턴으로', P[3] && P[3].turns, [[null, '목차를 네 장으로 잡아 줘', '네 장으로 나눌게요.', true, false]]);
+    H.check('시크릿 채팅은 보내지 않음', !P.some(function (p) { return p.turns.some(function (t) { return t[1] === '비밀'; }); }), null);
+    H.eq('팝업: 대화 화면이 아님', H.ask('state').status, 'nochat');
+    var d = H.ask('diag'), text = JSON.stringify(d);
+    H.check('진단에는 글이 없음', d && d.outline.length > 5 && !/목차|장으로|비밀|생각/.test(text), text.slice(0, 500));
+    var site = GadakRead.site;
+    history.pushState({}, '', '/chat/' + B + '?x=1'); H.eq('대화 주소', site.chatId(), B);
+    history.pushState({}, '', '/new'); H.eq('대화가 아닌 화면', site.chatId(), null);
+    history.pushState({}, '', '/project/1234'); H.eq('프로젝트 화면', site.chatId(), null);
+    document.title = 'Claude'; H.eq('제목이 아직 없음', site.title(), null);
+    H.finish();
+  });
+})();
+</script>
+</body>
+</html>

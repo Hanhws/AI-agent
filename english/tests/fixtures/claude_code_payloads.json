@@ -1,0 +1,29 @@
+[
+  {
+    "session_id": "sess-demo-1", "prompt_id": "prm-1", "transcript_path": "/tmp/sess-demo-1.jsonl",
+    "cwd": "/Users/demo/dev/nba-analysis", "permission_mode": "default",
+    "hook_event_name": "UserPromptSubmit", "prompt": "alpha를 0.5로 낮춰 줘"
+  },
+  {
+    "session_id": "sess-demo-1", "prompt_id": "prm-1", "transcript_path": "/tmp/sess-demo-1.jsonl",
+    "cwd": "/Users/demo/dev/nba-analysis", "permission_mode": "default",
+    "hook_event_name": "PostToolUse", "tool_name": "Bash",
+    "tool_input": { "command": "ls" }, "tool_use_id": "toolu_0"
+  },
+  {
+    "session_id": "sess-demo-1", "prompt_id": "prm-1", "transcript_path": "/tmp/sess-demo-1.jsonl",
+    "cwd": "/Users/demo/dev/nba-analysis", "permission_mode": "default",
+    "hook_event_name": "PostToolUse", "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "/Users/demo/dev/nba-analysis/model.py",
+      "old_string": "alpha=1.0", "new_string": "alpha=0.5"
+    },
+    "tool_use_id": "toolu_1"
+  },
+  {
+    "session_id": "sess-demo-1", "prompt_id": "prm-1", "transcript_path": "/tmp/sess-demo-1.jsonl",
+    "cwd": "/Users/demo/dev/nba-analysis", "permission_mode": "default",
+    "hook_event_name": "Stop", "stop_reason": "end_turn",
+    "last_assistant_message": "alpha를 0.5로 낮췄어요.", "stop_hook_active": false
+  }
+]

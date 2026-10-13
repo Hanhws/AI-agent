@@ -1,0 +1,1532 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가닥 발표</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+
+:root {
+  --ink: #111; --paper: #fff; --muted: #5F5F5F; --line: #E5E5E5; --bubble: #F2F2F2;
+  --accent: #C8401A; --halo: #F6DDD4; --spur: #A7A9AC; --route: #B933AD;
+  --font: "Helvetica Neue", Helvetica, Pretendard, "Apple SD Gothic Neo", sans-serif;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0B0B0B; overflow: hidden; font-family: var(--font); color: var(--ink); }
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center; background: var(--paper); overflow: hidden; }
+.slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .6s var(--ease); }
+.slide.cur { opacity: 1; pointer-events: auto; }
+svg { overflow: visible; }
+
+/* 머리띠: 지하철 표지판의 검은 띠 */
+.band { position: absolute; inset: 0 0 auto 0; height: 72px; background: #111; color: #fff; display: flex; align-items: center; gap: 14px; padding: 0 56px; }
+.band b { font-size: 26px; letter-spacing: -0.08em; }
+.band b i { font-style: normal; margin-left: 6px; }
+.band .part { margin-left: auto; font-size: 18px; letter-spacing: -0.03em; opacity: .8; }
+.band .no { font-size: 18px; margin-left: 24px; font-variant-numeric: tabular-nums; opacity: .6; }
+.band .mark { --mark-fg: #fff; --mark-bg: #111; --halo: #4A2A20; }
+
+/* 제목 두 줄 (교수님 슬라이드 문법): 윗줄 = 부의 주장, 아랫줄 = 장 제목. 그 아래 따옴표 한 줄 */
+.head { position: absolute; left: 120px; top: 112px; right: 120px; }
+.head .claim { font-size: 24px; color: var(--muted); letter-spacing: -0.03em; }
+.head h1 { margin: 6px 0 0; font-size: 64px; letter-spacing: -0.08em; line-height: 1.1; }
+.head .quote { margin-top: 14px; font-size: 28px; letter-spacing: -0.05em; color: #2A2A2A; }
+
+/* 단계로 나타나는 것: data-step이 지금 단계 이하면 .on */
+[data-step] { transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.fade[data-step]:not(.on) { opacity: 0; transform: translateY(18px); }
+.pop[data-step] { transform-box: fill-box; transform-origin: center; }
+.pop[data-step]:not(.on) { opacity: 0; transform: scale(0); }
+.draw { stroke-dasharray: 1 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.1s var(--ease); }
+.draw.on { stroke-dashoffset: 0; }
+.halo.on { animation: breathe 2.4s var(--ease) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes breathe { 50% { transform: scale(1.35); } }
+.hint { position: fixed; right: 16px; bottom: 12px; color: #777; font: 13px var(--font); letter-spacing: -0.03em; }
+@media (prefers-reduced-motion: reduce) {
+  .slide, [data-step], .draw { transition: none !important; }
+  .halo.on { animation: none; }
+}
+
+.pt0 /* 오프닝 · 1장 표지 (10/12). 오프닝 연구: Tseng & Poppenk, .pt0 Nature Communications 11, .pt0 3480 (2020) — 깨어 있는 동안 1분에 약 6.5번, .pt0 하루 6천 번 넘게 */
+#o0 { background: #111; color: #fff; }
+.pt0 .only { transition: opacity .8s var(--ease), transform .8s var(--ease); }
+.pt0 .only:not(.on) { opacity: 0; transform: translateY(16px); pointer-events: none; }
+.pt0 .oq { position: absolute; left: 160px; right: 160px; top: 380px; font-size: 76px; font-weight: 800; letter-spacing: -0.08em; line-height: 1.2; }
+.pt0 .oq small { display: block; margin-top: 24px; font-size: 26px; font-weight: 500; opacity: .55; letter-spacing: -0.03em; }
+.pt0 .count { position: absolute; left: 160px; top: 280px; }
+.pt0 .count b { display: block; font-size: 260px; letter-spacing: -0.08em; line-height: 1; font-variant-numeric: tabular-nums; }
+.pt0 .count span { display: block; margin-top: 16px; font-size: 36px; font-weight: 700; letter-spacing: -0.05em; }
+.pt0 .count small { display: block; margin-top: 14px; font-size: 19px; opacity: .55; letter-spacing: -0.03em; }
+.pt0 .feed { position: absolute; right: 160px; top: 140px; width: 520px; height: 800px; overflow: hidden; border-top: 1px solid rgba(255,255,255,.3); border-bottom: 1px solid rgba(255,255,255,.3); }
+.pt0 /* 흐림 마스크 없이 1px 선으로 잘라요 */
+.feed ul { list-style: none; margin: 0; padding: 0; animation: feed 14s linear infinite; }
+.pt0 .feed li { padding: 18px 22px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,.18); font-size: 26px; letter-spacing: -0.05em; color: rgba(255,255,255,.8); }
+.pt0 .feed li small { float: right; font-size: 18px; opacity: .5; }
+.pt0 .ol { position: absolute; left: 160px; top: 380px; width: 900px; font-size: 54px; font-weight: 800; letter-spacing: -0.08em; line-height: 1.25; }
+.pt0 .ol small { display: block; margin-top: 18px; font-size: 24px; font-weight: 500; opacity: .6; letter-spacing: -0.03em; }
+.pt0 .oe { position: absolute; left: 160px; right: 160px; top: 420px; font-size: 84px; font-weight: 800; letter-spacing: -0.08em; }
+.pt0 .oe span { color: #F0704A; }
+.pt0 #c1 .mark { position: absolute; left: 120px; top: 200px; }
+.pt0 .ct { position: absolute; left: 120px; top: 420px; font-size: 200px; font-weight: 800; letter-spacing: -0.08em; line-height: 1; }
+.pt0 .ct i { font-style: normal; margin-left: 24px; }
+.pt0 .cs { position: absolute; left: 128px; top: 660px; width: 1300px; font-size: 36px; letter-spacing: -0.05em; line-height: 1.4; color: #2A2A2A; }
+.pt0 .cb { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; background: #111; color: #fff; padding: 40px 120px; display: flex; gap: 80px; align-items: center; }
+.pt0 .cb div { font-size: 20px; color: rgba(255,255,255,.65); letter-spacing: -0.03em; }
+.pt0 .cb b { display: block; font-size: 34px; letter-spacing: -0.05em; opacity: 1; color: #fff; }
+@media (prefers-reduced-motion: reduce) {.pt0 .feed ul { animation: none; } }
+@keyframes feed { to { transform: translateY(-50%); } }
+/* ===== part1.html ===== */
+.pt1 /* 가닥 발표 · 1부 시안 (2 문제의식 · 3 배운 대로 썼더니 · 4 설문 ① · 5 설문 ② · 6 설문이 바꾼 설계). 10/12.
+   설문 숫자는 docs/survey/설문분석.md (2026-10-02 · 17명). 넘기기 · 심볼은 deck.js, .pt1 공통 모양은 deck.css */
+.small { font-size: 20px; color: var(--muted); letter-spacing: -0.03em; }
+.pt1 .colh { position: absolute; font-size: 22px; color: var(--muted); letter-spacing: -0.03em; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pt1 /* 2장: 채팅 한 줄 → 노선도 */
+.chat { position: absolute; left: 120px; top: 290px; width: 640px; display: flex; flex-direction: column; gap: 14px; }
+.pt1 .bub { align-self: flex-end; max-width: 560px; padding: 14px 22px; border-radius: 22px 22px 6px 22px; background: var(--bubble); font-size: 24px; letter-spacing: -0.05em; transition: opacity .6s var(--ease), transform .6s var(--ease), background .6s var(--ease), box-shadow .6s var(--ease); }
+.pt1 .bub small { display: block; font-size: 15px; color: var(--muted); margin-top: 2px; opacity: 0; transition: opacity .6s var(--ease); }
+.pt1 .mapped .bub { opacity: .45; }
+.pt1 /* 점이 되어 노선으로 날아간 뒤 */
+.mapped .bub.side { background: #fff; box-shadow: inset 0 0 0 2px var(--spur); color: var(--muted); }
+.pt1 .mapped .bub.dec { font-weight: 800; }
+.pt1 .mapped .bub small { opacity: 1; }
+.pt1 .nm { font: 600 24px var(--font); letter-spacing: -0.05em; fill: var(--ink); }
+.pt1 .nm.dec { font-weight: 800; }
+.pt1 .nm.now { fill: var(--accent); font-weight: 800; }
+.pt1 .sl { font: 500 20px var(--font); letter-spacing: -0.03em; fill: var(--muted); }
+.pt1 .legend { position: absolute; left: 900px; top: 860px; display: grid; grid-template-columns: repeat(4, auto); gap: 32px; font-size: 21px; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt1 .legend b { display: block; font-size: 22px; color: var(--ink); }
+.pt1 .found { position: absolute; left: 1150px; top: 730px; font-size: 26px; font-weight: 700; letter-spacing: -0.05em; }
+.pt1 /* 3 · 6장: 왼쪽 → 오른쪽을 잇는 줄 */
+.lrow { position: absolute; left: 120px; right: 120px; height: 120px; }
+.pt1 .lrow .l { position: absolute; left: 0; width: 760px; top: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.05em; line-height: 1.3; }
+.pt1 .lrow .l small { display: block; margin-top: 6px; font-size: 20px; font-weight: 500; color: var(--muted); }
+.pt1 .lrow .r { position: absolute; left: 960px; right: 0; top: 0; font-size: 30px; letter-spacing: -0.05em; line-height: 1.35; color: #2A2A2A; }
+.pt1 .closer { position: absolute; left: 0; right: 0; top: 900px; height: 140px; background: #111; color: #fff; padding: 30px 120px; }
+.pt1 .closer b { display: block; font-size: 40px; letter-spacing: -0.08em; }
+.pt1 .closer span { display: block; margin-top: 8px; font-size: 21px; opacity: .7; letter-spacing: -0.03em; }
+.pt1 /* 3장: 세 갈래 → 한 사람 */
+.hb { position: absolute; left: 120px; font-size: 32px; font-weight: 700; letter-spacing: -0.05em; }
+.pt1 .hb small { font-size: 20px; font-weight: 500; color: var(--muted); margin-left: 10px; }
+.pt1 .bd { position: absolute; right: 940px; font-size: 24px; letter-spacing: -0.05em; color: #2A2A2A; text-align: right; }
+.pt1 .who { position: absolute; left: 1560px; top: 610px; width: 200px; text-align: center; font-size: 36px; font-weight: 800; letter-spacing: -0.08em; }
+.pt1 .who small { display: block; font-size: 19px; font-weight: 500; color: var(--muted); letter-spacing: -0.03em; margin-top: 4px; }
+.pt1 /* 5장: 순환선 */
+.rlbl { position: absolute; width: 440px; text-align: center; font-size: 22px; line-height: 1.35; letter-spacing: -0.05em; transition: opacity .7s var(--ease), transform .7s var(--ease), font-weight .3s; }
+.pt1 .rtag { position: absolute; width: 440px; text-align: center; }
+.pt1 .rtag span { display: inline-block; padding: 3px 12px; background: #111; color: #fff; font-size: 17px; font-weight: 700; letter-spacing: -0.03em; }
+.pt1 /* 6장: 위(설문) → 아래(설계)로 갈아타는 네 칸 */
+.tier { position: absolute; left: 120px; right: 120px; font-size: 21px; color: var(--muted); letter-spacing: -0.03em; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.pt1 .col, .pt1 .dec:not(.bub) { position: absolute; width: 380px; text-align: center; }
+.pt1 .col b { display: block; font-size: 96px; font-weight: 800; letter-spacing: -0.08em; line-height: 1; }
+.pt1 .col b small { font-size: 34px; margin-left: 4px; letter-spacing: -0.05em; }
+.pt1 .col p { margin: 12px 0 4px; font-size: 24px; font-weight: 700; letter-spacing: -0.05em; line-height: 1.3; }
+.pt1 .col span, .pt1 .dec:not(.bub) span { display: block; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt1 .dec b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -0.05em; line-height: 1.25; margin-bottom: 8px; }
+.pt1 .grey b, .pt1 .grey p { color: #9A9A9A; }
+.pt1 #p6 .closer b { font-size: 32px; }
+.pt1 /* 4장: 17개 역 노선 */
+.srow { position: absolute; left: 120px; width: 540px; font-size: 30px; font-weight: 700; letter-spacing: -0.05em; }
+.pt1 .big { position: absolute; left: 1640px; font-size: 56px; font-weight: 800; letter-spacing: -0.08em; font-variant-numeric: tabular-nums; }
+.pt1 .big small { font-size: 24px; font-weight: 600; margin-left: 4px; }
+.pt1 /* 5장: 불편 여섯 줄 */
+.prow { position: absolute; left: 120px; width: 560px; font-size: 25px; letter-spacing: -0.05em; }
+.pt1 .pnum { position: absolute; left: 1480px; font-size: 26px; font-weight: 700; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.pt1 .pnum small { font-size: 20px; color: var(--muted); font-weight: 500; }
+.pt1 .tag { position: absolute; padding: 4px 12px; background: #111; color: #fff; font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
+.pt1 .key { position: absolute; left: 700px; top: 262px; display: flex; gap: 28px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; align-items: center; }
+.pt1 .key i { display: inline-block; width: 40px; vertical-align: middle; margin-right: 8px; }
+.pt1 .cost { position: absolute; left: 120px; right: 120px; top: 900px; display: flex; gap: 80px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 22px; }
+.pt1 .cost .k { font-size: 24px; color: var(--muted); letter-spacing: -0.03em; }
+.pt1 .cost b { font-size: 60px; letter-spacing: -0.08em; }
+.pt1 .cost span { font-size: 24px; margin-left: 10px; letter-spacing: -0.05em; }
+.pt1 .foot { position: absolute; left: 120px; right: 120px; top: 980px; font-size: 28px; letter-spacing: -0.05em; color: #2A2A2A; }
+/* ===== part2.html ===== */
+.pt2 /* 가닥 발표 · 2부 시안 (7 워크플로를 정의한 방법 · 8 업무 A 전과 후 · 9 업무 B 전과 후 · 10 바뀐 협업 방식). 10/12.
+   표는 README 3-4. 8 · 9장의 추정 효과는 아직 재지 않아 ‘측정 예정’으로 비워 둬요 */
+.small { font-size: 20px; color: var(--muted); letter-spacing: -0.03em; }
+.pt2 .st-l { position: absolute; left: 350px; width: 560px; }
+.pt2 .st-l b { display: block; font-size: 34px; letter-spacing: -0.05em; }
+.pt2 .st-l span { display: block; margin-top: 4px; font-size: 21px; color: var(--muted); letter-spacing: -0.03em; }
+.pt2 .src { position: absolute; left: 120px; top: 238px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt2 .task { position: absolute; left: 1090px; width: 700px; }
+.pt2 .task b { display: block; font-size: 32px; letter-spacing: -0.05em; line-height: 1.25; }
+.pt2 .task p { margin: 8px 0 0; font-size: 21px; color: #2A2A2A; letter-spacing: -0.05em; }
+.pt2 .task span { display: block; margin-top: 4px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt2 .lane { position: absolute; left: 60px; width: 150px; font-size: 22px; font-weight: 800; letter-spacing: -0.05em; text-align: right; }
+.pt2 .lane small { display: block; font-size: 16px; font-weight: 500; color: var(--muted); }
+.pt2 .sn { position: absolute; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: -0.05em; }
+.pt2 .sd { position: absolute; text-align: center; font-size: 18px; line-height: 1.35; color: #2A2A2A; letter-spacing: -0.05em; }
+.pt2 .sd.hum { color: var(--ink); }
+.pt2 .sd.hum i { font-style: normal; display: inline-block; margin-top: 4px; padding: 1px 8px; border: 1.5px solid var(--ink); font-size: 15px; font-weight: 700; letter-spacing: -0.03em; }
+.pt2 .neck { position: absolute; text-align: center; white-space: nowrap; translate: -50% 0; font-size: 15px; font-weight: 800; letter-spacing: -0.03em; color: #fff; background: #111; padding: 2px 8px; }
+.pt2 .effect { position: absolute; left: 120px; right: 120px; top: 900px; display: flex; gap: 48px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 22px; }
+.pt2 .effect .k { font-size: 21px; color: var(--muted); letter-spacing: -0.03em; flex: none; }
+.pt2 .effect .k b { display: block; color: var(--ink); font-size: 22px; }
+.pt2 .effect div.m { font-size: 21px; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt2 .effect div.m b { display: block; font-size: 32px; letter-spacing: -0.08em; color: var(--ink); }
+.pt2 .tok { position: absolute; width: 230px; text-align: center; transition: top 1.1s var(--ease); }
+.pt2 .tok .c { width: 92px; height: 92px; margin: 0 auto; border-radius: 50%; background: #111; color: #fff; display: grid; place-items: center; font-size: 26px; font-weight: 800; letter-spacing: -0.05em; transition: background .8s var(--ease); }
+.pt2 .tok .b, .pt2 .tok .a { margin-top: 12px; font-size: 19px; line-height: 1.35; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt2 .tok .a { display: none; }
+.pt2 .moved .tok.go { top: 600px !important; }
+.pt2 .moved .tok.go .c { background: var(--route); }
+.pt2 .moved .tok .b { display: none; }
+.pt2 .moved .tok .a { display: block; }
+.pt2 .moved .tok.stay .c { box-shadow: 0 0 0 6px #fff, 0 0 0 9px #111; }
+.pt2 .trk { position: absolute; left: 60px; width: 160px; font-size: 26px; font-weight: 800; letter-spacing: -0.05em; text-align: right; }
+.pt2 .mt { position: absolute; left: 120px; width: 1680px; top: 300px; border-collapse: collapse; letter-spacing: -0.05em; }
+.pt2 .mt th { text-align: left; font-size: 18px; font-weight: 500; color: var(--muted); letter-spacing: -0.03em; padding: 0 16px 10px; border-bottom: 2px solid var(--ink); }
+.pt2 .mt td { padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pt2 .mt td b { display: block; font-size: 24px; }
+.pt2 .mt td span { display: block; margin-top: 2px; font-size: 17px; color: var(--muted); letter-spacing: -0.03em; }
+.pt2 .mt td.w { width: 250px; font-size: 21px; font-weight: 800; line-height: 1.3; border-bottom: 2px solid var(--ink); }
+.pt2 .mt td.w i { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 8px; border-radius: 50%; background: #111; color: #fff; font-style: normal; font-size: 22px; }
+.pt2 .mt .v { width: 150px; text-align: right; }
+.pt2 .mt td.v b { font-size: 34px; letter-spacing: -0.08em; color: #BDBDBD; }
+.pt2 .mt td.v.d b { color: var(--ink); }
+.pt2 .mt td.u { width: 40px; padding-left: 0; font-size: 17px; color: var(--muted); }
+.pt2 .mt tbody tr:last-child td { border-bottom: 2px solid var(--ink); }
+.pt2 .closer { position: absolute; left: 0; right: 0; top: 900px; height: 140px; background: #111; color: #fff; padding: 30px 120px; }
+.pt2 .closer b { display: block; font-size: 40px; letter-spacing: -0.08em; }
+.pt2 .closer span { display: block; margin-top: 8px; font-size: 21px; opacity: .7; letter-spacing: -0.03em; }
+/* ===== part3.html ===== */
+.pt3 /* 가닥 발표 · 3부 시안 (11 가닥은 Agent인가 · 12 Actual View · 13 Human In The Loop). 10/12.
+   11장 정의는 제2강 54쪽 · 루프는 56쪽, .pt3 13장 역할은 35쪽. 13장 캡처는 10/12 가닥 창(실제 대화) */
+.src { position: absolute; left: 120px; top: 238px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt3 .ag { position: absolute; width: 470px; transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.pt3 .ag b { display: block; font-size: 27px; letter-spacing: -0.05em; line-height: 1.25; }
+.pt3 .ag span { display: block; margin-top: 6px; font-size: 20px; color: #2A2A2A; letter-spacing: -0.05em; line-height: 1.35; }
+.pt3 .ag.r { text-align: right; }
+.pt3 .ag em { display: block; margin-top: 6px; font-style: normal; font-size: 22px; font-weight: 800; letter-spacing: -0.05em; color: var(--ink); }
+.pt3 .ag:not(.r):not(.c) { width: 560px; }
+.pt3 .ag.c { text-align: center; }
+.pt3 .core { position: absolute; left: 760px; width: 400px; top: 480px; text-align: center; }
+.pt3 .core .k { font-size: 18px; color: var(--muted); letter-spacing: -0.03em; }
+.pt3 .core b { display: block; font-size: 38px; letter-spacing: -0.08em; margin-top: 2px; }
+.pt3 .core p { margin: 10px 0 0; font-size: 19px; line-height: 1.4; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt3 .scene { position: absolute; width: 250px; text-align: center; font-size: 21px; font-weight: 700; letter-spacing: -0.05em; line-height: 1.3; }
+.pt3 .scene small { display: block; font-size: 17px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+.pt3 .scene i { font-style: normal; display: block; font-size: 15px; color: var(--muted); }
+.pt3 .live { position: absolute; left: 120px; right: 120px; top: 930px; display: flex; gap: 24px; align-items: center; font-size: 22px; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt3 .live b { padding: 6px 16px; background: var(--accent); color: #fff; font-size: 22px; }
+.pt3 .hq { position: absolute; left: 120px; width: 800px; font-size: 44px; font-weight: 800; letter-spacing: -0.08em; line-height: 1.2; }
+.pt3 .hq small { display: block; margin-top: 8px; font-size: 21px; font-weight: 500; color: var(--muted); letter-spacing: -0.03em; }
+.pt3 .role { position: absolute; left: 1090px; width: 700px; }
+.pt3 .role b { display: block; font-size: 28px; letter-spacing: -0.05em; }
+.pt3 .role span { display: block; margin-top: 4px; font-size: 20px; color: #2A2A2A; letter-spacing: -0.05em; line-height: 1.35; }
+.pt3 .role em { font-style: normal; font-size: 16px; color: var(--muted); }
+.pt3 .case { position: absolute; left: 120px; top: 650px; width: 860px; }
+.pt3 .case .shot { width: 560px; height: 300px; border: 1px solid var(--line); background: url(assets/auto-revert.png) no-repeat; background-size: 2344px auto; background-position: -1784px -91px; float: left; }
+.pt3 .case .txt { margin-left: 590px; font-size: 21px; line-height: 1.45; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt3 .case .txt b { display: block; font-size: 17px; color: #fff; background: #111; padding: 3px 10px; display: inline-block; margin-bottom: 10px; }
+/* ===== design-part.html ===== */
+.ptd /* 가닥 발표 · 디자인 부 시안 (D1 레퍼런스 · D2 노선도 사전 · D3 바뀌어 온 길). 10/12.
+   1920×1080 한 장을 창에 맞춰 줄여요. → · 스페이스 · 클릭: 다음 단계(그다음 장), .ptd ←: 이전 장.
+   움직임은 가닥의 한 곡선(--ease). 동작 줄이기를 켜면 단계마다 바로 나타나요. */
+/* ---------- D1 레퍼런스 ---------- */
+.ref { position: absolute; top: 330px; width: 360px; }
+.ptd .ref .img { width: 360px; height: 250px; background: var(--bubble) center/cover no-repeat; border: 1px solid var(--line); }
+.ptd .ref .yr { margin-top: 18px; font-size: 20px; color: var(--muted); letter-spacing: -0.03em; }
+.ptd .ref .nm { margin-top: 4px; font-size: 30px; font-weight: 700; letter-spacing: -0.05em; }
+.ptd .ref .gv { margin-top: 10px; font-size: 22px; line-height: 1.45; color: #2A2A2A; letter-spacing: -0.05em; }
+.ptd .sign { width: 360px; height: 250px; background: #111; position: relative; color: #fff; padding: 40px 26px 0; border: 1px solid #111; }
+.ptd .sign::before { content: ""; position: absolute; left: 0; right: 0; top: 16px; height: 3px; background: #fff; }
+.ptd .sign .b { display: inline-block; width: 40px; height: 40px; border-radius: 50%; color: #fff; font: 700 24px/40px var(--font); text-align: center; margin-right: 6px; letter-spacing: 0; }
+.ptd .sign .st { margin-top: 26px; font-size: 44px; font-weight: 700; letter-spacing: -0.05em; }
+.ptd .sign .dir { margin-top: 6px; font-size: 20px; opacity: .75; }
+.ptd .d1-now { position: absolute; left: 1610px; top: 866px; font-size: 26px; font-weight: 700; letter-spacing: -0.05em; }
+.ptd /* ---------- D2 노선도 사전 ---------- */
+.call { position: absolute; width: 380px; font-size: 21px; line-height: 1.45; letter-spacing: -0.05em; color: #2A2A2A; padding-left: 16px; border-left: 3px solid var(--ink); }
+.ptd .call b { display: block; font-size: 26px; color: var(--ink); margin-bottom: 4px; }
+.ptd .call.red { border-left-color: var(--accent); }
+.ptd .nm2 { font: 600 22px var(--font); letter-spacing: -0.05em; fill: var(--ink); }
+.ptd .nm2.dec { font-weight: 800; }
+.ptd .nm2.now { fill: var(--accent); font-weight: 800; }
+.ptd .fl { font: 500 19px var(--font); fill: var(--ink); letter-spacing: -0.03em; }
+.ptd .tiles { position: absolute; left: 120px; right: 120px; top: 872px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+.ptd .tile { border-top: 3px solid var(--ink); padding-top: 14px; font-size: 20px; line-height: 1.45; letter-spacing: -0.05em; color: #2A2A2A; }
+.ptd .tile b { display: block; font-size: 24px; color: var(--ink); margin-bottom: 4px; }
+.ptd /* ---------- D3 바뀌어 온 길 ---------- */
+.scr { position: absolute; left: 120px; right: 120px; top: 250px; height: 560px; opacity: 0; transform: translateX(40px); transition: opacity .6s var(--ease), transform .6s var(--ease); pointer-events: none; }
+.ptd .scr.on { opacity: 1; transform: none; }
+.ptd .scr .vis { position: absolute; left: 0; top: 0; width: 1060px; height: 560px; display: flex; gap: 20px; align-items: center; }
+.ptd .scr .vis img { max-height: 560px; max-width: 100%; border: 1px solid var(--line); display: block; }
+.ptd .scr .txt { position: absolute; left: 1110px; right: 0; top: 10px; }
+.ptd .scr .dt { font-size: 26px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.ptd .scr h2 { margin: 6px 0 18px; font-size: 48px; letter-spacing: -0.08em; line-height: 1.15; }
+.ptd .scr p { margin: 0 0 12px; font-size: 24px; line-height: 1.5; letter-spacing: -0.05em; color: #2A2A2A; }
+.ptd .scr .why { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 22px; color: var(--muted); }
+.ptd .arrow { font-size: 44px; color: var(--ink); flex: none; }
+.ptd .tl-lbl { font: 700 20px var(--font); letter-spacing: -0.03em; fill: var(--ink); }
+.ptd .tl-tag { font: 500 18px var(--font); letter-spacing: -0.03em; fill: var(--muted); }
+.ptd .mock { width: 1000px; height: 520px; position: relative; border: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) {.ptd .scr { transition: none !important; } }
+/* ===== part4.html ===== */
+.pt4 /* 가닥 발표 · 4부 시안 (14 재 본 것과 못 잰 것 · 15 Four Gets 점검). 10/12.
+   정확도는 README 3-5 (실제 대화 55턴 · Haiku · 10/6 프롬프트), .pt4 비용은 10/12 실측(10/7~10/12 기록), .pt4 Four Gets는 제2강 39쪽 */
+.src { position: absolute; left: 120px; top: 238px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt4 .mlbl { position: absolute; left: 120px; width: 380px; font-size: 24px; font-weight: 700; letter-spacing: -0.05em; }
+.pt4 .mlbl small { display: block; font-size: 17px; font-weight: 500; color: var(--muted); letter-spacing: -0.03em; }
+.pt4 .mval { position: absolute; left: 1150px; font-size: 30px; font-weight: 800; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.pt4 .base { position: absolute; font-size: 17px; font-weight: 700; letter-spacing: -0.03em; color: #111; white-space: nowrap; }
+.pt4 .trap { position: absolute; left: 520px; top: 690px; width: 620px; padding: 12px 16px; border-left: 4px solid #111; background: var(--bubble); font-size: 20px; line-height: 1.4; letter-spacing: -0.05em; }
+.pt4 .trap b { display: block; font-size: 22px; }
+.pt4 .costp { position: absolute; left: 1330px; top: 290px; width: 470px; }
+.pt4 .costp .h { font-size: 21px; color: var(--muted); letter-spacing: -0.03em; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pt4 .cv { margin-top: 18px; }
+.pt4 .cv b { font-size: 54px; letter-spacing: -0.08em; }
+.pt4 .cv span { display: block; font-size: 19px; color: #2A2A2A; letter-spacing: -0.05em; }
+.pt4 .costp .note { margin-top: 18px; font-size: 17px; color: var(--muted); letter-spacing: -0.03em; line-height: 1.4; }
+.pt4 .cant { position: absolute; left: 120px; right: 120px; top: 830px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; border-top: 1px solid var(--line); padding-top: 20px; }
+.pt4 .cant .h { grid-column: 1 / -1; font-size: 21px; color: var(--muted); letter-spacing: -0.03em; }
+.pt4 .cant div { font-size: 19px; line-height: 1.4; letter-spacing: -0.05em; color: #2A2A2A; padding-left: 26px; position: relative; }
+.pt4 .cant div:not(.h)::before { content: ""; position: absolute; left: 0; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid #9A9A9A; box-sizing: border-box; }
+.pt4 .cant b { color: #111; }
+.pt4 .gcol { position: absolute; width: 400px; text-align: center; }
+.pt4 .gcol .n { font-size: 30px; font-weight: 800; letter-spacing: -0.05em; }
+.pt4 .gcol .q { font-size: 18px; color: var(--muted); letter-spacing: -0.03em; margin-top: 2px; }
+.pt4 .gbox { position: absolute; width: 380px; height: 220px; text-align: center; border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; background: #fff; }
+.pt4 .gbox .big { font-size: 76px; font-weight: 800; letter-spacing: -0.08em; line-height: 1; }
+.pt4 .gbox .big small { font-size: 30px; }
+.pt4 .gbox .sub { font-size: 18px; color: var(--muted); letter-spacing: -0.03em; margin-top: 8px; text-align: center; }
+.pt4 .gbox.shot { background-repeat: no-repeat; }
+.pt4 .gans { position: absolute; width: 380px; text-align: center; font-size: 21px; line-height: 1.4; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt4 .gans b { color: #111; }
+.pt4 .full { position: absolute; left: 0; right: 0; top: 900px; height: 140px; background: #111; color: #fff; padding: 26px 120px; display: flex; gap: 48px; align-items: center; }
+.pt4 .full .k { font-size: 20px; opacity: .7; letter-spacing: -0.03em; flex: none; }
+.pt4 .full .i { font-size: 20px; letter-spacing: -0.05em; }
+.pt4 .full .i b { display: block; font-size: 34px; letter-spacing: -0.08em; }
+.pt4 .full .no { margin-left: auto; padding-left: 24px; border-left: 1px solid rgba(255,255,255,.3); font-size: 19px; opacity: .85; }
+/* ===== part5.html ===== */
+.pt5 /* 가닥 발표 · 5부와 마무리 시안 (16 둘과 에이전트가 일한 방식 · 17 가닥으로 가닥 만들기 · 18 New Horizon). 10/12.
+   PR 날짜는 GitHub에서 합친 시각(한국 시간), .pt5 숫자는 10/12 기준. 17장 캡처는 10/12 가닥 창(실제 대화) */
+.src { position: absolute; left: 120px; top: 238px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt5 .who { position: absolute; left: 120px; width: 300px; text-align: right; }
+.pt5 .who b { display: block; font-size: 25px; letter-spacing: -0.05em; }
+.pt5 .who span { display: block; font-size: 16px; color: var(--muted); letter-spacing: -0.03em; line-height: 1.3; }
+.pt5 .day { font: 600 17px var(--font); fill: var(--muted); letter-spacing: -0.03em; }
+.pt5 .prl { font: 800 17px var(--font); fill: #111; letter-spacing: -0.03em; }
+.pt5 .moment { position: absolute; width: 330px; font-size: 19px; line-height: 1.4; letter-spacing: -0.05em; color: #2A2A2A; padding: 10px 14px; border-left: 4px solid #111; background: var(--bubble); }
+.pt5 .moment b { display: block; font-size: 16px; color: var(--muted); }
+.pt5 .rules { position: absolute; left: 120px; right: 120px; top: 770px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 48px; font-size: 19px; line-height: 1.45; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt5 .rules .h { font-size: 18px; color: var(--muted); letter-spacing: -0.03em; margin-bottom: 4px; }
+.pt5 .rules b { color: #111; }
+.pt5 .nums { position: absolute; left: 0; right: 0; top: 920px; height: 120px; background: #111; color: #fff; padding: 22px 120px; display: flex; gap: 64px; align-items: center; }
+.pt5 .nums div { font-size: 19px; opacity: .85; letter-spacing: -0.05em; }
+.pt5 .nums b { display: block; font-size: 40px; letter-spacing: -0.08em; opacity: 1; }
+.pt5 .shot17 { position: absolute; left: 120px; top: 290px; width: 1000px; height: 360px; border: 1px solid var(--line); background: url(assets/auto-revert.png) no-repeat; background-size: 1701px auto; background-position: -270px -85px; }
+.pt5 .cap17 { position: absolute; left: 120px; top: 664px; width: 1000px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt5 .fact { position: absolute; left: 1290px; width: 520px; }
+.pt5 .fact b { display: block; font-size: 56px; letter-spacing: -0.08em; line-height: 1; }
+.pt5 .fact b small { font-size: 26px; }
+.pt5 .fact span b { display: inline; font-size: inherit; letter-spacing: inherit; line-height: inherit; }
+.pt5 .fact span { display: block; margin-top: 6px; font-size: 20px; line-height: 1.4; letter-spacing: -0.05em; color: #2A2A2A; }
+.pt5 #z18 { background: #111; color: #fff; }
+.pt5 #z18 .mark { --mark-fg: #fff; --mark-bg: #111; --halo: #4A2A20; position: absolute; left: 120px; top: 140px; }
+.pt5 .endq { position: absolute; left: 120px; top: 330px; font-size: 76px; font-weight: 800; letter-spacing: -0.08em; line-height: 1.15; }
+.pt5 .endq small { display: block; margin-top: 16px; font-size: 24px; font-weight: 500; opacity: .6; letter-spacing: -0.03em; }
+.pt5 .next { font: 600 21px var(--font); fill: #fff; letter-spacing: -0.05em; }
+.pt5 .qa { position: absolute; left: 120px; right: 120px; top: 900px; display: flex; align-items: baseline; gap: 32px; }
+.pt5 .qa b { font-size: 64px; letter-spacing: -0.08em; }
+.pt5 .qa span { font-size: 24px; opacity: .7; letter-spacing: -0.03em; }
+/* 10/12 9분판: 2부 완행 → 급행 */
+.pt2 .xkey { position: absolute; right: 120px; top: 262px; display: flex; gap: 28px; font-size: 19px; color: var(--muted); letter-spacing: -0.03em; }
+.pt2 .xkey i { display: inline-block; vertical-align: -4px; margin-right: 8px; border-radius: 50%; }
+.pt2 .xkey i.h { width: 22px; height: 22px; background: var(--ink); }
+.pt2 .xkey i.f { width: 14px; height: 14px; border: 3px solid var(--spur); background: #fff; }
+.pt2 .xn { font: 700 22px var(--font); letter-spacing: -0.05em; fill: var(--ink); }
+.pt2 .xg { font: 500 17px var(--font); letter-spacing: -0.03em; fill: var(--muted); }
+.pt2 .xpain { font: 500 18px var(--font); letter-spacing: -0.05em; fill: #2A2A2A; }
+.pt2 .xneck { font: 800 15px var(--font); letter-spacing: -0.03em; fill: var(--ink); }
+.pt2 .xend { font: 800 21px var(--font); letter-spacing: -0.05em; fill: var(--ink); }
+/* 3부 시연 */
+.pt3 .dm { position: absolute; left: 120px; top: 380px; font-size: 160px; font-weight: 800; letter-spacing: -0.08em; line-height: 1; }
+.pt3 .dm small { display: block; margin-top: 28px; font-size: 32px; font-weight: 500; color: var(--muted); letter-spacing: -0.05em; }
+/* 디자인 레퍼런스 줄 */
+.ptd .refs { position: absolute; left: 120px; right: 120px; top: 872px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+.ptd .refs > div { border-top: 3px solid var(--ink); padding-top: 14px; font-size: 18px; line-height: 1.4; letter-spacing: -0.05em; color: #2A2A2A; }
+.ptd .refs i { float: left; width: 110px; height: 110px; margin-right: 16px; background: var(--bubble) center/cover no-repeat; border: 1px solid var(--line); }
+.ptd .refs i.sg { background: #111; color: #fff; font: 700 15px/1.2 var(--font); font-style: normal; padding: 46px 8px 0; letter-spacing: -0.03em; }
+.ptd .refs b { display: block; font-size: 21px; color: var(--ink); margin-bottom: 4px; }
+/* 4부 토큰 비용 */
+.pt4 .fk { position: absolute; left: 120px; width: 480px; }
+.pt4 .fk b { display: block; font-size: 34px; letter-spacing: -0.08em; }
+.pt4 .fk { font-size: 20px; color: var(--muted); letter-spacing: -0.03em; }
+.pt4 .fw { position: absolute; left: 1080px; width: 720px; font-size: 20px; color: #2A2A2A; letter-spacing: -0.05em; }
+.pt4 .fw b { font-size: 30px; letter-spacing: -0.08em; color: var(--ink); margin-right: 14px; }
+.pt4 .fw.no, .pt4 .fw.no b { color: var(--muted); }
+.pt4 .fw.no b { font-size: 22px; font-weight: 700; }
+.pt4 .lim { position: absolute; left: 120px; right: 120px; top: 800px; font-size: 21px; color: #2A2A2A; letter-spacing: -0.05em; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+</head>
+<body>
+<div id="stage">
+<div class="pt0">
+
+<!-- 1장 · 표지 (한윤주) -->
+<section class="slide" id="c1" data-steps="0">
+  <span class="markhost" data-h="100"></span>
+  <div class="ct">가닥<i>GADAK</i></div>
+  <div class="cs">LLM과의 긴 작업에서 묻히는 질문 · 결정 · 산출물을 노선도로 정리하고,<br>놓친 일을 먼저 알려 주는 에이전트</div>
+  <div class="cb"><div><b>Category C</b>업무용 AI Agent 앱</div><div><b>한윤주 · 한우석</b>기획 · 구현</div><div><b>2026. 10. 15</b>SNU KDT 13기 빅데이터핀테크 AI응용사례</div></div>
+</section>
+</div>
+<div class="pt1">
+<!-- ===== part1.html ===== -->
+
+<!-- 2장 · 문제의식 -->
+<section class="slide" id="p2" data-steps="3">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">1부</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">1부 · 내 업무, 생활 속에서 어떤 일을 할 수 있을까?</div>
+    <h1>문제의식</h1>
+    <div class="quote">“채팅은 한 줄로 쌓이는데, 일은 가지를 치며 진행된다.”</div>
+  </div>
+  <div class="chat" id="chat">
+    <div class="bub fade" data-step="1">보고서 개요 잡아 줘</div>
+    <div class="bub fade" data-step="1" style="transition-delay:.1s">2장 초안 써 줘</div>
+    <div class="bub side fade" data-step="1" style="transition-delay:.2s">근데 회귀랑 분류 차이가 뭐야?<small>곁길</small></div>
+    <div class="bub side fade" data-step="1" style="transition-delay:.3s">그럼 로지스틱은 어느 쪽이야?<small>곁길</small></div>
+    <div class="bub dec fade" data-step="1" style="transition-delay:.4s">다시 2장 — 표는 막대 그래프로 하자<small>정함</small></div>
+    <div class="bub fade" data-step="1" style="transition-delay:.5s">3장 초안 써 줘</div>
+    <div class="bub fade" data-step="1" style="transition-delay:.6s">아까 표 형식 뭐로 정했지?<small>지금</small></div>
+  </div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="2" pathLength="1" d="M 1100 600 L 1160 660 H 1330" stroke="var(--spur)" stroke-width="14" fill="none" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="2" cx="1240" cy="660" r="9" fill="#fff" stroke="var(--ink)" stroke-width="4" style="transition-delay:.9s"/>
+    <circle class="pop" data-step="2" cx="1330" cy="660" r="9" fill="#fff" stroke="var(--ink)" stroke-width="4" style="transition-delay:1s"/>
+    <text class="sl fade" data-step="2" x="1180" y="704" style="transition-delay:1s">회귀 vs 분류 · 로지스틱</text>
+    <path class="draw" data-step="2" pathLength="1" d="M 900 600 H 1720" stroke="var(--route)" stroke-width="22" fill="none"/>
+    <g fill="var(--ink)">
+      <circle class="pop" data-step="2" cx="960" cy="600" r="8" style="transition-delay:.2s"/>
+      <circle class="pop" data-step="2" cx="1080" cy="600" r="8" style="transition-delay:.3s"/>
+      <circle class="pop" data-step="2" cx="1400" cy="600" r="14" style="transition-delay:.6s"/>
+      <circle class="pop" data-step="2" cx="1540" cy="600" r="8" style="transition-delay:.7s"/>
+    </g>
+    <circle class="pop halo" data-step="2" cx="1680" cy="600" r="30" fill="var(--halo)" style="transition-delay:.8s"/>
+    <circle class="pop" data-step="2" cx="1680" cy="600" r="19" fill="var(--accent)" style="transition-delay:.8s"/>
+    <g class="fade" data-step="2" style="transition-delay:.6s">
+      <text class="nm" transform="translate(956 572) rotate(-45)">개요</text>
+      <text class="nm" transform="translate(1076 572) rotate(-45)">2장 초안</text>
+      <text class="nm dec" transform="translate(1396 566) rotate(-45)">표는 막대로</text>
+      <text class="nm" transform="translate(1536 572) rotate(-45)">3장 초안</text>
+      <text class="nm now" transform="translate(1676 562) rotate(-45)">지금 · 표 형식?</text>
+    </g>
+    <circle class="pop" data-step="3" cx="1400" cy="600" r="30" fill="none" stroke="var(--ink)" stroke-width="3"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 1400 632 V 720" stroke="var(--ink)" stroke-width="2" fill="none"/>
+  </svg>
+  <div class="found fade" data-step="3">“아까 정한 것”은 여기 — 스크롤 대신 역 하나</div>
+  <div class="legend fade" data-step="3">
+    <div><b>본선</b>대화의 흐름</div><div><b>곁길</b>잠깐 벗어난 질문</div><div><b>큰 점</b>정한 것</div><div><b>빨간 점</b>지금</div>
+  </div>
+</section>
+
+
+
+<!-- 5장 · 설문 ② 어디서 새나: 순환선 여섯 개 (고리 하나 = 17명) -->
+<section class="slide" id="p5" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">1부</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">1부 · 내 업무, 생활 속에서 어떤 일을 할 수 있을까?</div>
+    <h1>설문 · 어디서 새나</h1>
+    <div class="quote">“가장 널리 겪는 건 흐름, 가장 자주 아픈 건 산출물.”</div>
+    <div class="quote small" style="font-size:22px;margin-top:8px;color:var(--muted)">응답 17명 · 16명이 하루 여러 번 쓰고, 한 채팅에서 11번 넘게 주고받고, 주제마다 새 채팅을 열어요</div>
+  </div>
+  <div class="key fade" data-step="1" style="left:auto;right:120px;top:150px"><span><i style="height:10px;background:#C9C9C9;border-radius:5px"></i>겪어 봄(가끔 이상)</span><span><i style="height:18px;background:#111;border-radius:9px"></i>자주 이상</span><span>고리 하나 = 17명</span></div>
+  <svg id="p5svg" width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none"></svg>
+  <div class="cost fade" data-step="3">
+    <div class="k">나눠 쓰는 비용</div>
+    <div><b>9명</b><span>지난 대화를 못 찾아 새로 물음</span></div>
+    <div><b>12명</b><span>맥락을 손으로 요약해 옮김</span></div>
+  </div>
+  <div class="closer fade" data-step="4"><b>그래서 만든 것: 요청 외 변경 짚기 · 정한 것 찾기 · 이어 가기 · 대화는 내 PC에만</b><span>덜 만든 것: ‘앞 내용을 끌고 옴’ — 10명은 겪은 적이 없어요 · 표본 17명 · docs/survey/설문분석.md</span></div>
+</section>
+
+
+</div>
+<div class="pt2">
+<!-- ===== part2.html ===== -->
+<section class="slide xp" id="xa" data-steps="4" data-stops='[["h", "수정 요청", "", ""], ["f", "바뀐 곳 찾기", "요청 외 변경을 짚어 줌", "병목", "바뀐 파일을 처음부터|다 훑어야 해요"], ["h", "맞는지 정하기", "", ""], ["f", "원래 코드 찾기", "‘원래대로’ 요청 글 준비", "병목", "원래가 뭐였는지|기억해 내 직접 써요"], ["h", "되돌릴지 정하기", "", ""], ["f", "지난 결정 찾기", "정한 것 요약", "병목", "어제 정한 걸 새 대화에|처음부터 다시 설명해요"], ["h", "이어 갈지 정하기", "", ""]]'>
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>업무 A · 코드 고치기 — 완행에서 급행으로</h1><div class="quote">“찾는 역은 가닥이 지나가고, 사람은 정하는 역에만 선다.”</div></div>
+  <div class="lane fade" data-step="1" style="top:448px">전 · 완행<small>Claude Code만</small></div>
+  <div class="lane fade" data-step="3" style="top:698px">후 · 급행<small>가닥과 함께</small></div>
+  <svg class="xsvg" width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none"></svg>
+  <div class="xkey fade" data-step="3"><span><i class="h"></i>사람이 서는 역</span><span><i class="f"></i>가닥이 맡아 지나가는 역</span></div>
+  <div class="effect fade" data-step="4"><div class="k"><b>내 기록으로 잼</b>대화 31개 · 416턴 · 9/3–10/12</div><div class="m"><b>3,244줄 → 7곳</b>요청 외 변경을 찾으려 훑을 줄 → 가닥이 짚은 곳</div><div class="m"><b>106자 → 0자</b>되돌리기 요청을 직접 쓰기 → 가닥이 대신 써서 보냄 (3번)</div></div>
+</section>
+<section class="slide xp" id="xb" data-steps="4" data-stops='[["h", "묻기 · 곁길 묻기", "", ""], ["f", "원래 흐름 찾기", "노선도의 역을 누름", "병목 · 15명", "“아까 그거 뭐였지?”|위로 한참 스크롤해요"], ["f", "최신본 찾기", "‘산출물’ 칸", "병목 · 11명", "v2 · v3 · 최종 · 진짜최종…|어느 게 최신이지?"], ["h", "고칠 곳 정하기", "", ""], ["f", "바뀐 곳 찾기", "요청 외 변경을 짚어 줌", "병목 · 14명", "고쳐 달랬는데|안 한 곳까지 바뀌어요"], ["f", "맥락 요약하기", "‘이어 가기’ 요약", "병목 · 12명", "지난 맥락을 손으로|요약해 붙여 넣어요"], ["h", "새 대화에 붙일지", "", ""]]'>
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>업무 B · 여러 날 보고서 — 완행에서 급행으로</h1><div class="quote">“스크롤하고 옮겨 적던 역을 가닥이 대신 지나간다.”</div></div>
+  <div class="lane fade" data-step="1" style="top:448px">전 · 완행<small>LLM 채팅만</small></div>
+  <div class="lane fade" data-step="3" style="top:698px">후 · 급행<small>가닥과 함께</small></div>
+  <svg class="xsvg" width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none"></svg>
+  <div class="xkey fade" data-step="3"><span><i class="h"></i>사람이 서는 역</span><span><i class="f"></i>가닥이 맡아 지나가는 역</span></div>
+  <div class="effect fade" data-step="4"><div class="k"><b>내 기록으로 잼</b>대화 31개 · 416턴 · 9/3–10/12</div><div class="m"><b>388줄 → 1번</b>지난 결정까지 스크롤 (45개 중간값) → 역 누르기</div><div class="m"><b>2~4개 → 1개</b>같은 파일의 버전 → 최신 하나</div><div class="m"><b>20,839자 → 585자</b>새 대화로 옮길 맥락 → 가닥 요약 (11번)</div></div>
+</section>
+
+
+
+
+
+</div>
+<div class="pt3">
+<!-- ===== part3.html ===== -->
+<section class="slide" id="a11" data-steps="7">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">3부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">3부 · AI Agent 활용을 중심으로</div><h1>가닥은 왜 Agent인가</h1></div>
+  <div class="src">제2강 54쪽의 정의 여섯 줄 · 굵은 숫자는 내 기록</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <circle class="draw" data-step="1" pathLength="1" cx="960" cy="600" r="240" fill="none" stroke="var(--route)" stroke-width="18" transform="rotate(-90 960 600)"/>
+    <circle class="pop" data-step="1" cx="960.0" cy="360.0" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="2" cx="1167.8" cy="480.0" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="3" cx="1167.8" cy="720.0" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="4" cx="960.0" cy="840.0" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="5" cx="752.2" cy="720.0" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="6" cx="752.2" cy="480.0" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:.5s"/>
+    <g id="train" style="transform-box:view-box;transform-origin:960px 600px;transition:transform 1s var(--ease)">
+      <circle cx="960" cy="360" r="30" fill="var(--halo)"/><circle cx="960" cy="360" r="19" fill="var(--accent)"/>
+    </g>
+  </svg>
+  <div class="ag c fade" data-step="1" style="left:725px;top:238px;transition-delay:.3s"><b>사람이 자연어로 목표를 정의하면</b><span>내가 LLM에게 한 요청이 가닥이 지킬 기준 (“식 이름만 바꿔 줘”)</span><em>64번 모두 요청 원문부터 다시 읽음</em></div>
+  <div class="ag fade" data-step="2" style="left:1212px;top:440px;transition-delay:.3s"><b>스스로 도구를 골라 행동을 결정해서</b><span>요청 원문 · 바뀐 줄 · 정한 것 · 열린 할 일 · 파일 중 골라 씀</span><em>도구 7가지 · 고른 순서가 14가지</em></div>
+  <div class="ag fade" data-step="3" style="left:1212px;top:690px;transition-delay:.3s"><b>컴퓨팅 환경에 맞춰 실행하면서</b><span>Claude Code hook · 크롬 확장 · 내보낸 대화 불러오기</span><em>데스크톱 앱 21 · 터미널 9 · VS Code 1</em></div>
+  <div class="ag c fade" data-step="4" style="left:725px;top:870px;transition-delay:.3s"><b>결과를 관찰하고</b><span>도구가 돌려준 것을 보고 더 볼지 정함</span><em>본 것에 따라 1걸음에서 10걸음까지</em></div>
+  <div class="ag r fade" data-step="5" style="left:238px;top:690px;transition-delay:.3s"><b>목표를 달성했는지 포기할지 판단될 때까지</b><span>한마디를 내거나, 낼 것이 없다고 보고 끝냄</span><em>24번 할 일을 냄 · 40번 “낼 것 없음” · 3개는 근거가 없어 버림</em></div>
+  <div class="ag r fade" data-step="6" style="left:238px;top:440px;transition-delay:.3s"><b>실행 사이클을 반복하는 소프트웨어</b><span>걸음마다 ‘판단 기록’에 남음</span><em>판단 기록 64개</em></div>
+  <div class="core fade" data-step="7"><div class="k">정해진 순서였다면 길은 1가지</div><b>416턴 중 64턴만 루프</b><p>모든 턴은 값싼 분류 1번. 조건이 걸린 15%만 스스로 도구를 골라요.<br>보내는 것은 사람이 승인한 두 종류뿐 (18번)</p></div>
+</section>
+<section class="slide" id="demo" data-steps="0">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">3부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">3부 · AI Agent 활용을 중심으로</div></div>
+  <div class="dm">시연<small>Claude Code로 일하는 하루 — 이 발표를 만든 대화로</small></div>
+</section>
+
+
+
+
+</div>
+<div class="ptd">
+<!-- ===== design-part.html ===== -->
+
+
+<!-- D2 노선도 사전 -->
+<section class="slide" id="d2" data-steps="7">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">디자인</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">디자인 · 대화를 지하철 노선도로 읽는다</div>
+    <h1>왜 지하철 노선도인가 — 요소마다 뜻이 하나</h1>
+    <div class="quote">“복잡한 것을 한눈에 읽히게 하는, 가장 오래 검증된 그림.”</div>
+  </div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="3" pathLength="1" d="M 580 600 L 640 660 H 760" stroke="var(--spur)" stroke-width="14" fill="none" stroke-linejoin="miter"/>
+    <circle class="pop" data-step="3" cx="766" cy="660" r="9" fill="#fff" stroke="var(--ink)" stroke-width="4"/>
+    <text class="fl fade" data-step="3" x="786" y="667">2</text>
+    <path class="draw" data-step="1" pathLength="1" d="M 300 600 H 1300" stroke="var(--route)" stroke-width="22" fill="none"/>
+    <g fill="var(--ink)">
+      <circle class="pop" data-step="2" cx="380" cy="600" r="8"/>
+      <circle class="pop" data-step="2" cx="560" cy="600" r="8"/>
+      <circle class="pop" data-step="2" cx="740" cy="600" r="14"/>
+      <circle class="pop" data-step="2" cx="920" cy="600" r="8"/>
+      <circle class="pop" data-step="2" cx="1100" cy="600" r="8"/>
+    </g>
+    <g class="fade" data-step="2">
+      <text class="nm2" transform="translate(376 572) rotate(-45)">개요 잡기</text>
+      <text class="nm2" transform="translate(556 572) rotate(-45)">자료 조사</text>
+      <text class="nm2 dec" transform="translate(736 566) rotate(-45)">표는 막대로</text>
+      <text class="nm2" transform="translate(916 572) rotate(-45)">보고서 v2</text>
+      <text class="nm2" transform="translate(1096 572) rotate(-45)">검토 요청</text>
+    </g>
+    <circle class="pop halo" data-step="4" cx="1280" cy="600" r="30" fill="var(--halo)"/>
+    <circle class="pop" data-step="4" cx="1280" cy="600" r="19" fill="var(--accent)"/>
+    <text class="nm2 now fade" data-step="4" transform="translate(1276 562) rotate(-45)">지금 · 마무리</text>
+    <g class="fade" data-step="5">
+      <circle cx="920" cy="646" r="5" fill="var(--ink)"/><text class="fl" x="934" y="652">report.md · v2</text>
+      <circle cx="1100" cy="646" r="10" fill="none" stroke="var(--accent)" stroke-width="3.5"/>
+      <circle cx="1100" cy="676" r="10" fill="none" stroke="var(--accent)" stroke-width="3.5"/>
+      <circle cx="380" cy="646" r="10" fill="none" stroke="#B5B5B5" stroke-width="3.5"/>
+    </g>
+    <g class="fade" data-step="6">
+      <rect x="1360" y="594" width="62" height="12" fill="var(--ink)"/>
+      <path d="M 1418 578 L 1452 600 L 1418 622 Z" fill="var(--ink)"/>
+      <text class="nm2" x="1352" y="652">환승하기</text>
+    </g>
+  </svg>
+  <div class="call fade" data-step="1" style="left:120px;top:700px;width:400px"><b>본선</b>대화 하나가 노선 하나. 프로젝트마다 노선 색이 하나예요.</div>
+  <div class="call fade" data-step="2" style="left:120px;top:290px;width:400px"><b>역 · 정함</b>묻고 답한 자리는 점. 무언가를 정한 자리는 큰 점과 굵은 이름. 이름은 위로 45°.</div>
+  <div class="call fade" data-step="3" style="left:560px;top:720px"><b>곁길</b>잠깐 벗어난 질문은 아래로 45°. 회색이라 본선보다 한 걸음 물러나요.</div>
+  <div class="call fade red" data-step="4" style="left:1380px;top:290px"><b>지금</b>화면에 하나뿐인 빨강. 빨강은 ‘지금’과 ‘할 일’에만 써요.</div>
+  <div class="call fade red" data-step="5" style="left:980px;top:720px"><b>할 일 · 산출물</b>역 아래에 쌓아요. 안 한 일은 빨간 고리, 끝낸 일은 회색 고리.</div>
+  <div class="call fade" data-step="6" style="left:1500px;top:560px;width:300px"><b>환승하기</b>다음 대화로 갈아탈 요약을 복사해요.</div>
+  <div class="refs">
+    <div class="fade" data-step="7"><i style="background-image:url(assets/beck.jpg)"></i><b>1933 · Beck 런던</b>거리를 버리고 순서만 → 역 사이는 시간이 아니라 차례</div>
+    <div class="fade" data-step="7" style="transition-delay:.08s"><i style="background-image:url(assets/vignelli-1972.png)"></i><b>1972 · Vignelli 뉴욕</b>노선마다 한 색 · 45° 역 이름 → 프로젝트 색 · 역 이름</div>
+    <div class="fade" data-step="7" style="transition-delay:.16s"><i class="sg">Times Sq–42 St</i><b>1970 · Unimark 표지판</b>검은 띠에 흰 헬베티카 → 머리띠 · 글꼴</div>
+    <div class="fade" data-step="7" style="transition-delay:.24s"><i style="background-image:url(assets/seoul.png)"></i><b>지금 · 서울 지하철</b>이미 읽는 문법 → 곁길 · 환승을 설명 없이</div>
+  </div>
+</section>
+
+
+</div>
+<div class="pt4">
+<!-- ===== part4.html ===== -->
+<section class="slide" id="mc" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">4부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">4부 · 실제로 사용할 수 있는 AI tool</div><h1>토큰 비용 실험 — 큰 모델은 필요한 곳에만</h1></div>
+  <div class="src">실제 대화 55턴에 돌려 정답과 견줌 (README 3-5) · 구독 한도는 Claude Pro 5시간 한도의 사용률을 앞뒤로 읽음</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 120 400 H 1020" stroke="var(--ink)" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 620 400 L 680 460 H 1020" stroke="var(--spur)" stroke-width="10" fill="none" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="1" cx="620" cy="400" r="10" fill="#fff" stroke="var(--ink)" stroke-width="4"/>
+    <circle class="pop" data-step="1" cx="1040" cy="400" r="20" fill="var(--ink)" style="transition-delay:.9s"/>
+    <circle class="pop" data-step="1" cx="1040" cy="460" r="10" fill="#fff" stroke="var(--spur)" stroke-width="4" style="transition-delay:1s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 120 650 H 1020" stroke="var(--ink)" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 620 650 L 680 710 H 1020" stroke="var(--spur)" stroke-width="10" fill="none" style="transition-delay:.5s"/>
+    <circle class="pop" data-step="2" cx="620" cy="650" r="10" fill="#fff" stroke="var(--ink)" stroke-width="4"/>
+    <circle class="pop" data-step="2" cx="1040" cy="650" r="20" fill="var(--ink)" style="transition-delay:.9s"/>
+    <circle class="pop" data-step="2" cx="1040" cy="710" r="10" fill="#fff" stroke="var(--spur)" stroke-width="4" style="transition-delay:1s"/>
+  </svg>
+  <div class="fk fade" data-step="1" style="top:296px"><b>매 턴 정리</b>모든 턴에 돌아요 — 싸고 빨라야</div>
+  <div class="fw fade" data-step="1" style="top:368px;transition-delay:1s"><b>Haiku로 정함</b>턴 하나에 0.3~0.5센트 · 55턴에 $0.19~0.24</div>
+  <div class="fw no fade" data-step="1" style="top:446px;transition-delay:1.1s"><b>Sonnet</b>더 낫지 않았어요 — 곁길을 다 찾지만 두 배로 많이 곁길이라 함 · $0.34</div>
+  <div class="fk fade" data-step="2" style="top:546px"><b>앞길 살피기</b>갈림길에서만 — 조사가 필요해요</div>
+  <div class="fw fade" data-step="2" style="top:618px;transition-delay:1s"><b>Sonnet으로 정함 · 누를 때만</b>한 곳에 Pro 5시간 한도의 0.7%쯤 · 저절로 돌면 대화 하나에 4% → 기본 끔</div>
+  <div class="fw no fade" data-step="2" style="top:696px;transition-delay:1.1s"><b>Haiku</b>조사를 시켜도 방금 대화를 되풀이했어요</div>
+  <div class="full fade" data-step="3"><div class="k">10/7~10/12<br>실제 기록</div>
+    <div class="i"><b>2~3%</b>내 Claude 사용 대비 가닥이 더 쓰는 비용</div><div class="i"><b>약 1센트</b>자동 정리 1회</div><div class="i"><b>6~17센트</b>앞길 보기 1회</div></div>
+  <div class="lim fade" data-step="4">아직 말할 수 없는 것 · 역 깊이 80~84%는 ‘다 본류’라고 답해도 82% — 그래서 곁길을 실제로 찾는지(60~70%)로 봐요</div>
+</section>
+
+
+
+</div>
+<div class="pt5">
+<!-- ===== part5.html ===== -->
+
+
+
+<section class="slide" id="z18" data-steps="3">
+  <span class="markhost" data-h="70"></span>
+  <div class="endq fade" data-step="1">찾는 시간은 가닥에게,<br>정하는 시간은 사람에게.<small>“조사하는 시간과 생각하는 시간의 역전”(제2강 38쪽)을 가닥의 말로</small></div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="2" pathLength="1" d="M 120 740 H 400" stroke="#fff" stroke-width="16" fill="none"/>
+    <circle class="pop" data-step="2" cx="400" cy="740" r="20" fill="var(--accent)" style="transition-delay:.6s"/>
+    <path class="fade" data-step="2" d="M 430 740 H 1800" stroke="#fff" stroke-width="6" stroke-dasharray="14 12" fill="none" style="transition-delay:.8s"/>
+    <circle class="pop" data-step="2" cx="560" cy="740" r="12" fill="#111" stroke="#fff" stroke-width="4" style="transition-delay:1.00s"/>
+    <text class="next fade" data-step="2" x="560" y="790" text-anchor="middle" style="transition-delay:1.10s">큰 대화 뭉치 다루기</text>
+    <circle class="pop" data-step="2" cx="920" cy="740" r="12" fill="#111" stroke="#fff" stroke-width="4" style="transition-delay:1.15s"/>
+    <text class="next fade" data-step="2" x="920" y="790" text-anchor="middle" style="transition-delay:1.25s">‘정함’ 기준 다듬기</text>
+    <circle class="pop" data-step="2" cx="1280" cy="740" r="12" fill="#111" stroke="#fff" stroke-width="4" style="transition-delay:1.30s"/>
+    <text class="next fade" data-step="2" x="1280" y="790" text-anchor="middle" style="transition-delay:1.40s">실사용 후기로 다시 재기</text>
+    <circle class="pop" data-step="2" cx="1640" cy="740" r="12" fill="#111" stroke="#fff" stroke-width="4" style="transition-delay:1.45s"/>
+    <text class="next fade" data-step="2" x="1640" y="790" text-anchor="middle" style="transition-delay:1.55s">다국어</text>
+    <text class="next fade" data-step="2" x="400" y="790" text-anchor="middle" style="transition-delay:.6s;fill:#F0704A">지금</text>
+  </svg>
+  <div class="qa fade" data-step="3"><b>Q&amp;A</b><span>가닥 GADAK · 한윤주 · 한우석 · SNU KDT 13기 빅데이터핀테크 AI응용사례</span></div>
+</section>
+
+</div>
+<div class="pt0 apx">
+<!-- 오프닝 (한윤주): 시연으로 문제를 보여 주고, 연구는 한 줄로 -->
+<section class="slide" id="o0" data-steps="3">
+  <div class="oq only" data-only="0">지난주 Claude에게 ‘장단점’ 피드백 받은 그 대화,<br>어디 있었죠?<small>시연 · 대화 목록에서 찾아보기</small></div>
+  <div class="count only" data-only="1"><b id="o0n">0</b><span>생각이 바뀌는 횟수, 하루에</span><small>Tseng &amp; Poppenk, Nature Communications 11, 3480 (2020) · 깨어 있는 동안 1분에 약 6.5번</small></div>
+  <div class="ol only" data-only="2">LLM과 나눈 대화도<br>그렇게 바뀌며 쌓이는데,<br>아무도 남겨 두지 않죠.<small>지난 대화를 못 찾아 새로 묻는 사람 9명 · 맥락을 손으로 옮기는 사람 12명 (설문 17명)</small></div>
+  <div class="feed only" data-only="2"><ul><li>보고서 2장 다듬기<small>오늘</small></li><li>회귀 vs 분류 정리<small>오늘</small></li><li>발표 피드백 · 장단점<small>어제</small></li><li>코드 리뷰 부탁<small>어제</small></li><li>데이터 전처리 질문<small>10/9</small></li><li>README 고치기<small>10/9</small></li><li>면접 준비<small>10/8</small></li><li>SQL 조인이 헷갈려<small>10/8</small></li><li>포스터 문구<small>10/7</small></li><li>논문 요약<small>10/6</small></li><li>이력서 첨삭<small>10/5</small></li><li>엑셀 함수<small>10/5</small></li><li>팀플 역할 나누기<small>10/4</small></li><li>영어 메일 다듬기<small>10/3</small></li><li>보고서 2장 다듬기<small>오늘</small></li><li>회귀 vs 분류 정리<small>오늘</small></li><li>발표 피드백 · 장단점<small>어제</small></li><li>코드 리뷰 부탁<small>어제</small></li><li>데이터 전처리 질문<small>10/9</small></li><li>README 고치기<small>10/9</small></li><li>면접 준비<small>10/8</small></li><li>SQL 조인이 헷갈려<small>10/8</small></li><li>포스터 문구<small>10/7</small></li><li>논문 요약<small>10/6</small></li><li>이력서 첨삭<small>10/5</small></li><li>엑셀 함수<small>10/5</small></li><li>팀플 역할 나누기<small>10/4</small></li><li>영어 메일 다듬기<small>10/3</small></li></ul></div>
+  <div class="oe only" data-only="3">그 <span>가닥</span>을 잡아 주는 에이전트.</div>
+</section>
+</div>
+<div class="pt1 apx">
+<!-- 6장 · 설문이 바꾼 설계: 위 = 설문 숫자, 아래로 갈아타는 노선, 아래 = 바꾼 설계 -->
+<section class="slide" id="p6" data-steps="5">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">1부</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">1부 · 내 업무, 생활 속에서 어떤 일을 할 수 있을까?</div>
+    <h1>설문이 바꾼 설계</h1>
+  </div>
+  <div class="tier" style="top:262px">설문에서 본 것</div>
+  <div class="tier" style="top:640px">그래서 바꾼 설계</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 330 520 V 690" stroke="#111" stroke-width="16" fill="none" style="transition-delay:.4s"/>
+    <circle class="pop" data-step="1" cx="330" cy="700" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 750 520 V 690" stroke="#111" stroke-width="16" fill="none" style="transition-delay:.4s"/>
+    <circle class="pop" data-step="2" cx="750" cy="700" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1s"/>
+    <path class="fade" data-step="3" d="M 1170 520 V 690" stroke="#BDBDBD" stroke-width="6" stroke-dasharray="8 10" fill="none" style="transition-delay:.4s"/>
+    <circle class="pop" data-step="3" cx="1170" cy="700" r="12" fill="#fff" stroke="#BDBDBD" stroke-width="4" style="transition-delay:1s"/>
+    <path class="draw" data-step="4" pathLength="1" d="M 1590 520 V 690" stroke="#111" stroke-width="16" fill="none" style="transition-delay:.4s"/>
+    <circle class="pop" data-step="4" cx="1590" cy="700" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1s"/>
+  </svg>
+  <div class="col fade" data-step="1" style="left:140px;top:300px"><b>8<small>명</small></b><p>어느 것이 최신본인지 ‘자주’ 헷갈림</p><span>요청 외 변경을 ‘자주’ 겪음 7명</span></div>
+  <div class="dec fade" data-step="1" style="left:140px;top:730px;transition-delay:1.1s"><b>‘요청 외 변경’ 감지를<br>핵심 기능으로</b><span>요청과 바뀐 줄을 대조해 짚어요</span></div>
+  <div class="col fade" data-step="2" style="left:560px;top:300px"><b>9<small>명</small></b><p>지난 대화를 못 찾아 새로 물음</p><span>프로젝트별로 나눠 쓰는 사람 15명</span></div>
+  <div class="dec fade" data-step="2" style="left:560px;top:730px;transition-delay:1.1s"><b>‘이어 가기’ ·<br>‘정한 것’ 찾기</b><span>새 대화에 정한 것 요약을 내밀어요</span></div>
+  <div class="col fade grey" data-step="3" style="left:980px;top:300px"><b>10<small>명</small></b><p>‘앞 내용을 끌고 옴’은 겪은 적 없음</p><span>17명 중 가장 덜 아픈 문제</span></div>
+  <div class="dec fade grey" data-step="3" style="left:980px;top:730px;transition-delay:1.1s"><b>비중을 줄임</b><span>만들 것을 고르는 데도 설문을 썼어요</span></div>
+  <div class="col fade" data-step="4" style="left:1400px;top:300px"><b>3.1<small>점</small></b><p>개인정보 걱정 (5점 만점)</p><span>4점 이상 7명</span></div>
+  <div class="dec fade" data-step="4" style="left:1400px;top:730px;transition-delay:1.1s"><b>대화는<br>내 PC에서만</b><span>정리할 때만 내가 연결한 AI로</span></div>
+  <div class="closer fade" data-step="5" style="top:930px;height:110px;padding-top:22px"><b>네 가지 모두 ‘대화의 뜻을 읽어야’ 풀린다 — 기존 도구는 구조만 그리고, 그 판단을 가닥(Agent)이 맡는다.</b><span>한계: 표본 17명 · 하루 여러 번 쓰는 사람 중심 · 출처 docs/survey/설문분석.md</span></div>
+</section>
+</div>
+<div class="pt2 apx">
+<section class="slide" id="wm" data-steps="3">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>업무 A · B 전과 후</h1><div class="quote">“가닥이 빠짐없이 챙기고, 사람은 정한다.”</div></div>
+  <table class="mt">
+    <thead><tr><th>업무</th><th>잰 것 · 전 → 후로 바뀐 일</th><th class="v">전</th><th class="v">후</th><th class="v">줄어든 만큼</th><th></th></tr></thead>
+    <tbody class="fade" data-step="1">
+<tr><td class="w" rowspan="3"><i>A</i>Claude Code로<br>코드 고치기</td><td><b>요청 외 변경을 다 찾는 시간</b><span>바뀐 파일 전체를 훑음 → 짚어 준 곳만 검증</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">분</td></tr>
+<tr><td><b>놓친 요청 외 변경</b><span>사람 눈으로 가림 → 가닥이 바뀐 줄과 대조</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">건</td></tr>
+<tr><td><b>되돌리기까지 보낸 메시지</b><span>원래를 떠올려 직접 씀 → ‘원래대로 요청’ 한 번</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">개</td></tr>
+    </tbody>
+    <tbody class="fade" data-step="2">
+<tr><td class="w" rowspan="4"><i>B</i>여러 날 보고서 ·<br>발표 자료</td><td><b>지난 결정을 찾는 시간</b><span>스크롤 · “아까 그거 뭐였지?” → 역을 누름</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">분</td></tr>
+<tr><td><b>최신본을 찾는 시간</b><span>폴더와 대화를 뒤짐 → ‘산출물’ 칸</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">분</td></tr>
+<tr><td><b>새 대화로 옮길 요약 만들기</b><span>맥락을 직접 요약 → ‘이어 가기’ 요약</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">분</td></tr>
+<tr><td><b>같은 것을 다시 묻는 횟수</b><span>지난 대화를 못 찾아 새로 물음 → ‘정한 것’ 찾기</span></td><td class="v"><b>__</b></td><td class="v"><b>__</b></td><td class="v d"><b>__</b></td><td class="u">번</td></tr>
+    </tbody>
+  </table>
+  <div class="closer fade" data-step="3"><b>찾기 · 검사 · 옮기기는 가닥이, 정하기는 사람이.</b><span>측정 예정 · 69쪽 틀 · 제2강 37–38쪽 Exhaustiveness by AI · Contemplation by Human</span></div>
+</section>
+</div>
+<div class="pt3 apx">
+<section class="slide" id="a12" data-steps="2">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">3부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">3부 · AI Agent 활용을 중심으로</div><h1>Actual View</h1><div class="quote">“Claude Code로 하루를 일하는 모습을 그대로.”</div></div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 160 360 H 1760 L 1840 440 V 600 L 1760 680 H 160" stroke="#111" stroke-width="18" fill="none" stroke-linejoin="miter" style="transition-duration:2s"/>
+    <circle class="pop" data-step="1" cx="240" cy="360" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.20s"/>
+    <text class="pop" data-step="1" x="240" y="366" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:0.20s">1</text>
+    <circle class="pop" data-step="1" cx="580" cy="360" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.35s"/>
+    <text class="pop" data-step="1" x="580" y="366" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:0.35s">2</text>
+    <circle class="pop" data-step="1" cx="920" cy="360" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.50s"/>
+    <text class="pop" data-step="1" x="920" y="366" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:0.50s">3</text>
+    <circle class="pop" data-step="1" cx="1260" cy="360" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.65s"/>
+    <text class="pop" data-step="1" x="1260" y="366" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:0.65s">4</text>
+    <circle class="pop" data-step="1" cx="1600" cy="360" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.80s"/>
+    <text class="pop" data-step="1" x="1600" y="366" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:0.80s">5</text>
+    <circle class="pop" data-step="1" cx="1600" cy="680" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.95s"/>
+    <text class="pop" data-step="1" x="1600" y="686" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:0.95s">6</text>
+    <circle class="pop" data-step="1" cx="1260" cy="680" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1.10s"/>
+    <text class="pop" data-step="1" x="1260" y="686" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:1.10s">7</text>
+    <circle class="pop" data-step="1" cx="920" cy="680" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1.25s"/>
+    <text class="pop" data-step="1" x="920" y="686" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:1.25s">8</text>
+    <circle class="pop" data-step="1" cx="580" cy="680" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1.40s"/>
+    <text class="pop" data-step="1" x="580" y="686" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:1.40s">9</text>
+    <circle class="pop" data-step="1" cx="240" cy="680" r="16" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:1.55s"/>
+    <text class="pop" data-step="1" x="240" y="686" text-anchor="middle" style="font:800 16px var(--font);fill:#111;transition-delay:1.55s">10</text>
+  </svg>
+  <div class="scene fade" data-step="1" style="left:115px;top:390px;transition-delay:0.30s">켜면 알아서<small>Mac 앱 · Claude Code 기록</small></div>
+  <div class="scene fade" data-step="1" style="left:455px;top:390px;transition-delay:0.45s">노선도 읽기<small>본선 · 곁길 · 정함 · 지금</small></div>
+  <div class="scene fade" data-step="1" style="left:795px;top:390px;transition-delay:0.60s">요청 외 변경<small>업무 A · 바뀐 곳 보기 → 되돌리기</small></div>
+  <div class="scene fade" data-step="1" style="left:1135px;top:390px;transition-delay:0.75s">빠진 요청 · × 지우기<small>보내는 건 사람</small></div>
+  <div class="scene fade" data-step="1" style="left:1475px;top:390px;transition-delay:0.90s">지난 대화에서 찾기<small>오프닝에서 못 찾던 그 대화</small></div>
+  <div class="scene fade" data-step="1" style="left:1475px;top:710px;transition-delay:1.05s">환승하기<small>새 대화에 요약 붙이기</small></div>
+  <div class="scene fade" data-step="1" style="left:1135px;top:710px;transition-delay:1.20s">앞길 보기<small>미리 눌러 둔 결과로</small></div>
+  <div class="scene fade" data-step="1" style="left:795px;top:710px;transition-delay:1.35s">판단 기록<small>도구를 고르고 본 것</small></div>
+  <div class="scene fade" data-step="1" style="left:455px;top:710px;transition-delay:1.50s">전체 지도 · 포스터<small>최근 7 · 15 · 30일</small></div>
+  <div class="scene fade" data-step="1" style="left:115px;top:710px;transition-delay:1.65s">떠 있는 버튼 · 사용 한도<small>다른 앱 위에서</small></div>
+  <div class="live fade" data-step="2"><b>지금 시연</b>가닥 앱으로 넘어가요 · 막히면 장면마다 준비한 캡처로</div>
+</section>
+</div>
+<div class="pt4 apx">
+<section class="slide" id="m15" data-steps="5">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">4부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">4부 · 실제로 사용할 수 있는 AI tool</div><h1>Four Gets 점검과 재 본 것</h1></div>
+  <div class="src">네 원칙 (제2강 39쪽)에 한 줄씩, 안 한 것도 적어요</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <circle class="pop" data-step="1" cx="330" cy="330" r="40" fill="#111" style="transition-delay:0s"/>
+    <text class="pop" data-step="1" x="330" y="341" text-anchor="middle" style="font:800 30px var(--font);fill:#fff;transition-delay:0.1s">1</text>
+    <path class="draw" data-step="2" pathLength="1" d="M 370 330 H 710" stroke="#111" stroke-width="14" fill="none"/>
+    <circle class="pop" data-step="2" cx="750" cy="330" r="40" fill="#111" style="transition-delay:0.5s"/>
+    <text class="pop" data-step="2" x="750" y="341" text-anchor="middle" style="font:800 30px var(--font);fill:#fff;transition-delay:0.6s">2</text>
+    <path class="draw" data-step="3" pathLength="1" d="M 790 330 H 1130" stroke="#111" stroke-width="14" fill="none"/>
+    <circle class="pop" data-step="3" cx="1170" cy="330" r="40" fill="#111" style="transition-delay:0.5s"/>
+    <text class="pop" data-step="3" x="1170" y="341" text-anchor="middle" style="font:800 30px var(--font);fill:#fff;transition-delay:0.6s">3</text>
+    <path class="draw" data-step="4" pathLength="1" d="M 1210 330 H 1550" stroke="#111" stroke-width="14" fill="none"/>
+    <circle class="pop" data-step="4" cx="1590" cy="330" r="40" fill="#111" style="transition-delay:0.5s"/>
+    <text class="pop" data-step="4" x="1590" y="341" text-anchor="middle" style="font:800 30px var(--font);fill:#fff;transition-delay:0.6s">4</text>
+  </svg>
+  <div class="gcol fade" data-step="1" style="left:130px;top:385px;transition-delay:0s"><div class="n">Get Them</div><div class="q">명확하게 정의된 고객</div></div>
+  <div class="gbox fade" data-step="1" style="left:140px;top:470px;transition-delay:0.2s"><div><div class="big">16<small>/17</small></div><div class="sub">한 채팅에서 11번 넘게 · 주제마다 새 채팅</div></div></div>
+  <div class="gans fade" data-step="1" style="left:140px;top:712px;transition-delay:0.3s"><b>여러 날 긴 작업</b>을 LLM과 하는<br>학생 · 지식노동자</div>
+  <div class="gcol fade" data-step="2" style="left:550px;top:385px;transition-delay:0.5s"><div class="n">Get Simple</div><div class="q">사용자가 할 일은 단순하게</div></div>
+  <div class="gbox fade" data-step="2" style="left:560px;top:470px;transition-delay:0.7s"><div><div class="big">0<small>번</small></div><div class="sub">설정 없이 켜면 이 Mac의 기록을 알아서</div></div></div>
+  <div class="gans fade" data-step="2" style="left:560px;top:712px;transition-delay:0.8s">설치는 <b>dmg 한 번</b>,<br>그다음은 켜기만</div>
+  <div class="gcol fade" data-step="3" style="left:970px;top:385px;transition-delay:0.5s"><div class="n">Get Me</div><div class="q">극단적인 개인화</div></div>
+  <div class="gbox shot fade" data-step="3" style="left:980px;top:470px;transition-delay:0.7s;background-image:url(assets/window.png);background-size:1150px auto;background-position:-190px -50px" role="img" aria-label="가닥 노선도 카드"></div>
+  <div class="gans fade" data-step="3" style="left:980px;top:712px;transition-delay:0.8s"><b>내 대화</b>에서 나온 노선도,<br><b>내가 승인한 종류</b>만 가닥이 보냄</div>
+  <div class="gcol fade" data-step="4" style="left:1390px;top:385px;transition-delay:0.5s"><div class="n">Got It!</div><div class="q">다시 돌아오고 싶은 새 시작</div></div>
+  <div class="gbox shot fade" data-step="4" style="left:1400px;top:470px;transition-delay:0.7s;background-image:url(assets/poster.png);background-size:900px auto;background-position:-250px -60px" role="img" aria-label="가닥 포스터 보기"></div>
+  <div class="gans fade" data-step="4" style="left:1400px;top:712px;transition-delay:0.8s">다음 날 <b>‘이어 가기’</b>,<br>한 달이 한 장인 <b>전체 지도</b></div>
+  <div class="full fade" data-step="5"><div class="k">재 본 것<br>(실제 대화 55턴)</div>
+    <div class="i"><b>80~84%</b>역 깊이 (다 ‘본류’라 해도 82%)</div><div class="i"><b>60~70%</b>곁길 찾기</div><div class="i"><b>2~3%</b>내 Claude 사용 대비 비용</div>
+    <div class="no">못 하는 것 · 데스크톱 · 모바일 앱 대화</div></div>
+</section>
+</div>
+<div class="pt5 apx">
+<section class="slide" id="f17" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">5부</span><span class="no"></span></div>
+  <div class="head"><div class="claim">5부 · 도구가 아닌 협업의 대상</div><h1>가닥으로 가닥을 만들기</h1><div class="quote">“우리 대화가 평가 자료이자 설계 근거가 됐다.”</div></div>
+  <div class="shot17 fade" data-step="1" role="img" aria-label="가닥이 그린 이 개발 대화의 노선도"></div>
+  <div class="cap17 fade" data-step="1">가닥이 그린 ‘피드백 반영 및 PR 병합’ 대화 — 이 발표를 준비한 대화예요 (10/12)</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="2" pathLength="1" d="M 1230 330 V 750" stroke="var(--route)" stroke-width="14" fill="none" style="transition-duration:2s"/>
+    <circle class="pop" data-step="2" cx="1230" cy="340" r="16" fill="#fff" stroke="#111" stroke-width="5"/>
+    <circle class="pop" data-step="3" cx="1230" cy="540" r="16" fill="#fff" stroke="#111" stroke-width="5"/>
+    <circle class="pop" data-step="4" cx="1230" cy="740" r="16" fill="#fff" stroke="#111" stroke-width="5"/>
+  </svg>
+  <div class="fact fade" data-step="2" style="top:300px;transition-delay:.15s"><b>58<small>턴</small></b><span>기획 담당의 실제 대화가 <b>정확도 평가의 정답지</b>가 됐어요</span></div>
+  <div class="fact fade" data-step="3" style="top:500px;transition-delay:.15s"><b>408<small>턴</small></b><span>90일치 대화 35개를 넣어 보니 노선이 엉켜, 전체 지도를 <b>최근 30일</b>로 줄였어요</span></div>
+  <div class="fact fade" data-step="4" style="top:700px;transition-delay:.15s"><b>2<small>번</small></b><span>이 발표 자료를 만드는 대화에서도 가닥이 <b>요청 외 변경</b>(표지 장 · 공통 틀 파일)을 짚었어요</span></div>
+</section>
+</div>
+<div class="pt1 apx">
+<!-- 3장 · 배운 대로 썼더니: 세 갈래 습관이 각자 짐을 지나 한 사람에게 모여요 -->
+<section class="slide" id="p3" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">1부 · 3</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">1부 · 내 업무, 생활 속에서 어떤 일을 할 수 있을까?</div>
+    <h1>배운 대로 썼더니</h1>
+    <div class="quote small" style="font-size:22px">교수님이 가르친 습관 (제1강 · Cursor 가이드) → 그 습관을 지키느라 사람 손에 남는 일</div>
+  </div>
+  <div class="hb fade" data-step="1" style="top:318px">“context를 분리하라” <small>새 주제는 새 대화로</small></div>
+  <div class="bd fade" data-step="1" style="top:330px;transition-delay:.9s">맥락을 손으로 옮김</div>
+  <div class="hb fade" data-step="2" style="top:478px">“response를 잘 살펴볼 것”</div>
+  <div class="bd fade" data-step="2" style="top:490px;transition-delay:.9s">바뀐 것을 다 읽음</div>
+  <div class="hb fade" data-step="3" style="top:638px">“여러 요청은 1. 2. 3.으로 구분”</div>
+  <div class="bd fade" data-step="3" style="top:650px;transition-delay:.9s">답이 다 왔는지 셈</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 120 380 H 1000 L 1160 540" stroke="#0039A6" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 120 540 H 1160" stroke="#FCCC0A" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 120 700 H 1000 L 1160 540" stroke="#00933C" stroke-width="16" fill="none"/>
+    <circle class="pop" data-step="1" cx="1000" cy="380" r="11" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:.8s"/>
+    <circle class="pop" data-step="2" cx="1000" cy="540" r="11" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:.8s"/>
+    <circle class="pop" data-step="3" cx="1000" cy="700" r="11" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:.8s"/>
+    <path class="draw" data-step="4" pathLength="1" d="M 1160 540 H 1600" stroke="#111" stroke-width="30" fill="none"/>
+    <circle class="pop" data-step="4" cx="1640" cy="540" r="52" fill="#111" style="transition-delay:.8s"/>
+    <text class="pop" data-step="4" x="1640" y="553" text-anchor="middle" style="font:800 34px var(--font);fill:#fff;letter-spacing:-0.05em;transition-delay:1s">3</text>
+  </svg>
+  <div class="who fade" data-step="4" style="transition-delay:1s">사람 손<small>세 가지가 모두 한 사람에게</small></div>
+  <div class="closer fade" data-step="4" style="transition-delay:1.3s"><b>“좋은 습관일수록 사람 손이 든다.”</b><span>제2강 28쪽 · 자동화 대상 — ‘반복적이고 시간이 많이 소요되는 작업’</span></div>
+</section>
+<!-- 4장 · 설문 ① 누가 어떻게 쓰나 -->
+<section class="slide" id="p4" data-steps="5">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">1부 · 4</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">1부 · 내 업무, 생활 속에서 어떤 일을 할 수 있을까?</div>
+    <h1>설문 ① 누가 어떻게 쓰나</h1>
+    <div class="quote small" style="font-size:22px">응답 17명 · SNU KDT 13기 중심 · 2026-10-02 · 역 하나가 한 사람</div>
+  </div>
+  <div class="srow fade" data-step="1" style="top:322px">하루에 여러 번 LLM을 씀</div>
+  <div class="srow fade" data-step="2" style="top:452px">한 채팅에서 11번 넘게 주고받음</div>
+  <div class="srow fade" data-step="3" style="top:582px">주제가 바뀌면 새 채팅을 엶</div>
+  <div class="srow fade" data-step="4" style="top:712px">에이전트에게 ‘자주’ 맡김</div>
+  <div class="big fade" data-step="1" style="top:304px;transition-delay:1s">16<small>명</small></div>
+  <div class="big fade" data-step="2" style="top:434px;transition-delay:1s">16<small>명</small></div>
+  <div class="big fade" data-step="3" style="top:564px;transition-delay:1s">16<small>명</small></div>
+  <div class="big fade" data-step="4" style="top:694px;transition-delay:1s">15<small>명</small></div>
+  <svg id="p4svg" width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none"></svg>
+  <div class="closer fade" data-step="5"><b>“대상은 긴 작업을 프로젝트별로 나눠 쓰는 사람이다.”</b><span>Get Them (제2강 39쪽) · 대화가 가장 길어지는 일은 업무 · 프로젝트(10명)</span></div>
+</section>
+</div>
+<div class="pt2 apx">
+<section class="slide" id="w7" data-steps="5">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부 · 7</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>워크플로를 정의한 방법</h1></div>
+  <div class="src">교수님의 네 단계 (제2강 27쪽)</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="2" pathLength="1" d="M 300 320 V 470" stroke="#111" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 300 470 V 620" stroke="#111" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="4" pathLength="1" d="M 300 620 V 770" stroke="#111" stroke-width="16" fill="none"/>
+    <path class="draw" data-step="5" pathLength="1" d="M 300 790 V 880 H 1030" stroke="#111" stroke-width="16" fill="none" stroke-linejoin="miter"/>
+    <path class="draw" data-step="5" pathLength="1" d="M 860 880 L 960 780 V 410 H 1030" stroke="#111" stroke-width="16" fill="none" stroke-linejoin="miter" style="transition-delay:.3s"/>
+    <circle class="pop" data-step="5" cx="1050" cy="410" r="30" fill="#111" style="transition-delay:1s"/>
+    <circle class="pop" data-step="5" cx="1050" cy="880" r="30" fill="#111" style="transition-delay:1s"/>
+    <text class="pop" data-step="5" x="1050" y="420" text-anchor="middle" style="font:800 30px var(--font);fill:#fff;transition-delay:1.1s">A</text>
+    <text class="pop" data-step="5" x="1050" y="890" text-anchor="middle" style="font:800 30px var(--font);fill:#fff;transition-delay:1.1s">B</text>
+    <circle class="pop" data-step="1" cx="300" cy="320" r="13" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0s"/>
+    <circle class="pop" data-step="2" cx="300" cy="470" r="13" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.6s"/>
+    <circle class="pop" data-step="3" cx="300" cy="620" r="13" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.6s"/>
+    <circle class="pop" data-step="4" cx="300" cy="770" r="20" fill="#111" stroke="#111" stroke-width="5" style="transition-delay:0.6s"/>
+</svg>
+  <div class="st-l fade" data-step="1" style="top:294px;transition-delay:0.1s"><b>단위별로 쪼개서 문서화</b><span>업무를 단계로 나눠 표로 적었어요 (README 3-4)</span></div>
+  <div class="st-l fade" data-step="2" style="top:444px;transition-delay:0.5s"><b>flowchart 작성</b><span>단계마다 전 · 후 흐름을 그렸어요</span></div>
+  <div class="st-l fade" data-step="3" style="top:594px;transition-delay:0.5s"><b>병목 파악</b><span>사람이 오래 붙잡혀 있는 단계를 표시해요</span></div>
+  <div class="st-l fade" data-step="4" style="top:744px;transition-delay:0.5s"><b>적용 대상 결정</b><span>28쪽 ‘자동화 대상 업무’ 기준으로 둘을 골랐어요</span></div>
+  <div class="task fade" data-step="5" style="top:368px;transition-delay:1.2s"><b>Claude Code로 코드 · 분석 스크립트 고치기</b><p>28쪽 · 인적 오류가 생기기 쉬운 데이터 집약적 작업</p><span>입구: Claude Code hook</span></div>
+  <div class="task fade" data-step="5" style="top:838px;transition-delay:1.3s"><b>여러 날에 걸친 보고서 · 발표 자료 만들기</b><p>28쪽 · 반복적이고 시간이 많이 소요되는 작업</p><span>입구: Claude · ChatGPT 웹, 내보낸 대화</span></div>
+</section>
+<section class="slide" id="w8" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부 · 8</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>업무 A 전과 후 — 바뀐 줄을 다 읽는 대신 짚어 준 곳만</h1></div>
+  <div class="lane fade" data-step="1" style="top:400px">전<small>Claude Code만</small></div>
+  <div class="lane fade" data-step="3" style="top:670px">후<small>가닥과 함께</small></div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 280 430 H 1600" stroke="#9A9A9A" stroke-width="12" fill="none"/>
+    <circle class="pop" data-step="1" cx="340" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.0s"/>
+    <circle class="pop" data-step="1" cx="640" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.08s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 906 430 C 906 310, 974 310, 974 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.24s"/>
+    <circle class="pop" data-step="2" cx="940" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:0.74s"/>
+    <circle class="pop" data-step="1" cx="940" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.16s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 1206 430 C 1206 310, 1274 310, 1274 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.36s"/>
+    <circle class="pop" data-step="2" cx="1240" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:0.86s"/>
+    <circle class="pop" data-step="1" cx="1240" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.24s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 1506 430 C 1506 310, 1574 310, 1574 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.48s"/>
+    <circle class="pop" data-step="2" cx="1540" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:0.98s"/>
+    <circle class="pop" data-step="1" cx="1540" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.32s"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 280 700 H 1600" stroke="var(--route)" stroke-width="18" fill="none"/>
+    <circle class="pop" data-step="3" cx="340" cy="700" r="8" fill="#111" style="transition-delay:0.3s"/>
+    <circle class="pop" data-step="3" cx="640" cy="700" r="8" fill="#111" style="transition-delay:0.38s"/>
+    <circle class="pop" data-step="3" cx="940" cy="700" r="8" fill="#111" style="transition-delay:0.45999999999999996s"/>
+    <circle class="pop" data-step="3" cx="1240" cy="700" r="8" fill="#111" style="transition-delay:0.54s"/>
+    <circle class="pop" data-step="3" cx="1540" cy="700" r="8" fill="#111" style="transition-delay:0.62s"/>
+  </svg>
+  <div class="sn fade" data-step="1" style="left:202.0px;width:276px;top:312px;transition-delay:0.0s">수정 요청</div>
+  <div class="sd fade" data-step="1" style="left:202.0px;width:276px;top:454px;transition-delay:0.0s">“식 이름만 바꿔 줘”</div>
+  <div class="sd hum fade" data-step="3" style="left:202.0px;width:276px;top:724px;transition-delay:0.3s">같음<br><i>사람: 요청</i></div>
+  <div class="sn fade" data-step="1" style="left:502.0px;width:276px;top:312px;transition-delay:0.08s">파일 수정</div>
+  <div class="sd fade" data-step="1" style="left:502.0px;width:276px;top:454px;transition-delay:0.08s">요청 밖 함수 · 파일까지 바뀌기도</div>
+  <div class="sd hum fade" data-step="3" style="left:502.0px;width:276px;top:724px;transition-delay:0.38s">hook이 요청 · 답 · 바뀐 줄을 가닥에</div>
+  <div class="sn fade" data-step="1" style="left:802.0px;width:276px;top:280px;transition-delay:0.16s">결과 확인</div>
+  <div class="neck fade" data-step="2" style="left:940px;top:312px;transition-delay:0.84s">병목</div>
+  <div class="sd fade" data-step="1" style="left:802.0px;width:276px;top:454px;transition-delay:0.16s">바뀐 파일 전체를 훑어 직접 가림</div>
+  <div class="sd hum fade" data-step="3" style="left:802.0px;width:276px;top:724px;transition-delay:0.45999999999999996s">요청 외 변경만 짚어 줌<br><i>사람: 그곳만 검증</i></div>
+  <div class="sn fade" data-step="1" style="left:1102.0px;width:276px;top:280px;transition-delay:0.24s">되돌리기</div>
+  <div class="neck fade" data-step="2" style="left:1240px;top:312px;transition-delay:0.96s">병목</div>
+  <div class="sd fade" data-step="1" style="left:1102.0px;width:276px;top:454px;transition-delay:0.24s">원래가 뭐였는지 떠올려 직접 씀</div>
+  <div class="sd hum fade" data-step="3" style="left:1102.0px;width:276px;top:724px;transition-delay:0.54s">‘원래대로 요청’ 한 번<br><i>사람: 처음 한 번 승인</i></div>
+  <div class="sn fade" data-step="1" style="left:1402.0px;width:276px;top:280px;transition-delay:0.32s">다음 날 이어 하기</div>
+  <div class="neck fade" data-step="2" style="left:1540px;top:312px;transition-delay:1.08s">병목</div>
+  <div class="sd fade" data-step="1" style="left:1402.0px;width:276px;top:454px;transition-delay:0.32s">새 대화에 지난 결정을 다시 설명</div>
+  <div class="sd hum fade" data-step="3" style="left:1402.0px;width:276px;top:724px;transition-delay:0.62s">정한 것 요약을 내밈<br><i>사람: 붙일지 결정</i></div>
+  <div class="effect fade" data-step="4"><div class="k"><b>추정 효과</b>측정 예정 · 69쪽 틀</div><div class="m"><b>__ → __</b>요청 외 변경을 다 찾는 시간</div><div class="m"><b>__ → __</b>놓친 건수</div><div class="m"><b>__ → __</b>되돌리기까지 보낸 메시지</div></div>
+</section>
+<section class="slide" id="w9" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부 · 9</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>업무 B 전과 후 — 다시 읽고 옮겨 적던 일이 누르기 한 번</h1></div>
+  <div class="lane fade" data-step="1" style="top:400px">전<small>LLM 채팅만</small></div>
+  <div class="lane fade" data-step="3" style="top:670px">후<small>가닥과 함께</small></div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 260 430 H 1780" stroke="#9A9A9A" stroke-width="12" fill="none"/>
+    <circle class="pop" data-step="1" cx="320" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.0s"/>
+    <circle class="pop" data-step="1" cx="600" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.08s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 846 430 C 846 310, 914 310, 914 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.24s"/>
+    <circle class="pop" data-step="2" cx="880" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:0.74s"/>
+    <circle class="pop" data-step="1" cx="880" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.16s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 1126 430 C 1126 310, 1194 310, 1194 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.36s"/>
+    <circle class="pop" data-step="2" cx="1160" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:0.86s"/>
+    <circle class="pop" data-step="1" cx="1160" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.24s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 1406 430 C 1406 310, 1474 310, 1474 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.48s"/>
+    <circle class="pop" data-step="2" cx="1440" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:0.98s"/>
+    <circle class="pop" data-step="1" cx="1440" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.32s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 1686 430 C 1686 310, 1754 310, 1754 430" stroke="#9A9A9A" stroke-width="10" fill="none" style="transition-delay:0.6s"/>
+    <circle class="pop" data-step="2" cx="1720" cy="430" r="16" fill="#fff" stroke="#111" stroke-width="6" style="transition-delay:1.1s"/>
+    <circle class="pop" data-step="1" cx="1720" cy="430" r="9" fill="#fff" stroke="#111" stroke-width="4" style="transition-delay:0.4s"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 260 700 H 1780" stroke="var(--route)" stroke-width="18" fill="none"/>
+    <circle class="pop" data-step="3" cx="320" cy="700" r="8" fill="#111" style="transition-delay:0.3s"/>
+    <circle class="pop" data-step="3" cx="600" cy="700" r="8" fill="#111" style="transition-delay:0.38s"/>
+    <circle class="pop" data-step="3" cx="880" cy="700" r="8" fill="#111" style="transition-delay:0.45999999999999996s"/>
+    <circle class="pop" data-step="3" cx="1160" cy="700" r="8" fill="#111" style="transition-delay:0.54s"/>
+    <circle class="pop" data-step="3" cx="1440" cy="700" r="8" fill="#111" style="transition-delay:0.62s"/>
+    <circle class="pop" data-step="3" cx="1720" cy="700" r="8" fill="#111" style="transition-delay:0.7s"/>
+  </svg>
+  <div class="sn fade" data-step="1" style="left:192.0px;width:256px;top:312px;transition-delay:0.0s">본 작업 질문</div>
+  <div class="sd fade" data-step="1" style="left:192.0px;width:256px;top:454px;transition-delay:0.0s">채팅 한 줄로 쌓임</div>
+  <div class="sd hum fade" data-step="3" style="left:192.0px;width:256px;top:724px;transition-delay:0.3s">본선의 역으로 이어짐<br><i>사람: 질문</i></div>
+  <div class="sn fade" data-step="1" style="left:472.0px;width:256px;top:312px;transition-delay:0.08s">곁길 질문</div>
+  <div class="sd fade" data-step="1" style="left:472.0px;width:256px;top:454px;transition-delay:0.08s">본 작업과 섞임</div>
+  <div class="sd hum fade" data-step="3" style="left:472.0px;width:256px;top:724px;transition-delay:0.38s">곁길로 비켜 서고 접힘</div>
+  <div class="sn fade" data-step="1" style="left:752.0px;width:256px;top:280px;transition-delay:0.16s">흐름 복귀</div>
+  <div class="neck fade" data-step="2" style="left:880px;top:312px;transition-delay:0.84s">병목 · 15명</div>
+  <div class="sd fade" data-step="1" style="left:752.0px;width:256px;top:454px;transition-delay:0.16s">스크롤하거나 “아까 그거 뭐였지?”</div>
+  <div class="sd hum fade" data-step="3" style="left:752.0px;width:256px;top:724px;transition-delay:0.45999999999999996s">노선도의 역을 누름<br><i>사람: 역 고르기</i></div>
+  <div class="sn fade" data-step="1" style="left:1032.0px;width:256px;top:280px;transition-delay:0.24s">산출물 수정</div>
+  <div class="neck fade" data-step="2" style="left:1160px;top:312px;transition-delay:0.96s">병목 · 14명</div>
+  <div class="sd fade" data-step="1" style="left:1032.0px;width:256px;top:454px;transition-delay:0.24s">v2 · v3, 요청 안 한 곳까지 바뀜</div>
+  <div class="sd hum fade" data-step="3" style="left:1032.0px;width:256px;top:724px;transition-delay:0.54s">요청 외 변경을 짚어 줌<br><i>사람: 그곳만 확인</i></div>
+  <div class="sn fade" data-step="1" style="left:1312.0px;width:256px;top:280px;transition-delay:0.32s">최신본 · 결정 찾기</div>
+  <div class="neck fade" data-step="2" style="left:1440px;top:312px;transition-delay:1.08s">병목 · 11명</div>
+  <div class="sd fade" data-step="1" style="left:1312.0px;width:256px;top:454px;transition-delay:0.32s">폴더와 대화를 뒤지며 추측</div>
+  <div class="sd hum fade" data-step="3" style="left:1312.0px;width:256px;top:724px;transition-delay:0.62s">‘산출물’ · ‘정한 것’ 칸, 찾기</div>
+  <div class="sn fade" data-step="1" style="left:1592.0px;width:256px;top:280px;transition-delay:0.4s">새 대화로 옮기기</div>
+  <div class="neck fade" data-step="2" style="left:1720px;top:312px;transition-delay:1.2s">병목 · 12명</div>
+  <div class="sd fade" data-step="1" style="left:1592.0px;width:256px;top:454px;transition-delay:0.4s">맥락을 직접 요약해 붙임</div>
+  <div class="sd hum fade" data-step="3" style="left:1592.0px;width:256px;top:724px;transition-delay:0.7s">‘이어 가기’ 요약을 내밈<br><i>사람: 붙일지 결정</i></div>
+  <div class="effect fade" data-step="4"><div class="k"><b>추정 효과</b>측정 예정 · 69쪽 틀</div><div class="m"><b>__ → __</b>지난 결정을 찾는 시간</div><div class="m"><b>__ → __</b>최신본을 찾는 시간</div><div class="m"><b>__ → __</b>새 창 요약을 만드는 시간</div><div class="m"><b>__ → __</b>다시 묻는 횟수</div></div>
+</section>
+<section class="slide" id="w10" data-steps="3">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">2부 · 10</span><span class="no"></span></div>
+  <div class="head"><div class="claim">2부 · 어떤 기능으로 무엇을 만들 수 있을까?</div><h1>바뀐 협업 방식</h1><div class="quote">“가닥이 빠짐없이 챙기고, 사람은 정한다.”</div></div>
+  <div class="trk fade" data-step="1" style="top:330px">사람</div>
+  <div class="trk fade" data-step="2" style="top:625px;color:var(--route)">가닥</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 260 350 H 1800" stroke="#111" stroke-width="10" fill="none"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 260 646 H 1800" stroke="var(--route)" stroke-width="18" fill="none"/>
+  </svg>
+  <div id="toks">
+    <div class="tok go fade" data-step="1" style="left:360px;top:304px;transition-delay:0.0s"><div class="c">찾기</div><div class="b">흐름 · 최신본 · 지난 결정을<br>사람이 스크롤하고 기억함</div><div class="a">가닥이 노선도와 목록으로<br>정리해 둠</div></div>
+    <div class="tok go fade" data-step="1" style="left:740px;top:304px;transition-delay:0.1s"><div class="c">검사</div><div class="b">요청대로 됐는지<br>사람이 다 읽음</div><div class="a">가닥이 대조하고<br>사람은 짚어 준 곳만</div></div>
+    <div class="tok go fade" data-step="1" style="left:1120px;top:304px;transition-delay:0.2s"><div class="c">옮기기</div><div class="b">새 대화로 맥락을<br>사람이 요약해 붙임</div><div class="a">가닥이 요약을 내밀고<br>사람은 붙일지만</div></div>
+    <div class="tok stay fade" data-step="1" style="left:1500px;top:304px;transition-delay:0.30000000000000004s"><div class="c">정하기</div><div class="b">무엇을 할지, 보낼지</div><div class="a"><b>사람 그대로</b></div></div>
+  </div>
+  <div class="closer fade" data-step="3"><b>“조사하는 시간과 생각하는 시간의 역전”</b><span>제2강 37–38쪽 · Exhaustiveness by AI — 빠짐없이 챙기는 일은 가닥이 · Contemplation by Human — 정하는 일은 사람이</span></div>
+</section>
+</div>
+<div class="pt3 apx">
+<section class="slide" id="a13" data-steps="5">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">3부 · 13</span><span class="no"></span></div>
+  <div class="head"><div class="claim">3부 · AI Agent 활용을 중심으로</div><h1>Human In The Loop</h1></div>
+  <div class="src">사람 역할 넷 (제2강 35쪽 · “설계가 승부처”)</div>
+  <div class="hq fade" data-step="1" style="top:300px">“가닥은 대답하지 않는다.”</div>
+  <div class="hq fade" data-step="2" style="top:390px">“보내는 것은 사람이다.”</div>
+  <div class="hq fade" data-step="3" style="top:480px">“승인한 종류만 가닥이 직접 보낸다.”<small>둘뿐: 요청 외 변경 되돌리기 · 이어 가기 요약 — 한마디가 사람이 개입할 Micro-moment</small></div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="4" pathLength="1" d="M 1050 300 V 720" stroke="#111" stroke-width="14" fill="none"/>
+    <circle class="pop" data-step="4" cx="1050" cy="310" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.30s"/>
+    <circle class="pop" data-step="4" cx="1050" cy="445" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.45s"/>
+    <circle class="pop" data-step="4" cx="1050" cy="580" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.60s"/>
+    <circle class="pop" data-step="4" cx="1050" cy="715" r="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.75s"/>
+  </svg>
+  <div class="role fade" data-step="4" style="top:290px;transition-delay:0.35s"><b>의사 결정</b><span>한마디를 보낼지 · 나중에 할지 · 목록에서 뺄지 사람이 고름</span></div>
+  <div class="role fade" data-step="4" style="top:425px;transition-delay:0.50s"><b>결과 검증</b><span>가닥이 짚어 준 요청 외 변경을 사람이 확인</span></div>
+  <div class="role fade" data-step="4" style="top:560px;transition-delay:0.65s"><b>의견 제시</b><span>쓸모없는 할 일은 사람이 ×로 지움 → 목록 · 알림에서 빠짐 (학습에 쓰는 건 다음 과제)</span></div>
+  <div class="role fade" data-step="4" style="top:695px;transition-delay:0.80s"><b>학습 지원</b><span>사람이 정답을 단 대화 58턴으로 분류 기준을 다듬음</span></div>
+  <div class="case fade" data-step="5"><div class="shot" role="img" aria-label="가닥 창의 할 일: 22 · 요청 외 변경 · 가닥이 보냄"></div>
+    <div class="txt"><b>실제로 있던 일 · 10/12</b><br>발표 자료를 만들던 코딩 에이전트가 요청하지 않은 표지 장을 더했어요.<br>가닥이 ‘요청 외 변경’으로 짚고, 승인해 둔 대로 되돌리기를 보냈어요.</div></div>
+</section>
+</div>
+<div class="ptd apx">
+<!-- D1 왜 지하철 노선도인가 -->
+<section class="slide" id="d1" data-steps="5">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">디자인 · D1</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">디자인 · 대화를 지하철 노선도로 읽는다</div>
+    <h1>왜 지하철 노선도인가</h1>
+    <div class="quote">“복잡한 것을 한눈에 읽히게 하는, 가장 오래 검증된 그림.”</div>
+  </div>
+  <div class="ref fade" data-step="1" style="left:180px">
+    <div class="img" style="background-image:url(assets/beck.jpg)"></div>
+    <div class="yr">1933 · Harry Beck</div><div class="nm">런던 지하철 노선도</div>
+    <div class="gv">실제 거리를 버리고 90° · 45°만. ‘어디’보다 ‘어떤 순서’를 보여 줘요.</div>
+  </div>
+  <div class="ref fade" data-step="2" style="left:580px">
+    <div class="img" style="background-image:url(assets/vignelli-1972.png)"></div>
+    <div class="yr">1972 · Massimo Vignelli</div><div class="nm">뉴욕 지하철 지도</div>
+    <div class="gv">노선마다 한 색, 나란한 선 사이 흰 틈, 역마다 점, 45°로 선 역 이름.</div>
+  </div>
+  <div class="ref fade" data-step="3" style="left:980px">
+    <div class="sign"><span class="b" style="background:#EE352E">1</span><span class="b" style="background:#EE352E">2</span><span class="b" style="background:#FCCC0A;color:#111">N</span><span class="b" style="background:#FCCC0A;color:#111">Q</span>
+      <div class="st">Times Sq–42 St</div><div class="dir">Uptown &amp; The Bronx</div></div>
+    <div class="yr">1970 · Vignelli · Unimark (재현)</div><div class="nm">뉴욕 지하철 표지판</div>
+    <div class="gv">검은 띠 위 흰 글씨, 헬베티카 계열. 그대로 가닥의 머리띠가 됐어요.</div>
+  </div>
+  <div class="ref fade" data-step="4" style="left:1380px">
+    <div class="img" style="background-image:url(assets/seoul.png)"></div>
+    <div class="yr">지금 · 서울교통공사</div><div class="nm">서울 지하철 노선도</div>
+    <div class="gv">우리가 이미 읽을 줄 아는 문법. 환승 · 지선을 설명 없이 읽어요.</div>
+  </div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="draw" data-step="1" pathLength="1" d="M 100 820 H 360" stroke="var(--ink)" stroke-width="20" fill="none"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 360 820 H 760" stroke="var(--ink)" stroke-width="20" fill="none"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 760 820 H 1160" stroke="var(--ink)" stroke-width="20" fill="none"/>
+    <path class="draw" data-step="4" pathLength="1" d="M 1160 820 H 1560" stroke="var(--ink)" stroke-width="20" fill="none"/>
+    <path class="draw" data-step="5" pathLength="1" d="M 1560 820 H 1740" stroke="var(--ink)" stroke-width="20" fill="none"/>
+    <g fill="#fff"><circle class="pop" data-step="1" cx="360" cy="820" r="7"/><circle class="pop" data-step="2" cx="760" cy="820" r="7"/><circle class="pop" data-step="3" cx="1160" cy="820" r="7"/><circle class="pop" data-step="4" cx="1560" cy="820" r="7"/></g>
+    <circle class="pop halo" data-step="5" cx="1760" cy="820" r="30" fill="var(--halo)"/>
+    <circle class="pop" data-step="5" cx="1760" cy="820" r="20" fill="var(--accent)"/>
+  </svg>
+  <div class="d1-now fade" data-step="5">가닥 · 대화를 노선도로</div>
+</section>
+<!-- D3 바뀌어 온 길 -->
+<section class="slide" id="d3" data-steps="8" data-first="1">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">디자인 · D3</span><span class="no"></span></div>
+  <div class="head">
+    <div class="claim">디자인 · 대화를 지하철 노선도로 읽는다</div>
+    <h1 style="font-size:52px">바뀌어 온 길 — 쓸수록 지하철에 가까워졌다</h1>
+  </div>
+
+  <div class="scr" data-at="1">
+    <div class="vis"><img src="assets/name-board.png" alt="9/30 이름 보드: 가닥 · 크림 종이 · 첫 심볼" style="height:540px"></div>
+    <div class="txt"><div class="dt">9/30 – 10/1</div><h2>이름은 ‘가닥’</h2>
+      <p>후보는 갈래 · 갈피 · 가닥. “가닥을 잡다”에서 왔어요.</p>
+      <p>첫 심볼은 둥근 선에 곁길이 위로 빠지는 모양, 바탕은 따뜻한 크림색.</p></div>
+  </div>
+  <div class="scr" data-at="2">
+    <div class="vis"><img src="assets/window-1005.png" alt="10/5 무렵 가닥 창: 크림 종이 · 둥근 노선 · 오른쪽 레일" style="width:1040px"></div>
+    <div class="txt"><div class="dt">10/3</div><h2>크림 종이 · 대화 옆 레일</h2>
+      <p>대화 위에 가로 노선도, 대화 옆에 세로 미니 노선(레일).</p>
+      <p>스크롤하면 레일의 ‘보는 중’이 따라와요.</p>
+      <div class="why">10/5 코드로 띄운 실제 화면</div></div>
+  </div>
+  <div class="scr" data-at="3">
+    <div class="vis"><img src="assets/vignelli-1972.png" alt="비녤리 1972 지도" style="height:440px"><span class="arrow">→</span><img src="assets/map.png" alt="가닥 전체 지도" style="width:560px"></div>
+    <div class="txt"><div class="dt">10/6</div><h2>비녤리 문법으로 통일</h2>
+      <p>전체 지도 · 한 줄 노선도 · 환승하기가 생기고, 화면마다 다르던 그림을 한 문법으로.</p>
+      <div class="why">조원 PR #5</div></div>
+  </div>
+  <div class="scr" data-at="4">
+    <div class="vis"><div style="position:relative;width:1040px;height:470px">
+      <img src="assets/window-1005.png" alt="레일이 있던 가닥 창" style="width:1040px">
+      <svg id="norail" width="1040" height="470" style="position:absolute;inset:0">
+        <rect id="railcover" x="984" y="200" width="56" height="270" fill="#fff" opacity="0"/>
+        <path id="strike" class="draw" pathLength="1" d="M 985 205 L 1035 465" stroke="#111" stroke-width="5" fill="none"/>
+      </svg></div></div>
+    <div class="txt"><div class="dt">10/7</div><h2>레일을 뺐다</h2>
+      <p>위의 노선도와 옆의 레일이 같은 것을 두 번 그리고 있었어요.</p>
+      <p>하나만 남기니 대화 칸이 넓어졌어요.</p>
+      <div class="why">써 보고 고침 · 구현 담당</div></div>
+  </div>
+  <div class="scr" data-at="5">
+    <div class="vis"><img src="assets/window.png" alt="10/8 이후 가닥 창" style="width:1040px"></div>
+    <div class="txt"><div class="dt">10/8</div><h2>흰 종이 · 헬베티카</h2>
+      <p>크림을 빼고 흰 종이, 그림자 · 흐림 제거.</p>
+      <p>글꼴은 Helvetica + Pretendard, 카드도 굵은 막대 · 45° 이름 · 아래 곁길.</p></div>
+  </div>
+  <div class="scr" data-at="6">
+    <div class="vis"><img src="assets/vignelli-poster.jpg" alt="Vignelli 90 포스터" style="height:460px"><span class="arrow">→</span><img src="assets/poster.png" alt="가닥 포스터 보기" style="width:540px"></div>
+    <div class="txt"><div class="dt">10/8</div><h2>포스터 보기</h2>
+      <p>비녤리 포스터처럼 굵은 단색 선 · 흰 틈 · 큰 제목.</p>
+      <p>같은 대화를 감상하는 한 장으로.</p></div>
+  </div>
+  <div class="scr" data-at="7">
+    <div class="vis"><svg id="tangle" width="1000" height="520"></svg></div>
+    <div class="txt"><div class="dt">10/8 → 10/11</div><h2>최근 30일</h2>
+      <p>90일치 대화 35개(408턴)를 넣자 노선이 엉켜 읽히지 않았어요.</p>
+      <p>전체 지도는 최근 30일, 10/11부터 7 · 15 · 30일을 골라요.</p></div>
+  </div>
+  <div class="scr" data-at="8">
+    <div class="vis" style="flex-direction:column;align-items:flex-start;justify-content:center;gap:28px">
+      <div style="display:flex;align-items:center;gap:28px;font-size:22px;color:var(--muted)">
+        <span>전</span>
+        <svg viewBox="26 62 150 76" height="70" width="138"><g stroke="#111" stroke-width="10" stroke-linecap="round" fill="none"><path d="M36 122H166M100 122L116 100L132 80H154"/></g><circle cx="48" cy="122" r="9" fill="#fff" stroke="#111" stroke-width="6"/><circle cx="100" cy="122" r="9" fill="#fff" stroke="#111" stroke-width="6"/><circle cx="154" cy="80" r="7" fill="#fff" stroke="#8C8C8C" stroke-width="6"/><circle cx="154" cy="122" r="10" fill="#C8401A"/></svg>
+        <span class="arrow" style="font-size:36px">→</span><span>후 · 둥근 끝 → 각진 굵은 선, 위로 곁길 → 아래로 45°</span>
+      </div>
+      <div style="display:flex;width:1000px;height:300px">
+        <div class="markday" style="flex:1;background:#fff;border:1px solid var(--line);display:grid;place-items:center"></div>
+        <div class="marknight" style="flex:1;background:#111;display:grid;place-items:center;--mark-fg:#fff;--mark-bg:#111;--halo:#4A2A20"></div>
+      </div>
+      <div style="font-size:22px;color:var(--muted)">낮 · 밤 스위치 · 심볼 시안 A~E 중 A</div>
+    </div>
+    <div class="txt"><div class="dt">10/11</div><h2>심볼 A · 낮과 밤</h2>
+      <p>심볼만 옛 문법(둥근 선 · 위로 곁길)이었어요.</p>
+      <p>굵은 본선 · 아래 45° 곁길 · 종점 · 지금, 움직임은 ‘달리기’.</p></div>
+  </div>
+
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none" id="tl"></svg>
+</section>
+</div>
+<div class="pt4 apx">
+<section class="slide" id="m14" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">4부 · 14</span><span class="no"></span></div>
+  <div class="head"><div class="claim">4부 · 실제로 사용할 수 있는 AI tool</div><h1>재 본 것과 못 잰 것</h1></div>
+  <div class="src">실제 대화 55턴에 가닥을 돌려 사람이 단 정답과 견줌 · Haiku · 10/6 프롬프트 기준 (그 뒤로 다시 재지 않음)</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <path class="fade" data-step="1" d="M 520 330 H 1120" stroke="#E2E2E2" stroke-width="4" fill="none" style="transition-delay:0.0s"/>
+    <path class="fade" data-step="1" d="M 520.0 322 V 338" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.0s"/>
+    <path class="fade" data-step="1" d="M 820.0 322 V 338" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.0s"/>
+    <path class="fade" data-step="1" d="M 1120.0 322 V 338" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.0s"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 1000.0 330 H 1024.0" stroke="#111" stroke-width="18" fill="none" style="transition-delay:0.3s"/>
+    <path class="fade" data-step="1" d="M 520 430 H 1120" stroke="#E2E2E2" stroke-width="4" fill="none" style="transition-delay:0.1s"/>
+    <path class="fade" data-step="1" d="M 520.0 422 V 438" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.1s"/>
+    <path class="fade" data-step="1" d="M 820.0 422 V 438" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.1s"/>
+    <path class="fade" data-step="1" d="M 1120.0 422 V 438" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.1s"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 880.0 430 H 940.0" stroke="#111" stroke-width="18" fill="none" style="transition-delay:0.42s"/>
+    <path class="fade" data-step="1" d="M 520 530 H 1120" stroke="#E2E2E2" stroke-width="4" fill="none" style="transition-delay:0.2s"/>
+    <path class="fade" data-step="1" d="M 520.0 522 V 538" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.2s"/>
+    <path class="fade" data-step="1" d="M 820.0 522 V 538" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.2s"/>
+    <path class="fade" data-step="1" d="M 1120.0 522 V 538" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.2s"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 1000.0 530 H 1036.0" stroke="#111" stroke-width="18" fill="none" style="transition-delay:0.54s"/>
+    <path class="fade" data-step="1" d="M 520 630 H 1120" stroke="#E2E2E2" stroke-width="4" fill="none" style="transition-delay:0.30000000000000004s"/>
+    <path class="fade" data-step="1" d="M 520.0 622 V 638" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.30000000000000004s"/>
+    <path class="fade" data-step="1" d="M 820.0 622 V 638" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.30000000000000004s"/>
+    <path class="fade" data-step="1" d="M 1120.0 622 V 638" stroke="#C9C9C9" stroke-width="2" style="transition-delay:0.30000000000000004s"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 700.0 630 H 940.0" stroke="#111" stroke-width="18" fill="none" style="transition-delay:0.6599999999999999s"/>
+    <path class="draw" data-step="2" pathLength="1" d="M 1012.0 290 V 370" stroke="#111" stroke-width="3" stroke-dasharray="1 1" fill="none"/>
+  </svg>
+  <div class="mlbl fade" data-step="1" style="top:304px;transition-delay:0.0s">depth 정확도<small>본류 · 곁길 깊이를 맞힌 비율</small></div>
+  <div class="mval fade" data-step="1" style="top:310px;transition-delay:0.6s">80~84%</div>
+  <div class="mlbl fade" data-step="1" style="top:404px;transition-delay:0.1s">곁길 찾기<small>곁길 10개 중 찾은 비율</small></div>
+  <div class="mval fade" data-step="1" style="top:410px;transition-delay:0.72s">60~70%</div>
+  <div class="mlbl fade" data-step="1" style="top:504px;transition-delay:0.2s">여러 요청 나누기<small>요청 개수를 맞힌 비율</small></div>
+  <div class="mval fade" data-step="1" style="top:510px;transition-delay:0.84s">80~86%</div>
+  <div class="mlbl fade" data-step="1" style="top:604px;transition-delay:0.30000000000000004s">‘정함’ 찾기<small>실행마다 크게 흔들림</small></div>
+  <div class="mval fade" data-step="1" style="top:610px;transition-delay:0.96s">30~70%</div>
+  <div class="base fade" data-step="2" style="left:952.0px;top:262px">전부 ‘본류’라고 답해도 82%</div>
+  <div class="trap fade" data-step="2"><b>이 숫자로는 잘한다고 말할 수 없어요</b>depth 정확도가 기준선과 같아요. 그래서 곁길을 실제로 찾는지(재현율 · 정밀도)로 봐요.</div>
+  <div class="costp fade" data-step="3">
+    <div class="h">비용 · 10/7~10/12 실제 기록</div>
+    <div class="cv"><b>2~3%</b><span>내 Claude 사용 대비 가닥이 더 쓰는 비용</span></div>
+    <div class="cv"><b>약 1센트</b><span>자동 정리 1회 (분류 · 확인 · 구간 · 요약)</span></div>
+    <div class="cv"><b>6~17센트</b><span>앞길 보기 1회 (누를 때만)</span></div>
+    <div class="note">큰 모델로 바꿔 봤지만 더 낫지 않고 느리고 비쌌어요 → 매 턴은 작은 모델, 조건 걸린 턴만 도구 루프</div>
+  </div>
+  <div class="cant fade" data-step="4"><div class="h">아직 못 하는 것</div>
+    <div><b>데스크톱 · 모바일 앱</b>의 대화는 읽지 못해요</div>
+    <div>AI 안전 필터가 막으면 <b>그 턴은 건너뛰어요</b></div>
+    <div>앞길의 쓸모는 <b>7개 중 5개</b> — 정한 10개를 못 채웠어요</div>
+    <div>숫자를 늘리려면 <b>실사용 후기</b>가 더 필요해요</div>
+  </div>
+</section>
+</div>
+<div class="pt5 apx">
+<section class="slide" id="f16" data-steps="4">
+  <div class="band"><span class="markhost"></span><b>가닥<i>GADAK</i></b><span class="part">5부 · 16</span><span class="no"></span></div>
+  <div class="head"><div class="claim">5부 · 도구가 아닌 협업의 대상</div><h1>둘과 에이전트가 일한 방식</h1></div>
+  <div class="src">사람 둘과 코딩 에이전트가 세 노선처럼 나란히 달리고, PR에서 만나 합쳐졌어요 (10/3 ~ 10/12)</div>
+  <svg width="1920" height="1080" style="position:absolute;inset:0;pointer-events:none">
+    <text class="day fade" data-step="1" x="470" y="318" text-anchor="middle">10/3</text>
+    <text class="day fade" data-step="1" x="615" y="318" text-anchor="middle">10/4</text>
+    <text class="day fade" data-step="1" x="760" y="318" text-anchor="middle">10/5</text>
+    <text class="day fade" data-step="1" x="905" y="318" text-anchor="middle">10/6</text>
+    <text class="day fade" data-step="1" x="1050" y="318" text-anchor="middle">10/7</text>
+    <text class="day fade" data-step="1" x="1195" y="318" text-anchor="middle">10/8</text>
+    <text class="day fade" data-step="1" x="1340" y="318" text-anchor="middle">10/9</text>
+    <text class="day fade" data-step="1" x="1485" y="318" text-anchor="middle">10/10</text>
+    <text class="day fade" data-step="1" x="1630" y="318" text-anchor="middle">10/11</text>
+    <text class="day fade" data-step="1" x="1775" y="318" text-anchor="middle">10/12</text>
+    <path class="draw" data-step="1" pathLength="1" d="M 450 360 H 1795" stroke="#0039A6" stroke-width="16" fill="none" style="transition-delay:0.0s;transition-duration:1.6s"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 450 440 H 1795" stroke="#00933C" stroke-width="16" fill="none" style="transition-delay:0.15s;transition-duration:1.6s"/>
+    <path class="draw" data-step="1" pathLength="1" d="M 450 520 H 1795" stroke="#111" stroke-width="16" fill="none" style="transition-delay:0.3s;transition-duration:1.6s"/>
+    <rect class="pop" data-step="2" x="1036" y="336" width="28" height="208" rx="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.0s"/>
+    <text class="prl fade" data-step="2" x="1050" y="572" text-anchor="middle" style="transition-delay:0.2s">PR #2 · #4 · #5</text>
+    <rect class="pop" data-step="2" x="1181" y="336" width="28" height="208" rx="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.2s"/>
+    <text class="prl fade" data-step="2" x="1195" y="572" text-anchor="middle" style="transition-delay:0.4s">PR #7 · #8</text>
+    <rect class="pop" data-step="2" x="1761" y="336" width="28" height="208" rx="14" fill="#fff" stroke="#111" stroke-width="5" style="transition-delay:0.4s"/>
+    <text class="prl fade" data-step="2" x="1775" y="572" text-anchor="middle" style="transition-delay:0.6000000000000001s">PR #9</text>
+    <path class="draw" data-step="3" pathLength="1" d="M 1050 590 V 620" stroke="#111" stroke-width="3" fill="none"/>
+    <path class="draw" data-step="3" pathLength="1" d="M 1630 590 V 620" stroke="#111" stroke-width="3" fill="none"/>
+  </svg>
+  <div class="who fade" data-step="1" style="top:336px;transition-delay:0.0s"><b>한윤주 · 기획</b><span>문제 정의 · 설문 · 디자인 · 프롬프트 문구</span></div>
+  <div class="who fade" data-step="1" style="top:416px;transition-delay:0.15s"><b>한우석 · 구현</b><span>백엔드 · 크롬 확장 · hook · Mac 앱 · 평가</span></div>
+  <div class="who fade" data-step="1" style="top:496px;transition-delay:0.3s"><b>코딩 에이전트</b><span>Claude Code · 정한 규칙 안에서 코드 · 테스트</span></div>
+  <div class="moment fade" data-step="3" style="left:885px;top:624px"><b>10/7 · 사람이 정함</b>두 사람의 작업을 합칠 때 겹친 일곱 곳을 사람이 하나씩 골랐어요</div>
+  <div class="moment fade" data-step="3" style="left:1430px;top:624px;transition-delay:.2s"><b>10/11 · 에이전트가 멈춤</b>다른 프로그램의 열쇠를 읽는 커밋을 에이전트가 멈추고, 사람이 직접 했어요</div>
+  <div class="rules fade" data-step="4" style="top:790px">
+    <div><div class="h">약속 문서 셋 (제2강 20쪽 · 영구적인 규칙과 작업 계획)</div><b>README</b> 기획이 구현 · 에이전트에게 넘기는 설계 · <b>docs/schema.md</b> 데이터 형식 · <b>CLAUDE.md</b> 에이전트가 지킬 규칙</div>
+    <div><div class="h">Git 규칙</div>기능마다 브랜치 → <b>PR로 합침</b> · main에 직접 push 금지 · 프롬프트 · 데이터 형식은 손대기 전에 사람에게</div>
+  </div>
+  <div class="nums fade" data-step="4"><div><b>10일</b>10/3 ~ 10/12</div><div><b>111개</b>커밋</div><div><b>PR 9개</b>6개 합침 · 3개 닫음</div><div><b>319개</b>테스트 통과</div></div>
+</section>
+</div>
+</div>
+<div class="hint">→ 다음 · ← 이전</div>
+
+<script>
+/* 넘기기 · 심볼 A: 1920×1080 무대를 창에 맞춰 줄여요. → · 스페이스 · 클릭: 다음 단계(다 보이면 다음 장) · ←: 이전 장.
+   [data-step]은 지금 단계 이하일 때 .on. 장마다 따로 할 일은 Deck.onStep['장 id'] = (단계, 장) => {}, 처음 단계는 장의 data-first */
+(function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mk = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+  /* 심볼 A + 달리기 (shared/ui/mark.js와 같은 모양 · 움직임) */
+  const NODES = [[26, 22, 4, 'stop', .22], [56, 22, 4, 'stop', .52], [98, 44, 6, 'end', .95], [106, 22, 11, 'now', 1]];
+  const FG = 'var(--mark-fg, var(--ink))', BG = 'var(--mark-bg, var(--paper))';
+  const ease = t => 1 - Math.pow(1 - t, 3), back = t => 1 + 2.9 * Math.pow(t - 1, 3) + 1.9 * Math.pow(t - 1, 2), clamp = t => Math.max(0, Math.min(1, t));
+  function makeMark(h) {
+    const svg = mk('svg', { viewBox: '0 0 120 60', height: h, width: h * 2, class: 'mark' });
+    const line = { fill: 'none', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 0 };
+    const m = { svg, dots: [] };
+    m.spur = mk('path', { ...line, d: 'M44 22 L66 44 H96', 'stroke-width': 10, style: 'stroke: var(--spur)' }, svg);
+    m.trunk = mk('path', { ...line, d: 'M4 22 H104', 'stroke-width': 14, style: 'stroke:' + FG }, svg);
+    m.halo = mk('circle', { cx: 106, cy: 22, r: 15, style: 'fill: var(--halo)' }, svg);
+    NODES.forEach(([x, y, r, k]) => m.dots.push(mk('circle', { cx: x, cy: y, r, style: k === 'stop' ? 'fill:' + BG : k === 'end' ? `fill:${BG};stroke:${FG};stroke-width:3.5` : 'fill: var(--accent)' }, svg)));
+    return m;
+  }
+  function markFrame(m, e, d) {
+    const T = clamp(e / d);
+    m.trunk.setAttribute('stroke-dashoffset', 1 - ease(T));
+    m.spur.setAttribute('stroke-dashoffset', 1 - ease(clamp((T - .36) / .55)));
+    m.dots.forEach((c, j) => { const k = clamp((e - NODES[j][4] * d) / (d * .25)); c.setAttribute('r', NODES[j][2] * (k <= 0 ? 0 : back(k))); });
+    const h = (e - d * 1.1) / (d * .7);
+    m.halo.setAttribute('r', h <= 0 ? 0 : 11 + (h < 1 ? 9 * Math.sin(Math.PI * h) + 4 * ease(h) : 4));
+  }
+  function playMark(m, speed) {
+    cancelAnimationFrame(m.raf); const d = 1300 * (speed || 1);
+    if (REDUCE) return markFrame(m, Infinity, d);
+    const t0 = performance.now(); markFrame(m, 0, d);
+    const f = now => { const e = now - t0; markFrame(m, e, d); if (e < d * 1.85) m.raf = requestAnimationFrame(f); else markFrame(m, Infinity, d); };
+    m.raf = requestAnimationFrame(f);
+  }
+
+  const Deck = window.Deck = { mk, makeMark, playMark, REDUCE, ease, onStep: {} };
+
+  addEventListener('DOMContentLoaded', () => {
+    const marks = [];
+    document.querySelectorAll('.markhost').forEach(h => { const m = makeMark(+h.dataset.h || 30); m.slide = h.closest('.slide'); h.replaceWith(m.svg); marks.push(m); });
+    const slides = [...document.querySelectorAll('.slide')];
+    const first = s => +(s.dataset.first || 0);
+    let si = 0, step = 0;
+    const main = slides.filter(s => !s.closest('.apx'));   // 부록(.apx)은 Q&A 뒤, 번호 없이
+    slides.forEach(s => { const n = s.querySelector('.no'); if (n) n.textContent = s.closest('.apx') ? '부록' : (main.indexOf(s) + 1) + ' / ' + main.length; });
+    function apply() {
+      slides.forEach((s, i) => s.classList.toggle('cur', i === si));
+      const s = slides[si];
+      s.querySelectorAll('[data-step]').forEach(e => e.classList.toggle('on', +e.dataset.step <= step));
+      if (Deck.onStep[s.id]) Deck.onStep[s.id](step, s);
+      try { history.replaceState(null, '', '#' + si + '.' + step); } catch (e) {}
+    }
+    const enter = () => marks.filter(m => m.slide === slides[si]).forEach(m => playMark(m));
+    function next() {
+      if (step < +slides[si].dataset.steps) { step++; apply(); return; }
+      if (si < slides.length - 1) { si++; step = first(slides[si]); apply(); enter(); }
+    }
+    function prev() { if (si > 0) { si--; step = +slides[si].dataset.steps; apply(); enter(); } }
+    addEventListener('keydown', e => {
+      if (['ArrowRight', ' ', 'PageDown', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+      if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
+    });
+    addEventListener('click', e => (e.clientX > innerWidth / 3 ? next() : prev()));
+    const fit = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); document.getElementById('stage').style.transform = `translate(-50%, -50%) scale(${k})`; };
+    addEventListener('resize', fit); fit();
+    const h = /^#(\d+)\.(\d+)$/.exec(location.hash);
+    if (h) { si = Math.min(+h[1], slides.length - 1); step = +h[2]; } else step = first(slides[0]);
+    apply(); enter();
+  });
+})();
+</script>
+<script>
+(function () {
+
+/* 오프닝: data-only는 그 단계에서만 보여요. 둘째 단계에 들어오면 숫자가 0에서 6,000+까지 세어 올라가요 */
+let raf;
+Deck.onStep.o0 = (step, s) => {
+  s.querySelectorAll('[data-only]').forEach(e => e.classList.toggle('on', +e.dataset.only === step));
+  const n = document.getElementById('o0n'); cancelAnimationFrame(raf);
+  if (step !== 1) return;
+  if (Deck.REDUCE) { n.textContent = '6,000+'; return; }
+  const t0 = performance.now();
+  const f = now => { const k = Math.min(1, (now - t0) / 1800); n.textContent = k < 1 ? Math.round(6000 * Deck.ease(k)).toLocaleString() : '6,000+'; if (k < 1) raf = requestAnimationFrame(f); };
+  n.textContent = '0'; raf = requestAnimationFrame(f);
+};
+
+})();
+</script>
+<script>
+(function () {
+
+const { mk, REDUCE } = Deck;
+
+/* 2장: 말풍선이 점으로 줄어들어 노선 위 제자리로 날아가요(곁길 질문은 곁길로). 점이 내려앉으면 노선이 그려져요 */
+const P2DEST = [[960, 600], [1080, 600], [1240, 660], [1330, 660], [1400, 600], [1540, 600], [1680, 600]];
+const p2 = document.getElementById('p2'), chat = document.getElementById('chat');
+const flyLayer = mk('svg', { width: 1920, height: 1080, style: 'position:absolute;inset:0;pointer-events:none' }); p2.appendChild(flyLayer);
+const flyers = P2DEST.map((_, i) => { const c = mk('circle', { r: 12, fill: i === 6 ? 'var(--accent)' : (i === 2 || i === 3) ? 'var(--spur)' : '#111', opacity: 0 }, flyLayer); return c; });
+p2.querySelectorAll('svg [data-step="2"], svg .fade[data-step="2"]').forEach(e => { e.style.transitionDelay = ((parseFloat(e.style.transitionDelay) || 0) + 1.1) + 's'; });
+let flyTimer;
+Deck.onStep.p2 = step => {
+  chat.classList.toggle('mapped', step >= 2);
+  clearTimeout(flyTimer);
+  const bubs = [...chat.children];
+  flyers.forEach((c, i) => {
+    const b = bubs[i], x = 120 + b.offsetLeft + b.offsetWidth / 2, y = 290 + b.offsetTop + b.offsetHeight / 2;
+    c.style.transition = 'none'; c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('opacity', 0);
+  });
+  if (step < 2 || REDUCE) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => flyers.forEach((c, i) => {
+    c.style.transition = `cx 1s var(--ease) ${i * .06}s, cy 1s var(--ease) ${i * .06}s, opacity .3s ${i * .06}s`;
+    c.setAttribute('opacity', 1); c.setAttribute('cx', P2DEST[i][0]); c.setAttribute('cy', P2DEST[i][1]);
+  })));
+  flyTimer = setTimeout(() => flyers.forEach(c => { c.style.transition = 'opacity .5s'; c.setAttribute('opacity', 0); }), 1700);
+};
+
+/* 4장: 줄마다 17개 역(한 사람에 하나). 그 단계에 들어오면 굵은 선이 N번째 역까지 달리고, 지나간 역이 차례로 켜져요 */
+const P4 = [[1, 16, 344], [2, 16, 474], [3, 16, 604], [4, 15, 734]], X0 = 690, DX = 54;
+const p4 = document.getElementById('p4svg'), p4rows = [];
+P4.forEach(([st, n, y]) => {
+  mk('path', { d: `M ${X0} ${y} H ${X0 + DX * 16}`, stroke: '#D9D9D9', 'stroke-width': 4, fill: 'none' }, p4);
+  const bar = mk('path', { d: `M ${X0} ${y} H ${X0 + DX * (n - 1)}`, stroke: '#111', 'stroke-width': 16, fill: 'none', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, p4);
+  bar.style.transition = 'stroke-dashoffset 1.2s var(--ease)';
+  const dots = [...Array(17)].map((_, i) => mk('circle', { cx: X0 + DX * i, cy: y, r: 9, fill: '#fff', stroke: '#BDBDBD', 'stroke-width': 3 }, p4));
+  p4rows.push({ st, n, bar, dots });
+});
+Deck.onStep.p4 = step => p4rows.forEach(r => {
+  const on = step >= r.st;
+  r.bar.setAttribute('stroke-dashoffset', on ? 0 : 1);
+  r.dots.forEach((c, i) => {
+    const lit = on && i < r.n;
+    c.style.transition = 'r .3s var(--ease), stroke .3s'; c.style.transitionDelay = lit && !REDUCE ? (i * 1.1 / r.n) + 's' : '0s';
+    c.setAttribute('stroke', lit ? '#111' : '#BDBDBD'); c.setAttribute('r', lit ? 6 : 9);
+  });
+});
+
+/* 5장: 순환선 여섯 개. 고리 하나가 17명 — 회색 호 = 겪어 봄, 검정 호 = 자주 이상. 역 17개가 고리를 따라 서 있어요 */
+const P5 = [['곁길 뒤 원래 흐름을 찾으려 스크롤', 15, 6], ['요청 외 변경 (작은 수정인데 다른 곳까지)', 14, 7], ['어느 것이 최신본인지 헷갈림', 11, 8],
+  ['앞에서 정한 내용을 다시 찾기 어려움', 11, 3], ['여러 개를 물었는데 일부만 답함', 10, 1], ['관계없는 앞 내용을 계속 끌고 옴', 7, 4]];
+const p5 = document.getElementById('p5svg'), p5s = document.getElementById('p5'), R5 = 78, p5rings = [];
+P5.forEach(([t, all, often], i) => {
+  const cx = 420 + (i % 3) * 540, cy = 430 + Math.floor(i / 3) * 268, d = i * .12;
+  mk('circle', { cx, cy, r: R5, fill: 'none', stroke: '#EDEDED', 'stroke-width': 6 }, p5);
+  const arc = (n, w, c) => { const a = mk('circle', { cx, cy, r: R5, fill: 'none', stroke: c, 'stroke-width': w, pathLength: 17, 'stroke-dasharray': `${n} 17`, 'stroke-dashoffset': n, transform: `rotate(-90 ${cx} ${cy})` }, p5); a.style.transition = `stroke-dashoffset 1.3s var(--ease) ${d}s`; return [a, n]; };
+  const g = arc(all, 12, '#C9C9C9'), b = arc(often, 22, '#111');
+  for (let k = 0; k < 17; k++) { const ang = ((k + .5) / 17) * 2 * Math.PI - Math.PI / 2; mk('circle', { cx: cx + R5 * Math.cos(ang), cy: cy + R5 * Math.sin(ang), r: 3.5, fill: '#fff' }, p5); }
+  const num = mk('text', { x: cx, y: cy + 8, 'text-anchor': 'middle', style: 'font:800 54px var(--font);letter-spacing:-0.08em;fill:#111' }, p5); num.textContent = '0';
+  const sub = mk('text', { x: cx, y: cy + 38, 'text-anchor': 'middle', style: 'font:500 19px var(--font);fill:#5F5F5F' }, p5); sub.textContent = `명 · 자주 ${often}`;
+  const lbl = document.createElement('div'); lbl.className = 'rlbl fade'; lbl.dataset.step = 1; lbl.style.left = (cx - 220) + 'px'; lbl.style.top = (cy + R5 + 22) + 'px'; lbl.style.transitionDelay = d + 's'; lbl.innerHTML = t; p5s.appendChild(lbl);
+  p5rings.push({ g, b, num, all, lbl, i, d });
+});
+[[0, '가장 널리 · 15명'], [2, '가장 자주 · 8명']].forEach(([i, t]) => {
+  const r = p5rings[i], tg = document.createElement('div'); tg.className = 'rtag fade'; tg.dataset.step = 2;
+  tg.style.left = (420 + (i % 3) * 540 - 220) + 'px'; tg.style.top = (430 - R5 - 48) + 'px'; tg.innerHTML = `<span>${t}</span>`; p5s.appendChild(tg);
+});
+const p5timers = []; let p5was = 0;
+Deck.onStep.p5 = step => {
+  const count = step >= 1 && p5was < 1; p5was = step;   // 숫자는 처음 켜질 때만 세어 올라가요
+  p5timers.forEach(cancelAnimationFrame); p5timers.length = 0;
+  p5rings.forEach(r => {
+    [r.g, r.b].forEach(([a, n]) => a.setAttribute('stroke-dashoffset', step >= 1 ? 0 : n));
+    r.lbl.style.fontWeight = step >= 2 && (r.i === 0 || r.i === 2) ? 800 : 400;
+    if (!count || REDUCE) { r.num.textContent = step >= 1 ? r.all : 0; return; }
+    const t0 = performance.now() + r.d * 1000;   // 숫자도 호와 함께 올라가요
+    const tick = now => { const k = Math.max(0, Math.min(1, (now - t0) / 1300)); r.num.textContent = Math.round(r.all * Deck.ease(k)); if (k < 1) p5timers.push(requestAnimationFrame(tick)); };
+    p5timers.push(requestAnimationFrame(tick));
+  });
+};
+
+})();
+</script>
+<script>
+(function () {
+const { mk, REDUCE } = Deck;
+/* 2부 완행 → 급행: 역 일곱. 후 노선이 그려지면(3단계) 두 열차가 같이 떠나요. 완행은 모든 역에 서고 찾는 역에서는 고리를 한 바퀴 돌아요. 급행은 사람이 정하는 역에만 서요 */
+const X0 = 300, X1 = 1740, Y0 = 470, Y1 = 720, R = 34;
+document.querySelectorAll('.slide.xp').forEach(sl => {
+  const stops = JSON.parse(sl.dataset.stops), svg = sl.querySelector('.xsvg'), n = stops.length;
+  const X = i => X0 + (X1 - X0) * i / (n - 1);
+  const draw = (d, st, extra) => { const p = mk('path', { d, class: 'draw', 'data-step': st, pathLength: 1, fill: 'none', ...extra }, svg); return p; };
+  draw(`M ${X0 - 40} ${Y0} H ${X1 + 40}`, 1, { stroke: '#9A9A9A', 'stroke-width': 12 });
+  draw(`M ${X0 - 40} ${Y1} H ${X1 + 40}`, 3, { stroke: 'var(--route)', 'stroke-width': 18 });
+  stops.forEach(([k, name, note, neck, pain], i) => {
+    const x = X(i);
+    const t = mk('text', { x: x - 4, y: Y0 - 26, class: 'xn fade', 'data-step': 1, transform: `rotate(-45 ${x - 4} ${Y0 - 26})` }, svg); t.textContent = name;
+    if (k === 'f') {
+      mk('circle', { cx: x, cy: Y0 + R, r: R, fill: 'none', stroke: '#9A9A9A', 'stroke-width': 8, class: 'fade', 'data-step': 2 }, svg);
+      const nk = mk('text', { x, y: Y0 + 2 * R + 30, 'text-anchor': 'middle', class: 'xneck fade', 'data-step': 2 }, svg); nk.textContent = neck;
+      const pn = mk('text', { x, y: Y0 + 2 * R + 58, 'text-anchor': 'middle', class: 'xpain fade', 'data-step': 2 }, svg);   // 고리를 도는 동안의 불편함, 두 줄
+      pain.split('|').forEach((t, j) => { const ts = mk('tspan', { x, dy: j ? 24 : 0 }, pn); ts.textContent = t; });
+      mk('circle', { cx: x, cy: Y1, r: 9, fill: '#fff', stroke: 'var(--spur)', 'stroke-width': 4, class: 'pop', 'data-step': 3 }, svg);
+      const g = mk('text', { x, y: Y1 + 44, 'text-anchor': 'middle', class: 'xg fade', 'data-step': 3 }, svg); g.textContent = note;
+    } else mk('circle', { cx: x, cy: Y1, r: 15, fill: 'var(--ink)', class: 'pop', 'data-step': 3 }, svg);
+    mk('circle', { cx: x, cy: Y0, r: 10, fill: '#fff', stroke: '#111', 'stroke-width': 4, class: 'pop', 'data-step': 1 }, svg);
+  });
+  const hs = stops.filter(s => s[0] === 'h').length, fs = n - hs;
+  const e0 = mk('text', { x: X1 + 40, y: Y0 + 2 * R + 30, 'text-anchor': 'end', class: 'xend', opacity: 0 }, svg); e0.textContent = `${n}역에 섬 · 고리 ${fs}번`;
+  const e1 = mk('text', { x: X1 + 40, y: Y1 + 78, 'text-anchor': 'end', class: 'xend', opacity: 0 }, svg); e1.textContent = `${hs}역에만 섬`;
+  const t0 = mk('circle', { cx: X0 - 40, cy: Y0, r: 16, fill: '#111', opacity: 0 }, svg);
+  const t1 = mk('circle', { cx: X0 - 40, cy: Y1, r: 19, fill: 'var(--accent)', opacity: 0 }, svg);
+  /* 열차가 지나는 길을 조각으로: [동작, 걸리는 ms, …] */
+  const plan = slow => { const p = []; let x = X0 - 40; stops.forEach(([k], i) => {
+    p.push(['go', Math.abs(X(i) - x) * 1.1, x, X(i)]); x = X(i);
+    if (slow) { p.push(['wait', 260]); if (k === 'f') p.push(['loop', 1100, x]); }
+    else if (k === 'h') p.push(['wait', 260]);
+  }); p.push(['go', 120, x, X1 + 40]); return p; };
+  const P0 = plan(true), P1 = plan(false);
+  const at = (p, y, ms) => { for (const [a, d, u, v] of p) { if (ms > d) { ms -= d; continue; } const k = ms / d;
+      if (a === 'go') return [u + (v - u) * k, y]; if (a === 'wait') return null;
+      const ang = Math.PI / 2 + 2 * Math.PI * k; return [u + R * Math.cos(ang) * 0 + R * Math.sin(2 * Math.PI * k), y + R - R * Math.cos(2 * Math.PI * k)]; }
+    return 'end'; };
+  let raf;
+  Deck.onStep[sl.id] = step => {
+    cancelAnimationFrame(raf);
+    [e0, e1].forEach(e => { e.style.transition = 'opacity .5s'; e.setAttribute('opacity', 0); });
+    [t0, t1].forEach(t => t.setAttribute('opacity', 0));
+    if (step < 3) return;
+    if (REDUCE || step > 3) { e0.setAttribute('opacity', 1); e1.setAttribute('opacity', 1); return; }
+    const start = performance.now() + 900, last = { 0: [X0 - 40, Y0], 1: [X0 - 40, Y1] };
+    const f = now => { const ms = now - start; let done = 0;
+      [[t0, P0, Y0, e0, 0], [t1, P1, Y1, e1, 1]].forEach(([t, p, y, e, i]) => {
+        if (ms < 0) return; t.setAttribute('opacity', 1);
+        const q = at(p, y, ms);
+        if (q === 'end') { t.setAttribute('opacity', 0); e.setAttribute('opacity', 1); done++; return; }
+        if (q) last[i] = q; t.setAttribute('cx', last[i][0]); t.setAttribute('cy', last[i][1]); });
+      if (done < 2) raf = requestAnimationFrame(f); };
+    raf = requestAnimationFrame(f);
+  };
+});
+})();
+</script>
+<script>
+(function () {
+
+/* 10장: 찾기 · 검사 · 옮기기가 사람 선에서 가닥 선으로 갈아타요. 정하기는 사람에게 남아요 */
+Deck.onStep.w10 = step => document.getElementById('toks').classList.toggle('moved', step >= 2);
+
+})();
+</script>
+<script>
+(function () {
+
+/* 11장: 단계마다 빨간 ‘지금’이 순환선을 따라 다음 역으로 (6역 = 60°씩) */
+Deck.onStep.a11 = step => { document.getElementById('train').style.transform = `rotate(${Math.max(0, Math.min(step, 6) - 1) * 60}deg)`; };
+
+})();
+</script>
+<script>
+(function () {
+
+const { mk, makeMark, playMark, REDUCE } = Deck;
+const dayMark = makeMark(110), nightMark = makeMark(110);
+document.querySelector('.markday').appendChild(dayMark.svg);
+document.querySelector('.marknight').appendChild(nightMark.svg);
+
+/* 10/7: 레일에 줄을 긋고 덮어요 */
+const strike = document.getElementById('strike'), railCover = document.getElementById('railcover');
+railCover.style.transition = 'opacity 1s var(--ease)';
+
+/* 10/8 · 30일: 엉킨 90일이 30일로 풀려요 */
+const tangle = document.getElementById('tangle');
+const COLORS = ['#0039A6', '#FF6319', '#00933C', '#FCCC0A', '#B933AD', '#6CBE45', '#00A1DE', '#996633', '#C2185B', '#00796B', '#5C6BC0', '#4D5357'];
+const tangleLines = [];
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+for (let i = 0; i < 34; i++) {
+  const y = 30 + rnd() * 440, x0 = rnd() * 600, x1 = x0 + 200 + rnd() * 380, mx = (x0 + x1) / 2;
+  const p = mk('path', { d: `M ${x0} ${y} H ${mx} L ${mx + 40} ${Math.min(470, Math.max(20, y + (rnd() - .5) * 160))} H ${x1}`, stroke: COLORS[i % COLORS.length], 'stroke-width': 8, fill: 'none' }, tangle);
+  p.style.transition = 'opacity .9s var(--ease)'; tangleLines.push(p);
+}
+const clean = mk('image', { href: 'assets/map.png', x: 0, y: 20, width: 1000, height: 452 }, tangle);   // 풀린 뒤: 실제 30일 전체 지도
+clean.style.transition = 'opacity .9s var(--ease)';
+const tlbl = mk('text', { x: 60, y: 510, 'font-size': 24, 'font-weight': 700, fill: '#111', 'font-family': 'Pretendard, sans-serif' }, tangle);
+let tangleTimer;
+function tangleShow(on) {
+  clearTimeout(tangleTimer);
+  tlbl.textContent = '90일 · 대화 35개';
+  tangleLines.forEach(p => p.style.opacity = .85); clean.style.opacity = 0;
+  if (!on) return;
+  tangleTimer = setTimeout(() => { tlbl.textContent = '최근 30일 · 프로젝트 넷'; tangleLines.forEach(p => p.style.opacity = 0); clean.style.opacity = 1; }, REDUCE ? 0 : 1600);
+}
+
+/* D3 아래 시간 노선: 역 여덟, 단계마다 빨간 ‘지금’이 다음 역으로 */
+const STOPS = [['9/30', '이름'], ['10/3', '크림 · 레일'], ['10/6', '비녤리'], ['10/7', '레일 뺌'], ['10/8', '흰 종이'], ['10/8', '포스터'], ['10/8', '30일'], ['10/11', '심볼 A']];
+const tl = document.getElementById('tl'), TY = 900, TX = i => 180 + i * 222;
+mk('path', { d: `M 140 ${TY} H ${TX(7) + 40}`, stroke: '#D0D0D0', 'stroke-width': 6, fill: 'none' }, tl);
+const done = mk('path', { d: `M ${TX(0)} ${TY} H ${TX(7)}`, stroke: '#111', 'stroke-width': 18, fill: 'none', pathLength: 1, 'stroke-dasharray': '1 1', 'stroke-dashoffset': 1 }, tl);
+done.style.transition = 'stroke-dashoffset 1s var(--ease)';
+const stopDots = STOPS.map(([d, t], i) => {
+  const c = mk('circle', { cx: TX(i), cy: TY, r: 9, fill: '#fff', stroke: '#111', 'stroke-width': 4 }, tl);
+  mk('text', { x: TX(i), y: TY + 50, 'text-anchor': 'middle', class: 'tl-lbl' }, tl).textContent = d;
+  mk('text', { x: TX(i), y: TY + 78, 'text-anchor': 'middle', class: 'tl-tag' }, tl).textContent = t;
+  return c;
+});
+const trainHalo = mk('circle', { cx: TX(0), cy: TY, r: 28, fill: 'var(--halo)' }, tl);
+const train = mk('circle', { cx: TX(0), cy: TY, r: 18, fill: 'var(--accent)' }, tl);
+[trainHalo, train].forEach(e => e.style.transition = 'cx 1s var(--ease)');
+
+/* D3: 단계 = 역 번호 */
+Deck.onStep.d3 = (step, s) => {
+  const at = Math.max(1, step);
+  s.querySelectorAll('.scr').forEach(e => e.classList.toggle('on', +e.dataset.at === at));
+  train.setAttribute('cx', TX(at - 1)); trainHalo.setAttribute('cx', TX(at - 1));
+  done.setAttribute('stroke-dashoffset', 1 - (TX(at - 1) - TX(0)) / (TX(7) - TX(0)));
+  stopDots.forEach((c, i) => c.setAttribute('fill', i < at - 1 ? '#111' : '#fff'));
+  if (at === 4) { railCover.style.opacity = 0; strike.classList.remove('on'); setTimeout(() => { strike.classList.add('on'); railCover.style.opacity = .85; }, REDUCE ? 0 : 700); }
+  tangleShow(at === 7);
+  if (at === 8) { playMark(dayMark); setTimeout(() => playMark(nightMark), 300); }
+};
+
+})();
+</script>
+</body>
+</html>

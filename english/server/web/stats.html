@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가닥 사용 기록</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* 가닥 팀이 보는 통계 화면. 색은 가닥 토큰 그대로: 막대는 먹색 한 가지(양만 나타내요), 글은 글 색.
+   빨강(--accent)은 가닥 화면에서 ‘지금 · 정함 · 할 일’의 뜻이라 여기서는 쓰지 않아요. */
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.5; }
+button, input { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.page { max-width: 1080px; margin: 0 auto; padding: 24px 20px 56px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 18px; }
+header h1 { margin: 0; font-family: var(--display); font-size: 22px; }
+header p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* 고르는 줄: 기간. 아래 전부가 이 기간으로 다시 그려져요 */
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+.filters .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.filters .seg button { height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+.filters .seg button + button { border-left: 1px solid var(--line); }
+.filters .seg button[aria-pressed="true"] { color: var(--fg); font-weight: 600; background: var(--bg); }
+.filters .sp { flex: 1; }
+.key { display: flex; gap: 8px; }
+.key input { height: 30px; width: 190px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13px; }
+.btn { height: 30px; padding: 0 12px; border: 1px solid var(--fg); border-radius: 8px; background: var(--fg); color: var(--bg); font-weight: 600; font-size: 13px; cursor: pointer; }
+.note { color: var(--muted); font-size: 13px; }
+.note.bad { color: var(--fg); font-weight: 600; }
+
+/* 머릿수 줄 */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.tile { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.tile .l { font-size: 12.5px; color: var(--muted); }
+.tile .v { font-size: 30px; font-weight: 600; line-height: 1.25; }
+.tile .s { font-size: 12px; color: var(--faint); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; }
+.card { padding: 16px 18px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.card .why { margin: 2px 0 12px; font-size: 12.5px; color: var(--muted); }
+.card h3 { margin: 16px 0 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; color: var(--faint); }
+.empty { color: var(--faint); font-size: 13px; padding: 4px 0; }
+
+/* 가로 막대: 얇게(10px), 끝만 둥글게, 값은 막대 끝에 */
+.bars { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 12px; align-items: center; }
+.bars .name { font-size: 13px; color: var(--fg2); white-space: nowrap; }
+.bars .row { display: flex; align-items: center; gap: 8px; min-width: 0; border-radius: 4px; }
+.bars .bar { height: 10px; min-width: 2px; background: var(--fg); border-radius: 0 4px 4px 0; flex: none; }
+.bars .num { font-size: 12.5px; color: var(--fg2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bars .row:hover .bar, .bars .row:focus .bar, .cols .col:hover i, .cols .col:focus i { opacity: 0.72; }
+
+/* 비율: 같은 색 계열의 옅은 바탕 위에 채워요 */
+.meters { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 8px 12px; align-items: center; }
+.meters .name { font-size: 13px; color: var(--fg2); white-space: nowrap; }
+.meters .track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.meters .track i { display: block; height: 100%; background: var(--fg); border-radius: 4px; }
+.meters .num { font-size: 12.5px; color: var(--fg2); font-variant-numeric: tabular-nums; }
+
+/* 날마다: 얇은 세로 막대. 높이에 날짜 줄까지 들어 있어요 */
+.cols { display: flex; align-items: flex-end; height: 120px; padding-top: 18px; border-bottom: 1px solid var(--ring); position: relative; }
+.cols .col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: flex-end; justify-content: center; padding: 0 1px; box-sizing: border-box; }
+.cols .col i { display: block; width: 100%; max-width: 14px; background: var(--fg); border-radius: 4px 4px 0 0; }
+.cols .top { position: absolute; left: 0; top: 0; font-size: 11.5px; color: var(--faint); }
+.axis { display: flex; justify-content: space-between; margin-top: 4px; padding: 0 2px; font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 5px 0; text-align: left; border-bottom: 1px solid var(--line); font-weight: 400; }
+th { font-size: 12px; color: var(--faint); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; padding-left: 14px; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+
+.tip { position: fixed; z-index: 10; padding: 7px 10px; border-radius: 8px; background: var(--tip); color: var(--tip-fg); font-size: 12.5px; line-height: 1.4; pointer-events: none; }
+.tip b { display: block; font-size: 14px; font-weight: 600; }
+.tip[hidden] { display: none; }
+.held { opacity: 0.55; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>가닥 사용 기록</h1>
+    <p>보내기에 동의한 사용자의 기록이에요. 숫자와 정해 둔 낱말뿐이고, 대화 글은 받지 않아요.</p>
+  </header>
+  <div class="filters">
+    <div class="seg" id="range" role="group" aria-label="기간">
+      <button type="button" data-days="7">최근 7일</button>
+      <button type="button" data-days="30">최근 30일</button>
+      <button type="button" data-days="0">전체</button>
+    </div>
+    <span class="sp"></span>
+    <form class="key" id="key">
+      <input type="password" id="token" placeholder="통계 암호" aria-label="통계 암호" autocomplete="off">
+      <button class="btn" type="submit">보기</button>
+    </form>
+  </div>
+  <div class="note" id="note">암호를 넣으면 보여요.</div>
+  <div id="out"></div>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+  var SITE = { 'claude': 'Claude 웹', 'chatgpt': 'ChatGPT', 'gemini': 'Gemini', 'claude-code': 'Claude Code', 'codex': 'Codex', 'cursor': 'Cursor' };
+  var KIND = { missing: '빠진 요청', unasked: '요청 외 변경', yours: '내가 할 일', branch: '숨은 가지', open: '끝나지 않은 곁길',
+    check: '이해 확인', topic: '주제 전환', repeat: '반복 질문', handoff: '이어 가기', next: '다음 할 일' };
+  var UI = { scope_chat: '범위: 이 대화', scope_all: '범위: 프로젝트 전체', tab_todo: '탭: 할 일', tab_dec: '탭: 정한 것', tab_files: '탭: 산출물',
+    search: '지난 대화에서 찾기', seg_open: '구간 펼치기', seg_close: '구간 접기', open_all: '모두 펼치기', fold_all: '지난 구간 접기',
+    list_open: '목록 펴기', list_close: '목록 접기', map_open: '노선도 펼치기', map_close: '노선도 접기', go_map: '노선도에서 역 누르기',
+    go_rail: '레일에서 역 누르기', go_list: '목록에서 이동', open_chat: '대화 열기', open_project: '프로젝트 열기', full_text: '전체 보기',
+    trace: '판단 기록 열기', sources: '찾은 곳 열기', copy: '실행 글 복사' };
+  var TOOL = { get_request: '요청 다시 보기', get_diff: '바뀐 곳 보기', search_decisions: '정한 것 찾기', list_open_items: '열린 할 일 보기' };
+  var VIA = { app: '가닥 앱', browser: '브라우저 창' }, OS = { mac: 'macOS', windows: 'Windows', linux: 'Linux', other: '그 밖' };
+  var ENGINE = { claude_cli: 'Claude 구독', api: 'API 키', none: '엔진 없음' }, STOP = { limit: '호출 한도', engine: '엔진(로그인 · 구독 한도)', other: '그 밖' };
+
+  var out = document.getElementById('out'), note = document.getElementById('note'), tip = document.getElementById('tip');
+  var days = 7;
+  // 밝게 · 어둡게는 시스템 설정을 따라가요. 주소에 ?theme=light · dark 를 붙이면 고정돼요
+  var theme = new URLSearchParams(location.search).get('theme');
+  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function num(n) { return Number(n).toLocaleString('ko-KR'); }
+  function pct(x) { return Math.round(x * 100) + '%'; }
+  function many(label, unit) { return / 이상$/.test(label) ? label.replace(' 이상', unit + ' 이상') : label + unit; }   // ‘41 이상’ → ‘41턴 이상’
+  /* 기록이 없는 날도 0으로 넣어서, 가로가 날짜 그대로 흐르게 해요 */
+  function everyDay(list) {
+    var by = {}, out = []; list.forEach(function (d) { by[d.day] = d; });
+    var at = new Date(list[0].day + 'T00:00:00Z'), end = new Date(list[list.length - 1].day + 'T00:00:00Z');
+    for (; at <= end; at.setUTCDate(at.getUTCDate() + 1)) { var key = at.toISOString().slice(0, 10); out.push(by[key] || { day: key, installs: 0, events: 0 }); }
+    return out;
+  }
+
+  /* 막대 · 기둥에 올리면(또는 탭으로 가면) 값이 떠요. 값은 화면에도 적혀 있어서 이것 없이도 읽혀요 */
+  function hint(node, value, label) {
+    node.tabIndex = 0;
+    node.setAttribute('aria-label', label + ' ' + value);
+    function show() {
+      tip.innerHTML = ''; tip.appendChild(el('b', null, value)); tip.appendChild(document.createTextNode(label)); tip.hidden = false;
+      var r = node.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+      tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+      tip.style.top = (r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8) + 'px';
+    }
+    function hide() { tip.hidden = true; }
+    node.addEventListener('pointerenter', show); node.addEventListener('pointerleave', hide);
+    node.addEventListener('focus', show); node.addEventListener('blur', hide);
+  }
+
+  function card(title, why, wide) {
+    var c = el('section', 'card' + (wide ? ' wide' : '')); c.appendChild(el('h2', null, title));
+    c.appendChild(el('p', 'why', why)); return c;
+  }
+  function bars(host, rows, unit) {
+    var top = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([0]));
+    if (!top) { host.appendChild(el('div', 'empty', '아직 없어요.')); return; }
+    var box = el('div', 'bars');
+    rows.forEach(function (r) {
+      box.appendChild(el('span', 'name', r[0]));
+      var row = el('div', 'row'), bar = el('i', 'bar');
+      bar.style.width = 'calc(' + (r[1] / top * 100).toFixed(1) + '% - 56px)';
+      row.appendChild(bar); row.appendChild(el('span', 'num', num(r[1]) + (unit || '')));
+      hint(row, num(r[1]) + (unit || ''), r[0]);
+      box.appendChild(row);
+    });
+    host.appendChild(box);
+  }
+  function meters(host, rows) {
+    var box = el('div', 'meters');
+    rows.forEach(function (r) {
+      box.appendChild(el('span', 'name', r[0]));
+      var track = el('div', 'track'), fill = el('i'); fill.style.width = (r[1] * 100).toFixed(1) + '%'; track.appendChild(fill);
+      box.appendChild(track); box.appendChild(el('span', 'num', pct(r[1])));
+    });
+    host.appendChild(box);
+  }
+  function table(host, head, rows) {
+    var t = el('table'), tr = el('tr');
+    head.forEach(function (h, i) { tr.appendChild(el('th', i ? 'n' : null, h)); });
+    t.appendChild(tr);
+    rows.forEach(function (r) { var x = el('tr'); r.forEach(function (v, i) { x.appendChild(el('td', i ? 'n' : null, v)); }); t.appendChild(x); });
+    host.appendChild(t);
+  }
+  function tile(host, label, value, sub) {
+    var t = el('div', 'tile'); t.appendChild(el('div', 'l', label)); t.appendChild(el('div', 'v', value));
+    if (sub) t.appendChild(el('div', 's', sub)); host.appendChild(t);
+  }
+  function counts(obj, names) {
+    return Object.keys(obj || {}).map(function (k) { return [names[k] || k, obj[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+  }
+
+  function draw(s) {
+    out.innerHTML = '';
+    if (!s.events) { note.textContent = '이 기간에 받은 기록이 없어요.'; return; }
+    note.textContent = '';
+
+    var tiles = el('div', 'tiles');
+    tile(tiles, '참여한 PC', num(s.installs), '무작위 설치 번호 기준');
+    tile(tiles, '받은 기록', num(s.events));
+    tile(tiles, '모양이 온 대화', num(s.chats.count), '정리가 끝난 대화');
+    tile(tiles, '정리한 턴', num(s.classify.done), s.classify.calls ? '호출 ' + num(s.classify.calls) + '번' : '');
+    out.appendChild(tiles);
+
+    var grid = el('div', 'grid'); out.appendChild(grid);
+
+    var c = card('날마다 쓴 PC', '그날 기록을 하나라도 보낸 PC 수예요.', true);
+    var daily = everyDay(s.days), top = Math.max.apply(null, daily.map(function (d) { return d.installs; }));
+    var cols = el('div', 'cols'); cols.appendChild(el('span', 'top', '최대 ' + num(top) + '대'));
+    daily.forEach(function (d) {
+      var col = el('div', 'col'), fill = el('i'); fill.style.height = (d.installs / top * 100).toFixed(1) + '%';
+      col.appendChild(fill); hint(col, num(d.installs) + '대', d.day + ' · 기록 ' + num(d.events) + '개'); cols.appendChild(col);
+    });
+    c.appendChild(cols);
+    var axis = el('div', 'axis'); axis.appendChild(el('span', null, daily[0].day)); if (daily.length > 1) axis.appendChild(el('span', null, daily[daily.length - 1].day)); c.appendChild(axis);
+    var twin = el('details'); twin.appendChild(el('summary', null, '표로 보기'));
+    table(twin, ['날짜', 'PC', '기록'], daily.slice().reverse().map(function (d) { return [d.day, num(d.installs), num(d.events)]; }));
+    c.appendChild(twin); grid.appendChild(c);
+
+    c = card('어떤 입구로 쓰나', '그 입구의 대화가 하나라도 있는 PC 수예요.');
+    bars(c, s.entrances.map(function (e) { return [SITE[e.site] || e.site, e.installs]; }).sort(function (a, b) { return b[1] - a[1]; }), '대');
+    c.appendChild(el('h3', null, '켜는 방법')); bars(c, counts(s.opened.via, VIA), '대');
+    c.appendChild(el('h3', null, '정리 엔진')); bars(c, counts(s.opened.engine, ENGINE), '대');
+    grid.appendChild(c);
+
+    c = card('대화가 어떻게 생겼나', '사용 유형을 보려는 값이에요. 대화 하나를 한 번씩만 세요.');
+    if (!s.chats.count) { c.appendChild(el('div', 'empty', '아직 없어요.')); grid.appendChild(c); c = null; }
+    if (c) {
+    c.appendChild(el('h3', null, '대화 하나의 턴 수')); bars(c, s.chats.turns.map(function (b) { return [many(b.label, '턴'), b.count]; }), '개');
+    c.appendChild(el('h3', null, '같은 프로젝트에 있는 대화 수')); bars(c, s.chats.in_project.map(function (b) { return [many(b.label, '개'), b.count]; }), '개');
+    c.appendChild(el('h3', null, '이런 대화의 비율'));
+    meters(c, [['곁길이 있는 대화', s.chats.with_side], ['정한 것이 있는 대화', s.chats.with_decision], ['요청이 여럿인 턴이 있는 대화', s.chats.with_multi], ['파일이 바뀐 대화', s.chats.with_files]]);
+    c.appendChild(el('h3', null, '턴 가운데')); meters(c, [['곁길 턴', s.chats.side_turns], ['정한 턴', s.chats.decided_turns]]);
+    grid.appendChild(c);
+    }
+
+    c = card('한마디가 쓸모 있었나', '가닥이 만든 한마디가 화면에 보이고, 실행되거나 미뤄진 횟수예요.', true);
+    if (!s.items.length) c.appendChild(el('div', 'empty', '아직 없어요.'));
+    else {
+      table(c, ['종류', '만듦', '보임', '실행', '나중에', '닫음'], s.items.map(function (i) { return [KIND[i.kind] || i.kind, num(i.made), num(i.shown), num(i.run), num(i.later), num(i.close)]; }));
+      c.appendChild(el('h3', null, '만든 것 가운데 실행한 비율'));
+      meters(c, s.items.filter(function (i) { return i.made; }).map(function (i) { return [KIND[i.kind] || i.kind, Math.min(1, i.run / i.made)]; }));
+    }
+    grid.appendChild(c);
+
+    c = card('화면에서 무엇을 누르나', '많이 누른 것부터예요.');
+    if (!s.ui.length) c.appendChild(el('div', 'empty', '아직 없어요.'));
+    else bars(c, s.ui.map(function (u) { return [UI[u.what] || u.what, u.count]; }), '번');
+    grid.appendChild(c);
+
+    c = card('정리가 잘 되나', '1단은 분류, 2단은 놓친 일 확인이에요.');
+    table(c, ['1단 · 분류', ''], [['호출', num(s.classify.calls) + '번'], ['물은 턴 가운데 받은 턴', pct(s.classify.kept)], ['호출 한 번에 걸린 시간', s.classify.seconds + '초']]);
+    c.appendChild(el('h3', null, ''));
+    table(c, ['2단 · 확인', ''], [['확인한 턴', num(s.check.runs) + '개'], ['한마디를 만든 비율', pct(s.check.made_share)], ['한 턴에 쓴 걸음', s.check.steps + '번'], ['한 턴에 걸린 시간', s.check.seconds + '초']]);
+    c.appendChild(el('h3', null, '2단이 쓴 도구')); bars(c, s.check.tools.map(function (t) { return [TOOL[t.tool] || t.tool, t.count]; }), '번');
+    c.appendChild(el('h3', null, '정리가 멈춘 까닭')); bars(c, counts(s.stops, STOP), '번');
+    grid.appendChild(c);
+  }
+
+  function load() {
+    var token = sessionStorage.getItem('gadak-stats-key') || '';
+    if (!token) return;
+    out.classList.add('held');   // 다시 받는 동안 앞 그림을 흐리게 둬요
+    fetch('v1/stats' + (days ? '?days=' + days : ''), { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
+      out.classList.remove('held');
+      if (r.status === 403) { out.innerHTML = ''; note.className = 'note bad'; note.textContent = '암호가 맞지 않아요.'; sessionStorage.removeItem('gadak-stats-key'); return null; }
+      note.className = 'note'; return r.json();
+    }).then(function (s) { if (s) draw(s); }, function () { out.classList.remove('held'); note.textContent = '서버에 닿지 못했어요.'; });
+  }
+  function press() { Array.prototype.forEach.call(document.querySelectorAll('#range button'), function (b) { b.setAttribute('aria-pressed', String(Number(b.dataset.days) === days)); }); }
+  document.getElementById('range').addEventListener('click', function (e) { if (e.target.dataset.days == null) return; days = Number(e.target.dataset.days); press(); load(); });
+  document.getElementById('key').addEventListener('submit', function (e) { e.preventDefault(); sessionStorage.setItem('gadak-stats-key', document.getElementById('token').value); load(); });
+  var given = /^#key=(.+)$/.exec(location.hash);
+  if (given) { sessionStorage.setItem('gadak-stats-key', decodeURIComponent(given[1])); history.replaceState(null, '', location.pathname + location.search); }
+  press(); load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Gadak",
+  "description": "Organises Claude and ChatGPT chats as a transit map",
+  "version": "0.1.0",
+  "incognito": "not_allowed",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": {
+    "default_title": "Gadak",
+    "default_popup": "popup/popup.html",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+  },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:7311/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["content/text.js", "content/sites/chatgpt.js", "content/reader.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content/text.js", "content/sites/claude.js", "content/reader.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

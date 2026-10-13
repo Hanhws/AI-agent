@@ -5,15 +5,16 @@
     ./.venv/bin/python -m homepage.build --stamp    # dist/ 의 설치 파일(한국어판)로 downloads.json 을 다시 적어요
     ./.venv/bin/python -m homepage.build --artifact # Claude 아티팩트(비공개 미리보기)로 올릴 모양으로
 
-영어판 — <폴더>는 english 브랜치를 받아 둔 곳이에요 (예: git worktree add ../gadak-english english)
-    ./.venv/bin/python -m homepage.build --pull-english <폴더>    # 영어 화면 · 그림 · 설치 안내를 가져와요
-    ./.venv/bin/python -m homepage.build --stamp-english <폴더>   # 그 폴더의 dist/ 에 만든 설치 파일로 다시 적어요
+영어판 — english/ 폴더 (english 브랜치를 통째로 가져다 둔 사본)
+    ./.venv/bin/python -m homepage.build --stamp-english          # english/dist/ 에 만든 설치 파일로 다시 적어요
+    ./.venv/bin/python -m homepage.build --stamp-english <폴더>   # english 브랜치를 다른 곳에 받아 거기서 만들었으면 그 폴더
 
 사이트는 정적 파일뿐이에요(서버 코드가 없어요). 주소가 어디든 돌게 모든 길을 상대 경로로 적어요.
 
 말마다 그 말의 가닥을 줘요. 한국어 쪽(뿌리)은 한국어판을, 영어 쪽(en/)은 영어판을 받게 하고, 데모 · 화면 그림 · 설치 안내도
-그 판의 것이에요. 영어판은 english 브랜치에 있어요(같은 자리의 파일을 영어로 바꾼 것이라 이 브랜치에 같이 둘 수 없어요).
-그래서 사이트가 쓰는 영어판 파일만 homepage/english/ 에 같은 경로로 가져와 두고(--pull-english), 사이트는 이 브랜치에서 만들어요.
+그 판의 것이에요. 영어판은 english 브랜치에서 고치고(같은 자리의 파일을 영어로 바꾼 것), 그 브랜치를 통째로 가져다 둔 사본이
+이 브랜치의 english/ 폴더예요. 사이트의 영어 쪽은 그 폴더의 가닥 창 · 그림을 써요. 사이트는 이 브랜치(main)에서만 만들어요.
+폴더를 다시 가져오는 법은 docs/handoff-english.md 에 있어요.
 
 바로 써 보는 데모(app/ · en/app/)는 가닥 창(backend/web · shared/ui)을 그대로 복사해, 백엔드를 부르지 않고
 만든 예시(data/demo_conversations.json)만 보여 주게 몇 줄을 바꾼 것이에요. 실제 대화는 들어가지 않아요.
@@ -46,7 +47,7 @@ REPO = "Hanhws/AI-agent"
 LANGS = ("ko", "en")             # 앞의 것이 사이트의 뿌리에 놓여요. 나머지는 그 이름의 폴더에
 PAGES = ("index", "download", "demo")
 DOWNLOADS = HERE / "downloads.json"
-ENGLISH = HERE / "english"       # english 브랜치에서 가져온 파일 (경로 그대로). 여기서 고치지 않고 --pull-english 로 다시 가져와요
+ENGLISH = ROOT / "english"       # 영어판: english 브랜치를 통째로 가져다 둔 사본. 여기서 고치지 않아요 (docs/handoff-english.md)
 ENGLISH_BRANCH = "english"
 TREE = {"ko": ROOT, "en": ENGLISH}      # 말마다 그 판의 가닥 창 · 화면 그림이 있는 곳
 GUIDE = {"ko": Path("docs", "가닥-설치-안내.pdf"), "en": Path("docs", "gadak-install-guide.pdf")}      # 판마다의 설치 안내 (이 폴더에서의 경로)
@@ -146,7 +147,7 @@ def stamp(lang: str = LANGS[0], staged: Path | None = None, source: Path | None 
     (dist/ 와 extension/ 이 있는 곳 · 비우면 이 폴더). staged 를 주면 올릴 이름으로 복사한 파일 · 확장 zip · 확인 값 목록을 거기에 모아요."""
     source = Path(source or ROOT)
     if edition(source) != lang:
-        raise Stop(f"{source} 는 {lang} 판이 아니에요 (가닥 창의 말: {edition(source) or '모름'}). 영어판은 --stamp-english <english 브랜치를 받아 둔 폴더> 로 적어요.")
+        raise Stop(f"{source} 는 {lang} 판이 아니에요 (가닥 창의 말: {edition(source) or '모름'}). 영어판은 --stamp-english 로 적어요.")
     everything = json.loads(DOWNLOADS.read_text(encoding="utf-8"))
     info = everything[lang]
     v = info["version"]
@@ -164,38 +165,6 @@ def stamp(lang: str = LANGS[0], staged: Path | None = None, source: Path | None 
         (staged / SUMS).write_text("\n".join(lines) + "\n", encoding="utf-8")
     DOWNLOADS.write_text(json.dumps(everything, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return info
-
-
-def english_files(tree: Path) -> list[Path]:
-    """사이트가 영어판에서 가져다 쓰는 파일들 (그 폴더에서의 경로)."""
-    files = [Path("backend", "web", name) for name in APP_WEB]
-    files += sorted(p.relative_to(tree) for p in (tree / "shared" / "ui").iterdir() if p.is_file() and p.name != ".DS_Store")
-    return files + [Path("data", APP_DATA)] + [SHOTS / name for name in SITE_SHOTS]
-
-
-def pull_english(source: Path, into: Path = ROOT) -> list[Path]:
-    """영어판 폴더(english 브랜치를 받아 둔 곳)에서 사이트가 쓰는 파일을 homepage/english/ 로, 영어 설치 안내를 docs/ 로 가져와요."""
-    source, into = Path(source).resolve(), Path(into).resolve()
-    kept = into / ENGLISH.relative_to(ROOT)
-    if edition(source) != "en":
-        raise Stop(f"{source} 는 영어판이 아니에요 (가닥 창의 말: {edition(source) or '모름'}). {ENGLISH_BRANCH} 브랜치를 받아 둔 폴더를 줘요.")
-    wanted = english_files(source)
-    missing = [rel for rel in wanted + [GUIDE["en"]] if not (source / rel).is_file()]
-    if missing:
-        raise Stop("영어판 폴더에 없는 파일이 있어요: " + ", ".join(path.as_posix() for path in missing))
-    fresh = kept.with_name(kept.name + ".new")              # 다 가져온 뒤에 바꿔 놓아요 (중간에 멈춰도 있던 것이 남게)
-    if fresh.exists():
-        shutil.rmtree(fresh)
-    for rel in wanted:
-        (fresh / rel).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source / rel, fresh / rel)
-    if kept.exists():
-        shutil.rmtree(kept)
-    fresh.rename(kept)
-    if source != into:
-        (into / GUIDE["en"]).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source / GUIDE["en"], into / GUIDE["en"])
-    return wanted
 
 
 def _site(lang: str, *parts: str) -> Path:
@@ -326,9 +295,9 @@ def for_artifact(out: Path) -> None:
 def build(out: Path = OUT, artifact: bool = False) -> Path:
     if edition() != LANGS[0]:
         raise Stop(f"배포 사이트는 한국어판(main)에서 만들어요. 여기는 {edition() or '모르는'} 판이라 한국어 데모를 만들 수 없어요. "
-                   f"영어 화면을 사이트에 반영하려면 main에서 python -m homepage.build --pull-english <이 폴더> 를 돌려요.")
-    if not ENGLISH.is_dir():
-        raise Stop(f"영어판 파일이 없어요: {ENGLISH.relative_to(ROOT)} ({ENGLISH_BRANCH} 브랜치를 받아 둔 폴더에서 --pull-english 로 가져와요)")
+                   f"영어 화면은 main의 {ENGLISH.name}/ 폴더(이 브랜치의 사본)를 다시 가져오면 사이트에 반영돼요 (docs/handoff-english.md).")
+    if edition(ENGLISH) != "en":
+        raise Stop(f"영어판 폴더가 없거나 영어판이 아니에요: {ENGLISH.name}/ ({ENGLISH_BRANCH} 브랜치의 사본이에요. 가져오는 법은 docs/handoff-english.md)")
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -354,17 +323,12 @@ def main(argv=None) -> int:
     parser.add_argument("--serve", action="store_true", help=f"만든 뒤 127.0.0.1:{PORT} 에서 보여 주기")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--stamp", action="store_true", help="dist/ 의 설치 파일(한국어판)로 downloads.json 다시 적기")
-    parser.add_argument("--stamp-english", type=Path, metavar="폴더", help=f"{ENGLISH_BRANCH} 브랜치를 받아 둔 폴더의 dist/ (영어판)로 다시 적기")
+    parser.add_argument("--stamp-english", type=Path, metavar="폴더", nargs="?", const=ENGLISH,
+                        help=f"영어판 설치 파일로 다시 적기 (기본은 {ENGLISH.name}/dist/ · 다른 곳에서 만들었으면 그 {ENGLISH_BRANCH} 폴더)")
     parser.add_argument("--stage", type=Path, help="--stamp · --stamp-english 와 같이: 올릴 이름으로 복사한 파일을 모을 폴더")
-    parser.add_argument("--pull-english", type=Path, metavar="폴더", help=f"{ENGLISH_BRANCH} 브랜치를 받아 둔 폴더에서 영어 화면 · 그림 · 설치 안내 가져오기")
     parser.add_argument("--artifact", action="store_true", help="Claude 아티팩트로 올릴 모양으로 (기본 폴더는 dist/site-artifact)")
     args = parser.parse_args(argv)
     try:
-        if args.pull_english:
-            pulled = pull_english(args.pull_english)
-            print(f"가져왔어요: {len(pulled)}개 → {ENGLISH.relative_to(ROOT)}/ · {GUIDE['en']}")
-            if edition() != LANGS[0]:
-                return 0                 # 영어판 폴더 안에서 돌렸으면 가져오기만 해요 (사이트는 main에서 만들어요)
         if args.stamp or args.stamp_english:
             if args.stage:
                 args.stage.mkdir(parents=True, exist_ok=True)

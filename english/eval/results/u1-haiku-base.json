@@ -1,0 +1,107 @@
+{
+  "at": "20261006-1507",
+  "scenario": "u1",
+  "data": "example_conversations.json",
+  "excluded_ids": [
+    "g2",
+    "g3",
+    "g7"
+  ],
+  "check": true,
+  "seconds": 141.5,
+  "prompt": "1791266626",
+  "result": {
+    "turns": 55,
+    "excluded": 3,
+    "unread": 0,
+    "unlabeled": 0,
+    "depth": {
+      "right": 44,
+      "of": 55,
+      "acc": 0.8,
+      "baseline": 0.8182,
+      "side": {
+        "gold": 10,
+        "said": 12,
+        "hit": 6,
+        "recall": 0.6,
+        "precision": 0.5
+      }
+    },
+    "dec": {
+      "gold": 10,
+      "said": 17,
+      "hit": 7,
+      "recall": 0.7,
+      "precision": 0.4118
+    },
+    "parts": {
+      "right": 47,
+      "of": 55,
+      "rate": 0.8545,
+      "split": {
+        "gold": 11,
+        "said": 19,
+        "hit": 11,
+        "same": 11
+      }
+    },
+    "items": {
+      "made": 1,
+      "right": 1,
+      "precision": 1.0,
+      "gold": 4,
+      "gold_made_kinds": 1,
+      "by_kind": {
+        "handoff": {
+          "gold": 1,
+          "made": 1,
+          "right": 1
+        },
+        "next": {
+          "gold": 1,
+          "made": 0,
+          "right": 0
+        },
+        "open": {
+          "gold": 1,
+          "made": 0,
+          "right": 0
+        },
+        "yours": {
+          "gold": 1,
+          "made": 0,
+          "right": 0
+        }
+      }
+    }
+  },
+  "stats": {
+    "engine": "claude_cli",
+    "model": "haiku",
+    "calls": {
+      "classify": 9,
+      "check": 3
+    },
+    "seconds": {
+      "classify": 109.4,
+      "check": 32.1
+    },
+    "tokens": {
+      "in": 87384,
+      "out": 13174
+    },
+    "cost_usd": 0.1975
+  },
+  "checks": {
+    "ran": 1,
+    "waiting": 0,
+    "made": 1,
+    "missing": 0,
+    "dropped": 0,
+    "triggers": [
+      "handoff"
+    ]
+  },
+  "error": null
+}

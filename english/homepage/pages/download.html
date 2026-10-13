@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, down %}
+{% block title %}{{ t.meta.title_download }}{% endblock %}
+{% block main %}
+<div class="dl-top">
+  <p class="eyebrow">{{ t.dl.eyebrow }}</p>
+  <h1>{{ t.dl.title }}</h1>
+  <p class="lead">{{ t.dl.lead }}</p>
+  <p class="fine">{{ t.dl.version|replace("{version}", dl.version)|replace("{date}", date) }}</p>
+  <p class="edition">{{ t.dl.edition }} <a class="more" href="{{ other_link }}" lang="{{ other }}" hreflang="{{ other }}">{{ t.dl.edition_other }} →</a></p>
+  <nav class="jump" aria-label="{{ t.dl.pick }}">
+    <a href="#mac">{{ t.os.mac }}</a>
+    <a href="#win">{{ t.os.win }}</a>
+    <a href="#verify">SHA-256</a>
+    <a href="#extension">{{ t.dl.ext.title }}</a>
+    <a href="#guide">{{ t.foot.guide }}</a>
+  </nav>
+</div>
+
+<div class="dl-main">
+  <section class="os" id="mac" data-os="mac">
+    <div class="os-head">
+      <h2>{{ t.dl.mac.title }}</h2>
+      <div class="files">
+        {{ file("mac-arm64", t.dl.mac.arm) }}
+        {{ file("mac-x86_64", t.dl.mac.intel) }}
+      </div>
+      <p class="fine">{{ t.dl.mac.which }}</p>
+    </div>
+    <div class="steps-wrap">
+      <h3>{{ t.dl.mac.steps_title }}</h3>
+      <ol class="steps">
+        {% for s in t.dl.mac.steps %}
+        <li>{{ s|safe }}</li>
+        {% endfor %}
+      </ol>
+      <p class="tip">{{ t.dl.mac.tip }}</p>
+    </div>
+  </section>
+
+  <section class="os" id="win" data-os="win">
+    <div class="os-head">
+      <h2>{{ t.dl.win.title }}</h2>
+      <div class="files">
+        {{ file("win-setup", t.dl.win.setup) }}
+        {{ file("win-zip", t.dl.win.zip) }}
+      </div>
+      <p class="notice">{{ t.dl.win.first|safe }}</p>
+    </div>
+    <div class="steps-wrap">
+      <h3>{{ t.dl.win.steps_title }}</h3>
+      <ol class="steps">
+        {% for s in t.dl.win.steps %}
+        <li>{{ s|safe }}</li>
+        {% endfor %}
+      </ol>
+      <div class="missing tip">
+        <b>{{ t.dl.win.missing_title }}</b>
+        <ul>
+          {% for m in t.dl.win.missing %}
+          <li>{{ m }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="verify">
+    <div class="block-head">
+      <h2>{{ t.dl.sums.title }}</h2>
+      <p>{{ t.dl.why_warn|safe }}</p>
+      <p>{{ t.dl.sums.body }}</p>
+    </div>
+    <div class="block-body">
+      <div class="sums">
+        {% for key in ["mac-arm64", "mac-x86_64", "win-setup", "win-zip", "extension"] %}
+        {% if files[key].sha256 %}
+        <div class="sum">
+          <b>{{ files[key].asset }}</b>
+          <span class="hash">{{ files[key].sha256 }}</span>
+          <button class="copy" type="button" data-copy="{{ files[key].sha256 }}" data-done="{{ t.dl.sums.copied }}">{{ t.dl.sums.copy_btn }}</button>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <div class="how">
+        <div><span>{{ t.dl.sums.how_mac }}</span><code>shasum -a 256 ~/Downloads/{{ files["mac-arm64"].asset }}</code></div>
+        <div><span>{{ t.dl.sums.how_win }}</span><code>Get-FileHash .\{{ files["win-setup"].asset }} -Algorithm SHA256</code></div>
+      </div>
+      <p class="fine">{{ t.dl.sums.names }}</p>
+    </div>
+  </section>
+
+  <section class="block" id="extension">
+    <div class="block-head">
+      <h2>{{ t.dl.ext.title }}<small>{{ t.dl.ext.sub }}</small></h2>
+      <p>{{ t.dl.ext.body }}</p>
+      {% if files.extension.sha256 %}
+      <div class="cta"><a class="btn" href="{{ files.extension.url }}">{{ down() }}{{ t.dl.ext.download }}</a></div>
+      {% endif %}
+    </div>
+    <div class="block-body">
+      <ol class="steps">
+        {% for s in t.dl.ext.steps %}
+        <li>{{ s|safe }}</li>
+        {% endfor %}
+      </ol>
+      <p class="tip">{{ t.dl.ext.note }}</p>
+    </div>
+  </section>
+
+  <section class="block" id="guide">
+    <div class="block-head">
+      <h2>{{ t.dl.guide.title }}</h2>
+      <p>{{ t.dl.guide.body }}</p>
+    </div>
+    <div class="block-body">
+      <div class="cta">
+        <a class="btn" href="{{ guide }}">{{ t.dl.guide.open }}</a>
+        <a class="more" href="{{ dl.page }}">{{ t.dl.all }} →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="remove">
+    <div class="block-head">
+      <h2>{{ t.dl.remove.title }}</h2>
+      <p>{{ t.dl.remove.body|safe }}</p>
+    </div>
+    <div class="block-body">
+      <h3>{{ t.dl.source.title }}</h3>
+      <p>{{ t.dl.source.body }}</p>
+      <div class="cta"><a class="btn" href="{{ dl.repo }}">{{ t.dl.source.open }}</a></div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% macro file(key, text) %}
+<div class="file" data-file="{{ key }}">
+  <h3>{{ text.name }}</h3>
+  <p>{{ text.need }} · {{ t.dl.size|replace("{mb}", files[key].mb) }}</p>
+  <p class="name">{{ files[key].asset }}</p>
+  <a class="btn btn-primary" href="{{ files[key].url }}">{{ down() }}{{ t.dl.button }}</a>
+</div>
+{% endmacro %}

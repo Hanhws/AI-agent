@@ -1,0 +1,42 @@
+# 가닥 — 코딩 에이전트 작업 규칙
+
+이 저장소는 ‘가닥’이에요. LLM 대화 옆에 붙어 흐름을 노선도로 정리하고 놓친 일을 먼저 알려 주는 에이전트예요. 작업 전에 `README.md`를 끝까지 읽어요.
+
+## 기준
+- **화면의 정답은 `prototype/index.html`**이에요. 크기 · 색 · 간격 · 움직임 · 문구를 바꾸지 말고 그대로 옮겨요. 값은 `docs/design/prototype.css`, 토큰은 `docs/design/tokens.css`. 단, 아래 ‘표기 규칙’(2026-10-06)과 글꼴 · 자간(2026-10-08) 결정이 프로토타입보다 앞서요.
+- **데이터 형식은 `docs/schema.md`**예요. 필드 이름(`depth`, `dec`, `parts[].t`, `parts[].type`, `todo[].kind` …)을 바꾸지 마요.
+- 화면 작업은 `data/example_conversations.json`만으로 먼저 끝내고, `screenshots/`와 나란히 비교해요.
+- 가닥은 대답하지 않아요. 가닥 화면에 채팅 입력창을 만들지 마요.
+- `prototype/index.html` · `data/example_conversations.json` · `screenshots/`는 실제 대화가 들어 있어 공개 저장소에 없어요. 없으면 팀원에게 받아 같은 자리에 두고, 커밋하지 마요.
+
+## 표기 규칙 (디자인 담당과 합의 없이 바꾸지 않음)
+2026-10-06 노선 문법을 전체 지도(`backend/web/map.html`, 마시모 비녤리의 뉴욕 지하철 지도)에 맞춰 통일했어요.
+- 본선 = **프로젝트 색의 굵은 선**(노선도 카드 16px · 2026-10-08). 색은 `store.project_color`가 프로젝트 id로 정해서 노선도 카드 · 레일 · 전체 지도가 같아요
+- 검은 점 = 보통 질문, **큰 검은 점 + 굵은 역 이름 = 정함**, **빨갛게 채운 점 + 빛 = 지금(화면에 하나)**, 굵은 회색 지선 = 곁길, 작은 검은 점 + 파일 이름 = 산출물, 빨간 테두리 고리 = 안 한 할 일, 회색 테두리 고리 = 끝낸 할 일(2026-10-08)
+- 빨강(`--accent`)은 ‘지금 · 할 일’에만
+- 글꼴은 한 벌: 로마자 · 숫자 Helvetica Neue + 한글 Pretendard(`shared/ui/tokens.css`의 `--body` · `--display`). 자간은 큰 제목(28px 이상) -0.08em · 본문 -0.05em · 13px 이하 -0.03em(`--tr-title` · `--tr-body` · `--tr-small`). 2026-10-08
+- 역 이름은 위로 45°, 곁길은 아래로 45° — 노선도 카드도 한 줄 노선도와 같은 문법(2026-10-08). 그 밖의 본문은 가로 글씨로 13px 이상
+- 그림자 · 흐림 마스크 없이 1px 선으로 나눠요. 움직임은 `--ease` 한 곡선(빠르게 나와 부드럽게 멈춤), 동작 줄이기를 켜면 꺼요
+- 이모지 · 그라데이션 · 반짝이 아이콘 금지
+
+## 코드
+- `shared/ui/`는 모든 입구(크롬 확장 · MCP · VS Code · Cursor)가 같이 써요. 입구별 차이는 `extension/content/sites/*`, `cursor-hooks/`(Cursor · Claude Code 어댑터), `mcp/`, `backend/sources/`(내 PC의 기록 읽기), `backend/web/`(가닥 창), `mac/`(macOS 앱의 겉: 창 · Dock · 메뉴 · 다른 앱 위에 떠 있는 버튼), `win/` · `backend/win.py`(Windows에 까는 가닥 · 10/12)에만 둬요. 입구마다 다른 동작은 `shared/ui/view.js` 머리말의 hooks로 넘겨요.
+- 배포 사이트(`homepage/` · 10/13)의 ‘바로 써 보는 데모’는 `backend/web` · `shared/ui`를 복사해 몇 줄만 바꾼 것이에요(`homepage/build.py`의 `PATCHES`). 가닥 창에서 그 줄을 고치면 `tests/test_homepage.py`가 알려 줘요. 그때 `PATCHES`를 맞춰요. 사이트의 글은 `homepage/strings/`에 있고 한국어와 영어의 열쇠가 같아야 해요. 화면 그림과 데모에는 만든 예시만 써요. 사이트는 `main`에서만 만들고, 말마다 그 말의 가닥을 줘요(10/13): 영어 쪽은 영어판을 받고 데모 · 그림도 영어판 것이에요. 영어판은 `english` 브랜치에 따로 있어요(같은 자리의 파일을 영어로 바꾼 것이라 `main`에 합치지 않아요 · `docs/handoff-english.md`). `main`의 `english/` 폴더는 그 브랜치를 통째로 가져다 둔 사본이에요(10/13 · 사이트의 영어 쪽이 이 폴더의 가닥 창 · 그림을 써요). **`english/` 안에서 고치지 않아요.** `english` 브랜치에서 고친 뒤 폴더를 다시 가져와요(`docs/handoff-english.md` 6장). 그 안의 `homepage/` · `docs/` · `README.md`는 브랜치에 딸려 온 사본이고, 사이트와 문서의 원본은 뿌리의 것이에요.
+- 화면을 고치면 가닥 창을 `?demo`(만든 예시)와 `?demo=example&scen=u1`(각자 PC의 실제 예시)로 열어 `screenshots/`와 나란히 비교해요.
+- 사용자가 설정하지 않아도 돌아야 해요. 켜면 알아서 찾고 읽어요(`backend/sources/`). 다른 프로그램의 설정을 고치는 일(Cursor hook 연결)만 사용자가 한 번 눌러요.
+- 에이전트는 2단이에요. 매 턴 분류 1회(`backend/agent/classify.py`) + 조건이 걸린 턴만 도구 루프(`backend/agent/investigate.py`). 2단이 돈 턴은 판단 기록을 남겨요. README 3-1.
+- 엔진 없이 만드는 할 일(끝나지 않은 곁길 · 반복 질문 · 주제 전환)은 `backend/agent/rules.py`가 분류 결과로 만들어요. 2단이 그 턴을 다시 써도 남겨요(`store.RULE_KINDS`). 역이 쌓이면 대화 전체를 보고 구간을 다시 나눠요(`classify.segment_chat` · 호출 1번). 엔진을 부르는 새 자리를 만들면 `Classifier.call`에 `kind` · `chat`을 넘겨요(쓴 토큰을 내 PC에 적어요 · `backend/tokens.py`).
+- 가닥이 직접 보내는 건 사용자가 승인한 종류(요청 외 변경 되돌리기 · 이어 가기 요약)뿐이에요. 그 밖에는 글을 넣어 주기만 해요. README 3-2. 보낼 수 있는 종류는 `store.AUTO_KINDS`, 보낼지 정하는 곳은 `backend/auto.py` 하나예요. 종류를 늘리려면 먼저 사람에게 물어요.
+- 사이트 DOM 셀렉터는 사이트별 파일 위쪽 상수로 모아요.
+- 크롬 확장이 대화를 보내는 곳은 내 PC의 가닥(`127.0.0.1:7311`) 하나예요. 읽는 쪽(`extension/content/`)은 화면을 읽기만 하고 고치지 않아요. 다른 주소나 다른 보내는 길을 넣지 않아요(`tests/test_extension.py`가 확인). 화면에서 읽은 대화를 역과 맞추는 일은 가닥이 해요(`backend/sources/pages.py`).
+- 앞길 살피기(`backend/agent/ahead.py`)는 사용자가 ‘앞길 보기’를 눌렀을 때와, 사용자가 ‘저절로 살피기’를 켜 둔 동안 길이 갈리는 순간에만 돌아요(저절로 살피기는 기본이 끔 · 한도를 더 써요). 내는 길은 답이 아니라 사용자가 LLM에게 가져갈 물음이에요. 가닥이 대신 보내지 않고, 찾아본 것(도구가 실제로 돌려준 것 · 지금 대화 밖의 것)이 없는 길은 내지 않아요. 기록 밖을 보는 도구(`backend/agent/outside.py`)는 읽기만 하고, 작업 폴더 밖 · 깃이 무시하는 파일 · 비밀처럼 보이는 파일은 읽지 않아요. 웹에서 찾아보기는 사용자가 따로 켰을 때만이에요.
+- 엔진은 셋이에요(`backend/engines/`): Claude 구독 · ChatGPT 구독 · LLM API 키. API 키는 Anthropic · OpenAI · Gemini 키를 한 칸에서 받고, 어느 회사 키인지는 `keys.py`가 앞머리로 알아봐요(엔진 이름은 `anthropic_api` · `openai_api` · `gemini_api`). 키는 그 회사로만 보내요. 받는 회사를 늘리려면 먼저 사람에게 물어요. 사용자가 가닥 창의 ‘AI 연결’에서 고른 것이 설정(`GADAK_ENGINE`)보다 먼저예요. 가닥이 프로그램을 대신 받거나 로그인 창을 띄우는 것(`connect.py`)은 사용자가 ‘연결하기’를 눌렀을 때만이고, 받는 곳은 그 파일에 적어 둔 두 주소뿐이에요. 주소를 늘리거나 누르지 않았는데 받게 하려면 먼저 사람에게 물어요.
+- 떠 있는 버튼의 둘레 버튼은 사용자가 고쳐요(`backend/floatbar.py` · 여섯 자리). 고를 수 있는 기능을 늘리면 `mac/Float.swift`의 `choose`와 `tests/test_floatbar.py`가 같이 알아야 해요.
+- 사용 한도 게이지(`backend/limits.py`)는 예외 하나예요: Claude 사용량을 읽을 때만 Claude Code의 로그인 열쇠를 키체인에서 읽고 `api.anthropic.com`에만 보내요. 열쇠는 메모리에만 두고 내보내지 않아요. 공개 문서가 없는 주소라 답이 다르면 Claude 칸을 지워요(10/11). ChatGPT는 Codex 기록만 읽어요
+- API 키는 macOS 키체인(Windows에서는 자격 증명 관리자 · `wincred.py`)에만 둬요(`backend/engines/keys.py` · 하나만). `.env`나 다른 파일에 적지 않고, 화면 · 기록 · 사용 기록으로 내보내지 않아요(회사 이름과 앞머리 · 끝 네 글자만 보여 줘요). 환경 변수는 `GADAK_API_KEY`(예전 이름 `ANTHROPIC_API_KEY`)만 봐요. 다른 도구의 `OPENAI_API_KEY` 같은 것을 읽게 하지 마요. `.env`와 대화 원문이 든 DB는 커밋하지 않아요.
+- 사용 기록에는 글을 넣지 않아요. 적을 수 있는 이름과 칸은 `backend/usage_schema.py`의 표가 전부이고, 값은 숫자 · 참거짓 · 정해 둔 낱말뿐이에요. 칸을 더하려면 그 표를 고치고 사람에게 먼저 물어요. 대화 글 · 제목 · 파일 이름 · 경로는 서버로 보내지 않아요.
+- 커밋: `feat:` `fix:` `docs:` `refactor:` + 한 줄 한국어. `main`에 직접 push하지 않아요.
+- `docs/schema.md` · `prototype/` · `backend/prompts/`를 바꿔야 하면 먼저 사람에게 물어요.
+
+## UI 문구
+해요체, 한 줄, 사용자 쪽 말(“노드” 대신 “역”, “세그먼트” 대신 “구간”). 문구 목록은 README 7-2 · 8.
