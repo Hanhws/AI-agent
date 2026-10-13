@@ -1,0 +1,11 @@
+flowchart LR
+  C["Stage 1 · classify<br>every turn · small model"]:::stage
+  C -->|"other turns"| M["Station on the map"]
+  C -->|"flagged turns"| L["Stage 2 · checking loop<br>picks its own tools<br>looks at the evidence"]:::stage
+  L -->|"no evidence"| D["Dropped<br>reason in the trace"]:::drop
+  L -->|"evidence seen"| N["To-do · nudge"]
+  N --> H["The person<br>reads and sends"]
+  N -->|"2 approved kinds"| A["Gadak sends<br>it itself"]:::auto
+  classDef stage fill:#111111,stroke:#111111,color:#ffffff
+  classDef drop fill:#ffffff,stroke:#A7A9AC,color:#5F5F5F,stroke-dasharray:4 3
+  classDef auto fill:#ffffff,stroke:#C8401A,color:#C8401A,stroke-width:2px

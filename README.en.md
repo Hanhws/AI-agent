@@ -84,16 +84,7 @@ We split each job into steps, marked the bottlenecks and decided where Gadak tak
 
 ## 5. Agent design
 
-```mermaid
-flowchart LR
-  C["Stage 1 · classify<br>every turn<br>small model"]
-  C -->|"other turns"| M["Station<br>on the map"]
-  C -->|"flagged turns"| L["Stage 2 · check<br>picks its own tools<br>looks at the evidence"]
-  L -->|"no evidence"| D["Dropped<br>reason in the trace"]
-  L -->|"evidence seen"| N["To-do · nudge"]
-  N --> H["The person<br>reads and sends"]
-  N -->|"2 approved kinds"| A["Gadak sends<br>it itself"]
-```
+<img src="docs/img/agent-flow.en.png" width="1003" alt="How the agent decides. Every turn passes stage 1, the classification. Only flagged turns go to stage 2, the checking loop. Without evidence the finding is dropped; with evidence it becomes a to-do and a nudge. The person sends it, and Gadak sends by itself only the 2 approved kinds">
 
 | Stage | When | What it does |
 |---|---|---|
@@ -139,23 +130,7 @@ A larger model (Sonnet) was not better. It found every side trip but called twic
 
 ## 7. Structure and stack
 
-```mermaid
-flowchart LR
-  A1["Claude Code · Codex<br>session files"] --> S
-  A2["Cursor<br>hooks"] --> S
-  A3["Claude · ChatGPT web<br>Chrome extension"] --> S
-  A4["Export files<br>import"] --> S
-  subgraph BE["Backend · your computer"]
-    S["sources/<br>find and read records"]
-    D[("store.py<br>one SQLite file")]
-    G["agent/<br>classify · checking loop<br>look ahead · decision trace"]
-    E["engines/<br>Claude · ChatGPT subscription<br>LLM API key"]
-    S --> D
-    D <--> G
-    G <--> E
-  end
-  D --> U["Screens · shared/ui<br>Gadak window · macOS app<br>Windows window · site demo"]
-```
+<img src="docs/img/architecture.en.png" width="900" alt="Structure. Four sources come in through sources/ into one SQLite file, the agent asks the LLM through engines/, and what it decides is drawn on the screens">
 
 | Layer | Used |
 |---|---|

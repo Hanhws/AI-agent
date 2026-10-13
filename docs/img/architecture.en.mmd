@@ -1,0 +1,20 @@
+flowchart TD
+  A1["Claude Code · Codex<br>session files"] --> S
+  A2["Cursor<br>hooks"] --> S
+  A3["Claude · ChatGPT web<br>Chrome extension"] --> S
+  A4["Export files<br>import"] --> S
+  subgraph BE["Backend · local"]
+    S["sources/<br>find and read records"]
+    D[("store.py<br>one SQLite file")]
+    subgraph AG["Judgement"]
+      direction LR
+      G["agent/<br>classify · checking loop<br>look ahead · decision trace"]:::stage
+      E["engines/<br>Claude · ChatGPT subscription<br>LLM API key"]
+      G <-->|"asks the LLM"| E
+    end
+    S --> D
+    D <--> AG
+  end
+  D --> U["Screens · shared/ui<br>Gadak window · macOS app<br>Windows window · site demo"]
+  classDef stage fill:#111111,stroke:#111111,color:#ffffff
+  style AG fill:#FFFFFF,stroke:#D0D0D0

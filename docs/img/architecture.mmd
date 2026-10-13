@@ -1,0 +1,20 @@
+flowchart TD
+  A1["Claude Code · Codex<br>세션 파일 읽기"] --> S
+  A2["Cursor<br>hook"] --> S
+  A3["웹의 Claude · ChatGPT<br>크롬 확장"] --> S
+  A4["내보내기 파일<br>불러오기"] --> S
+  subgraph BE["백엔드 · 내 PC"]
+    S["sources/<br>기록 찾기 · 읽기"]
+    D[("store.py<br>SQLite 파일 1개")]
+    subgraph AG["판단"]
+      direction LR
+      G["agent/<br>1단 분류 · 2단 확인 루프<br>앞길 살피기 · 판단 기록"]:::stage
+      E["engines/<br>Claude 구독 · ChatGPT 구독<br>LLM API 키"]
+      G <-->|"LLM에 물음"| E
+    end
+    S --> D
+    D <--> AG
+  end
+  D --> U["화면 · shared/ui<br>가닥 창 · macOS 앱과 떠 있는 버튼<br>Windows 창 · 배포 사이트의 데모"]
+  classDef stage fill:#111111,stroke:#111111,color:#ffffff
+  style AG fill:#FFFFFF,stroke:#D0D0D0
