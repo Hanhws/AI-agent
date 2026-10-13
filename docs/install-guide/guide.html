@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>가닥 설치 안내</title>
+<title>Installing Gadak</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
-/* 가닥 설치 안내 (받아서 쓰는 사람이 보는 설명서). 이 파일을 크롬으로 PDF로 찍은 것이 docs/가닥-설치-안내.pdf예요.
+/* 가닥 설치 안내 (받아서 쓰는 사람이 보는 설명서). 이 파일을 크롬으로 PDF로 찍은 것이 docs/gadak-install-guide.pdf예요.
    만드는 법: docs/install-guide/README.md. 그림(img/)은 지어낸 예시 대화로 띄운 가닥에서 찍었어요.
    모양은 가닥 창의 표기 그대로(shared/ui/tokens.css): 글꼴 Helvetica Neue + Pretendard, 흰 종이와 중립 회색, 모서리는 작게,
    빨강은 ‘지금 · 꼭 볼 것’에만. 10/12에 Windows · Intel Mac · 새 노선 문법 · 전체 지도에 맞춰 다시 썼어요. */
@@ -140,220 +140,220 @@ figcaption { margin-top: 1.3mm; font-size: 8.6pt; color: #767676; }
       <svg width="46" height="23" viewBox="0 0 120 60" aria-hidden="true"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#fff" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#111"/><circle cx="56" cy="22" r="4" fill="#111"/><circle cx="98" cy="44" r="6" fill="#111" stroke="#fff" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#F0704A"/></svg>
       가닥 GADAK
     </div>
-    <h1>가닥 설치 안내</h1>
-    <p>Mac과 Windows에 넣고 처음 켜기까지. 터미널은 열지 않아요.</p>
+    <h1>Installing Gadak</h1>
+    <p>From install to first launch on a Mac or Windows. No terminal needed.</p>
   </div>
 
-  <p class="lead" style="margin-top:6mm">가닥은 Claude · ChatGPT 같은 AI와 나눈 긴 대화를 <b>지하철 노선도</b>로 정리해 주고, 놓친 일을 먼저 알려 주는 앱이에요. 대화는 쓰던 곳에서 그대로 하고, 가닥은 옆에서 흐름만 정리해요.</p>
+  <p class="lead" style="margin-top:6mm">Gadak turns long conversations with AIs such as Claude and ChatGPT into a <b>transit map</b> and tells you first about what slipped past. You keep chatting where you always do; Gadak only organises the flow alongside.</p>
 
   <div class="route">
-    <div style="left:6%"><i></i>설치하기<span>파일 하나 · 1분</span></div>
-    <div style="left:35.3%"><i></i>처음 열기<span>한 번만 허용 · 1분</span></div>
-    <div style="left:64.6%"><i></i>AI 연결<span>버튼 한 번 · 2분</span></div>
-    <div class="now" style="left:94%"><i></i>쓰기<span>켜 두면 알아서</span></div>
+    <div style="left:6%"><i></i>Install<span>One file · 1 min</span></div>
+    <div style="left:35.3%"><i></i>First launch<span>Allow once · 1 min</span></div>
+    <div style="left:64.6%"><i></i>Connect AI<span>One button · 2 min</span></div>
+    <div class="now" style="left:94%"><i></i>Use it<span>Leave it on</span></div>
   </div>
 
-  <h3>내 컴퓨터에 맞는 파일</h3>
+  <h3>The file for your computer</h3>
   <table class="files">
-    <thead><tr><th>내 컴퓨터</th><th>받은 파일</th><th>안내</th></tr></thead>
-    <tr><td><b>Mac · Apple 칩</b> (M1 이후 · macOS 12 이상)</td><td><b>가닥-0.1.0-arm64.dmg</b></td><td>2쪽</td></tr>
-    <tr><td><b>Mac · Intel</b> (macOS 13 이상)</td><td><b>가닥-0.1.0-x86_64.dmg</b></td><td>2쪽</td></tr>
-    <tr><td><b>Windows 10 · 11</b> (64비트)</td><td><b>가닥-0.1.0-windows-x64-설치.exe</b><br>설치하지 않고 쓰려면 가닥-0.1.0-windows-x64.zip</td><td>3쪽</td></tr>
+    <thead><tr><th>Your computer</th><th>File you got</th><th>See</th></tr></thead>
+    <tr><td><b>Mac · Apple silicon</b> (M1 or later · macOS 12 or later)</td><td><b>Gadak-0.1.0-arm64.dmg</b></td><td>p. 2</td></tr>
+    <tr><td><b>Mac · Intel</b> (macOS 13 or later)</td><td><b>Gadak-0.1.0-x86_64.dmg</b></td><td>p. 2</td></tr>
+    <tr><td><b>Windows 10 · 11</b> (64-bit)</td><td><b>Gadak-0.1.0-windows-x64-setup.exe</b><br>To use it without installing: Gadak-0.1.0-windows-x64.zip</td><td>p. 3</td></tr>
   </table>
-  <p class="small" style="font-size:9.2pt;color:#5f5f5f">어느 Mac인지는 화면 왼쪽 위 사과 메뉴 → <b>이 Mac에 관하여</b>에 나와요. ‘칩 Apple M…’이면 Apple 칩, ‘프로세서 … Intel …’이면 Intel이에요.</p>
-  <div class="note" style="margin-top:2mm"><b>정리할 AI는 하나만 있으면 돼요.</b> Claude 구독(Pro · Max) · ChatGPT 구독(Plus · Pro) · LLM API 키(Anthropic · OpenAI · Gemini) 가운데 하나. 없어도 가닥은 켜져요. 그때는 대화를 읽어 보여 주기만 하고, 역 이름이 질문 첫머리 그대로예요.</div>
+  <p class="small" style="font-size:9.2pt;color:#5f5f5f">Which Mac? Apple menu → <b>About This Mac</b>: ‘Chip Apple M…’ is Apple silicon, ‘Processor … Intel …’ is Intel.</p>
+  <div class="note" style="margin-top:2mm"><b>You need just one AI for sorting.</b> A Claude subscription (Pro · Max), a ChatGPT subscription (Plus · Pro) or an LLM API key (Anthropic · OpenAI · Gemini). Gadak starts without one, but then it only reads and shows your chats, and station names are just the start of each question.</div>
 
-  <h3>차례</h3>
+  <h3>Contents</h3>
   <ol class="toc">
-    <li><b>1</b><span>Mac에 설치하기 · 처음 열기</span><em>2쪽</em></li>
-    <li><b>2</b><span>Windows에 설치하기 · 처음 열기</span><em>3쪽</em></li>
-    <li><b>3</b><span>AI 연결 — 버튼 한 번</span><em>4쪽</em></li>
-    <li><b>4</b><span>대화 읽어 오기</span><em>5쪽</em></li>
-    <li><b>5</b><span>가닥 창 보는 법</span><em>6쪽</em></li>
-    <li><b>6</b><span>노선도 읽기 · 전체 지도</span><em>7쪽</em></li>
-    <li><b>7</b><span>떠 있는 버튼 (Mac)</span><em>8쪽</em></li>
-    <li><b>8</b><span>바꿀 수 있는 것 · 막힐 때 · 지우기</span><em>9쪽</em></li>
+    <li><b>1</b><span>Installing on a Mac · first launch</span><em>p. 2</em></li>
+    <li><b>2</b><span>Installing on Windows · first launch</span><em>p. 3</em></li>
+    <li><b>3</b><span>Connect AI — one button</span><em>p. 4</em></li>
+    <li><b>4</b><span>Reading chats</span><em>p. 5</em></li>
+    <li><b>5</b><span>The Gadak window</span><em>p. 6</em></li>
+    <li><b>6</b><span>Reading the map · system map</span><em>p. 7</em></li>
+    <li><b>7</b><span>Floating button (Mac)</span><em>p. 8</em></li>
+    <li><b>8</b><span>Settings · when you’re stuck · removing it</span><em>p. 9</em></li>
   </ol>
-  <div class="foot">가닥 창 안의 <b>도움말</b>에는 화면 읽는 법과 낱말 풀이가 주제별로 들어 있어요. 이 안내는 설치와 처음 설정까지를 다뤄요. · 가닥 0.1.0 · 2026년 10월</div>
+  <div class="foot"><b>Help</b> in the Gadak window covers reading the screen and a glossary. · Gadak 0.1.0 · October 2026</div>
 </section>
 
 <!-- ───────── 1 · Mac ───────── -->
 <section>
-  <h2><span class="n">1</span>Mac에 설치하기<span class="os">Mac</span></h2>
+  <h2><span class="n">1</span>Installing on a Mac<span class="os">Mac</span></h2>
   <div class="cols">
     <ol class="steps">
-      <li><b>받은 dmg 파일을 두 번 눌러요.</b> 창이 하나 열려요. Apple 칩 Mac은 arm64, Intel Mac은 x86_64 파일이에요.</li>
-      <li><b>가닥을 오른쪽의 ‘응용 프로그램’ 폴더로 끌어다 놓아요.</b></li>
-      <li><b>창을 닫아요.</b> 설치는 이것으로 끝이에요.</li>
+      <li><b>Double-click the dmg file you got.</b> A window opens. Apple silicon Macs use the arm64 file; Intel Macs use x86_64.</li>
+      <li><b>Drag Gadak onto the Applications folder on the right.</b></li>
+      <li><b>Close the window.</b> That’s the whole install.</li>
     </ol>
     <div class="mac" style="max-width:86mm">
-      <div class="bar"><i></i><i></i><i></i><span>가닥</span></div>
+      <div class="bar"><i></i><i></i><i></i><span>Gadak</span></div>
       <div class="dmg">
-        <div class="icon"><div class="app"><svg width="46" height="23" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#faf9f6"/><circle cx="56" cy="22" r="4" fill="#faf9f6"/><circle cx="98" cy="44" r="6" fill="#faf9f6" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>가닥</div>
+        <div class="icon"><div class="app"><svg width="46" height="23" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#faf9f6"/><circle cx="56" cy="22" r="4" fill="#faf9f6"/><circle cx="98" cy="44" r="6" fill="#faf9f6" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>Gadak</div>
         <div class="arrow">→</div>
-        <div class="icon"><div class="folder"></div>응용 프로그램</div>
+        <div class="icon"><div class="folder"></div>Applications</div>
       </div>
     </div>
   </div>
-  <div class="note"><b>꼭 응용 프로그램 폴더로 옮긴 뒤에 켜요.</b> dmg 창 안에서 바로 켜면 Cursor 연결 같은 일부 기능이 안 돼요. 창 안의 ‘처음 여는 법.txt’와 이 안내 PDF는 읽기용이라 옮기지 않아도 돼요.</div>
+  <div class="note"><b>Always move it to Applications before you open it.</b> Opened straight from the dmg window, some features such as the Cursor connection don’t work. ‘How to open Gadak.txt’ and this guide in the window are for reading and don’t need moving.</div>
 
-  <h3 style="margin-top:8mm;font-size:13.4pt">처음 열기 — Mac이 한 번 막아요</h3>
-  <p>가닥은 학교 과제로 만든 앱이라 Apple의 유료 개발자 서명이 없어요. 그래서 <b>처음 한 번만</b> 직접 허용해 줘야 해요.</p>
+  <h3 style="margin-top:8mm;font-size:13.4pt">First launch — the Mac blocks it once</h3>
+  <p>Gadak was made as a class project and has no paid Apple developer signature. So you need to allow it yourself <b>once</b>.</p>
   <div class="cols">
     <ol class="steps">
-      <li><b>응용 프로그램 폴더(또는 Launchpad)에서 가닥을 열어요.</b></li>
-      <li>열 수 없다는 창이 떠요. <span class="kbd">완료</span>를 눌러요. <br><span style="color:#767676">‘휴지통으로 이동’은 누르지 마세요.</span></li>
-      <li><b>시스템 설정 → 개인정보 보호 및 보안</b>을 열고 아래로 내려요.</li>
-      <li>‘가닥이(가) … 차단되었습니다’ 옆의 <span class="kbd">그래도 열기</span>를 눌러요.</li>
-      <li>한 번 더 묻는 창에서 <span class="kbd">그래도 열기</span>를 누르고, Mac 암호나 Touch ID로 확인해요.</li>
+      <li><b>Open Gadak from Applications (or Launchpad).</b></li>
+      <li>A window says it can’t be opened. Press <span class="kbd">Done</span>. <br><span style="color:#767676">Don’t press ‘Move to Trash’.</span></li>
+      <li>Open <b>System Settings → Privacy &amp; Security</b> and scroll down.</li>
+      <li>Next to ‘“Gadak” was blocked …’, press <span class="kbd">Open Anyway</span>.</li>
+      <li>In the window that asks again, press <span class="kbd">Open Anyway</span> and confirm with your Mac password or Touch ID.</li>
     </ol>
     <div>
       <div class="mac">
         <div class="alert">
           <div class="ico"><svg width="32" height="16" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="98" cy="44" r="6" fill="#faf9f6" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>
-          <b>‘가닥’을(를) 열 수 없습니다</b>
-          <p>Apple은 ‘가닥’에 Mac을 손상시키거나 개인정보를 침해할 수 있는 악성 코드가 없음을 확인할 수 없습니다.</p>
-          <span class="b">휴지통으로 이동</span><span class="b go">완료</span>
+          <b>“Gadak” Not Opened</b>
+          <p>Apple could not verify “Gadak” is free of malware that may harm your Mac or compromise your privacy.</p>
+          <span class="b">Move to Trash</span><span class="b go">Done</span>
         </div>
       </div>
       <div class="mac" style="margin-top:4mm">
-        <div class="bar"><i></i><i></i><i></i><span>시스템 설정</span></div>
+        <div class="bar"><i></i><i></i><i></i><span>System Settings</span></div>
         <div class="settings">
-          <div class="path">개인정보 보호 및 보안 › 보안</div>
-          <div class="row"><span>‘가닥’이(가) 사용자의 Mac을 보호하기 위해 차단되었습니다.</span><em class="go">그래도 열기</em></div>
+          <div class="path">Privacy &amp; Security › Security</div>
+          <div class="row"><span>“Gadak” was blocked to protect your Mac.</span><em class="go">Open Anyway</em></div>
         </div>
       </div>
-      <div class="drawn">본떠 그린 그림이에요. 글은 macOS 버전에 따라 조금 달라요.</div>
+      <div class="drawn">A drawing, not a screenshot. Wording varies a little by macOS version.</div>
     </div>
   </div>
-  <div class="note">한 번 열고 나면 다음부터는 그냥 열려요. macOS 14 이하에서는 가닥을 <b>오른쪽 클릭 → 열기 → 열기</b>로도 돼요. 켠 뒤에는 창 맨 위가 검은 띠예요. 띠의 빈 곳을 끌면 창이 움직여요.</div>
+  <div class="note">After it opens once, it opens normally from then on. On macOS 14 or earlier you can also <b>right-click Gadak → Open → Open</b>. Once it’s running, the top of the window is a black bar; drag an empty part of the bar to move the window.</div>
 </section>
 
 <!-- ───────── 2 · Windows ───────── -->
 <section>
-  <h2><span class="n">2</span>Windows에 설치하기<span class="os">Windows</span></h2>
-  <p class="lead">Windows 10 · 11이면 돼요. 가닥에 필요한 것이 설치 파일 하나에 다 들어 있어서 따로 깔 것이 없어요.</p>
+  <h2><span class="n">2</span>Installing on Windows<span class="os">Windows</span></h2>
+  <p class="lead">Windows 10 or 11 is all you need. Everything Gadak needs is in one installer, so there’s nothing else to install.</p>
   <ol class="steps">
-    <li><b>받은 ‘가닥-0.1.0-windows-x64-설치.exe’를 두 번 눌러요.</b></li>
-    <li><b>“Windows의 PC 보호”라는 파란 창이 뜨면</b> <span class="kbd">추가 정보</span>를 누르고, 이어서 나오는 <span class="kbd">실행</span>을 눌러요. <span style="color:#767676">가닥은 학교 과제로 만든 앱이라 유료 서명이 없어요. 그래서 처음 한 번 이 확인이 필요해요.</span></li>
-    <li><b>설치 창에서 <span class="kbd">설치</span>를 눌러요.</b> 내 계정에만 깔려서 관리자 암호를 묻지 않아요.</li>
-    <li><b>‘가닥 켜기’에 표시가 있는 채로 <span class="kbd">마침</span>을 눌러요.</b> 가닥 창이 떠요. 다음부터는 <b>시작 메뉴</b>나 <b>바탕 화면</b>의 가닥으로 켜요.</li>
+    <li><b>Double-click ‘Gadak-0.1.0-windows-x64-setup.exe’.</b></li>
+    <li><b>If a blue “Windows protected your PC” window appears,</b> press <span class="kbd">More info</span>, then <span class="kbd">Run anyway</span>. <span style="color:#767676">Gadak was made as a class project and has no paid signature, so this check is needed once.</span></li>
+    <li><b>Press <span class="kbd">Install</span> in the installer.</b> It installs for your account only, so it won’t ask for an administrator password.</li>
+    <li><b>With ‘Start Gadak’ ticked, press <span class="kbd">Finish</span>.</b> The Gadak window opens. From then on, start Gadak from the <b>Start menu</b> or the <b>desktop</b>.</li>
   </ol>
   <div class="story">
     <div>
-      <div class="cap"><i>2</i>파란 창에서 ‘추가 정보’</div>
+      <div class="cap"><i>2</i>In the blue window, ‘More info’</div>
       <div class="smart">
-        <b>Windows의 PC 보호</b>
-        <p>Microsoft Defender SmartScreen에서 인식할 수 없는 앱의 시작을 차단했습니다. 이 앱을 실행하면 PC가 위험에 노출될 수 있습니다.</p>
-        <u class="go">추가 정보</u>
-        <div class="btns"><span>실행 안 함</span></div>
+        <b>Windows protected your PC</b>
+        <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</p>
+        <u class="go">More info</u>
+        <div class="btns"><span>Don’t run</span></div>
       </div>
     </div>
     <div>
-      <div class="cap"><i>2</i>이어서 ‘실행’</div>
+      <div class="cap"><i>2</i>Then ‘Run anyway’</div>
       <div class="smart">
-        <b>Windows의 PC 보호</b>
-        <p>앱: 가닥-0.1.0-windows-x64-설치.exe<br>게시자: 알 수 없는 게시자</p>
-        <div class="btns"><span class="go">실행</span><span>실행 안 함</span></div>
+        <b>Windows protected your PC</b>
+        <p>App: Gadak-0.1.0-windows-x64-setup.exe<br>Publisher: Unknown publisher</p>
+        <div class="btns"><span class="go">Run anyway</span><span>Don’t run</span></div>
       </div>
     </div>
     <div>
-      <div class="cap"><i>4</i>설치가 끝나면 ‘마침’</div>
+      <div class="cap"><i>4</i>When it’s done, ‘Finish’</div>
       <div class="pc">
-        <div class="bar">가닥 설치<span>— ☐ ✕</span></div>
+        <div class="bar">Gadak Setup<span>— ☐ ✕</span></div>
         <div class="setup">
           <div class="side"><svg width="30" height="15" viewBox="0 0 120 60"><path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/><path d="M4 22H104" stroke="#111" stroke-width="14"/><circle cx="26" cy="22" r="4" fill="#f2f2f2"/><circle cx="56" cy="22" r="4" fill="#f2f2f2"/><circle cx="98" cy="44" r="6" fill="#f2f2f2" stroke="#111" stroke-width="3.5"/><circle cx="106" cy="22" r="11" fill="#C8401A"/></svg></div>
           <div class="body">
-            <b>가닥 설치 완료</b>
-            <p>가닥의 설치가 완료되었습니다.</p>
-            <div class="check"><i>✓</i>가닥 켜기</div>
-            <div class="check"><i></i>처음 여는 법 보기</div>
+            <b>Completing Gadak Setup</b>
+            <p>Gadak has been installed on your computer.</p>
+            <div class="check"><i>✓</i>Start Gadak</div>
+            <div class="check"><i></i>Show how to open Gadak</div>
           </div>
         </div>
-        <div class="btns"><span>&lt; 뒤로</span><span class="go">마침</span><span>취소</span></div>
+        <div class="btns"><span>&lt; Back</span><span class="go">Finish</span><span>Cancel</span></div>
       </div>
     </div>
   </div>
-  <div class="drawn">본떠 그린 그림이에요. 실제 모습은 Windows 판에 따라 조금 달라요.</div>
+  <div class="drawn">A drawing, not a screenshot. It looks a little different depending on your version of Windows.</div>
 
-  <h3>Windows에서는 이렇게 달라요</h3>
+  <h3>How Windows is different</h3>
   <table>
-    <tr><th>가닥 창</th><td>Edge(없으면 Chrome)의 <b>주소창 없는 창</b>으로 따로 떠요. <b>창을 닫으면 가닥도 꺼져요.</b> 다시 켜려면 시작 메뉴의 가닥.</td></tr>
-    <tr><th>AI 연결</th><td>Claude Code · Codex를 가닥이 대신 받아 주지 못해요. 이 PC에 이미 깔려 있고 로그인돼 있으면 그대로 골라 쓰고, 없으면 <b>LLM API 키</b>를 넣어요(3번). 키는 이 PC의 <b>Windows 자격 증명 관리자</b>에만 둬요.</td></tr>
-    <tr><th>아직 없는 것</th><td>떠 있는 버튼(7번) · Cursor 연결 · 가닥이 알아서 보내기 · Claude 사용 한도 게이지. 나머지는 Mac과 같아요.</td></tr>
-    <tr><th>설치하지 않고 쓰기</th><td>‘가닥-0.1.0-windows-x64.zip’을 풀고, 그 안의 <b>가닥 켜기.cmd</b>를 눌러요.</td></tr>
-    <tr><th>지우기</th><td>설정 → 앱 → 설치된 앱 → 가닥 → <b>제거</b>. 읽어 둔 대화까지 지우려면 <b>C:\Users\내 이름\.gadak</b> 폴더도 지워요.</td></tr>
+    <tr><th>Gadak window</th><td>Opens on its own as an Edge (or, failing that, Chrome) <b>window without an address bar</b>. <b>Closing the window turns Gadak off.</b> To start it again, use Gadak in the Start menu.</td></tr>
+    <tr><th>Connect AI</th><td>Gadak can’t download Claude Code or Codex for you. If one is already installed and signed in on this PC, just pick it; if not, add an <b>LLM API key</b> (section 3). The key is kept only in <b>Windows Credential Manager</b> on this PC.</td></tr>
+    <tr><th>Not there yet</th><td>The floating button (section 7) · Cursor connection · Gadak sending by itself · the Claude usage gauge. Everything else is the same as on a Mac.</td></tr>
+    <tr><th>Use without installing</th><td>Unzip ‘Gadak-0.1.0-windows-x64.zip’ and run <b>Start Gadak.cmd</b> inside it.</td></tr>
+    <tr><th>Removing it</th><td>Settings → Apps → Installed apps → Gadak → <b>Uninstall</b>. To delete the chats it read as well, delete the <b>C:\Users\your name\.gadak</b> folder too.</td></tr>
   </table>
-  <div class="note hot"><b>Windows 판은 0.1.0에서 처음 나왔어요.</b> 아직 여러 PC에서 써 보지 못했어요. 켜지지 않거나 이상하면 <b>C:\Users\내 이름\.gadak\gadak.log</b> 파일을 만든 사람에게 보내 주세요.</div>
+  <div class="note hot"><b>The Windows version first came out in 0.1.0.</b> It hasn’t been tried on many PCs yet. If it doesn’t start or behaves oddly, please send <b>C:\Users\your name\.gadak\gadak.log</b> to the makers.</div>
 </section>
 
 <!-- ───────── 3 · AI 연결 ───────── -->
 <section>
-  <h2><span class="n">3</span>AI 연결 — 버튼 한 번</h2>
-  <p class="lead">가닥이 대화를 정리할 때 쓸 AI를 연결해요. 가닥이 켜지면 <b>AI 연결</b> 창이 저절로 떠요. 셋 가운데 가진 것 <b>하나만</b> 하면 돼요.</p>
+  <h2><span class="n">3</span>Connect AI — one button</h2>
+  <p class="lead">Connect the AI Gadak uses to sort your chats. The <b>Connect AI</b> window opens by itself when Gadak starts. Set up <b>just one</b> of the three you have.</p>
   <div class="cols">
-    <figure class="narrow" style="width:60mm;margin-top:0"><img src="img/ai-first.png" alt="AI 연결 창"><figcaption>처음 켰을 때. 닫았다면 왼쪽 아래 <b>AI 연결</b> 버튼으로 다시 열어요.</figcaption></figure>
+    <figure class="narrow" style="width:60mm;margin-top:0"><img src="img/ai-first.png" alt="Connect AI window"><figcaption>On first launch. If you closed it, open it again with the <b>Connect AI</b> button at the bottom left.</figcaption></figure>
     <div>
       <table style="margin-top:0">
-        <thead><tr><th>가진 것</th><th>할 일</th></tr></thead>
-        <tr><th>Claude 구독<br><span style="font-weight:400">Pro · Max</span></th><td>‘Claude 구독’ 칸의 <span class="kbd">연결하기</span>를 눌러요.</td></tr>
-        <tr><th>ChatGPT 구독<br><span style="font-weight:400">Plus · Pro</span></th><td>‘ChatGPT 구독’ 칸의 <span class="kbd">연결하기</span>를 눌러요.</td></tr>
-        <tr><th>LLM API 키<br><span style="font-weight:400">Anthropic · OpenAI · Gemini</span></th><td>가진 키를 ‘LLM API 키’ 칸에 붙여 넣고 <span class="kbd">저장</span>을 눌러요. 어느 회사 키인지는 가닥이 알아봐요.</td></tr>
+        <thead><tr><th>What you have</th><th>What to do</th></tr></thead>
+        <tr><th>Claude subscription<br><span style="font-weight:400">Pro · Max</span></th><td>Press <span class="kbd">Connect</span> in the ‘Claude subscription’ row.</td></tr>
+        <tr><th>ChatGPT subscription<br><span style="font-weight:400">Plus · Pro</span></th><td>Press <span class="kbd">Connect</span> in the ‘ChatGPT subscription’ row.</td></tr>
+        <tr><th>LLM API key<br><span style="font-weight:400">Anthropic · OpenAI · Gemini</span></th><td>Paste your key in the ‘LLM API key’ box and press <span class="kbd">Save</span>. Gadak works out which company the key is from.</td></tr>
       </table>
-      <h3>‘연결하기’를 누르면 <span class="tag">Mac</span></h3>
+      <h3>When you press ‘Connect’ <span class="tag">Mac</span></h3>
       <ol class="steps">
-        <li><b>필요한 프로그램을 가닥이 받아요.</b> Claude는 ‘Claude Code’, ChatGPT는 ‘Codex’예요. 각 회사의 공식 배포 파일이고 200MB쯤이라 1분쯤 걸려요. 이미 있으면 건너뛰어요.</li>
-        <li><b>브라우저가 열려요.</b> 평소 쓰는 계정으로 로그인하고 허용을 눌러요. 그동안 가닥에는 ‘브라우저에서 로그인을 마쳐 주세요’라고 떠 있어요.</li>
-        <li><b>가닥 창으로 돌아오면 ‘연결됨’</b>으로 바뀌어 있어요. 이제 그 AI로 정리해요.</li>
+        <li><b>Gadak downloads the program it needs.</b> ‘Claude Code’ for Claude, ‘Codex’ for ChatGPT. These are each company’s official releases, about 200 MB, so it takes about a minute. Skipped if already there.</li>
+        <li><b>Your browser opens.</b> Sign in with your usual account and press Allow. Meanwhile Gadak shows ‘Finish signing in in your browser’.</li>
+        <li><b>Back in the Gadak window it says ‘Connected’.</b> Gadak now sorts with that AI.</li>
       </ol>
-      <p class="win small" style="font-size:9.4pt"><b>Windows</b> 가닥이 프로그램을 대신 받아 주지 못해요. Claude Code나 Codex를 직접 깔아 로그인해 두면 가닥이 찾아 쓰고, 없으면 LLM API 키로 연결해요.</p>
+      <p class="win small" style="font-size:9.4pt"><b>Windows</b> Gadak can’t download the program for you. Install Claude Code or Codex yourself and sign in, and Gadak finds it; otherwise connect with an LLM API key.</p>
     </div>
   </div>
   <div class="cols" style="margin-top:2mm">
-    <figure class="narrow" style="width:54mm;margin-top:0"><img src="img/ai-done.png" alt="연결된 모습"><figcaption>연결된 뒤. 쓰고 있는 AI는 테두리가 진해요.</figcaption></figure>
-    <div class="note" style="margin-top:0"><b>알아 둘 것</b><br>
-      · 구독으로 연결하면 <b>추가 요금이 없어요.</b> 대신 평소 쓰는 Claude · ChatGPT와 사용 한도를 같이 써요. 얼마나 썼는지는 가닥 창 오른쪽 아래에 보여요(5번).<br>
-      · API 키는 <b>쓴 만큼 요금</b>이 나가요. 키는 이 Mac의 키체인(Windows는 자격 증명 관리자)에만 두고, 화면에는 끝 네 글자만 보여요.<br>
-      · Google AI Studio의 <b>Gemini 무료 키</b>도 돼요. 요금이 없는 대신 한도가 낮고, 보낸 글이 Google의 제품 개선에 쓰일 수 있어요.<br>
-      · 가닥은 내 암호를 보지 않아요. 로그인은 브라우저에서 그 회사에 직접 해요.<br>
-      · 여러 개를 연결했으면 같은 창의 <span class="kbd">이걸로 정리하기</span>로 바꿔요.<br>
-      · 연결하지 않고 쓰려면 <span class="kbd">AI 없이 쓰기</span>. 대화를 읽어 보여 주기만 해요.<br>
-      · 로그인이 5분 안에 끝나지 않으면 저절로 멈춰요. <span class="kbd">연결하기</span>를 다시 누르면 돼요.</div>
+    <figure class="narrow" style="width:54mm;margin-top:0"><img src="img/ai-done.png" alt="Connected"><figcaption>Once connected. The AI in use has a darker border.</figcaption></figure>
+    <div class="note" style="margin-top:0"><b>Good to know</b><br>
+      · With a subscription there is <b>no extra charge</b>, but Gadak shares the usage limit with your own Claude or ChatGPT use. How much is used shows at the bottom right of the Gadak window (section 5).<br>
+      · An API key is <b>billed for what it uses</b>. The key is kept only in this Mac’s Keychain (Credential Manager on Windows), and only its last four characters are shown.<br>
+      · A <b>free Gemini key</b> from Google AI Studio works too. It costs nothing, but the limit is low and what you send may be used by Google to improve its products.<br>
+      · Gadak never sees your password. You sign in to the company directly in your browser.<br>
+      · If you connected several, switch with <span class="kbd">Sort with this</span> in the same window.<br>
+      · To go without, choose <span class="kbd">Use without AI</span>. Gadak then only reads and shows your chats.<br>
+      · If sign-in doesn’t finish within 5 minutes it stops by itself. Just press <span class="kbd">Connect</span> again.</div>
   </div>
 </section>
 
 <!-- ───────── 4 · 대화 읽어 오기 ───────── -->
 <section>
-  <h2><span class="n">4</span>대화 읽어 오기</h2>
-  <p class="lead">가닥은 이 컴퓨터에서 한 AI 대화를 찾아 읽어요. 어디에서 쓰느냐에 따라 할 일이 달라요. 지금 무엇을 읽고 있는지는 왼쪽 아래 <b>찾은 곳</b>에 나와요.</p>
+  <h2><span class="n">4</span>Reading chats</h2>
+  <p class="lead">Gadak finds and reads the AI chats on this computer. What you need to do depends on where you chat. What it’s reading now is shown under <b>Sources</b> at the bottom left.</p>
   <div class="cols">
     <div>
       <table>
-        <thead><tr><th>AI를 쓰는 곳</th><th>할 일</th></tr></thead>
-        <tr><th>Claude Code · Codex</th><td><b>없어요.</b> 켜면 알아서 읽고, 하는 중인 대화도 따라와요.</td></tr>
-        <tr><th>Cursor <span class="tag">Mac</span></th><td><span class="kbd">찾은 곳</span> → <span class="kbd">연결</span>을 한 번 눌러요. 그 뒤의 대화부터 읽어요.</td></tr>
-        <tr><th>Claude · ChatGPT 웹<br><span style="font-weight:400">(크롬)</span></th><td>크롬에 가닥 확장을 한 번 넣어요. 아래 순서대로요.</td></tr>
-        <tr><th>지난 대화 한꺼번에</th><td>각 서비스의 설정 → 데이터 내보내기로 받은 파일을 <span class="kbd">찾은 곳</span> → <span class="kbd">파일 고르기</span>로 넣어요. AI가 연결돼 있으면 가닥이 프로젝트별로 묶어요.</td></tr>
+        <thead><tr><th>Where you use AI</th><th>What to do</th></tr></thead>
+        <tr><th>Claude Code · Codex</th><td><b>Nothing.</b> Turn Gadak on and it reads them by itself, following the chat in progress too.</td></tr>
+        <tr><th>Cursor <span class="tag">Mac</span></th><td>Press <span class="kbd">Sources</span> → <span class="kbd">Connect</span> once. It reads from the next chat on.</td></tr>
+        <tr><th>Claude · ChatGPT on the web<br><span style="font-weight:400">(Chrome)</span></th><td>Add the Gadak extension to Chrome once, following the steps below.</td></tr>
+        <tr><th>Past chats in bulk</th><td>Add the file you got from Settings → Export data in each service with <span class="kbd">Sources</span> → <span class="kbd">Choose file</span>. With an AI connected, Gadak groups them by project.</td></tr>
       </table>
-      <h3>크롬 확장 넣기 (한 번 · 2분)</h3>
+      <h3>Adding the Chrome extension (once · 2 min)</h3>
       <ol class="steps">
-        <li>가닥 창 왼쪽 아래 <span class="kbd">찾은 곳</span>에서 <span class="kbd">폴더 경로 복사</span>를 눌러요.</li>
-        <li>크롬 주소창에 <b>chrome://extensions</b>를 넣고, 오른쪽 위 <b>개발자 모드</b>를 켜요.</li>
-        <li><b>압축해제된 확장 프로그램을 로드합니다</b>를 눌러요. 폴더 고르는 창에서 <span class="kbd">⌘ ⇧ G</span>를 누르고 붙여 넣은 뒤 열어요. <span class="win"><b>Windows</b>폴더 고르는 창의 주소 칸에 붙여 넣어요.</span></li>
-        <li>열려 있던 Claude · ChatGPT 탭은 한 번 새로고침해요.</li>
+        <li>Under <span class="kbd">Sources</span> at the bottom left of the Gadak window, press <span class="kbd">Copy folder path</span>.</li>
+        <li>Type <b>chrome://extensions</b> in Chrome’s address bar and turn on <b>Developer mode</b> at the top right.</li>
+        <li>Press <b>Load unpacked</b>. In the folder picker press <span class="kbd">⌘ ⇧ G</span>, paste and open. <span class="win"><b>Windows</b>Paste it into the address box of the folder picker.</span></li>
+        <li>Reload any Claude or ChatGPT tabs that were already open.</li>
       </ol>
-      <div class="note">확장은 크롬에서 연 대화를 <b>이 컴퓨터의 가닥으로만</b> 보내요. 시크릿 창과 임시 채팅은 읽지 않아요. 크롬 웹 스토어에 올린 확장이 아니라서 개발자 모드가 필요해요.</div>
-      <div class="note"><b>자동 실행 연결</b> <span class="tag">Mac</span> ‘찾은 곳’의 Claude Code 칸에 있는 버튼이에요. 누르면 Claude Code 설정에 가닥을 더해서, 내가 켜 둔 두 가지(요청 외 변경 되돌리기 · 이어 가기 요약)를 가닥이 직접 보낼 수 있게 돼요. 누르지 않아도 읽기는 그대로 돼요.</div>
+      <div class="note">The extension sends the chats you open in Chrome <b>only to Gadak on this computer</b>. It doesn’t read incognito windows or temporary chats. It isn’t on the Chrome Web Store, which is why Developer mode is needed.</div>
+      <div class="note"><b>Connect auto-run</b> <span class="tag">Mac</span> The button in the Claude Code row under ‘Sources’. It adds Gadak to the Claude Code settings so Gadak can send the two kinds you turned on (undoing unrequested changes · carry-on summary) itself. Reading works the same without it.</div>
     </div>
-    <figure class="narrow" style="width:58mm;margin-top:0"><img src="img/sources.png" alt="찾은 곳 창"><figcaption><b>찾은 곳</b>. 읽고 있는 곳은 ‘알아서 읽는 중’이나 ‘연결됨’으로 보여요.</figcaption></figure>
+    <figure class="narrow" style="width:58mm;margin-top:0"><img src="img/sources.png" alt="Sources panel"><figcaption><b>Sources</b>. What it’s reading shows as ‘Reading by itself’ or ‘Connected’.</figcaption></figure>
   </div>
 </section>
 
 <!-- ───────── 5 · 가닥 창 ───────── -->
 <section>
-  <h2><span class="n">5</span>가닥 창 보는 법</h2>
+  <h2><span class="n">5</span>The Gadak window</h2>
   <div class="shot">
-    <img src="img/window.png" alt="가닥 창">
+    <img src="img/window.png" alt="Gadak window">
     <span class="pin" style="left:8.7%;top:28%">1</span>
     <span class="pin" style="left:42.4%;top:14.4%">2</span>
     <span class="pin" style="left:39.4%;top:64.6%">3</span>
@@ -364,122 +364,122 @@ figcaption { margin-top: 1.3mm; font-size: 8.6pt; color: #767676; }
     <span class="pin" style="left:90.4%;top:3.5%">8</span>
     <span class="pin" style="left:83.3%;top:72.5%">9</span>
   </div>
-  <figcaption style="margin-top:1.3mm">지어낸 예시 대화예요. 가닥은 대답하지 않아서 입력창이 없어요.</figcaption>
+  <figcaption style="margin-top:1.3mm">A made-up example chat. Gadak doesn’t answer, so there is no message box.</figcaption>
   <ul class="legend">
-    <li><i>1</i><b>대화 목록.</b> 프로젝트별로 묶여 있어요. 위의 칸에서 찾고, 필요 없는 대화는 마우스를 올려 ×로 빼요. ‹를 누르면 접혀요.</li>
-    <li><i>2</i><b>노선도.</b> 대화 한 개가 노선 한 줄이에요. 점 하나가 질문 하나(역)이고, 누르면 그 자리로 가요. <span class="kbd">Esc</span>로 접고 펴요.</li>
-    <li><i>3</i><b>대화 글.</b> 읽기만 해요. 대화는 쓰던 곳에서 그대로 해요.</li>
-    <li><i>4</i><b>목록.</b> 할 일 · 정한 것 · 산출물 · 앞길. 할 일의 버튼을 누르면 AI에게 보낼 글이 복사돼요. 쓸모없는 할 일은 ×로 지워요.</li>
-    <li><i>5</i><b>한마디.</b> 새 할 일이 생기면 뜨는 카드예요. 바로 하거나 ‘나중에’로 미뤄요.</li>
-    <li><i>6</i><b>상태와 버튼.</b> 가닥이 지금 무엇을 하는지 한 줄로 나와요. 그 아래에 AI 연결 · 찾은 곳 · 판단 기록 · 도움말 · 끄기가 있어요.</li>
-    <li><i>7</i><b>전체 지도.</b> 모든 프로젝트와 대화를 한 장에 그려요(6번).</li>
-    <li><i>8</i><b>낮 · 밤.</b> 밝은 화면과 어두운 화면을 바꿔요. Mac 앱에는 그 왼쪽에 떠 있는 버튼을 켜고 끄는 <b>가닥 토글</b>도 있어요.</li>
-    <li><i>9</i><b>사용 한도.</b> 구독으로 연결했을 때, 5시간 · 이번 주 한도를 얼마나 썼는지 보여요. 읽을 수 있을 때만 나와요.</li>
+    <li><i>1</i><b>Chat list.</b> Grouped by project. Search in the box above; hover over a chat you don’t need and press × to remove it. Press ‹ to fold the list.</li>
+    <li><i>2</i><b>Strip map.</b> One chat is one line. Each dot is one question (a station); click it to go there. Fold and unfold with <span class="kbd">Esc</span>.</li>
+    <li><i>3</i><b>Chat text.</b> Read only. You keep chatting where you always do.</li>
+    <li><i>4</i><b>Lists.</b> To do · Decided · Files · Ahead. Press a to-do’s button to copy text to send to the AI. Remove a to-do you don’t need with ×.</li>
+    <li><i>5</i><b>Note.</b> The card that pops up when a new to-do appears. Do it now or put it off with ‘Later’.</li>
+    <li><i>6</i><b>Status and buttons.</b> One line on what Gadak is doing now. Below it: Connect AI · Sources · Decision trace · Help · Quit.</li>
+    <li><i>7</i><b>System map.</b> Draws every project and chat on one sheet (section 6).</li>
+    <li><i>8</i><b>Day · Night.</b> Switches between a light and a dark screen. The Mac app also has a <b>Gadak button</b> switch to its left that shows or hides the floating button.</li>
+    <li><i>9</i><b>Usage limit.</b> With a subscription, shows how much of the 5-hour and weekly limits is used. Only shown when it can be read.</li>
   </ul>
-  <h3>목록의 네 칸</h3>
+  <h3>The four lists</h3>
   <table>
-    <tr><th>할 일</th><td>가닥이 찾은 <b>놓친 일</b>(빠진 요청 · 요청 외 변경 · 끝나지 않은 곁길)과 <b>제안</b>(이어 가기 · 반복 질문 · 주제 전환 · 다음 할 일).</td></tr>
-    <tr><th>정한 것</th><td>지금까지 정한 것을 최근 순서로. 누르면 정한 자리로 가요.</td></tr>
-    <tr><th>산출물</th><td>대화에서 나온 파일. 여러 번 고친 파일은 판(v1 · v2)으로 묶여요.</td></tr>
-    <tr><th>앞길</th><td><span class="kbd">앞길 보기</span>를 누르면 가닥이 이 대화가 갈 수 있는 길을 셋까지 찾아 줘요. 30초에서 2분쯤 걸리고, AI 사용 한도를 조금 써요.</td></tr>
+    <tr><th>To do</th><td><b>Missed work</b> Gadak found (missed request · unrequested change · unfinished side trip) and <b>suggestions</b> (carry on · repeated question · topic change · next step).</td></tr>
+    <tr><th>Decided</th><td>Everything decided so far, newest first. Click one to go to where it was decided.</td></tr>
+    <tr><th>Files</th><td>Files that came out of the chat. A file changed several times is grouped into versions (v1 · v2).</td></tr>
+    <tr><th>Ahead</th><td>Press <span class="kbd">Look ahead</span> and Gadak finds up to three ways this chat could go. It takes 30 seconds to 2 minutes and uses a little of your AI usage limit.</td></tr>
   </table>
 </section>
 
 <!-- ───────── 6 · 노선도 · 전체 지도 ───────── -->
 <section>
-  <h2><span class="n">6</span>노선도 읽기 · 전체 지도</h2>
-  <p class="lead">대화 한 개가 노선 한 줄이에요. 왼쪽이 처음, 오른쪽이 지금이에요. 역 이름은 가닥이 그 질문을 줄여 붙인 것이에요.</p>
+  <h2><span class="n">6</span>Reading the map · system map</h2>
+  <p class="lead">One chat is one line. The left is the start, the right is now. Station names are Gadak’s short version of each question.</p>
   <table class="signs" style="margin-top:0">
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>본선</th><td>프로젝트 색의 굵은 선. 전체 지도에서도 같은 색이에요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/><circle cx="52" cy="14" r="3.2" fill="#111"/></svg></td><th>역</th><td>작은 검은 점. 한 번 묻고 한 번 답한 것. 누르면 그 자리로 가요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/><circle cx="52" cy="14" r="9" fill="#e6e6e6"/><circle cx="52" cy="14" r="6" fill="#111"/></svg></td><th>정함</th><td>큰 검은 점과 굵은 역 이름. 그 자리에서 무언가를 정했어요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H52" stroke="#0039A6" stroke-width="9"/><circle cx="56" cy="14" r="11" fill="#f6ddd4"/><circle cx="56" cy="14" r="6.4" fill="#C8401A"/></svg></td><th>지금</th><td>빨간 점과 둘레의 빛. 대화가 와 있는 자리예요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M34 8L50 23H84" fill="none" stroke="#A7A9AC" stroke-width="5"/><path d="M4 8H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>곁길</th><td>아래로 내려가는 회색 선. 하던 이야기에서 잠깐 벗어난 질문이에요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 7H100" stroke="#0039A6" stroke-width="9"/><circle cx="34" cy="21" r="4.2" fill="#fff" stroke="#C8401A" stroke-width="2"/><circle cx="66" cy="21" r="4.2" fill="#fff" stroke="#B5B5B5" stroke-width="2"/></svg></td><th>할 일</th><td>역 아래의 빨간 고리는 아직 안 한 일, 회색 고리는 끝낸 일이에요. 올리면 내용이 보여요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 7H100" stroke="#0039A6" stroke-width="9"/><circle cx="30" cy="21" r="2.4" fill="#111"/><text x="37" y="24.6" font-size="9.5" font-family="Helvetica Neue, Helvetica, sans-serif" fill="#3a3a3a">main.py</text></svg></td><th>산출물</th><td>작은 점과 파일 이름. 그 자리에서 파일이 나오거나 바뀌었어요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><text x="6" y="9.5" font-size="9.5" font-weight="700" font-family="Helvetica Neue, Pretendard, sans-serif" fill="#111">오늘 · 구현</text><path d="M4 20H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>구간</th><td>노선 위의 이름표. 이야기의 단계예요. 지난 구간은 눈금으로 접히고, 이름표를 누르면 펴져요.</td></tr>
-    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H34" stroke="#0039A6" stroke-width="9"/><circle cx="34" cy="14" r="6.4" fill="#C8401A"/><path d="M56 14H90M80 6l11 8-11 8" fill="none" stroke="#111" stroke-width="4"/></svg></td><th>환승하기</th><td>노선 끝의 검은 화살표. 이 대화의 요약을 복사해요. 새 대화 첫머리에 붙여 넣어요.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>Main line</th><td>A thick line in the project’s colour. The same colour on the system map.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/><circle cx="52" cy="14" r="3.2" fill="#111"/></svg></td><th>Station</th><td>A small black dot. One question and its answer. Click it to go there.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H100" stroke="#0039A6" stroke-width="9"/><circle cx="52" cy="14" r="9" fill="#e6e6e6"/><circle cx="52" cy="14" r="6" fill="#111"/></svg></td><th>Decided</th><td>A large black dot with a bold station name. Something was decided there.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H52" stroke="#0039A6" stroke-width="9"/><circle cx="56" cy="14" r="11" fill="#f6ddd4"/><circle cx="56" cy="14" r="6.4" fill="#C8401A"/></svg></td><th>Now</th><td>A red dot with a glow. Where the chat is now.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M34 8L50 23H84" fill="none" stroke="#A7A9AC" stroke-width="5"/><path d="M4 8H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>Side trip</th><td>A grey line dropping below. A question that wandered off for a while.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 7H100" stroke="#0039A6" stroke-width="9"/><circle cx="34" cy="21" r="4.2" fill="#fff" stroke="#C8401A" stroke-width="2"/><circle cx="66" cy="21" r="4.2" fill="#fff" stroke="#B5B5B5" stroke-width="2"/></svg></td><th>To do</th><td>A red ring below a station is still to do; a grey ring is done. Hover to see it.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 7H100" stroke="#0039A6" stroke-width="9"/><circle cx="30" cy="21" r="2.4" fill="#111"/><text x="37" y="24.6" font-size="9.5" font-family="Helvetica Neue, Helvetica, sans-serif" fill="#3a3a3a">main.py</text></svg></td><th>File</th><td>A small dot with a file name. A file was made or changed there.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><text x="6" y="9.5" font-size="9.5" font-weight="700" font-family="Helvetica Neue, Pretendard, sans-serif" fill="#111">Today · Build</text><path d="M4 20H100" stroke="#0039A6" stroke-width="9"/></svg></td><th>Section</th><td>The label above the line: a stage of the conversation. Past sections fold into ticks; click the label to unfold.</td></tr>
+    <tr><td><svg viewBox="0 0 104 28"><path d="M4 14H34" stroke="#0039A6" stroke-width="9"/><circle cx="34" cy="14" r="6.4" fill="#C8401A"/><path d="M56 14H90M80 6l11 8-11 8" fill="none" stroke="#111" stroke-width="4"/></svg></td><th>Transfer</th><td>The black arrow at the end of the line. Copies a summary of this chat to paste at the start of a new one.</td></tr>
   </table>
-  <p class="small" style="font-size:9.4pt;color:#5f5f5f">노선도 카드의 <b>이 대화 · 프로젝트 전체</b>로 한 대화만 볼지, 같은 프로젝트의 대화를 이어 볼지 골라요. 나머지 표시와 낱말은 가닥 창의 <span class="kbd">도움말</span> → ‘노선도 읽기’ · ‘낱말 풀이’에 있어요.</p>
+  <p class="small" style="font-size:9.4pt;color:#5f5f5f">Use <b>This chat · Whole project</b> on the strip map card to see one chat or the project’s chats joined up. The other marks and words are in <span class="kbd">Help</span> in the Gadak window → ‘Reading the map’ · ‘Glossary’.</p>
 
-  <h3 style="margin-top:4mm;font-size:13.4pt">전체 지도 — 모든 대화를 한 장에</h3>
-  <figure style="margin:1.6mm auto 2.4mm;width:140mm"><img src="img/map.png" alt="전체 지도"><figcaption>맨 위 검은 띠의 <b>전체 지도</b>를 누르면 떠요. 지어낸 예시예요.</figcaption></figure>
+  <h3 style="margin-top:4mm;font-size:13.4pt">System map — every chat on one sheet</h3>
+  <figure style="margin:1.6mm auto 2.4mm;width:112mm"><img src="img/map.png" alt="System map"><figcaption>Opens with <b>System map</b> in the black bar at the top. A made-up example.</figcaption></figure>
   <table>
-    <tr><th>읽는 법</th><td>줄 하나가 프로젝트, 굵은 토막 하나가 대화예요. 날짜가 왼쪽에서 오른쪽으로 흘러요. 세로로 이은 검은 선은 한 대화가 다른 대화로 이어진 자리(환승)예요.</td></tr>
-    <tr><th>보는 기간</th><td>최근 <b>7 · 15 · 30일</b> 가운데 골라요. 오른쪽 아래의 − · 전체 · +로 키우고 줄여요.</td></tr>
-    <tr><th>한 줄 노선도</th><td>노선을 누르면 그 대화의 노선도가 한 줄로 펴져요.</td></tr>
-    <tr><th>포스터로 보기</th><td>같은 지도를 지하철 노선 포스터처럼 그려요. 전체 지도는 <span class="kbd">Esc</span>로 닫아요.</td></tr>
+    <tr><th>How to read it</th><td>Each row is a project; each thick segment is a chat. Dates run from left to right. A vertical black line marks where one chat carried on into another (a transfer).</td></tr>
+    <tr><th>Period</th><td>Choose the last <b>7 · 15 · 30 days</b>. Zoom with − · Fit · + at the bottom right.</td></tr>
+    <tr><th>Strip map</th><td>Click a line to unfold that chat’s map as a single strip.</td></tr>
+    <tr><th>View as poster</th><td>Draws the same map like a transit poster. Close the system map with <span class="kbd">Esc</span>.</td></tr>
   </table>
 </section>
 
 <!-- ───────── 7 · 떠 있는 버튼 ───────── -->
-<section>
-  <h2><span class="n">7</span>떠 있는 버튼 — 다른 앱을 쓰면서 보기<span class="os">Mac</span></h2>
-  <p class="lead">가닥을 켜면 화면 가장자리에 가닥 버튼이 반쯤 걸쳐 있어요. 다른 앱을 쓰는 동안에도 보여서, 가닥 창으로 가지 않고 노선도를 볼 수 있어요. Windows에는 아직 없어요.</p>
+<section class="tight">
+  <h2><span class="n">7</span>Floating button — watch while you use other apps<span class="os">Mac</span></h2>
+  <p class="lead">When Gadak is on, the Gadak button rests half over the edge of the screen. It stays visible while you use other apps, so you can see the map without going to the Gadak window. Not on Windows yet.</p>
   <div class="cols">
-    <figure class="narrow" style="width:15mm"><img src="img/float-peek.png" alt="걸쳐 있는 버튼"><figcaption>평소</figcaption></figure>
-    <figure class="narrow" style="width:34mm"><img src="img/float-fan.png" alt="펼친 버튼"><figcaption>마우스를 올리면</figcaption></figure>
+    <figure class="narrow" style="width:15mm"><img src="img/float-peek.png" alt="Resting button"><figcaption>Usually</figcaption></figure>
+    <figure class="narrow" style="width:34mm"><img src="img/float-fan.png" alt="Fanned-out buttons"><figcaption>On hover</figcaption></figure>
     <div>
       <table>
-        <tr><th>가닥 (가운데)</th><td>노선도 창을 켜고 꺼요. 끌면 다른 가장자리로 옮겨져요.</td></tr>
-        <tr><th>노선도</th><td>지금 쓰는 대화의 노선도를 화면 위쪽에 띄워요.</td></tr>
-        <tr><th>할 일 · 정함 · 산출물</th><td>그 칸을 연 목록 창을 따로 띄워요.</td></tr>
-        <tr><th>찾기 · 창</th><td>가닥 창을 열어요. ‘찾기’는 대화 찾기 칸으로 바로 가요.</td></tr>
-        <tr><th>빨간 수</th><td>지금 대화에 열려 있는 할 일 수예요.</td></tr>
+        <tr><th>Gadak (centre)</th><td>Shows or hides the strip map window. Drag it to move it to another edge.</td></tr>
+        <tr><th>Map</th><td>Shows the strip map of the chat you’re in at the top of the screen.</td></tr>
+        <tr><th>To do · Decided · Files</th><td>Opens a separate list window on that tab.</td></tr>
+        <tr><th>Search · Window</th><td>Opens the Gadak window. Search goes straight to the chat search box.</td></tr>
+        <tr><th>Red number</th><td>How many to-dos are open in the current chat.</td></tr>
       </table>
-      <p>떠 있는 창은 <span class="kbd">Esc</span>로 닫아요. 버튼이 떠 있는 동안에는 가닥 창을 닫아도 가닥이 꺼지지 않아요. 끄려면 <span class="kbd">⌘ Q</span>.</p>
+      <p>Close floating windows with <span class="kbd">Esc</span>. While the button is showing, closing the Gadak window doesn’t turn Gadak off. To quit, press <span class="kbd">⌘ Q</span>.</p>
     </div>
   </div>
-  <figure><img src="img/strip.png" alt="노선도 창"><figcaption>노선도 창. 화면 위쪽에 뜨고, 역을 누르면 가닥 창에서 그 자리가 열려요.</figcaption></figure>
-  <div class="note"><b>숨기기 · 다시 켜기.</b> 가닥 버튼을 오른쪽 클릭 → <span class="kbd">버튼 숨기기</span>. 다시 켜는 길은 넷이에요: 가닥 창 맨 위 오른쪽의 <b>가닥 토글</b> 스위치, <span class="kbd">⇧ ⌘ B</span>, 메뉴 <b>보기 → 떠 있는 버튼</b>, Dock의 가닥 아이콘 오른쪽 클릭 → <b>떠 있는 버튼 보이기</b>.</div>
+  <div class="note"><b>Hide · show again.</b> Right-click the Gadak button → <span class="kbd">Hide Button</span>. Four ways to show it again: the <b>Gadak button</b> switch at the top right of the Gadak window, <span class="kbd">⇧ ⌘ B</span>, the menu <b>View → Floating Button</b>, or right-click the Gadak icon in the Dock → <b>Show Floating Button</b>.</div>
 
-  <h3>버튼을 내 마음대로 — 버튼 편집</h3>
+  <h3>Your own buttons — Edit Buttons</h3>
   <div class="cols">
     <div>
-      <p>가닥 버튼을 <b>오른쪽 클릭 → 버튼 편집</b>을 누르면 작은 창이 떠요. 바꾸면 바로 저장되고, 몇 초 안에 버튼에 반영돼요.</p>
+      <p><b>Right-click the Gadak button → Edit Buttons</b> to open a small window. Changes save right away and reach the button within a few seconds.</p>
       <table>
-        <tr><th>빼기</th><td>안 쓰는 버튼의 <span class="kbd">빼기</span>를 눌러요.</td></tr>
-        <tr><th>더하기</th><td>아래의 <b>+ 앞길</b> · <b>+ 도움말</b>처럼 점선으로 된 것을 눌러요. 여섯 개까지 둬요.</td></tr>
-        <tr><th>차례 바꾸기</th><td><span class="kbd">↑</span> <span class="kbd">↓</span>로 옮겨요.</td></tr>
-        <tr><th>프로젝트 버튼</th><td><b>+ 프로젝트 이름</b>을 누르면 그 프로젝트의 버튼이 생겨요. 누르면 가닥 창을 열지 않고 <b>그 프로젝트의 노선도</b>가 떠요. 버튼에 쓸 이름은 네 글자까지 고쳐요.</td></tr>
-        <tr><th>처음 모양으로</th><td>여섯 개(노선도 · 할 일 · 정함 · 산출물 · 찾기 · 창)로 되돌려요.</td></tr>
+        <tr><th>Remove</th><td>Press <span class="kbd">Remove</span> on a button you don’t use.</td></tr>
+        <tr><th>Add</th><td>Press a dotted one below, such as <b>+ Ahead</b> or <b>+ Help</b>. Up to six.</td></tr>
+        <tr><th>Reorder</th><td>Move with <span class="kbd">↑</span> <span class="kbd">↓</span>.</td></tr>
+        <tr><th>Project buttons</th><td>Press <b>+ project name</b> to make a button for that project. It opens <b>that project’s strip map</b> without opening the Gadak window. The name on the button can be up to four characters.</td></tr>
+        <tr><th>Reset to default</th><td>Back to the six (Map · To do · Decided · Files · Search · Window).</td></tr>
       </table>
     </div>
-    <figure class="narrow" style="width:50mm"><img src="img/float-edit.png" alt="버튼 편집 창"><figcaption>프로젝트 버튼은 그 프로젝트의 노선 색 테두리예요.</figcaption></figure>
-    <figure class="narrow" style="width:29mm"><img src="img/float-six.png" alt="바꾼 버튼"><figcaption>바꾼 모습의 예</figcaption></figure>
+    <figure class="narrow" style="width:50mm"><img src="img/float-edit.png" alt="Edit Buttons window"><figcaption>Project buttons have a border in the project’s line colour.</figcaption></figure>
+    <figure class="narrow" style="width:29mm"><img src="img/float-six.png" alt="Changed buttons"><figcaption>An example after changes</figcaption></figure>
   </div>
 </section>
 
 <!-- ───────── 8 · 바꿀 수 있는 것 ───────── -->
-<section>
-  <h2><span class="n">8</span>바꿀 수 있는 것 한눈에</h2>
+<section class="tight">
+  <h2><span class="n">8</span>Settings at a glance</h2>
+  <style>.tight td, .tight th { padding-top: 0.9mm; padding-bottom: 0.9mm; font-size: 8.9pt; }</style>
   <table>
-    <thead><tr><th>무엇</th><th>어디서</th><th>처음 값</th></tr></thead>
-    <tr><th>정리에 쓸 AI</th><td>왼쪽 아래 <span class="kbd">AI 연결</span></td><td>연결된 것 가운데 가닥이 알아서</td></tr>
-    <tr><th>대화를 읽는 곳</th><td>왼쪽 아래 <span class="kbd">찾은 곳</span> (Cursor 연결 · 크롬 확장 · 파일 넣기)</td><td>Claude Code · Codex는 알아서</td></tr>
-    <tr><th>밝은 · 어두운 화면</th><td>맨 위 검은 띠 오른쪽의 <b>낮 · 밤</b> 스위치</td><td>컴퓨터의 화면 모드를 따라가요</td></tr>
-    <tr><th>전체 지도의 기간</th><td>전체 지도 위쪽의 최근 7 · 15 · 30일</td><td>30일</td></tr>
-    <tr><th>앞길 저절로 살피기</th><td>오른쪽 ‘할 일’ 칸 아래. 켜면 AI 사용 한도를 더 써요</td><td>꺼짐 (‘앞길 보기’를 누를 때만)</td></tr>
-    <tr><th>가닥이 알아서 보내기 <span class="tag">Mac</span></th><td>오른쪽 ‘할 일’ 칸 아래. 요청 외 변경 되돌리기 · 이어 가기 요약 두 가지</td><td>꺼짐</td></tr>
-    <tr><th>떠 있는 버튼 <span class="tag">Mac</span></th><td>자리는 끌어서, 구성은 오른쪽 클릭 → <span class="kbd">버튼 편집</span>, 숨기기는 <b>가닥 토글</b></td><td>왼쪽 가장자리 · 여섯 개 · 보임</td></tr>
-    <tr><th>목록에서 대화 빼기</th><td>대화에 마우스를 올리고 ×. 목록 맨 아래 ‘뺀 대화’에서 되돌려요</td><td>—</td></tr>
-    <tr><th>할 일 지우기</th><td>할 일 오른쪽의 ×. 노선도의 고리와 알림 수에서도 빠져요</td><td>—</td></tr>
+    <thead><tr><th>What</th><th>Where</th><th>Default</th></tr></thead>
+    <tr><th>AI for sorting</th><td><span class="kbd">Connect AI</span> at the bottom left</td><td>Gadak picks one of those connected</td></tr>
+    <tr><th>Where chats are read</th><td><span class="kbd">Sources</span> at the bottom left (Cursor connection · Chrome extension · import file)</td><td>Claude Code · Codex read automatically</td></tr>
+    <tr><th>Light · dark screen</th><td>The <b>Day · Night</b> switch on the right of the black bar at the top</td><td>Follows your computer’s appearance</td></tr>
+    <tr><th>System map period</th><td>Last 7 · 15 · 30 days at the top of the system map</td><td>30 days</td></tr>
+    <tr><th>Look ahead automatically</th><td>Below the To do tab on the right. Uses more of your AI usage limit when on</td><td>Off (only when you press Look ahead)</td></tr>
+    <tr><th>Gadak sending by itself <span class="tag">Mac</span></th><td>Below the To do tab on the right. Two kinds: undoing unrequested changes · carry-on summary</td><td>Off</td></tr>
+    <tr><th>Floating button <span class="tag">Mac</span></th><td>Drag to place it, right-click → <span class="kbd">Edit Buttons</span> to arrange, hide with the <b>Gadak button</b> switch</td><td>Left edge · six buttons · shown</td></tr>
+    <tr><th>Removing a chat from the list</th><td>Hover over the chat and press ×. Restore it under ‘removed’ at the bottom of the list</td><td>—</td></tr>
+    <tr><th>Removing a to-do</th><td>The × to the right of the to-do. It also leaves the ring on the map and the count</td><td>—</td></tr>
   </table>
 
-  <h3>막힐 때</h3>
+  <h3>When you’re stuck</h3>
   <table>
-    <tr><th>처음에 안 열려요</th><td><b>Mac</b>은 1번의 ‘그래도 열기’를 했는지 봐요. 가닥이 응용 프로그램 폴더에 있어야 해요. <b>Windows</b>는 2번의 ‘추가 정보 → 실행’.</td></tr>
-    <tr><th>역 이름이 질문 첫머리 그대로예요</th><td>AI가 연결되지 않았어요. 왼쪽 아래 <span class="kbd">AI 연결</span>에서 하나를 연결해요.</td></tr>
-    <tr><th>‘연결하기’가 끝나지 않아요</th><td>브라우저에서 로그인을 마쳤는지 봐요. 5분이 지나면 저절로 멈춰요. 다시 누르면 돼요.</td></tr>
-    <tr><th>빨간 글씨로 멈췄다고 나와요</th><td>AI 사용 한도에 걸렸거나 로그인이 풀렸어요. 한도가 풀린 뒤 <span class="kbd">정리 다시</span>를 눌러요.</td></tr>
-    <tr><th>대화가 하나도 안 보여요</th><td><span class="kbd">찾은 곳</span>을 봐요. 이 컴퓨터에서 AI를 쓴 적이 없으면 읽을 기록이 없어요.</td></tr>
-    <tr><th>떠 있는 버튼이 안 보여요 <span class="tag">Mac</span></th><td>숨겨 둔 거예요. 가닥 창 맨 위 오른쪽의 <b>가닥 토글</b>을 켜요. 켰는데도 없으면 화면의 네 가장자리를 둘러봐요.</td></tr>
-    <tr><th>가닥을 눌러도 창이 안 떠요 <span class="tag">Windows</span></th><td><b>C:\Users\내 이름\.gadak\gadak.log</b>에 까닭이 적혀 있어요. 설치가 “가닥이 켜져 있어요”라며 멈추면 가닥 창을 닫고 다시 해요.</td></tr>
+    <tr><th>It won’t open the first time</th><td>On a <b>Mac</b>, check you did ‘Open Anyway’ from section 1; Gadak must be in Applications. On <b>Windows</b>, ‘More info → Run anyway’ from section 2.</td></tr>
+    <tr><th>Station names are just the start of my questions</th><td>No AI is connected. Connect one under <span class="kbd">Connect AI</span> at the bottom left.</td></tr>
+    <tr><th>‘Connect’ never finishes</th><td>Check that you finished signing in in your browser. It stops by itself after 5 minutes; just press it again.</td></tr>
+    <tr><th>It says in red that it stopped</th><td>You hit the AI usage limit or were signed out. Once the limit resets, press <span class="kbd">Resume sorting</span>.</td></tr>
+    <tr><th>I don’t see any chats</th><td>Check <span class="kbd">Sources</span>. If you have never used an AI on this computer, there is nothing to read.</td></tr>
+    <tr><th>I can’t see the floating button <span class="tag">Mac</span></th><td>It’s hidden. Turn on the <b>Gadak button</b> switch at the top right of the Gadak window. If it still isn’t there, check all four edges of the screen.</td></tr>
+    <tr><th>Clicking Gadak doesn’t open a window <span class="tag">Windows</span></th><td>The reason is written in <b>C:\Users\your name\.gadak\gadak.log</b>. If the installer stops saying “Gadak is running”, close the Gadak window and try again.</td></tr>
   </table>
 
   <div class="cols" style="margin-top:3mm">
-    <div class="note" style="margin:0"><b>내 대화는 어디로 가나요</b><br>대화 글은 <b>이 컴퓨터에만</b> 저장돼요. 정리할 때만 그 대화의 일부가 내가 연결한 AI(내 계정)로 가요. 가닥을 만든 팀의 서버로는 대화 글이 가지 않아요.</div>
-    <div class="note" style="margin:0"><b>지우려면</b><br><b>Mac</b>: 응용 프로그램 폴더의 가닥을 휴지통에 넣어요. 읽어 둔 대화까지 지우려면 Finder에서 <span class="kbd">⌘ ⇧ G</span>를 누르고 <b>~/.gadak</b> 폴더도 지워요.<br><b>Windows</b>: 설정 → 앱 → 설치된 앱에서 가닥을 제거하고, <b>C:\Users\내 이름\.gadak</b> 폴더도 지워요.</div>
+    <div class="note" style="margin:0"><b>Where do my chats go?</b><br>Chat text is stored <b>only on this computer</b>. Only while sorting does part of a chat go to the AI you connected (your own account). Chat text never goes to the Gadak team’s server.</div>
+    <div class="note" style="margin:0"><b>Removing Gadak</b><br><b>Mac</b>: move Gadak from Applications to the Trash. To delete the chats it read as well, press <span class="kbd">⌘ ⇧ G</span> in Finder and delete the <b>~/.gadak</b> folder too.<br><b>Windows</b>: uninstall Gadak under Settings → Apps → Installed apps, and delete the <b>C:\Users\your name\.gadak</b> folder too.</div>
   </div>
 </section>
 

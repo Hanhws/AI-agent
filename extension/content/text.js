@@ -3,7 +3,7 @@
 var GadakRead = (function () {
   'use strict';
   // 길이는 backend/store.py의 MAX_AI · AI_HEAD · CUT과 같아요 (아주 긴 글은 앞 조금과 끝을 남겨요)
-  var MAX = 20000, HEAD = 4000, CUT = '\n…(가운데 줄임)…\n';
+  var MAX = 20000, HEAD = 4000, CUT = '\n…(middle cut)…\n';
 
   function set(words) { var o = {}; words.split(' ').forEach(function (w) { o[w] = 1; }); return o; }
   var SKIP = set('BUTTON SVG STYLE SCRIPT NOSCRIPT TEXTAREA INPUT SELECT IFRAME CANVAS VIDEO AUDIO IMG PICTURE');

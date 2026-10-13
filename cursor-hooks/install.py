@@ -35,7 +35,7 @@ def launcher_script(debug=False, runner=None) -> str:
     runner = runner or f"python3 {shlex.quote(str(HOOK))}"
     return (
         "#!/bin/sh\n"
-        "# 가닥 hook 실행기 (cursor-hooks/install.py 가 만든 파일). 지우면 가닥이 이 프로젝트를 읽지 않아요.\n"
+        "# Gadak hook launcher (made by cursor-hooks/install.py). Delete it and Gadak stops reading this project.\n"
         f"{env}exec {runner}\n"
     )
 
@@ -47,11 +47,11 @@ def write_cursor(base: Path, command: str, debug=False, runner=None) -> bool:
     (hooks_dir / LAUNCHER).write_text(launcher_script(debug, runner), encoding="utf-8")
     config = base / "hooks.json"
     if config.exists():
-        print(f"{config} 이 이미 있어서 덮어쓰지 않았어요. 아래 hooks 항목을 직접 합쳐 주세요.\n")
+        print(f"{config} already exists, so it was not overwritten. Merge the hooks entries below yourself.\n")
         print(render("cursor", command))
         return False
     config.write_text(render("cursor", command) + "\n", encoding="utf-8")
-    print(f"만들었어요: {config}\n만들었어요: {hooks_dir / LAUNCHER}")
+    print(f"Created: {config}\nCreated: {hooks_dir / LAUNCHER}")
     return True
 
 
@@ -65,7 +65,7 @@ def main(argv) -> int:
     if target == "cursor" and "--project" in argv:
         project = Path(args[1] if len(args) > 1 else ".").expanduser().resolve()
         if not project.is_dir():
-            print(f"폴더가 없어요: {project}")
+            print(f"No such folder: {project}")
             return 1
         # 프로젝트 hook은 프로젝트 루트에서 돌아요
         return 0 if write_cursor(project / ".cursor", f"sh .cursor/hooks/{LAUNCHER}", debug) else 2

@@ -53,18 +53,18 @@ def _trouble(status, data, model) -> EngineError:
     error = rest.error_of(data)
     text = rest.line(error.get("message"))
     if status == 401:
-        return EngineError("API 키가 맞지 않아요. 키를 다시 넣어 주세요.")
+        return EngineError("The API key is not valid. Please enter it again.")
     if status == 403:
-        return EngineError("이 API 키로는 쓸 수 없어요: " + (text or "권한이 없어요"))
+        return EngineError("This API key cannot be used: " + (text or "no permission"))
     if status == 404 or error.get("code") == "model_not_found":
-        return EngineError(f"이 키로 쓸 수 없는 모델이에요: {model}")      # 이름이 틀렸거나, 이 키에 권한이 없거나
+        return EngineError(f"This key cannot use the model: {model}")      # 이름이 틀렸거나, 이 키에 권한이 없거나
     if status == 429:
         if _spent(error):
-            return EngineError("API 크레딧이 모자라요(또는 정해 둔 사용 한도를 넘었어요). OpenAI 콘솔에서 확인한 뒤 ‘정리 다시’를 눌러 주세요.")
-        return EngineError("API 사용 한도에 걸렸어요. 잠시 뒤에 ‘정리 다시’를 눌러 주세요.")
+            return EngineError("Not enough API credit (or over the spending limit you set). Check the OpenAI console, then press Resume sorting.")
+        return EngineError("Hit the API rate limit. Press Resume sorting in a moment.")
     if status >= 500:
-        return EngineError("OpenAI 서버가 잠시 답하지 못해요. 조금 뒤에 ‘정리 다시’를 눌러 주세요.")
-    return EngineError("요청이 받아들여지지 않았어요: " + (text or f"HTTP {status}"))
+        return EngineError("The OpenAI servers are not answering for now. Press Resume sorting in a little while.")
+    return EngineError("The request was not accepted: " + (text or f"HTTP {status}"))
 
 
 def _said(data):
@@ -95,7 +95,7 @@ class OpenAiApiEngine:
     def _key(self) -> str:
         key = keys.get("openai")
         if not key:
-            raise EngineError("API 키가 없어요. 키를 넣어 주세요.")
+            raise EngineError("No API key. Please add one.")
         return key
 
     def check(self) -> dict:
@@ -131,15 +131,15 @@ class OpenAiApiEngine:
         if data.get("status") == "failed":
             code = str(rest.error_of(data).get("code") or "")
             if code in ("server_error", "rate_limit_exceeded"):
-                raise EngineError("OpenAI가 답을 만들지 못했어요. 조금 뒤에 ‘정리 다시’를 눌러 주세요.")
-            raise BadOutput("모델이 답을 만들지 못했어요: " + code[:60])
+                raise EngineError("OpenAI could not produce an answer. Press Resume sorting in a little while.")
+            raise BadOutput("The model could not produce an answer: " + code[:60])
         text, refused = _said(data)
         if refused:
-            raise BadOutput("모델이 이 묶음은 다루지 않겠다고 했어요")
+            raise BadOutput("The model declined to handle this batch")
         if data.get("status") == "incomplete":
             why = data.get("incomplete_details") if isinstance(data.get("incomplete_details"), dict) else {}
-            raise BadOutput("답이 길어서 중간에 잘렸어요" if why.get("reason") == "max_output_tokens"
-                            else "모델이 이 묶음은 다루지 않겠다고 했어요")
+            raise BadOutput("The answer was too long and got cut off" if why.get("reason") == "max_output_tokens"
+                            else "The model declined to handle this batch")
         return rest.answer(text)
 
     def _used(self, used) -> None:

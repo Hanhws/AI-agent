@@ -38,7 +38,7 @@ from pathlib import Path
 from . import config, win
 from .macapp import BUNDLE_DATA, GUIDE
 
-NAME = "가닥"
+NAME = "Gadak"
 FOLDER = "Gadak"                 # 깔리는 폴더 · 묶음 안의 폴더 이름. 한글 경로를 못 다루는 도구를 피하려고 로마자로 둬요
 VERSION = config.VERSION
 PYTHON_VERSION = "3.14.6"        # 넣는 파이썬. 판을 올리면 아래 해시도 python.org에서 받은 파일의 것으로 바꿔요
@@ -46,9 +46,9 @@ PYTHON_URL = "https://www.python.org/ftp/python/{version}/python-{version}-embed
 PYTHON_SHA256 = "df901e84a896ff1ee720ad03377e0c8d8c2244fda79808aeeaff6316df1cb75c"
 WHEELS = "win_amd64"             # 받는 꾸러미의 종류 (64비트 Windows. ARM Windows 11도 이것을 돌려요)
 LAUNCH = "-X utf8 -m backend.launch --app"      # 깔린 가닥을 켜는 말 (win/gadak.nsi · ‘가닥 켜기.cmd’가 써요)
-START = "가닥 켜기.cmd"
-FIRST = "처음 여는 법.txt"
-MANUAL = "가닥 설치 안내.pdf"     # 그림이 든 설명서 (docs/가닥-설치-안내.pdf · Mac의 디스크 이미지에 넣는 것과 같은 파일)
+START = "Start Gadak.cmd"
+FIRST = "How to open Gadak.txt"
+MANUAL = "Gadak install guide.pdf"     # 그림이 든 설명서 (docs/가닥-설치-안내.pdf · Mac의 디스크 이미지에 넣는 것과 같은 파일)
 ICON = "gadak.ico"
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
 SOURCES = config.ROOT / "win"
@@ -59,28 +59,28 @@ SCRIPT = "gadak.nsi"
 NSIS_SPOTS = (r"C:\Program Files (x86)\NSIS\makensis.exe", r"C:\Program Files\NSIS\makensis.exe")
 PACKAGES = ("backend", "backend/agent", "backend/engines", "backend/sources")      # 가닥 코드가 든 폴더 (.py만 넣어요)
 
-FIRST_OPEN = """가닥을 처음 여는 법 (Windows)
+FIRST_OPEN = """How to open Gadak the first time (Windows)
 
-1. ‘{setup}’를 열어요. “Windows의 PC 보호”라는 파란 창이 뜨면 ‘추가 정보’ → ‘실행’을 눌러요.
-2. 설치 창에서 ‘설치’를 누르고, 끝나면 ‘마침’을 눌러요. 내 계정에만 깔려서 관리자 암호는 필요 없어요.
-3. 시작 메뉴나 바탕 화면의 ‘가닥’을 눌러 켜요. 가닥 창이 따로 떠요 (Edge나 Chrome의 주소창 없는 창이에요).
-4. 왼쪽 아래 ‘AI 연결’에서 하나를 골라요.
-   - Claude Code나 Codex가 이 PC에 깔려 있고 로그인돼 있으면 그대로 골라 써요.
-   - 없으면 LLM API 키(Anthropic · OpenAI · Gemini)를 붙여 넣어요. 키는 이 PC의 Windows 자격 증명 관리자에만 둬요.
-5. 가닥 창을 닫으면 가닥도 꺼져요. 다시 켜려면 시작 메뉴의 ‘가닥’.
+1. Open ‘{setup}’. If a blue “Windows protected your PC” window appears, press More info → Run anyway.
+2. In the installer press Install, then Finish when it is done. It installs for your account only, so no administrator password is needed.
+3. Start Gadak from the Start menu or the desktop. The Gadak window opens on its own (an Edge or Chrome window without an address bar).
+4. Pick one under Connect AI at the bottom left.
+   - If Claude Code or Codex is installed on this PC and signed in, just pick it.
+   - If not, paste an LLM API key (Anthropic · OpenAI · Gemini). The key is kept only in Windows Credential Manager on this PC.
+5. Closing the Gadak window turns Gadak off. To start it again, use Gadak in the Start menu.
 
-설치하지 않고 쓰려면 ‘{zip}’을 풀고 그 안의 ‘{start}’를 눌러요.
-그림이 든 안내는 같이 들어 있는 ‘{manual}’의 3쪽을 봐 주세요 (깔린 폴더와 zip 안에 있어요).
+To use it without installing, unzip ‘{zip}’ and run ‘{start}’ inside it.
+For an illustrated guide, see page 3 of ‘{manual}’ (in the installed folder and in the zip).
 
-Mac 앱에는 있고 Windows에는 아직 없는 것
-- 다른 앱 위에 떠 있는 가닥 버튼
-- ‘연결하기’ 한 번으로 Claude Code · Codex를 대신 받아 주기 (직접 깔아 두면 가닥이 찾아 써요)
-- Cursor 연결, 승인한 종류의 자동 실행, Claude 사용 한도 게이지
+What the Mac app has that Windows does not yet
+- The Gadak button floating over other apps
+- One-click download of Claude Code or Codex (install them yourself and Gadak finds them)
+- Cursor connection, auto-run for approved kinds, the Claude usage gauge
 
-가닥은 학교 과제로 만든 앱이라 유료 서명이 없어요. 그래서 처음 한 번 위의 확인이 필요해요.
-Windows 판은 {version}에서 처음 만들었어요. 켜지지 않거나 이상하면 아래의 gadak.log를 팀에 보내 주세요.
-대화는 이 PC에만 저장돼요 (C:\\Users\\내 이름\\.gadak). 지우려면 설정 → 앱에서 가닥을 제거하고 그 폴더도 지워요.
-기록 파일: C:\\Users\\내 이름\\.gadak\\gadak.log
+Gadak is an app made for a class project and has no paid signature. That is why the check above is needed once.
+The Windows version was first made in {version}. If it does not start or behaves oddly, please send the team the gadak.log below.
+Chats are stored only on this PC (C:\\Users\\your name\\.gadak). To remove them, uninstall Gadak under Settings → Apps and delete that folder too.
+Log file: C:\\Users\\your name\\.gadak\\gadak.log
 """
 
 
@@ -91,7 +91,7 @@ class BuildError(RuntimeError):
 def names() -> dict:
     """만들어지는 파일의 이름들."""
     base = f"{NAME}-{VERSION}-windows-x64"
-    return {"zip": base + ".zip", "setup": base + "-설치.exe"}
+    return {"zip": base + ".zip", "setup": base + "-setup.exe"}
 
 
 # ---------- 무엇을 받을지 ----------
@@ -406,19 +406,19 @@ def draw_icon() -> Path:
 def main(argv) -> int:
     try:
         if "--icon" in argv:
-            print(f"그렸어요: {draw_icon()}")
+            print(f"Drew: {draw_icon()}")
             return 0
         collect = config.COLLECT_URL if "--collect" in argv else None
         if "--collect" in argv and not collect:
-            raise BuildError("backend/.env에 GADAK_COLLECT_URL이 없어요. --collect를 빼거나 주소를 적어 주세요.")
-        print("Windows용 파이썬과 꾸러미를 받아 모으고 있어요. 처음에는 1~2분 걸려요…", flush=True)
+            raise BuildError("GADAK_COLLECT_URL is not in backend/.env. Drop --collect or add the address.")
+        print("Downloading and gathering Python and packages for Windows. The first time takes 1–2 minutes…", flush=True)
         folder = stage(collect=collect)
-        print(f"모았어요: {folder}" + (" (사용 기록 서버 주소 포함)" if collect else ""))
+        print(f"Gathered: {folder}" + (" (with the usage server address)" if collect else ""))
         if "--zip" in argv:
-            print(f"만들었어요: {zipped(folder)}")
+            print(f"Built: {zipped(folder)}")
         if "--installer" in argv:
-            print(f"만들었어요: {installer(folder)}")
-            print("받은 사람은 처음 한 번 ‘Windows의 PC 보호’ 창에서 추가 정보 → 실행을 눌러야 해요 (묶음 안의 ‘처음 여는 법.txt’).")
+            print(f"Built: {installer(folder)}")
+            print("Recipients need to press More info → Run anyway once in the ‘Windows protected your PC’ window (see ‘How to open Gadak.txt’ in the bundle).")
     except BuildError as exc:
         print(exc)
         return 1

@@ -3,6 +3,7 @@
    주소에 ?demo 를 붙이거나 백엔드 없이 열면 미리 정리해 둔 예시(data/demo_conversations.json)를 보여 줘요. */
 (function () {
   'use strict';
+  function many(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }   // 1 chat · 2 chats
   var G = window.Gadak, el = G.el, fname = G.fname;
   var params = new URLSearchParams(location.search);
   var S = { demo: params.has('demo'), scen: params.get('scen'), projects: [], project: null, chat: null, reset: true,
@@ -11,13 +12,13 @@
   var POLL = 1500, FILES_SHOWN = 8;
   // Windows에 깐 가닥에서는 몇 마디가 달라요: 키를 두는 곳(키체인 → 자격 증명 관리자) · 폴더 경로를 붙여 넣는 법
   var WIN = /Win/i.test(navigator.platform || '');
-  var KEYS_AT = WIN ? '자격 증명 관리자' : '키체인';
+  var KEYS_AT = WIN ? 'Credential Manager' : 'Keychain';
   var SITES = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini' };
   // 가닥 창은 시스템 설정(밝게 · 어둡게)을 따라가요. 주소에 ?theme=light · dark 를 붙이면 고정돼요
   if (/^(light|dark)$/.test(params.get('theme') || '')) document.documentElement.dataset.theme = params.get('theme');
 
   var g = G.create({
-    render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
+    render: render, go: go, goPart: goPart, itemState: saveItem, insert: copyOut, insertLabel: 'Copy',
     nudgeClass: 'nudge-web', statusBits: statusBits, sideFold: sideFold, track: track, setAuto: setAuto, handoff: handoff,
     // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
     ahead: ahead, aheadOn: function () { return !S.demo && !!(S.status && S.status.ahead && S.status.ahead.on); },
@@ -47,33 +48,33 @@
   }
   function sideFold(open, n) {
     R.sideCol.classList.toggle('shut', !open); R.sideOpen.hidden = open;
-    R.sideOpenN.textContent = n ? '할 일 ' + n : '할 일';
+    R.sideOpenN.textContent = n ? 'To do ' + n : 'To do';
   }
   function mount() {
     var shell = document.getElementById('shell'); shell.innerHTML = ''; R.root = shell;
     // 맨 위 검은 머리띠: 전체 지도와 같은 지하철 표지판 띠 (심볼 · 가닥 · 전체 지도)
     var brand = el('header', 'brand band'), logo = el('button', 'logo'); shell.appendChild(brand);
     var site = el('div', 'site'); shell.appendChild(site);
-    var bar = el('aside', 'sitebar'); site.appendChild(bar); logo.type = 'button'; logo.setAttribute('aria-label', '가닥 심볼 다시 재생');
+    var bar = el('aside', 'sitebar'); site.appendChild(bar); logo.type = 'button'; logo.setAttribute('aria-label', 'Play the Gadak symbol again');
     var mark = G.makeMark(30, 10), word = el('b', null, '가닥'); word.appendChild(el('i', null, 'GADAK')); logo.appendChild(mark.svg); logo.appendChild(word); logo.onclick = function () { G.playMark(mark); };
     brand.appendChild(logo); G.macChrome(brand);
     // 전체 지도: 모든 프로젝트 · 대화를 시간 순서 노선으로 한눈에 (backend/web/map.html). 심볼 옆, 늘 보이는 자리에
-    var map = el('button', 'btn sm mapbtn', '전체 지도'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
+    var map = el('button', 'btn sm mapbtn', 'System map'); map.type = 'button'; map.onclick = openMap; brand.appendChild(map);
     // 머리띠 오른쪽: 떠 있는 버튼(가닥 앱에서만 · 앱이 window.gadakFloatState로 알려 줘요) · 밤 · 낮 (shared/ui/mark.js G.makeSwitch)
     var right = el('div', 'bandr'); brand.appendChild(right);
-    var fl = G.makeSwitch({ label: '가닥 토글 (떠 있는 버튼)', off: '가닥 토글', get: function () { return !!S.floatOn; },
+    var fl = G.makeSwitch({ label: 'Gadak button (floating)', off: 'Gadak button', get: function () { return !!S.floatOn; },
       set: function (on) { S.floatOn = on; var n = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.gadak; if (n) n.postMessage({ float: on }); } });
     fl.hidden = S.floatOn === undefined; right.appendChild(fl);
     window.gadakFloatState = function (on) { S.floatOn = !!on; fl.hidden = false; fl.sync(); };
     right.appendChild(G.themeSwitch());
-    var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = '대화 찾기';
-    R.find.setAttribute('aria-label', '모든 대화에서 찾기');
+    var fw = el('div', 'findwrap'); R.find = el('input', 'qin'); R.find.type = 'search'; R.find.placeholder = 'Search chats';
+    R.find.setAttribute('aria-label', 'Search all chats');
     R.find.addEventListener('input', function () { setFind(R.find.value.trim()); });
     R.find.addEventListener('keydown', function (e) { if (e.key === 'Escape') { R.find.value = ''; setFind(''); } });
     fw.appendChild(R.find); bar.appendChild(fw);
     // 양옆 기둥은 위의 버튼으로 접고 펴요. 접으면 얇은 띠에 펼치는 버튼만 남고, 폭이 부드럽게 줄어요 (app.css)
-    var lf = foldBtn('‹', '대화 목록 접기', function () { setLeft(false); }); fw.appendChild(lf);
-    R.leftOpen = foldBtn('›', '대화 목록 펼치기', function () { setLeft(true); }, 'colopen'); R.leftOpen.appendChild(el('span', 'vt', '대화')); site.appendChild(R.leftOpen);
+    var lf = foldBtn('‹', 'Collapse chat list', function () { setLeft(false); }); fw.appendChild(lf);
+    R.leftOpen = foldBtn('›', 'Expand chat list', function () { setLeft(true); }, 'colopen'); R.leftOpen.appendChild(el('span', 'vt', 'Chats')); site.appendChild(R.leftOpen);
     R.site = site;
     R.lists = el('div', 'lists'); bar.appendChild(R.lists);
     R.foot = el('div', 'foot'); bar.appendChild(R.foot);
@@ -81,24 +82,24 @@
     // 대화 옆 세로 레일은 위의 노선도와 겹쳐서 가닥 창에서는 그리지 않아요 (10/7 · 구현 담당. shared/ui/rail.js는 대화가 화면에 있는 다른 입구용으로 남아 있어요)
     var main = el('div', 'sitemain'); site.appendChild(main);
     var col = el('div', 'maincol'); main.appendChild(col);
-    R.unfold = el('button', 'unfold', '노선도 펼치기'); R.unfold.type = 'button'; R.unfold.hidden = true; R.unfold.onclick = function () { g.toggleDrawer(); }; col.appendChild(R.unfold);
+    R.unfold = el('button', 'unfold', 'Expand strip map'); R.unfold.type = 'button'; R.unfold.hidden = true; R.unfold.onclick = function () { g.toggleDrawer(); }; col.appendChild(R.unfold);
     g.mountDrawer(col, null, true);
     var cw = el('div', 'chatwrap'); col.appendChild(cw);
     R.chat = el('div', 'chat'); R.thread = el('div', 'thread'); R.chat.appendChild(R.thread); cw.appendChild(R.chat);
     R.nudgeHost = cw;
-    R.sideCol = el('aside', 'sidecol'); R.sideCol.setAttribute('aria-label', '할 일 · 정한 것 · 산출물 · 앞길'); main.appendChild(R.sideCol);
+    R.sideCol = el('aside', 'sidecol'); R.sideCol.setAttribute('aria-label', 'To do · Decided · Files · Ahead'); main.appendChild(R.sideCol);
     g.mountSide(R.sideCol, true);
     // 오른쪽 아래: 구독 사용 한도 게이지 (5시간 · 이번 주). 읽을 것이 없으면 칸째 숨어요 (backend/limits.py)
     R.limits = el('div', 'limits'); R.limits.hidden = true; R.sideCol.appendChild(R.limits);
-    R.sideCol.appendChild(foldBtn('›', '할 일 목록 접기', function () { st.ledgerOpen = false; g.track('ui', { what: 'list_close' }); g.render(); }));
-    R.sideOpen = foldBtn('‹', '할 일 목록 펼치기', function () { st.ledgerOpen = true; g.track('ui', { what: 'list_open' }); g.render(); }, 'colopen');
-    R.sideOpen.appendChild(R.sideOpenN = el('span', 'vt', '할 일')); R.sideCol.appendChild(R.sideOpen);
+    R.sideCol.appendChild(foldBtn('›', 'Collapse to-do list', function () { st.ledgerOpen = false; g.track('ui', { what: 'list_close' }); g.render(); }));
+    R.sideOpen = foldBtn('‹', 'Expand to-do list', function () { st.ledgerOpen = true; g.track('ui', { what: 'list_open' }); g.render(); }, 'colopen');
+    R.sideOpen.appendChild(R.sideOpenN = el('span', 'vt', 'To do')); R.sideCol.appendChild(R.sideOpen);
     setLeft(store('leftOpen') !== '0', true);
     R.chat.addEventListener('scroll', onChatScroll);
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
     R.src = el('div', 'pop srcpop'); R.src.hidden = true; document.body.appendChild(R.src);
     R.ask = el('div', 'pop srcpop'); R.ask.hidden = true; R.ask.setAttribute('role', 'dialog'); document.body.appendChild(R.ask);
-    R.ai = el('div', 'pop srcpop aipop'); R.ai.hidden = true; R.ai.setAttribute('role', 'dialog'); R.ai.setAttribute('aria-label', 'AI 연결'); document.body.appendChild(R.ai);
+    R.ai = el('div', 'pop srcpop aipop'); R.ai.hidden = true; R.ai.setAttribute('role', 'dialog'); R.ai.setAttribute('aria-label', 'Connect AI'); document.body.appendChild(R.ai);
     R.file = el('input'); R.file.type = 'file'; R.file.accept = '.zip,.json'; R.file.hidden = true; R.file.onchange = importFile; shell.appendChild(R.file);
     document.addEventListener('click', function (e) { if (!R.src.hidden && !R.src.contains(e.target) && !(R.srcBtn && R.srcBtn.contains(e.target))) R.src.hidden = true; });
     // AI 연결 창은 연결하는 동안(브라우저에서 로그인하고 돌아올 때까지)에는 다른 곳을 눌러도 닫지 않아요
@@ -152,31 +153,31 @@
       S.projects.forEach(function (p) {
         var row = el('div', 'crow'), head = el('h6', 'pgroup', p.name); if (p.color) head.prepend(pdot(p.color));
         row.appendChild(head); host.appendChild(row);
-        var x = el('button', 'cx', '×'); x.type = 'button'; x.title = '이 프로젝트의 대화를 모두 목록에서 빼기'; x.setAttribute('aria-label', x.title);
+        var x = el('button', 'cx', '×'); x.type = 'button'; x.title = 'Remove all chats in this project from the list'; x.setAttribute('aria-label', x.title);
         x.onclick = function () { hideProject(p); }; row.appendChild(x);
         p.list.forEach(function (c) {
-          R.citems[c.id] = citem(host, c.title || '(제목 없음)', c.date, !!g.ACT && c.id === g.ACT.id, function () { S.project = p.id; openChat(c.id); },
-            { title: '이 대화를 목록에서 빼기', run: function () { hideChats([c.id], '대화를 목록에서 뺐어요.'); } });
+          R.citems[c.id] = citem(host, c.title || '(untitled)', c.date, !!g.ACT && c.id === g.ACT.id, function () { S.project = p.id; openChat(c.id); },
+            { title: 'Remove this chat from the list', run: function () { hideChats([c.id], 'Removed the chat from the list.'); } });
         });
       });
       renderHidden(host); host.scrollTop = keep; return;
     }
     host.innerHTML = ''; R.citems = {};
     if (g.SC.chats.length) {
-      var head = el('h6', null, g.SC.project ? '프로젝트 · ' + g.SC.project : '최근 대화'); host.appendChild(head);
+      var head = el('h6', null, g.SC.project ? 'Project · ' + g.SC.project : 'Recent chats'); host.appendChild(head);
       var mine = S.projects.filter(function (p) { return p.id === S.project; })[0];
       if (g.SC.project && mine && mine.color) head.prepend(pdot(mine.color));
       g.SC.chats.slice().reverse().forEach(function (c) {
         R.citems[c.id] = citem(host, c.title, c.date, c === g.ACT, function () { openChat(c.id); },
-          { title: '이 대화를 목록에서 빼기', run: function () { hideChats([c.id], '대화를 목록에서 뺐어요.'); } });
+          { title: 'Remove this chat from the list', run: function () { hideChats([c.id], 'Removed the chat from the list.'); } });
       });
     }
     var others = S.projects.filter(function (p) { return p.id !== S.project; });
     if (others.length) {
-      host.appendChild(el('h6', null, S.demo ? '다른 예시' : '다른 프로젝트'));
+      host.appendChild(el('h6', null, S.demo ? 'Other examples' : 'Other projects'));
       others.forEach(function (p) {
         var d = citem(host, p.name, S.demo ? '' : String(p.chats), false, function () { openProject(p.id); },
-          { title: '이 프로젝트의 대화를 모두 목록에서 빼기', run: function () { hideProject(p); } });
+          { title: 'Remove all chats in this project from the list', run: function () { hideProject(p); } });
         if (p.color) d.firstChild.prepend(pdot(p.color));
       });
     }
@@ -188,37 +189,37 @@
   function afterHiding(r, msg) {
     S.hiddenList = null;
     if (!r.ids.length) return;
-    g.flashToast(msg, { label: '되돌리기', run: function () { restore(r.ids); } });
+    g.flashToast(msg, { label: 'Undo', run: function () { restore(r.ids); } });
     if (g.ACT && r.ids.indexOf(g.ACT.id) >= 0) { S.chat = null; S.reset = true; S.bottom = true; }
     load();
   }
   function hideChats(ids, msg) { api('chats/hidden', 'POST', { ids: ids, hidden: true }).then(function (r) { afterHiding(r, msg); }); }
   function hideProject(p) {
-    api('projects/' + encodeURIComponent(p.id) + '/hide', 'POST').then(function (r) { afterHiding(r, '‘' + p.name + '’의 대화 ' + r.ids.length + '개를 목록에서 뺐어요.'); });
+    api('projects/' + encodeURIComponent(p.id) + '/hide', 'POST').then(function (r) { afterHiding(r, 'Removed ' + r.ids.length + (r.ids.length === 1 ? ' chat' : ' chats') + ' in ‘' + p.name + '’ from the list.'); });
   }
   function restore(ids) {
     api('chats/hidden', 'POST', { ids: ids, hidden: false }).then(function (r) {
       S.hiddenList = null; if (!r.hidden) S.hiddenOpen = false;
-      g.flashToast('대화 ' + r.ids.length + '개를 목록으로 되돌렸어요.');
+      g.flashToast('Put ' + r.ids.length + (r.ids.length === 1 ? ' chat' : ' chats') + ' back in the list.');
       load();
     });
   }
   function renderHidden(host) {
     if (S.demo || !S.hiddenCount) return;
-    var head = el('button', 'hhead', '뺀 대화 ' + S.hiddenCount + '개 · ' + (S.hiddenOpen ? '접기' : '보기')); head.type = 'button';
+    var head = el('button', 'hhead', S.hiddenCount + ' removed · ' + (S.hiddenOpen ? 'Hide' : 'Show')); head.type = 'button';
     head.onclick = function () { S.hiddenOpen = !S.hiddenOpen; renderLists(); };
     host.appendChild(head);
     if (!S.hiddenOpen) return;
     if (!S.hiddenList) { api('chats/hidden').then(function (d) { S.hiddenList = d.chats; renderLists(); }); return; }
     S.hiddenList.forEach(function (c) {
-      var b = el('button', 'fitem'); b.type = 'button'; b.title = '누르면 목록으로 되돌려요';
-      var t = el('span', 't'); t.appendChild(el('span', null, c.title)); t.appendChild(el('small', null, '되돌리기')); b.appendChild(t);
+      var b = el('button', 'fitem'); b.type = 'button'; b.title = 'Click to put it back in the list';
+      var t = el('span', 't'); t.appendChild(el('span', null, c.title)); t.appendChild(el('small', null, 'Restore')); b.appendChild(t);
       b.appendChild(el('span', 'w', (c.project.id === '_none' ? '' : c.project.name + ' · ') + (SITES[c.site] || c.site) + ' · ' + c.date));
       b.onclick = function () { restore([c.id]); };
       host.appendChild(b);
     });
     if (S.hiddenList.length > 1) {
-      var all = el('button', 'linkbtn hall', '모두 되돌리기'); all.type = 'button';
+      var all = el('button', 'linkbtn hall', 'Restore all'); all.type = 'button';
       all.onclick = function () { restore(S.hiddenList.map(function (c) { return c.id; })); };
       host.appendChild(all);
     }
@@ -237,8 +238,8 @@
   }
   function renderFound(host) {
     var hits = S.found;
-    host.appendChild(el('h6', null, hits ? '찾은 대화 ' + hits.length + '개' : '찾는 중이에요…'));
-    if (hits && !hits.length) { host.appendChild(el('div', 'lempty', '찾은 대화가 없어요.')); return; }
+    host.appendChild(el('h6', null, hits ? hits.length + (hits.length === 1 ? ' chat found' : ' chats found') : 'Searching…'));
+    if (hits && !hits.length) { host.appendChild(el('div', 'lempty', 'No chats found.')); return; }
     (hits || []).forEach(function (h) {
       var b = el('button', 'fitem' + (g.ACT && h.id === g.ACT.id ? ' on' : '')); b.type = 'button'; b.title = h.title;
       var t = el('span', 't'); t.appendChild(el('span', null, h.title)); t.appendChild(el('small', null, h.date)); b.appendChild(t);
@@ -279,8 +280,8 @@
     R.thread.innerHTML = ''; R.turnEls = {}; R.partEls = {};
     var ts = g.activeTurns(), V = g.buildView('chat');
     if (!ts.length) {
-      var e = el('div', 'empty-chat'); e.appendChild(el('b', null, '아직 잡힌 가닥이 없어요.'));
-      e.appendChild(el('span', null, S.demo ? '대화를 시작하면 여기에 흐름이 그려져요.' : 'Claude Code · Codex · Cursor로 대화하면 여기에 흐름이 그려져요. 웹과 앱의 대화는 ‘찾은 곳’에서 이어요.'));
+      var e = el('div', 'empty-chat'); e.appendChild(el('b', null, 'No thread to follow yet.'));
+      e.appendChild(el('span', null, S.demo ? 'Start a chat and its flow is drawn here.' : 'Chat in Claude Code, Codex or Cursor and the flow is drawn here. Connect web and app chats under Sources.'));
       R.thread.appendChild(e); return;
     }
     ts.forEach(function (t) {
@@ -371,22 +372,22 @@
   function chatTurn(t) {
     var w = el('div', 'turn'); w.dataset.id = t.id;
     var u = el('div', 'u');
-    if (t.depth > 0) u.appendChild(el('span', 'tag', t.depth + '차 곁길'));
+    if (t.depth > 0) u.appendChild(el('span', 'tag', 'Side trip, level ' + t.depth));
     if (t.ref && g.byId[t.ref]) u.appendChild(el('span', 'tag', '↩ ' + g.numLabel(g.byId[t.ref])));
-    if (t.parts) u.appendChild(el('span', 'tag', '요청 ' + t.parts.length + '개'));
+    if (t.parts) u.appendChild(el('span', 'tag', many(t.parts.length, 'request')));
     var full = S.full[t.id] || t;  // 화면에는 앞부분만 와요. ‘전체 보기’로 받아 둔 원문이 있으면 그것을
     var up = el('p', null, full.user); u.appendChild(up); w.appendChild(u);
     var a = el('div', 'a'), para = el('div', 'part'); fillAnswer(para, full.ai, t.id); a.appendChild(para);
     if (t.parts) R.partEls[t.id + ':0'] = para;
     if (t.long && full === t) {
-      var more = el('button', 'linkbtn more', '전체 보기'); more.type = 'button';
+      var more = el('button', 'linkbtn more', 'Show all'); more.type = 'button';
       more.onclick = function () { track('ui', { what: 'full_text' }); api('turns/' + encodeURIComponent(t.id)).then(function (d) { S.full[t.id] = d.turn; up.textContent = d.turn.user; fillAnswer(para, d.turn.ai, t.id); more.remove(); g.renderRail(); }); };
       a.appendChild(more);
     }
     if (t.files) {
       var fs = el('div', 'files');
       t.files.slice(0, FILES_SHOWN).forEach(function (f) { var x = el('span', 'file'); x.appendChild(el('span', 'sq')); x.appendChild(document.createTextNode(fname(f))); fs.appendChild(x); });
-      if (t.files.length > FILES_SHOWN) fs.appendChild(el('span', 'file rest', '외 ' + (t.files.length - FILES_SHOWN) + '개'));
+      if (t.files.length > FILES_SHOWN) fs.appendChild(el('span', 'file rest', '+' + (t.files.length - FILES_SHOWN) + ' more'));
       a.appendChild(fs);
     }
     w.appendChild(a); return w;
@@ -396,31 +397,31 @@
     if (S.demo || !S.status || S.status.classify.engine === 'none') return [];
     var left = st.scope === 'all' ? g.SC.chats.reduce(function (n, c) { return n + (c.pending || 0); }, 0) : (g.ACT.pending || 0);
     if (!left) return [];
-    return [(S.status.classify.paused ? '정리 멈춤' : '정리 중') + ' · 남은 턴 ' + left + '개'];
+    return [(S.status.classify.paused ? 'Sorting paused' : 'Sorting') + ' · ' + left + (left === 1 ? ' turn left' : ' turns left')];
   }
   function renderFoot() {
     var f = R.foot; f.innerHTML = '';
     var s = S.status, text = '', hot = false;
-    if (S.demo) text = '미리 정리해 둔 예시예요. 실제 대화가 아니에요.';
-    else if (S.off) { text = '가닥이 꺼져 있어요. 다시 켜면 이어서 보여 줘요.'; hot = true; }
-    else if (!s) text = '준비 중이에요…';
-    else if (s.sync.phase === 'scan') text = '지난 대화를 읽는 중 · ' + s.sync.done + '/' + s.sync.total;
+    if (S.demo) text = 'A prepared example. Not a real conversation.';
+    else if (S.off) { text = 'Gadak is off. Turn it back on and it picks up where it left off.'; hot = true; }
+    else if (!s) text = 'Getting ready…';
+    else if (s.sync.phase === 'scan') text = 'Reading past chats · ' + s.sync.done + '/' + s.sync.total;
     else if (s.classify.error) { text = s.classify.error; hot = true; }
-    else if (s.classify.engine === 'none') text = '정리할 AI가 연결되지 않아서 제목이 임시예요. ‘AI 연결’을 눌러 주세요.';
-    else if (s.classify.running) text = '보는 대화부터 정리하고 있어요 · 호출 ' + s.classify.calls + '번';
-    else if (s.classify.checking) text = '놓친 일이 있는지 확인하고 있어요 · 호출 ' + s.classify.calls + '번';
-    else text = '켜 두면 새 대화를 알아서 읽어요' + (s.classify.calls ? ' · 정리 호출 ' + s.classify.calls + '번' : '');
+    else if (s.classify.engine === 'none') text = 'No AI is connected for sorting, so titles are provisional. Press Connect AI.';
+    else if (s.classify.running) text = 'Sorting the chat you are looking at first · ' + many(s.classify.calls, 'call');
+    else if (s.classify.checking) text = 'Checking for anything missed · ' + many(s.classify.calls, 'call');
+    else text = 'Leave it on and it reads new chats by itself' + (s.classify.calls ? ' · ' + many(s.classify.calls, 'sorting call') : '');
     f.appendChild(el('div', 'state' + (hot ? ' hot' : ''), text));
     if (S.demo) return;
     var row = el('div', 'row');
     // AI 연결: 정리에 쓸 AI가 없으면 눈에 띄게 (검은 버튼)
-    R.aiBtn = el('button', 'btn sm' + ((s && s.classify.engine === 'none') || S.aiNeed ? ' primary' : ''), 'AI 연결'); R.aiBtn.type = 'button'; R.aiBtn.onclick = toggleAi; row.appendChild(R.aiBtn);
-    R.srcBtn = el('button', 'btn sm', '찾은 곳'); R.srcBtn.type = 'button'; R.srcBtn.onclick = toggleSources; row.appendChild(R.srcBtn);
-    if (s && s.classify.paused) { var again = el('button', 'btn sm', '정리 다시'); again.type = 'button'; again.onclick = function () { api('classify', 'POST', { pause: false }).then(tick); }; row.appendChild(again); }
+    R.aiBtn = el('button', 'btn sm' + ((s && s.classify.engine === 'none') || S.aiNeed ? ' primary' : ''), 'Connect AI'); R.aiBtn.type = 'button'; R.aiBtn.onclick = toggleAi; row.appendChild(R.aiBtn);
+    R.srcBtn = el('button', 'btn sm', 'Sources'); R.srcBtn.type = 'button'; R.srcBtn.onclick = toggleSources; row.appendChild(R.srcBtn);
+    if (s && s.classify.paused) { var again = el('button', 'btn sm', 'Resume sorting'); again.type = 'button'; again.onclick = function () { api('classify', 'POST', { pause: false }).then(tick); }; row.appendChild(again); }
     // 2단이 어떤 도구로 무엇을 보고 결론 냈는지는 노선도 카드에 넣지 않고 별도 페이지에서 봐요 (README 3-1)
-    var log = el('button', 'btn sm', '판단 기록'); log.type = 'button'; log.onclick = function () { track('ui', { what: 'trace' }); window.open('trace', '_blank'); }; row.appendChild(log);
-    var help = el('button', 'btn sm', '도움말'); help.type = 'button'; help.onclick = openHelp; row.appendChild(help);
-    var quit = el('button', 'btn sm', '끄기'); quit.type = 'button'; quit.onclick = quitApp; row.appendChild(quit);
+    var log = el('button', 'btn sm', 'Decision trace'); log.type = 'button'; log.onclick = function () { track('ui', { what: 'trace' }); window.open('trace', '_blank'); }; row.appendChild(log);
+    var help = el('button', 'btn sm', 'Help'); help.type = 'button'; help.onclick = openHelp; row.appendChild(help);
+    var quit = el('button', 'btn sm', 'Quit'); quit.type = 'button'; quit.onclick = quitApp; row.appendChild(quit);
     f.appendChild(row);
   }
 
@@ -438,36 +439,36 @@
   }
   function renderSources() {
     var p = R.src; p.innerHTML = '';
-    p.appendChild(el('b', null, '찾은 곳'));
-    p.appendChild(el('div', 'note', '이 PC에서 찾은 LLM 사용 기록이에요. 읽은 대화는 이 PC에만 저장하고, 정리할 때만 그 턴이 Claude로 가요.'));
+    p.appendChild(el('b', null, 'Sources'));
+    p.appendChild(el('div', 'note', 'LLM records found on this computer. Chats that Gadak reads are stored only here; a turn goes to the AI only while it is being sorted.'));
     S.sources.forEach(function (s) {
       var d = el('div', 'src'), k, w = '', btn = null;
       if (s.mode === 'auto') {
-        k = s.found ? '알아서 읽는 중 · 대화 ' + s.chats + '개' : '기록을 찾지 못했어요';
-        w = s.where + (s.found ? ' · 기록 파일 ' + s.files + '개' : '');
+        k = s.found ? 'Reading by itself · ' + many(s.chats, 'chat') : 'No records found';
+        w = s.where + (s.found ? ' · ' + many(s.files, 'record file') : '');
         if (s.key === 'claude-code' && s.found) {
           // ‘앞으로는 알아서’를 켠 것을 가닥이 직접 보내려면 Claude Code 설정에 hook 둘을 더해야 해요. 눌렀을 때만 고쳐요
-          w += s.hooks ? ' · 가닥이 직접 보낼 수 있어요(자동 실행 연결됨)' : ' · ‘앞으로는 알아서’를 켠 것을 가닥이 직접 보내려면 연결해요. Claude Code 설정에 hook 둘을 더해요';
-          btn = el('button', 'btn sm' + (s.hooks ? '' : ' primary'), s.hooks ? '자동 실행 끊기' : '자동 실행 연결'); btn.onclick = function () {
+          w += s.hooks ? ' · Gadak can send directly (auto-run connected)' : ' · Connect so Gadak can send what you set to “Do this automatically”. Adds two hooks to the Claude Code settings';
+          btn = el('button', 'btn sm' + (s.hooks ? '' : ' primary'), s.hooks ? 'Disconnect auto-run' : 'Connect auto-run'); btn.onclick = function () {
             api('sources/claude-code/' + (s.hooks ? 'disconnect' : 'connect'), 'POST').then(function (r) {
-              g.flashToast(!r.ok ? r.reason : (s.hooks ? 'Claude Code에서 가닥 hook을 뗐어요.' : '연결했어요. 새로 여는 Claude Code 대화부터 가닥이 직접 보낼 수 있어요.'));
+              g.flashToast(!r.ok ? r.reason : (s.hooks ? 'Removed the Gadak hooks from Claude Code.' : 'Connected. Gadak can send directly from the next Claude Code chat you open.'));
               return api('sources'); }).then(function (x) { S.sources = x.sources; renderSources(); }); };
         }
       } else if (s.mode === 'connect') {
-        k = s.connected ? '연결됨 · 대화 ' + s.chats + '개' : (s.found ? '한 번 연결하면 그 뒤로 알아서 읽어요' : '설치된 것을 찾지 못했어요');
-        w = s.connected ? s.where + ' · 새 대화부터 읽어요' : s.where + ' · 연결하면 Cursor의 hooks.json에 가닥을 더해요';
-        if (s.found && !s.connected) { btn = el('button', 'btn sm primary', '연결'); btn.onclick = function () {
-          api('sources/cursor/connect', 'POST').then(function (r) { g.flashToast(r.ok ? 'Cursor를 연결했어요. 새 대화부터 읽어요.' : r.reason); return api('sources'); }).then(function (x) { S.sources = x.sources; renderSources(); }); }; }
+        k = s.connected ? 'Connected · ' + many(s.chats, 'chat') : (s.found ? 'Connect once and it reads by itself after that' : 'Not installed on this computer');
+        w = s.connected ? s.where + ' · reads from new chats on' : s.where + ' · connecting adds Gadak to Cursor’s hooks.json';
+        if (s.found && !s.connected) { btn = el('button', 'btn sm primary', 'Connect'); btn.onclick = function () {
+          api('sources/cursor/connect', 'POST').then(function (r) { g.flashToast(r.ok ? 'Cursor connected. Gadak reads from new chats on.' : r.reason); return api('sources'); }).then(function (x) { S.sources = x.sources; renderSources(); }); }; }
       } else if (s.mode === 'extension') {
-        k = s.connected ? '연결됨 · 대화 ' + s.chats + '개' : '크롬 확장을 넣으면 그 뒤로 알아서 읽어요';
-        w = s.connected ? s.where + ' · 크롬에서 연 대화를 알아서 읽어요 · 마지막 연결 ' + s.seen
-          : s.where + ' · 크롬 주소창에 chrome://extensions → 개발자 모드 켜기 → ‘압축해제된 확장 프로그램을 로드합니다’에서 가닥의 extension 폴더를 골라요.';
-        if (!s.connected) { btn = el('button', 'btn sm primary', '폴더 경로 복사'); btn.onclick = function () {
-          G.copy(s.folder).then(function () { g.flashToast(WIN ? '복사했어요. 폴더 고르는 창의 주소 칸에 붙여 넣으면 돼요.' : '복사했어요. 폴더 고르는 창에서 ⌘⇧G를 누르고 붙여 넣으면 돼요.'); }); }; }
+        k = s.connected ? 'Connected · ' + many(s.chats, 'chat') : 'Add the Chrome extension and it reads by itself after that';
+        w = s.connected ? s.where + ' · reads the chats you open in Chrome · last seen ' + s.seen
+          : s.where + ' · In Chrome, go to chrome://extensions → turn on Developer mode → Load unpacked, and choose Gadak’s extension folder.';
+        if (!s.connected) { btn = el('button', 'btn sm primary', 'Copy folder path'); btn.onclick = function () {
+          G.copy(s.folder).then(function () { g.flashToast(WIN ? 'Copied. Paste it into the address box of the folder picker.' : 'Copied. In the folder picker press ⌘⇧G and paste it.'); }); }; }
       } else {
-        k = '파일로 불러와요' + (s.chats ? ' · 대화 ' + s.chats + '개' : '');
-        w = '한 번도 열지 않은 지난 대화를 한꺼번에 넣을 때, 데스크톱 앱의 대화를 넣을 때 써요. 각 서비스의 설정 → 데이터 내보내기로 받은 파일(zip · json)을 넣어 주세요.';
-        btn = el('button', 'btn sm primary', '파일 고르기'); btn.onclick = function () { R.file.value = ''; R.file.click(); };
+        k = 'Import from a file' + (s.chats ? ' · ' + many(s.chats, 'chat') : '');
+        w = 'Use this to bring in past chats you have not opened, or chats from the desktop apps. Add the file (zip or json) you got from Settings → Export data in each service.';
+        btn = el('button', 'btn sm primary', 'Choose file'); btn.onclick = function () { R.file.value = ''; R.file.click(); };
       }
       d.appendChild(el('span', 'k' + ((s.mode === 'auto' && s.found) || s.connected ? ' on' : ''), k));
       d.appendChild(el('span', 't', s.name)); d.appendChild(el('span', 'w', w));
@@ -482,26 +483,26 @@
      API 키 칸은 하나예요. 어느 회사 키인지(Anthropic · OpenAI · Gemini)는 가닥이 키를 보고 알아봐요 (backend/engines/keys.py).
      어디까지 갔는지는 GET /engine의 job에 나와서, 연결하는 동안 2초마다 물어요. */
   var AI = {
-    claude_cli: { name: 'Claude 구독', sub: 'Pro · Max', note: '내 Claude 구독으로 정리해요. 추가 요금이 없고, 내가 쓰는 Claude와 사용 한도를 같이 써요.' },
-    codex_cli: { name: 'ChatGPT 구독', sub: 'Plus · Pro', note: '내 ChatGPT 구독으로 정리해요. 추가 요금이 없고, 내가 쓰는 ChatGPT(Codex)와 사용 한도를 같이 써요.' },
-    api: { name: 'LLM API 키', sub: 'Anthropic · OpenAI · Gemini', note: '가진 API 키로 정리해요. 어느 회사 키인지는 가닥이 알아봐요. 쓴 만큼 그 키로 요금이 나가요. 키는 ' + (WIN ? '이 PC의 Windows 자격 증명 관리자' : '이 Mac의 키체인') + '에만 둬요.' }
+    claude_cli: { name: 'Claude subscription', sub: 'Pro · Max', note: 'Sorts with your Claude subscription. No extra charge; it shares the usage limit with your own Claude use.' },
+    codex_cli: { name: 'ChatGPT subscription', sub: 'Plus · Pro', note: 'Sorts with your ChatGPT subscription. No extra charge; it shares the usage limit with your own ChatGPT (Codex) use.' },
+    api: { name: 'LLM API key', sub: 'Anthropic · OpenAI · Gemini', note: 'Sorts with an API key you have. Gadak works out which company the key is from. Usage is billed to that key. The key is kept only in ' + (WIN ? 'Windows Credential Manager on this PC' : 'the Keychain on this Mac') + '.' }
   };
-  var GEMINI_NOTE = ' Gemini 무료 키는 요금이 없는 대신, 보낸 글이 Google의 제품 개선에 쓰일 수 있어요.';
+  var GEMINI_NOTE = ' A free Gemini key costs nothing, but what you send may be used by Google to improve its products.';
   // API 키 엔진의 이름은 넣은 키의 회사를 따라가요 (anthropic_api · openai_api · gemini_api). 화면에서는 한 칸이에요
   function isKey(name) { return /_api$/.test(name || ''); }
   function aiOf(name) { return isKey(name) ? AI.api : AI[name]; }
   // ‘…으로 정리해요’에 넣을 말. API 키는 어느 회사 키인지까지 말해요
-  function aiBy(name, e) { return isKey(name) ? (e.key && e.key.company ? e.key.company + ' ' : '') + 'API 키로' : AI[name].name + '으로'; }
+  function aiBy(name, e) { return isKey(name) ? 'your ' + (e.key && e.key.company ? e.key.company + ' ' : '') + 'API key' : 'your ' + AI[name].name; }
   // 안 된 까닭(reason)도 받아야 해서, 실패한 답(400 · 409)도 그대로 읽어요
   function ask(path, method, body) {
     return fetch(path, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
-      .then(function (r) { return r.json(); }).catch(function () { return { ok: false, reason: '가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.' }; });
+      .then(function (r) { return r.json(); }).catch(function () { return { ok: false, reason: 'Could not reach Gadak. Check that Gadak is running.' }; });
   }
   function toggleAi() { if (R.ai.hidden) openAi(); else closeAi(); }
   function closeAi() { R.ai.hidden = true; clearTimeout(S.aiTimer); }
   function openAi() {
     R.src.hidden = true; R.ask.hidden = true;
-    api('engine?fresh=1').then(function (d) { S.engine = d; renderAi(); above(R.ai); R.ai.hidden = false; watchAi(); }, function () { g.flashToast('가닥에 닿지 못했어요.'); });
+    api('engine?fresh=1').then(function (d) { S.engine = d; renderAi(); above(R.ai); R.ai.hidden = false; watchAi(); }, function () { g.flashToast('Could not reach Gadak.'); });
   }
   function watchAi() {
     clearTimeout(S.aiTimer);
@@ -509,14 +510,14 @@
     S.aiTimer = setTimeout(function () {
       api('engine?fresh=1').then(function (d) {
         S.engine = d;
-        if (d.job.state === 'done') { g.flashToast(AI[d.job.name].name + '을 연결했어요. 이제 이 AI로 정리해요.'); tick(); }
+        if (d.job.state === 'done') { g.flashToast(AI[d.job.name].name + ' connected. Gadak now sorts with this AI.'); tick(); }
         renderAi(); watchAi();
       }, watchAi);
     }, 2000);
   }
   function gotEngine(r, said) {
     if (r.engine) S.engine = r.engine;
-    if (!r.ok) g.flashToast(r.reason || '하지 못했어요.'); else if (said) g.flashToast(said);
+    if (!r.ok) g.flashToast(r.reason || 'That did not work.'); else if (said) g.flashToast(said);
     if (!R.ai.hidden) renderAi();
     watchAi(); tick();
   }
@@ -528,53 +529,53 @@
     S.aiNeed = !using;
     var typed = p.querySelector('input'), key = typed ? typed.value : '', had = typed && document.activeElement === typed;   // 다시 그려도 치던 키는 그대로
     p.innerHTML = '';
-    p.appendChild(el('b', null, 'AI 연결'));
-    p.appendChild(el('div', 'note', '가닥이 대화를 정리할 때 쓰는 AI예요. 하나만 연결하면 돼요. ' + (using
-      ? '지금은 ' + aiBy(e.resolved, e) + ' 정리해요' + (e.choice === 'auto' ? ' (가닥이 알아서 골랐어요).' : '.')
-      : (e.choice === 'none' ? 'AI 없이 쓰기로 해 둬서 대화를 읽어 보여 주기만 해요.' : '아직 연결한 것이 없어서 대화를 읽어 보여 주기만 해요.'))));
+    p.appendChild(el('b', null, 'Connect AI'));
+    p.appendChild(el('div', 'note', 'The AI Gadak uses to sort your chats. You only need one. ' + (using
+      ? 'Sorting with ' + aiBy(e.resolved, e) + (e.choice === 'auto' ? ' (chosen by Gadak).' : '.')
+      : (e.choice === 'none' ? 'Set to work without AI, so Gadak only reads and shows your chats.' : 'Nothing connected yet, so Gadak only reads and shows your chats.'))));
     e.options.forEach(function (o) {
       var a = aiOf(o.name), byKey = isKey(o.name), now = e.resolved === o.name && o.ready, d = el('div', 'src' + (now ? ' now' : '')), mine = busy && job.name === o.name;
-      var k = byKey ? (o.ready ? '연결됨 · ' + (o.company ? o.company + ' · ' : '') + o.hint : '키를 넣으면 바로 써요')
-        : (o.ready ? '연결됨' + (o.plan ? ' · ' + planName(o.plan) : '') : (o.found ? '로그인만 하면 돼요' : '아직 연결하지 않았어요'));
-      d.appendChild(el('span', 'k' + (o.ready ? ' on' : ''), (now ? '지금 쓰는 중 · ' : '') + k));
+      var k = byKey ? (o.ready ? 'Connected · ' + (o.company ? o.company + ' · ' : '') + o.hint : 'Ready as soon as you add a key')
+        : (o.ready ? 'Connected' + (o.plan ? ' · ' + planName(o.plan) : '') : (o.found ? 'Just needs a sign-in' : 'Not connected yet'));
+      d.appendChild(el('span', 'k' + (o.ready ? ' on' : ''), (now ? 'In use · ' : '') + k));
       d.appendChild(el('span', 't', a.name + ' (' + a.sub + ')'));
       d.appendChild(el('span', 'w', mine ? job.message : a.note + (byKey && o.company === 'Gemini' ? GEMINI_NOTE : '')));
       if (!mine && job.state === 'failed' && job.name === o.name) d.appendChild(el('span', 'w fail', job.message));
       var row = el('div', 'row');
-      if (mine) row.appendChild(button('그만두기', '', function () { ask('engine/cancel', 'POST').then(function (r) { gotEngine(r); }); }));
+      if (mine) row.appendChild(button('Cancel', '', function () { ask('engine/cancel', 'POST').then(function (r) { gotEngine(r); }); }));
       else if (byKey && !o.ready) {
-        var input = el('input'); input.type = 'password'; input.placeholder = 'LLM API 키 넣기'; input.autocomplete = 'off'; input.spellcheck = false; input.value = key;
-        input.setAttribute('aria-label', 'LLM API 키');
+        var input = el('input'); input.type = 'password'; input.placeholder = 'Paste an LLM API key'; input.autocomplete = 'off'; input.spellcheck = false; input.value = key;
+        input.setAttribute('aria-label', 'LLM API key');
         var save = function () {
           if (!input.value.trim()) { input.focus(); return; }
           ask('engine/key', 'POST', { key: input.value }).then(function (r) {
             if (r.ok) input.value = '';
             var whose = r.engine && r.engine.key && r.engine.key.company ? r.engine.key.company + ' ' : '';
-            gotEngine(r, r.ok ? whose + 'API 키를 ' + KEYS_AT + '에 넣었어요.' + (r.verified ? '' : ' 맞는 키인지 확인은 못 했어요.') : null);
+            gotEngine(r, r.ok ? 'Saved the ' + whose + 'API key to the ' + KEYS_AT + '.' + (r.verified ? '' : ' Could not check that the key works.') : null);
           });
         };
         input.onkeydown = function (ev) { if (ev.key === 'Enter') save(); };
-        row.appendChild(input); row.appendChild(button('저장', 'primary', save));
+        row.appendChild(input); row.appendChild(button('Save', 'primary', save));
         if (had) setTimeout(function () { input.focus(); }, 0);
       } else if (!o.ready) {
-        var go = button('연결하기', 'primary', function () { ask('engine/connect', 'POST', { name: o.name }).then(function (r) { gotEngine(r); }); });
+        var go = button('Connect', 'primary', function () { ask('engine/connect', 'POST', { name: o.name }).then(function (r) { gotEngine(r); }); });
         go.disabled = busy; row.appendChild(go);
       } else {
-        if (!now) row.appendChild(button('이걸로 정리하기', 'primary', function () { ask('engine/choose', 'POST', { name: o.name }).then(function (r) { gotEngine(r, aiBy(o.name, e) + ' 정리할게요.'); }); }));
-        if (byKey && o.source === 'keychain') row.appendChild(button('키 지우기', '', function () { ask('engine/key', 'DELETE').then(function (r) { gotEngine(r, KEYS_AT + '에서 키를 지웠어요.'); }); }));
+        if (!now) row.appendChild(button('Sort with this', 'primary', function () { ask('engine/choose', 'POST', { name: o.name }).then(function (r) { gotEngine(r, 'Sorting with ' + aiBy(o.name, e) + ' from now on.'); }); }));
+        if (byKey && o.source === 'keychain') row.appendChild(button('Delete key', '', function () { ask('engine/key', 'DELETE').then(function (r) { gotEngine(r, 'Deleted the key from the ' + KEYS_AT + '.'); }); }));
       }
       if (row.firstChild) d.appendChild(row);
       p.appendChild(d);
     });
     var foot = el('div', 'row');
-    if (e.choice !== 'auto') foot.appendChild(button('알아서 고르기', '', function () { ask('engine/choose', 'POST', { name: 'auto' }).then(function (r) { gotEngine(r, '쓸 수 있는 AI를 가닥이 알아서 고를게요.'); }); }));
-    if (using) foot.appendChild(button('AI 없이 쓰기', '', function () { ask('engine/choose', 'POST', { name: 'none' }).then(function (r) { gotEngine(r, 'AI 없이 대화를 읽어 보여 주기만 할게요.'); }); }));
-    foot.appendChild(button('닫기', '', closeAi));
+    if (e.choice !== 'auto') foot.appendChild(button('Let Gadak choose', '', function () { ask('engine/choose', 'POST', { name: 'auto' }).then(function (r) { gotEngine(r, 'Gadak will choose an AI that is available.'); }); }));
+    if (using) foot.appendChild(button('Use without AI', '', function () { ask('engine/choose', 'POST', { name: 'none' }).then(function (r) { gotEngine(r, 'Without AI, Gadak will only read and show your chats.'); }); }));
+    foot.appendChild(button('Close', '', closeAi));
     p.appendChild(foot);
   }
 
   /* ---------- 사용 기록 보내기: 처음 한 번 묻고, 찾은 곳에서 바꿔요 (README 5장) ---------- */
-  var USAGE_NOTE = '어떤 기능을 얼마나 쓰는지 같은 사용 기록을 가닥 팀 서버로 보내요. 대화 글 · 제목 · 파일 이름은 보내지 않아요.';
+  var USAGE_NOTE = 'Sends usage records, such as which features are used and how often, to the Gadak team’s server. Chat text, titles and file names are never sent.';
   function button(label, cls, click) { var b = el('button', 'btn sm' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.onclick = click; return b; }
   function loadUsage() {
     if (S.demo) return;
@@ -583,42 +584,42 @@
   function askUsage() {
     if (!R.ai.hidden) return;        // 같은 자리에 AI 연결 창이 떠 있어요. 사용 기록은 다음에 켤 때 물어요
     var p = R.ask; p.innerHTML = ''; above(p); p.hidden = false;
-    p.appendChild(el('b', null, '가닥을 더 좋게 만드는 데 참여할까요?'));
-    p.appendChild(el('div', 'note', USAGE_NOTE + ' 언제든 ‘찾은 곳’에서 끄고, 보낸 기록을 지울 수 있어요.'));
+    p.appendChild(el('b', null, 'Help make Gadak better?'));
+    p.appendChild(el('div', 'note', USAGE_NOTE + ' You can turn this off under Sources at any time and delete what was sent.'));
     var seen = el('div'); p.appendChild(seen);
     var row = el('div', 'row');
-    row.appendChild(button('보내는 것 보기', '', function () { showUsage(seen); }));
-    row.appendChild(button('안 보내기', '', function () { setShare(false); }));
-    row.appendChild(button('보내기', 'primary', function () { setShare(true); }));
+    row.appendChild(button('See what is sent', '', function () { showUsage(seen); }));
+    row.appendChild(button('Don’t send', '', function () { setShare(false); }));
+    row.appendChild(button('Send', 'primary', function () { setShare(true); }));
     p.appendChild(row);
   }
   function setShare(on) {
     api('usage/consent', 'POST', { share: on }).then(function (u) {
       S.usage = u; R.ask.hidden = true;
-      g.flashToast(on ? '고마워요. 사용 기록을 보낼게요.' : '사용 기록을 보내지 않을게요.');
+      g.flashToast(on ? 'Thank you. Usage records will be sent.' : 'Usage records will not be sent.');
       if (!R.src.hidden) renderSources();
     });
   }
   function showUsage(host) {
     api('usage/recent').then(function (d) {
       host.innerHTML = '';
-      host.appendChild(el('div', 'note', '이 PC에 적혀 있는 기록이에요. 보낸다면 이 모양 그대로 가요.'));
-      host.appendChild(el('pre', 'sent', d.events.length ? d.events.map(function (e) { return e.day + '  ' + e.name + '  ' + JSON.stringify(e.fields); }).join('\n') : '아직 적힌 기록이 없어요.'));
+      host.appendChild(el('div', 'note', 'These are the records on this computer. If sent, they go exactly like this.'));
+      host.appendChild(el('pre', 'sent', d.events.length ? d.events.map(function (e) { return e.day + '  ' + e.name + '  ' + JSON.stringify(e.fields); }).join('\n') : 'No records yet.'));
     });
   }
   function usageBlock() {
     var u = S.usage, on = u.share === 'yes', d = el('div', 'src');
     var failing = on && u.error;   // 서버에 닿지 못했어요. 기록은 PC에 남아 있다가 다음 차례에 다시 가요
-    d.appendChild(el('span', 'k' + (on && !failing ? ' on' : ''), failing ? '보내지 못하고 있어요 · 다음에 다시 보내요' : (on ? '보내는 중 · 보낸 기록 ' + u.sent + '개' : '보내지 않아요')));
-    d.appendChild(el('span', 't', '사용 기록 보내기'));
+    d.appendChild(el('span', 'k' + (on && !failing ? ' on' : ''), failing ? 'Could not send · will try again later' : (on ? 'Sending · ' + many(u.sent, 'record') + ' sent' : 'Not sending')));
+    d.appendChild(el('span', 't', 'Send usage records'));
     d.appendChild(el('span', 'w', USAGE_NOTE));
     var seen = el('div'), row = el('div', 'row');
-    row.appendChild(button(on ? '끄기' : '켜기', on ? '' : 'primary', function () { setShare(!on); }));
-    row.appendChild(button('보내는 것 보기', '', function () { showUsage(seen); }));
-    if (u.sent) row.appendChild(button('서버에서 지우기', '', function () {
+    row.appendChild(button(on ? 'Turn off' : 'Turn on', on ? '' : 'primary', function () { setShare(!on); }));
+    row.appendChild(button('See what is sent', '', function () { showUsage(seen); }));
+    if (u.sent) row.appendChild(button('Delete from server', '', function () {
       api('usage/consent', 'POST', { forget: true }).then(function (x) {
         S.usage = x; renderSources();
-        g.flashToast(x.deleted == null ? '서버에 닿지 못했어요. 보내기는 꺼 뒀어요.' : '서버에 있던 기록 ' + x.deleted + '개를 지웠어요.');
+        g.flashToast(x.deleted == null ? 'Could not reach the server. Sending is now off.' : 'Deleted ' + many(x.deleted, 'record') + ' from the server.');
       });
     }));
     d.appendChild(row); d.appendChild(seen);
@@ -629,12 +630,12 @@
     var zip = /\.zip$/i.test(file.name);
     fetch('import', { method: 'POST', headers: { 'Content-Type': zip ? 'application/zip' : 'application/json' }, body: file })
       .then(function (r) { return r.json(); })
-      .then(function (d) { R.src.hidden = true; g.flashToast(d.error ? d.error : '대화 ' + d.chats + '개를 한 가닥으로 이었어요.'); tick(); }, function () { g.flashToast('파일을 읽지 못했어요.'); });
+      .then(function (d) { R.src.hidden = true; g.flashToast(d.error ? d.error : 'Brought in ' + d.chats + (d.chats === 1 ? ' chat.' : ' chats.')); tick(); }, function () { g.flashToast('Could not read the file.'); });
   }
   function quitApp() {
     api('quit', 'POST').then(function () {
       clearInterval(S.timer);
-      var o = el('div', 'gone'); o.appendChild(el('b', null, '가닥을 껐어요.')); o.appendChild(el('span', null, '이 창은 닫아도 돼요. 다시 켜면 이어서 보여 줘요.')); R.root.appendChild(o);
+      var o = el('div', 'gone'); o.appendChild(el('b', null, 'Gadak is off.')); o.appendChild(el('span', null, 'You can close this window. Turn Gadak on again and it picks up where it left off.')); R.root.appendChild(o);
     });
   }
 
@@ -667,37 +668,37 @@
 
   /* ---------- 실행: 가닥 창은 대화 창의 입력창을 건드릴 수 없어서 클립보드에 담아요 ---------- */
   function copyOut(text, label, done) {
-    var ok = function () { g.flashToast('복사했어요. 대화 창에 붙여 넣으면 돼요.'); done(); };
+    var ok = function () { g.flashToast('Copied. Paste it into the chat.'); done(); };
     track('ui', { what: 'copy' });
     G.copy(text).then(ok);
   }
   function handoff() {
     if (!g.ACT) return;
-    g.flashToast('다음 대화에 붙일 요약을 쓰고 있어요…');
+    g.flashToast('Writing a summary for the next chat…');
     api('chats/' + encodeURIComponent(g.ACT.id) + '/handoff').then(function (r) {
-      if (!r.text) { g.flashToast('아직 정한 것도 남은 일도 없어요.'); return; }
+      if (!r.text) { g.flashToast('Nothing decided and nothing left to do yet.'); return; }
       track('ui', { what: 'copy' });
-      G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
-    }, function () { g.flashToast('요약을 만들지 못했어요.'); });
+      G.copy(r.text).then(function () { g.flashToast('Copied a summary to paste into the next chat.'); });
+    }, function () { g.flashToast('Could not write the summary.'); });
   }
   /* 앞길 보기: 이 대화의 마지막 턴에 서서 갈 수 있는 길을 찾아 달라고 해요. 엔진이 뒤에서 돌고, 어디까지 갔는지와 찾은 길은 목록의 ‘앞길’ 칸에 나타나요
      (기다리는 중 · 살피는 중 · 길 n개 · 낼 길이 없었음 · 못 살핀 까닭). 상태가 바뀌면 백엔드가 알려서(rev) 다시 받아 와요 */
   function ahead() {
-    if (!g.ACT || !g.ACT.id) { g.flashToast('먼저 대화를 골라 주세요.'); return; }
+    if (!g.ACT || !g.ACT.id) { g.flashToast('Choose a chat first.'); return; }
     st.sideTab = 'ahead'; st.ledgerOpen = true;
     api('chats/' + encodeURIComponent(g.ACT.id) + '/ahead', 'POST').then(function (r) {
       if (!r.ok) { g.SC.ahead = { state: 'failed', reason: r.reason }; g.render(); return; }
       g.SC.ahead = { state: 'queued' }; g.render();
-    }, function () { g.SC.ahead = { state: 'failed', reason: '가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.' }; g.render(); });
+    }, function () { g.SC.ahead = { state: 'failed', reason: 'Could not reach Gadak. Check that Gadak is running.' }; g.render(); });
   }
   /* 저절로 살피기 켜기 · 끄기: 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 살필지. 가닥이 기억해요 */
   function setAheadAuto(on) {
     api('ahead/auto', 'POST', { on: on }).then(function (r) {
-      if (!r.ok) { g.flashToast(r.reason || '바꾸지 못했어요.'); return; }
+      if (!r.ok) { g.flashToast(r.reason || 'Could not change that.'); return; }
       if (S.status && S.status.ahead) S.status.ahead.auto = !!r.auto;
-      g.flashToast(r.auto ? '이제 길이 갈리는 순간마다 앞길을 저절로 살펴요. Claude 사용 한도를 더 써요.' : '저절로 살피기를 껐어요. ‘앞길’ 칸의 ‘앞길 보기’를 누를 때만 살펴요.');
+      g.flashToast(r.auto ? 'Gadak now looks ahead by itself whenever the road forks. This uses more of your Claude limit.' : 'Automatic look-ahead is off. Gadak looks only when you press Look ahead in the Ahead tab.');
       g.render();
-    }, function () { g.flashToast('바꾸지 못했어요.'); });
+    }, function () { g.flashToast('Could not change that.'); });
   }
   function saveItem(id, state) { if (!S.demo) api('items/' + encodeURIComponent(id), 'PATCH', { state: state }).catch(function () {}); }
 
@@ -706,12 +707,12 @@
     api('auto', 'POST', { kind: kind, on: on }).then(function (r) {
       g.SC.auto = r.auto;
       var name = G.KIND[kind].label, site = g.ACT && g.ACT.site, way = r.ways ? r.ways[site] : true;
-      if (!on) g.flashToast('‘' + name + '’은 다시 물어보고 보낼게요.');
-      else if (way === false) g.flashToast('켰어요. 가닥이 직접 보내려면 ‘찾은 곳’에서 ' + (SITES[site] || site) + '를 연결해 주세요.');
-      else if (way === undefined) g.flashToast('켰어요. 가닥이 직접 보낼 수 있는 곳은 지금 Claude Code와 Cursor예요.');
-      else g.flashToast('다음부터 ‘' + name + '’은 가닥이 바로 보내요.');
+      if (!on) g.flashToast('Gadak will ask again before sending ‘' + name + '’.');
+      else if (way === false) g.flashToast('Turned on. For Gadak to send directly, connect ' + (SITES[site] || site) + ' under Sources.');
+      else if (way === undefined) g.flashToast('Turned on. For now Gadak can send directly only in Claude Code and Cursor.');
+      else g.flashToast('From now on Gadak sends ‘' + name + '’ right away.');
       g.render();
-    }, function () { g.flashToast('바꾸지 못했어요.'); });
+    }, function () { g.flashToast('Could not change that.'); });
   }
 
   /* ---------- 데이터 ---------- */
@@ -735,7 +736,7 @@
         var real = v.project.id !== '_none';  // 프로젝트 · 폴더가 없는 대화는 대화별로만 봐요
         // 노선 색: 전체 지도와 같은 프로젝트 색 (store.project_color). 노선도 카드가 var(--route)로 써요
         R.root.style.setProperty('--route', v.project.color || '');
-        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto, ahead: v.ahead });
+        show({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? 'Whole project' : null, chats: v.chats, itemStates: v.itemStates, auto: v.auto, ahead: v.ahead });
       });
     });
   }
@@ -779,10 +780,10 @@
      이름 앞은 노선 불릿처럼 검은 동그라미에 글자 하나.
      노선 색은 쓰지 않아요: 프로젝트 노선과 헷갈리지 않게 검정(밤에는 흰색) 하나로 (10/11) */
   var LIMITS = { claude: { name: 'Claude', bullet: 'C' }, codex: { name: 'ChatGPT', bullet: 'G' } };
-  var WINDOWS = [['five_hour', '5시간'], ['week', '이번 주']];
+  var WINDOWS = [['five_hour', '5 hours'], ['week', 'Week']];
   function until(iso) {
     var m = Math.round((new Date(iso) - Date.now()) / 60000); if (!(m > 0)) return '';
-    return (m < 60 ? m + '분' : m < 1440 ? Math.round(m / 60) + '시간' : Math.round(m / 1440) + '일') + ' 뒤 풀려요';
+    return 'Resets in ' + (m < 60 ? m + ' min' : m < 1440 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' d');
   }
   function renderLimits(r) {
     var box = R.limits, grow = !R.limitsShown && !G.reduce; box.innerHTML = ''; var any = false, fills = [];
@@ -790,21 +791,21 @@
       var v = r && r[k], L = LIMITS[k]; if (!v) return; any = true;
       // stale: 열쇠가 만료돼 새로 못 읽었어요. 마지막 값을 흐리게, ‘몇 시 기준’과 함께 (backend/limits.py)
       var grp = el('div', 'lim' + (v.stale ? ' stale' : '')), at = v.as_of ? new Date(v.as_of) : null;
-      var when = at ? (at.toDateString() === new Date().toDateString() ? '' : (at.getMonth() + 1) + '/' + at.getDate() + ' ') + String(at.getHours()).padStart(2, '0') + ':' + String(at.getMinutes()).padStart(2, '0') + ' 기준' : '';
-      var h = el('div', 'lhead'); h.appendChild(el('span', 'bul', L.bullet)); h.appendChild(el('b', null, L.name)); h.appendChild(el('span', 'lk', v.stale ? when : '사용 한도')); grp.appendChild(h);
+      var when = at ? (at.toDateString() === new Date().toDateString() ? '' : (at.getMonth() + 1) + '/' + at.getDate() + ' ') + String(at.getHours()).padStart(2, '0') + ':' + String(at.getMinutes()).padStart(2, '0') + '' : '';
+      var h = el('div', 'lhead'); h.appendChild(el('span', 'bul', L.bullet)); h.appendChild(el('b', null, L.name)); h.appendChild(el('span', 'lk', v.stale ? (when && 'As of ' + when) : 'Usage limit')); grp.appendChild(h);
       WINDOWS.forEach(function (w) {
         var x = v[w[0]]; if (!x) return;
         var p = Math.max(0, Math.min(100, x.used)), row = el('div', 'lrow');
         row.appendChild(el('span', 'ln', w[1]));
         var rt = el('div', 'lroute'); rt.setAttribute('role', 'meter'); rt.setAttribute('aria-valuemin', '0'); rt.setAttribute('aria-valuemax', '100'); rt.setAttribute('aria-valuenow', String(p));
-        rt.setAttribute('aria-label', L.name + ' ' + w[1] + ' 한도 ' + Math.round(p) + '% 씀');
+        rt.setAttribute('aria-label', L.name + ' ' + w[1] + ' limit, ' + Math.round(p) + '% used');
         var f = el('i', 'f'), n = el('i', 'n'); rt.appendChild(f); rt.appendChild(el('i', 'e')); rt.appendChild(n);
         fills.push([f, n, p]); if (!grow) { f.style.setProperty('--p', p); n.style.setProperty('--p', p); }
         row.appendChild(rt); row.appendChild(el('span', 'lp', Math.round(p) + '%'));
         grp.appendChild(row);
         var u = x.resets_at ? until(x.resets_at) : ''; if (u) grp.appendChild(el('div', 'lsub', u));
       });
-      if (v.stale) grp.appendChild(el('div', 'lnote', '터미널에서 Claude Code를 쓰면 새로 읽어요'));
+      if (v.stale) grp.appendChild(el('div', 'lnote', 'Refreshes when you use Claude Code in the terminal'));
       box.appendChild(grp);
     });
     box.hidden = !any;
@@ -820,7 +821,7 @@
   /* ---------- 전체 지도: 가닥 창 위에 겹쳐 열어요 (backend/web/map.html). 지도에서 대화를 고르면 닫고 가닥 창에서 그 대화를 열어요 ---------- */
   function openMap() {
     if (R.mapFrame) return;
-    R.mapFrame = el('iframe', 'mapframe'); R.mapFrame.src = 'map'; R.mapFrame.setAttribute('aria-label', '전체 지도');   // title은 지도 위에 툴팁으로 떠요
+    R.mapFrame = el('iframe', 'mapframe'); R.mapFrame.src = 'map'; R.mapFrame.setAttribute('aria-label', 'System map');   // title은 지도 위에 툴팁으로 떠요
     document.body.appendChild(R.mapFrame); R.mapFrame.focus();
   }
   function closeMap() { if (R.mapFrame) { R.mapFrame.remove(); R.mapFrame = null; } }

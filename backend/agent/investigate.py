@@ -217,32 +217,32 @@ def conclude(ctx, looks, steps, out) -> dict:
         if kind == "missing":
             no = raw.get("part")
             if not looked("get_request"):
-                drop(kind, "요청 원문을 보지 않고 낸 결론이라 버렸어요")
+                drop(kind, "Dropped: concluded without reading the original request")
             elif not isinstance(no, int) or isinstance(no, bool) or no not in parts:
-                drop(kind, "이 턴에 없는 요청 번호라 버렸어요")
+                drop(kind, "Dropped: no request with that number in this turn")
             elif all(m["no"] != no for m in missing):
                 missing.append({"no": no, "t": parts[no], "why": why})
         elif kind == "unasked":
             path, pairs = match_file(ctx, raw.get("file"))
             if not looked("get_diff"):
-                drop(kind, "바뀐 곳을 보지 않고 낸 결론이라 버렸어요")
+                drop(kind, "Dropped: concluded without looking at what changed")
             elif pairs is None:
-                drop(kind, "이 턴에서 바뀐 파일이 아니라 버렸어요")
+                drop(kind, "Dropped: that file was not changed in this turn")
             elif path not in files:
                 files.add(path)
                 made.append(unasked_item(ctx, path, pairs, raw, why))
         elif kind == "handoff":
             item = handoff_item(ctx, raw.get("use"), why) if "handoff" in looks else None
             if "handoff" not in looks:
-                drop(kind, "새 대화의 첫 턴이 아니라 버렸어요")
+                drop(kind, "Dropped: not the first turn of a new chat")
             elif not looked("search_decisions", own=False):
-                drop(kind, "정한 것을 찾아보지 않고 낸 결론이라 버렸어요")
+                drop(kind, "Dropped: concluded without looking up decisions")
             elif item is None:
-                drop(kind, "붙일 만한 지난 결정이나 남은 일이 없어서 버렸어요")
+                drop(kind, "Dropped: no past decisions or leftovers worth carrying over")
             elif not any(i["kind"] == "handoff" for i in made):
                 made.append(item)
         else:
-            drop(str(kind), "모르는 종류라 버렸어요")
+            drop(str(kind), "Dropped: unknown kind")
     return {"missing": missing, "items": made, "dropped": dropped}
 
 
@@ -269,23 +269,23 @@ def unasked_item(ctx, path, pairs, raw, why) -> dict:
     text = _line(raw.get("text"), 200)
     if not text or len(text) > TEXT_MAX:
         if asked and what:
-            text = f"“{asked}”만 요청했는데 “{what}”도 바뀌었어요"
+            text = f"You asked only for “{asked}”, but “{what}” changed too"
         else:
-            text = f"요청하지 않은 “{what}”도 바뀌었어요" if what else f"요청하지 않은 {shown}도 바뀌었어요"
+            text = f"“{what}” changed too, which you did not ask for" if what else f"{shown} changed too, which you did not ask for"
     lines = tools.file_diff(pairs)
     diff = lines[:DIFF_SHOWN]
     if len(lines) > DIFF_SHOWN:
-        diff.append([" ", f"…(바뀐 곳 {len(lines) - DIFF_SHOWN}줄 더)"])
-    part = f"“{what}” 부분" if what else "바뀐 부분"
-    prompt = f"{shown}에서 {part}은 내가 요청하지 않았어. " + (
-        f"원래대로 되돌리고, “{asked}” 변경만 남겨 줘." if asked else "원래대로 되돌려 줘.")
+        diff.append([" ", f"…({len(lines) - DIFF_SHOWN} more changed line" + ("" if len(lines) - DIFF_SHOWN == 1 else "s") + ")"])
+    part = f"the “{what}” part" if what else "the changed part"
+    prompt = f"I didn't ask for {part} in {shown}. " + (
+        f"Put it back and keep only the “{asked}” change." if asked else "Put it back the way it was.")
     return {
         "kind": "unasked", "text": text,
-        "why": why or f"{shown}에서 요청과 상관없어 보이는 곳이 바뀌었어요.",
-        "btn": "바뀐 곳 보기",
-        "pop": {"title": f"요청 외 변경 · {shown}", "diff": diff,
-                "note": f"요청한 범위(“{asked}”) 밖에서 바뀐 곳이에요." if asked else "요청한 범위 밖에서 바뀐 곳이에요.",
-                "btn": "원래대로 요청", "prompt": prompt},
+        "why": why or f"Parts of {shown} that look unrelated to the request changed.",
+        "btn": "See what changed",
+        "pop": {"title": f"Unrequested change · {shown}", "diff": diff,
+                "note": f"Changed outside what you asked for (“{asked}”)." if asked else "Changed outside what you asked for.",
+                "btn": "Ask to undo", "prompt": prompt},
     }
 
 
@@ -301,16 +301,16 @@ def handoff_summary(decisions, leftovers) -> str:
         chats = {d["chat_id"] for d in decisions}
         if len(chats) == 1:
             first = decisions[0]
-            lines.append(f"지난 대화({store.display_date(first['created_at'])} {first['chat_title']})에서 정한 것")
+            lines.append(f"Decided in the last chat ({store.display_date(first['created_at'])} {first['chat_title']})")
             lines += [f"{n}. {_said(d)}" for n, d in enumerate(decisions, 1)]
         else:
-            lines.append("지난 대화에서 정한 것")
+            lines.append("Decided in the last chat")
             lines += [f"{n}. {_said(d)} ({store.display_date(d['created_at'])} {d['chat_title']})"
                       for n, d in enumerate(decisions, 1)]
     if leftovers:
-        lines.append("아직 남은 일")
+        lines.append("Still to do")
         lines += [f"- {i['text']}" for i in leftovers]
-    lines.append("이 결정을 그대로 두고 이어서 진행해 줘." if decisions else "이 일을 이어서 진행해 줘.")
+    lines.append("Keep these decisions as they are and carry on from here." if decisions else "Please carry on with this work.")
     return "\n".join(lines)
 
 
@@ -333,18 +333,18 @@ def handoff_item(ctx, use, why):
         return None
     summary = handoff_summary(decisions, leftovers)
     if decisions and leftovers:
-        text = f"지난 대화에서 정한 것 {len(decisions)}개와 남은 일 {len(leftovers)}개를 이 대화에 붙일까요?"
+        text = f"Paste {store.many(len(decisions), 'decision')} and {store.many(len(leftovers), 'leftover')} from the last chat into this one?"
     elif decisions:
-        text = f"지난 대화에서 정한 것 {len(decisions)}개를 이 대화에 붙일까요?"
+        text = f"Paste {store.many(len(decisions), 'decision')} from the last chat into this one?"
     else:
-        text = f"지난 대화의 남은 일 {len(leftovers)}개를 이 대화에 붙일까요?"
+        text = f"Paste {store.many(len(leftovers), 'leftover')} from the last chat into this one?"
     return {
         "kind": "handoff", "text": text,
-        "why": why or "같은 프로젝트의 새 대화예요. 지난 대화에서 정한 것을 모르고 시작해요.",
-        "btn": "요약 붙이기",
-        "pop": {"title": "이어 가기 요약", "text": summary,
-                "note": "새 대화는 지난 결정을 모르고 시작해요. 붙여 넣으면 같은 설명을 다시 하지 않아도 돼요.",
-                "btn": "요약 붙이기", "prompt": summary},
+        "why": why or "This is a new chat in the same project. It starts without knowing what was decided before.",
+        "btn": "Paste summary",
+        "pop": {"title": "Carry-on summary", "text": summary,
+                "note": "A new chat starts without knowing past decisions. Paste this and you won't have to explain it all again.",
+                "btn": "Paste summary", "prompt": summary},
     }
 
 
@@ -437,7 +437,7 @@ class Investigator:
         """줄 맨 앞 대화에서 확인할 턴 하나를 봐요. 볼 것이 없으면 False."""
         if self.engine() is None:
             for chat_id in self.wanted:
-                self.note_ahead(chat_id, "failed", reason="정리에 쓸 엔진이 없어요.")
+                self.note_ahead(chat_id, "failed", reason="No engine is available for sorting.")
             self.queue.clear()     # 엔진이 없으면 기록만 해요
             self.wanted.clear()
             return False
@@ -446,7 +446,7 @@ class Investigator:
             chat = store.chat_row(conn, chat_id)
             rows = [r for r in store.chat_turns(conn, chat["id"]) if r["classified"] == 1] if chat is not None else []
             if not rows or chat["hidden"]:
-                self.note_ahead(chat_id, "failed", reason="아직 정리된 턴이 없어서 살필 자리가 없어요. 정리가 끝난 뒤 다시 눌러 주세요.")
+                self.note_ahead(chat_id, "failed", reason="No turns have been sorted yet, so there is nowhere to look from. Press again once sorting finishes.")
                 continue
             try:
                 self.look_ahead(conn, rows[-1], "button")
@@ -529,17 +529,17 @@ class Investigator:
             result = ahead.scout(ctx, why, lambda system, payload, schema: self.clf.call(system, payload, schema, engine,
                                                                                         kind="ahead", chat=chat_id))
         except EngineError as exc:       # 로그인 · 한도. 일꾼이 멈춰요
-            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="정리하는 AI에 닿지 못했어요: " + str(exc)[:160])
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Could not reach the sorting AI: " + str(exc)[:160])
             raise
         except Refused:
             self.note_ahead(chat_id, "failed", turn=row["id"], why=why,
-                            reason="AI의 안전 필터가 이 자리의 글을 막았어요. 열쇠 · 보안 이야기가 있으면 가끔 그래요. 대화가 조금 더 진행된 뒤 다시 눌러 보세요.")
+                            reason="The AI's safety filter blocked the text at this point. This sometimes happens when keys or security come up. Try again after the chat has moved on a little.")
             raise
         except BadOutput:
-            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="엔진이 답을 정해 준 형식으로 내지 못했어요. 다시 눌러 보세요.")
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="The engine did not answer in the required format. Try pressing again.")
             raise
         except Exception as exc:
-            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="살피다 문제가 생겼어요: " + str(exc)[:160])
+            self.note_ahead(chat_id, "failed", turn=row["id"], why=why, reason="Something went wrong while looking ahead: " + str(exc)[:160])
             raise
         finally:
             self.clf.status["checking"] = None

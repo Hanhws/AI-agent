@@ -146,7 +146,7 @@ def get_engine(name=None):
         return GeminiApiEngine()
     if name == "none":
         return None
-    raise EngineError(f"아직 지원하지 않는 엔진이에요: {name}")
+    raise EngineError(f"Engine not supported yet: {name}")
 
 
 def describe_engine() -> dict:
@@ -188,7 +188,7 @@ def set_key(key, model=None) -> dict:
     if not who:
         return {"ok": False, "verified": False, "reason": keys.WRONG_SHAPE}
     if not keys.can_store():
-        return {"ok": False, "verified": False, "reason": f"이 컴퓨터에는 키를 넣어 둘 키체인이 없어요. 환경 변수 {keys.ENV}로 넘겨 주세요."}
+        return {"ok": False, "verified": False, "reason": f"This computer has no keychain to keep the key in. Pass it in the environment variable {keys.ENV}."}
     try:
         result = _api(keys.ENGINES[who]).verify(key, model)
         if result["ok"]:

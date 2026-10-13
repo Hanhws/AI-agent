@@ -3,7 +3,7 @@
 python -m backend.macapp                   dist/가닥.app 을 만들어요 (만들어만 보기)
 python -m backend.macapp --install         만들어 응용 프로그램 폴더에 넣어요 (/Applications, 안 되면 ~/Applications)
 python -m backend.macapp --install 폴더    그 폴더에 넣어요
-python -m backend.macapp --install --open  넣고 바로 켜요 (‘가닥 설치.command’가 이렇게 불러요)
+python -m backend.macapp --install --open  넣고 바로 켜요 (‘Install Gadak.command’가 이렇게 불러요)
 
 앱의 겉은 mac/Gadak.swift(창 · 메뉴)와 mac/Float.swift(떠 있는 버튼)이고, 켜지면 이 저장소의 백엔드(python -m backend.launch --shell)를 뒤에서 돌려요.
 그래서 앱은 이 폴더와 이 폴더의 .venv를 가리켜요. 폴더를 옮기면 다시 만들어 주세요.
@@ -36,9 +36,9 @@ from pathlib import Path
 
 from . import config
 
-NAME = "가닥"
+NAME = "Gadak"
 EXECUTABLE = "Gadak"
-BUNDLE_ID = "local.gadak.app"
+BUNDLE_ID = "local.gadak.app.en"   # 한글판(local.gadak.app)과 한 Mac에 같이 깔 수 있게
 VERSION = config.VERSION
 MIN_MACOS = "12.0"
 # Apple Silicon Mac에서 Intel Mac용을 만들 때의 가장 낮은 macOS. 요즘 Swift 도구에는 macOS 12에서 돌 Intel용 호환 라이브러리가
@@ -53,20 +53,20 @@ BUNDLE_DATA = (
     ("cursor-hooks/gadak-hook.py", "cursor-hooks"), ("cursor-hooks/install.py", "cursor-hooks"),
     ("cursor-hooks/hooks.json", "cursor-hooks"), ("cursor-hooks/claude-settings.json", "cursor-hooks"),
 )
-FIRST_OPEN = """가닥을 처음 여는 법
+FIRST_OPEN = """How to open Gadak the first time
 
-1. 가닥을 응용 프로그램 폴더로 끌어 넣어요.
-2. 응용 프로그램 폴더에서 가닥을 열어요. “확인되지 않은 개발자” 또는 “Apple은 … 확인할 수 없습니다”라고 나오면 ‘완료’를 눌러요.
-3. 시스템 설정 → 개인정보 보호 및 보안으로 가서, 아래쪽의 “가닥이(가) 차단되었습니다” 옆 ‘그래도 열기’를 눌러요.
-   (macOS 14 이하에서는 가닥을 오른쪽 클릭 → 열기 → 열기로도 돼요.)
-4. 한 번 열고 나면 다음부터는 그냥 열려요.
-5. 가닥이 켜지면 ‘AI 연결’ 창이 떠요. Claude 구독 · ChatGPT 구독 · API 키 중 하나를 골라 ‘연결하기’를 누르면 돼요.
-   터미널을 열 일은 없어요. 그림이 든 안내는 같이 들어 있는 ‘가닥 설치 안내.pdf’를 봐 주세요.
+1. Drag Gadak into the Applications folder.
+2. Open Gadak from the Applications folder. If it says “unidentified developer” or “Apple could not verify …”, press Done.
+3. Go to System Settings → Privacy & Security, and near the bottom, next to “Gadak was blocked”, press Open Anyway.
+   (On macOS 14 or earlier you can also right-click Gadak → Open → Open.)
+4. After opening it once, it opens normally from then on.
+5. When Gadak starts, the Connect AI window appears. Pick a Claude subscription, a ChatGPT subscription or an API key and press Connect.
+   There is no need to open a terminal. For an illustrated guide, see ‘Gadak install guide.pdf’ in the same window.
 
-가닥은 학교 과제로 만든 앱이라 Apple의 개발자 서명(유료)이 없어요. 그래서 처음 한 번 이 확인이 필요해요.
-대화는 이 Mac에만 저장돼요(~/.gadak). 지우려면 가닥을 휴지통에 넣고 그 폴더도 지워요.
+Gadak is an app made for a class project and has no paid Apple developer signature. That is why this check is needed once.
+Chats are stored only on this Mac (~/.gadak). To remove them, move Gadak to the Trash and delete that folder too.
 """
-GUIDE = config.ROOT / "docs" / "가닥-설치-안내.pdf"      # 받은 사람이 보는 설명서 (docs/install-guide/에서 만들어요). 있으면 디스크 이미지에 같이 넣어요
+GUIDE = config.ROOT / "docs" / "gadak-install-guide.pdf"      # 받은 사람이 보는 설명서 (docs/install-guide/에서 만들어요). 있으면 디스크 이미지에 같이 넣어요
 SOURCES = config.ROOT / "mac"
 APP_SOURCES = ("Gadak.swift", "Float.swift", "FloatCheck.swift")     # 창 · 메뉴 · 백엔드 켜기 / 떠 있는 버튼 / 그 버튼을 스스로 확인
 DIST = config.ROOT / "dist"
@@ -207,11 +207,11 @@ def dmg(app, out=None, arch=None) -> Path:
         stage.mkdir()
         shutil.copytree(app, stage / app.name, symlinks=True)
         (stage / "Applications").symlink_to("/Applications")
-        (stage / "처음 여는 법.txt").write_text(FIRST_OPEN, encoding="utf-8")
+        (stage / "How to open Gadak.txt").write_text(FIRST_OPEN, encoding="utf-8")
         if GUIDE.is_file():
-            shutil.copy2(GUIDE, stage / "가닥 설치 안내.pdf")
+            shutil.copy2(GUIDE, stage / "Gadak install guide.pdf")
         target.unlink(missing_ok=True)
-        _run(["hdiutil", "create", "-volname", NAME, "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(target)], "디스크 이미지 만들기")
+        _run(["hdiutil", "create", "-volname", NAME, "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(target)], "making the disk image")
     return target
 
 
@@ -238,26 +238,26 @@ def main(argv) -> int:
         if "--bundle" in argv or "--dmg" in argv:
             collect = config.COLLECT_URL if "--collect" in argv else None
             if "--collect" in argv and not collect:
-                raise BuildError("backend/.env에 GADAK_COLLECT_URL이 없어요. --collect를 빼거나 주소를 적어 주세요.")
+                raise BuildError("GADAK_COLLECT_URL is not in backend/.env. Drop --collect or add the address.")
             arch = argv[argv.index("--arch") + 1] if "--arch" in argv and argv.index("--arch") + 1 < len(argv) else None
             if arch not in (None, "arm64", "x86_64"):
-                raise BuildError("--arch 뒤에는 arm64나 x86_64를 적어 주세요.")
+                raise BuildError("Put arm64 or x86_64 after --arch.")
             other = arch if arch and arch != platform.machine() else None      # 이 Mac과 다른 종류면 dist/<종류>/에 따로 둬요
-            print("백엔드를 앱 안에 묶고 있어요. 1~2분 걸려요…", flush=True)
+            print("Bundling the backend into the app. This takes 1–2 minutes…", flush=True)
             app = build(DIST / other if other else None, bundled=True, collect=collect, arch=other)
-            print(f"만들었어요: {app} (저장소 폴더 · 파이썬 없이 돌아요" + (", 사용 기록 서버 주소 포함)" if collect else ")"))
+            print(f"Built: {app} (runs without the repo folder or Python" + (", with the usage server address)" if collect else ")"))
             if "--dmg" in argv:
-                print(f"만들었어요: {dmg(app, arch=other)}")
-                print("받은 사람은 처음 한 번 시스템 설정 → 개인정보 보호 및 보안 → ‘그래도 열기’를 눌러야 해요 (디스크 이미지 안의 ‘처음 여는 법.txt’).")
+                print(f"Built: {dmg(app, arch=other)}")
+                print("Recipients need to press System Settings → Privacy & Security → Open Anyway once (see ‘How to open Gadak.txt’ in the disk image).")
             return 0
         if "--install" not in argv:
-            print(f"만들었어요: {build()}")
+            print(f"Built: {build()}")
             return 0
         folder = next((a for a in argv if not a.startswith("--")), None)
         with tempfile.TemporaryDirectory() as tmp:   # 저장소 안에 같은 앱이 하나 더 남지 않게 임시 폴더에서 만들어요
             target = install(build(tmp), folder)
-        print(f"가닥 앱을 넣었어요: {target}")
-        print("Launchpad나 Spotlight에서 ‘가닥’을 찾아 켜세요. Dock에 두려면 켠 뒤 아이콘을 오른쪽 클릭 → 옵션 → Dock에 유지.")
+        print(f"Installed the Gadak app: {target}")
+        print("Find ‘Gadak’ in Launchpad or Spotlight to start it. To keep it in the Dock, right-click its icon → Options → Keep in Dock.")
         if "--open" in argv:
             subprocess.run(["open", str(target)])
     except BuildError as exc:

@@ -63,7 +63,8 @@ WHY_NAMES = {"decided": "방금 정함", "stage": "구간이 바뀜", "asked": "
 AFTER = 5             # ‘그 뒤 실제 대화’에 싣는 턴 수
 BAR, NEED = 0.7, 10   # 켤 기준: 둘 다 쓸모 있다고 한 길이 70% 이상, 매긴 길이 10개 이상
 KEY_COLUMNS = ("번호", "턴", "종류", "쓸모", "갔나")     # 매긴 시트에 꼭 있어야 하는 열
-KIND_NAMES = frozenset(ahead.LABELS.values())           # 길이 든 줄의 ‘종류’ 칸에 올 수 있는 말
+LABELS = {"onward": "이어 가기", "other": "다른 길", "check": "미리 챙길 것"}   # 재기 시트는 한글 그대로 (영어판의 화면 이름은 ahead.LABELS)
+KIND_NAMES = frozenset(LABELS.values())           # 길이 든 줄의 ‘종류’ 칸에 올 수 있는 말
 ODD_SHOWN = 4         # 읽지 못한 칸 · 한쪽에만 있는 길을 화면에 보여 주는 수
 
 
@@ -121,7 +122,7 @@ def sheet_rows(conn, n, row, why, result) -> list:
     out = []
     for path in result["paths"]:
         found = "\n".join(f"· {f['line']} ({'기록' if f['from'] == 'turn' else f['source']})" for f in path["found"])
-        out.append(head + [ahead.LABELS[path["kind"]], path["title"], path["why"],
+        out.append(head + [LABELS[path["kind"]], path["title"], path["why"],
                            " / ".join(b["title"] for b in path["basis"]), found, path["ask"], after, "", "", ""])
     return out
 
@@ -489,7 +490,7 @@ def report(key, numbers) -> str:
         + (" · 웹에서도 찾아봄" if numbers["web"] else ""),
         f"  갈림길 {numbers['junctions']}곳 ({' · '.join(f'{WHY_NAMES.get(k, k)} {v}' for k, v in numbers['by_why'].items()) or '없음'})"
         f" 중 {numbers['looked']}곳을 살폈어요",
-        f"  낸 길 {numbers['paths']}개 ({' · '.join(f'{ahead.LABELS[k]} {by[k]}' for k in ahead.KINDS if by.get(k)) or '없음'})"
+        f"  낸 길 {numbers['paths']}개 ({' · '.join(f'{LABELS[k]} {by[k]}' for k in ahead.KINDS if by.get(k)) or '없음'})"
         f" · 찾아본 것이 붙은 길 {numbers['with_found']}개 · 길을 내지 않은 곳 {numbers['silent']}곳",
         f"  버린 길 {numbers['dropped']}개 · 출처가 없어 뺀 줄이 있는 길 {numbers['cut_lines']}개",
         f"  호출 1단 {calls['classify']}번 ({seconds['classify']:.0f}초) · 앞길 {calls['ahead']}번 ({seconds['ahead']:.0f}초)"

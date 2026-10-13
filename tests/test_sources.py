@@ -109,7 +109,7 @@ class ClaudeCodeReaderTest(SourcesTest):
         self.rt.syncer.scan_once(self.conn)
         rows = self.turns()
         self.assertEqual([r["user"] for r in rows],
-                         ["환율 가져오는 함수를 만들어 줘", "목표가를 넘으면 알려 줘\n\n하루에 한 번만", "(첨부 1개)"])
+                         ["환율 가져오는 함수를 만들어 줘", "목표가를 넘으면 알려 줘\n\n하루에 한 번만", "(1 attachment)"])
         self.assertEqual(rows[0]["ai"], "rate.py를 만들게요.\n\nfetch_rate()를 만들었어요.")
         self.assertEqual(rows[1]["ai"], "check()를 더했어요.")
         self.assertEqual([r["state"] for r in rows], ["done", "done", "open"])

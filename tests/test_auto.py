@@ -12,7 +12,7 @@ from backend import auto, sources, store
 from backend.app import create_app
 from tests.test_investigate import CHAT, NOTIFY_NEW, NOTIFY_OLD, PROJECT, Base, Engine, finish, item, labels, use
 
-REVERT = "notify.py에서 “알림 문구” 부분은 내가 요청하지 않았어. 원래대로 되돌리고, “임계값” 변경만 남겨 줘."
+REVERT = "I didn't ask for the “알림 문구” part in notify.py. Put it back and keep only the “임계값” change."
 EDITS = [{"file": "/work/fx/main.py", "old": "THRESHOLD = 1200", "new": "THRESHOLD = 1300"},
          {"file": "/work/fx/notify.py", "old": NOTIFY_OLD, "new": NOTIFY_NEW}]
 FOUND = [use("get_diff"), finish(item("unasked", text="임계값만 요청했는데 알림 문구도 바뀌었어요",
@@ -147,7 +147,7 @@ class StartTest(Base):
         self.begin()
         context = self.started()["context"]
         self.assertEqual(context.splitlines()[1:3], ["1. 텔레그램 봇", "2. 임계값 1,380원"])
-        self.assertIn("이어서 진행해 줘", context)
+        self.assertIn("carry on from here", context)
         self.assertEqual(self.started(), {"context": None})                    # 같은 대화에 두 번 넣지 않아요
         # 그 대화의 첫 턴이 들어오면 장부에 ‘가닥이 보냄’으로 보이고, 2단은 이어 가기를 다시 권하지 않아요
         self.chat("new", title="알림 봇 구현", created_at="2026-10-03T02:00:00Z")
@@ -157,7 +157,7 @@ class StartTest(Base):
         chat = next(c for c in store.view(self.conn, PROJECT)["chats"] if c["id"] == "new")
         (note,) = chat["turns"][0]["todo"]
         self.assertEqual((note["kind"], note["sent"], note["state"], note["text"]),
-                         ("handoff", "auto", "done", "지난 대화에서 정한 것 2개를 이 대화에 붙였어요"))
+                         ("handoff", "auto", "done", "Pasted 2 decisions from the last chat into this one"))
         self.assertEqual(note["pop"]["text"], context)
 
     def test_decisions_from_a_chat_taken_off_the_list_are_not_carried_over(self):

@@ -26,7 +26,7 @@ def _http():
     try:
         import httpx2
     except ImportError as exc:
-        raise EngineError("API 키 엔진에 필요한 것(httpx2)이 없어요. ‘가닥 설치.command’를 다시 실행해 주세요.") from exc
+        raise EngineError("The API key engine needs the httpx2 package. Please run ‘Install Gadak.command’ again.") from exc
     return httpx2
 
 
@@ -36,9 +36,9 @@ def send(who, method, url, headers, body=None, timeout=120.0):
     try:
         response = http.request(method, url, headers=headers, json=body, timeout=timeout)
     except http.ReadTimeout as exc:
-        raise TooSlow(f"{who}가 {int(timeout)}초 안에 답하지 않았어요") from exc
+        raise TooSlow(f"{who} did not answer within {int(timeout)} seconds") from exc
     except http.HTTPError as exc:
-        raise Unreachable(f"{who}에 닿지 못했어요. 인터넷 연결을 확인해 주세요.") from exc
+        raise Unreachable(f"Could not reach {who}. Check your internet connection.") from exc
     try:
         data = response.json()
     except ValueError:
@@ -91,7 +91,7 @@ def answer(text) -> dict:
     try:
         data = json.loads(text)
     except ValueError as exc:
-        raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요: " + text[:120]) from exc
+        raise BadOutput("The engine did not answer in the required format: " + text[:120]) from exc
     if not isinstance(data, dict):
-        raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요")
+        raise BadOutput("The engine did not answer in the required format")
     return data

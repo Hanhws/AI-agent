@@ -156,9 +156,9 @@ class ProjectColorTest(unittest.TestCase):
 class ProvisionalTitleTest(unittest.TestCase):
     def test_first_clause_without_list_number(self):
         self.assertEqual(store.provisional_title("1. 포스터가 뭔가 덜 역동적이네. 데이터가 적어서"), "포스터가 뭔가 덜 역동적이네.")
-        self.assertEqual(store.provisional_title("색 겹치는 거 project_color 고쳐주고, 지금 역도"), "색 겹치는 거…")
+        self.assertEqual(store.provisional_title("색 겹치는 거 project_color 고쳐주고 지금 역도 같이 봐 줘"), "색 겹치는 거 project_color 고쳐주고…")
         self.assertEqual(store.provisional_title("짧은 질문"), "짧은 질문")
-        self.assertEqual(store.provisional_title("  \n"), "(질문 없음)")
+        self.assertEqual(store.provisional_title("  \n"), "(no question)")
 
 
 if __name__ == "__main__":

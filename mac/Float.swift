@@ -24,12 +24,12 @@ struct FloatAction {
 
 /// 처음 모양. 사용자가 바꾸면 백엔드가 알려 주는 대로 다시 놓아요 (GET /float의 slots)
 let floatActions = [
-    FloatAction(key: "map", label: "노선도", tip: "지금 대화의 노선도"),
-    FloatAction(key: "todo", label: "할 일", tip: "놓친 일과 제안"),
-    FloatAction(key: "dec", label: "정함", tip: "지금까지 정한 것"),
-    FloatAction(key: "files", label: "산출물", tip: "나온 파일"),
-    FloatAction(key: "find", label: "찾기", tip: "가닥 창에서 대화 찾기"),
-    FloatAction(key: "window", label: "창", tip: "가닥 창 열기"),
+    FloatAction(key: "map", label: "Map", tip: "Strip map of the current chat"),
+    FloatAction(key: "todo", label: "To do", tip: "Missed work and suggestions"),
+    FloatAction(key: "dec", label: "Decided", tip: "Everything decided so far"),
+    FloatAction(key: "files", label: "Files", tip: "Files that came out"),
+    FloatAction(key: "find", label: "Search", tip: "Search chats in the Gadak window"),
+    FloatAction(key: "window", label: "Window", tip: "Open the Gadak window"),
 ]
 
 let bubbleSize: CGFloat = 60          // 가닥 버튼 (다 나왔을 때)
@@ -235,7 +235,7 @@ final class SatelliteView: DiscView {
             route.setStroke()
             ring.stroke()
         }
-        let size: CGFloat = action.label.count > 3 ? 9.5 : (action.label.count > 2 ? 10.5 : 11.5)
+        let size: CGFloat = action.label.count > 6 ? 9 : (action.label.count > 4 ? 9.5 : (action.label.count > 2 ? 10.5 : 11.5))   // 로마자는 한글보다 좁아요. 7자(Decided)까지 44px 동그라미에 들어가게
         drawText(action.label, size: size, weight: action.project == nil ? .medium : .semibold,
                  color: hot || action.project != nil ? floatInk : floatMuted, centeredAt: NSPoint(x: bounds.midX, y: bounds.midY))
         drawBadge(badge, at: NSPoint(x: bounds.midX + diameter * 0.34, y: bounds.midY + diameter * 0.34))
@@ -330,7 +330,7 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let content = NSView(frame: NSRect(x: 0, y: 0, width: floatSide, height: floatSide))
         bubble.owner = self
         bubble.diameter = peekSize
-        bubble.toolTip = "가닥 · 누르면 노선도, 끌면 옮겨져요. 오른쪽 클릭하면 버튼을 편집해요"
+        bubble.toolTip = "Gadak · click for the strip map, drag to move. Right-click to edit the buttons"
         content.addSubview(bubble)
         panel.contentView = content
         buildSatellites()
@@ -673,14 +673,14 @@ final class FloatController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             item.target = self
             menu.addItem(item)
         }
-        add("가닥 창 열기", #selector(openWindow))
-        add("버튼 편집…", #selector(editButtons))
-        add("버튼 숨기기", #selector(hideButton))
+        add("Open Gadak Window", #selector(openWindow))
+        add("Edit Buttons…", #selector(editButtons))
+        add("Hide Button", #selector(hideButton))
         // 다시 켜는 단축키를 숨기기 옆에 보여 줘요 (보기 메뉴 · Dock 아이콘 오른쪽 클릭으로도 켜요)
         menu.items.last?.keyEquivalent = "b"
         menu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(.separator())
-        add("가닥 끄기", #selector(quit))
+        add("Quit Gadak", #selector(quit))
         NSMenu.popUpContextMenu(menu, with: event, for: bubble)
     }
 

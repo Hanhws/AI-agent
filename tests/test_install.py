@@ -52,7 +52,7 @@ class InstallTest(unittest.TestCase):
             code, out = run(["cursor", tmp, "--project"])
             self.assertEqual(existing.read_text(encoding="utf-8"), '{"version": 1, "hooks": {}}')
         self.assertEqual(code, 2)
-        self.assertIn("덮어쓰지 않았어요", out)
+        self.assertIn("not overwritten", out)
 
     @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_launcher_runs_the_hook_from_the_project_root(self):

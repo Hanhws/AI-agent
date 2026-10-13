@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>가닥 도움말</title>
+<title>Gadak Help</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <link rel="stylesheet" href="ui/tokens.css">
@@ -89,162 +89,162 @@ body.finding h1, body.finding .lead, body.finding h2, body.finding .note, body.f
 </head>
 <body>
 <header>
-  <b>가닥</b><span>도움말</span>
-  <input id="find" type="search" placeholder="낱말로 찾기 · 예) 곁길, 한도" aria-label="도움말에서 찾기">
+  <b>Gadak</b><span>Help</span>
+  <input id="find" type="search" placeholder="Search by word · e.g. side trip, limit" aria-label="Search help">
 </header>
 <div class="wrap">
-<nav id="topics" aria-label="주제"></nav>
+<nav id="topics" aria-label="Topics"></nav>
 <main>
 
-<section id="start" data-name="처음 3분">
-<h1>처음 3분</h1>
-<p class="lead">가닥은 AI와 나눈 대화를 <b>지하철 노선도</b>로 그려 주고, 놓친 일을 먼저 알려 줘요. 가닥은 대답하지 않아요. 대화는 쓰던 곳에서 그대로 해요.</p>
+<section id="start" data-name="First 3 minutes">
+<h1>First 3 minutes</h1>
+<p class="lead">Gadak draws your conversations with an AI as a <b>transit map</b> and tells you first about what slipped past. Gadak does not answer. You keep chatting where you always do.</p>
 <ol>
-  <li><b>가닥을 켜요.</b> 이 <span class="os-mac">Mac</span><span class="os-win">PC</span>의 Claude Code · Codex 대화를 알아서 읽어요.</li>
-  <li><b>정리할 AI를 연결해요.</b> 왼쪽 아래 <kbd>AI 연결</kbd>에서 하나를 골라요.</li>
-  <li><b>왼쪽에서 대화를 골라요.</b> 위에 노선도, 가운데에 대화, 오른쪽에 목록이 나와요.</li>
-  <li><b>노선도의 역을 눌러요.</b> 그 이야기를 한 자리로 바로 가요.</li>
+  <li><b>Turn Gadak on.</b> It reads the Claude Code and Codex chats on this <span class="os-mac">Mac</span><span class="os-win">PC</span> by itself.</li>
+  <li><b>Connect an AI for sorting.</b> Pick one under <kbd>Connect AI</kbd> at the bottom left.</li>
+  <li><b>Choose a chat on the left.</b> The strip map appears at the top, the chat in the middle and the lists on the right.</li>
+  <li><b>Click a station on the map.</b> It jumps straight to where that was said.</li>
 </ol>
-<div class="note">대화 글은 이 <span class="os-mac">Mac</span><span class="os-win">PC</span>에만 저장돼요. 정리할 때만 내가 연결한 AI로 가요.</div>
+<div class="note">Chat text is stored only on this <span class="os-mac">Mac</span><span class="os-win">PC</span>. It goes to the AI you connected only while it is being sorted.</div>
 </section>
 
-<section id="ai" data-name="AI 연결">
-<h1>AI 연결</h1>
-<p class="lead">가닥이 대화를 정리할 때 쓰는 AI예요. 왼쪽 아래 <kbd>AI 연결</kbd>에서 셋 중 하나를 골라요. 연결하지 않으면 대화를 읽어 보여 주기만 해요.</p>
+<section id="ai" data-name="Connect AI">
+<h1>Connect AI</h1>
+<p class="lead">The AI Gadak uses to sort your chats. Pick one of three under <kbd>Connect AI</kbd> at the bottom left. Without one, Gadak only reads and shows your chats.</p>
 <dl>
-  <div class="e"><dt>Claude 구독</dt><dd>Pro · Max 구독으로 써요. 추가 요금이 없어요. <kbd>연결하기</kbd>를 누르면 브라우저에서 로그인해요.</dd></div>
-  <div class="e"><dt>ChatGPT 구독</dt><dd>Plus · Pro 구독으로 써요. 추가 요금이 없어요. <kbd>연결하기</kbd>를 누르면 브라우저에서 로그인해요.</dd></div>
-  <div class="e"><dt>LLM API 키</dt><dd>Anthropic · OpenAI · Gemini의 API 키를 붙여 넣어요. 쓴 만큼 그 키로 요금이 나가요. 키는 <span class="os-mac">이 Mac의 키체인</span><span class="os-win">이 PC의 Windows 자격 증명 관리자</span>에만 둬요.</dd></div>
-  <div class="e"><dt>Gemini 무료 키</dt><dd>Google AI Studio의 무료 키로도 정리해요. 요금이 없는 대신 한도가 낮고, 보낸 글이 Google의 제품 개선에 쓰일 수 있어요.</dd></div>
-  <div class="e"><dt>사용 한도</dt><dd>구독으로 연결하면 내가 쓰는 Claude · ChatGPT와 같은 한도를 나눠 써요.</dd></div>
+  <div class="e"><dt>Claude subscription</dt><dd>Uses your Pro or Max subscription. No extra charge. Press <kbd>Connect</kbd> and sign in in your browser.</dd></div>
+  <div class="e"><dt>ChatGPT subscription</dt><dd>Uses your Plus or Pro subscription. No extra charge. Press <kbd>Connect</kbd> and sign in in your browser.</dd></div>
+  <div class="e"><dt>LLM API key</dt><dd>Paste an Anthropic, OpenAI or Gemini API key. Usage is billed to that key. The key is kept only in <span class="os-mac">the Keychain on this Mac</span><span class="os-win">Windows Credential Manager on this PC</span>.</dd></div>
+  <div class="e"><dt>Free Gemini key</dt><dd>A free key from Google AI Studio works too. It costs nothing, but the limit is low and what you send may be used by Google to improve its products.</dd></div>
+  <div class="e"><dt>Usage limit</dt><dd>With a subscription, Gadak shares the same limit as your own Claude or ChatGPT use.</dd></div>
 </dl>
 </section>
 
-<section id="read" data-name="대화 읽어 오기">
-<h1>대화 읽어 오기</h1>
-<p class="lead">어디에서 한 대화를 읽는지는 왼쪽 아래 <kbd>찾은 곳</kbd>에 나와요.</p>
+<section id="read" data-name="Reading chats">
+<h1>Reading chats</h1>
+<p class="lead">Where Gadak reads chats from is shown under <kbd>Sources</kbd> at the bottom left.</p>
 <dl>
-  <div class="e"><dt>Claude Code · Codex</dt><dd>할 일이 없어요. 켜면 알아서 읽어요.</dd></div>
-  <div class="e"><dt>Cursor</dt><dd><kbd>찾은 곳</kbd>에서 <kbd>연결</kbd>을 한 번 눌러요.</dd></div>
-  <div class="e"><dt>Claude · ChatGPT 웹</dt><dd>크롬에 가닥 확장을 한 번 넣어요. 넣는 법은 <kbd>찾은 곳</kbd>에 있어요.</dd></div>
-  <div class="e"><dt>지난 대화 한꺼번에</dt><dd>각 서비스에서 내보낸 파일을 <kbd>찾은 곳</kbd>의 <kbd>파일 고르기</kbd>로 넣어요.</dd></div>
-  <div class="e"><dt>목록에서 빼기</dt><dd>대화에 마우스를 올리고 ×를 눌러요. 글은 지워지지 않고, 목록 맨 아래에서 되돌려요.</dd></div>
+  <div class="e"><dt>Claude Code · Codex</dt><dd>Nothing to do. Turn Gadak on and it reads them by itself.</dd></div>
+  <div class="e"><dt>Cursor</dt><dd>Press <kbd>Connect</kbd> once under <kbd>Sources</kbd>.</dd></div>
+  <div class="e"><dt>Claude · ChatGPT on the web</dt><dd>Add the Gadak extension to Chrome once. How to add it is under <kbd>Sources</kbd>.</dd></div>
+  <div class="e"><dt>Past chats in bulk</dt><dd>Add the file you exported from each service with <kbd>Choose file</kbd> under <kbd>Sources</kbd>.</dd></div>
+  <div class="e"><dt>Remove from the list</dt><dd>Hover over a chat and press ×. Nothing is deleted; restore it at the bottom of the list.</dd></div>
 </dl>
 </section>
 
-<section id="map" data-name="노선도 읽기">
-<h1>노선도 읽기</h1>
-<p class="lead">대화 한 개가 노선 한 줄이에요. 왼쪽이 처음, 오른쪽이 지금이에요. 위의 노선도 카드는 <kbd>Esc</kbd>로 접고 펴요.</p>
+<section id="map" data-name="Reading the map">
+<h1>Reading the map</h1>
+<p class="lead">One chat is one line. The left is the start, the right is now. Fold and unfold the strip map card at the top with <kbd>Esc</kbd>.</p>
 <dl>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/></svg>본선</dt><dd>프로젝트 색의 굵은 선. 전체 지도에서도 같은 색이에요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/></svg>역</dt><dd>작은 검은 점. 한 번 묻고 한 번 답한 것. 누르면 그 자리로 가요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="6"/></svg>정함</dt><dd>큰 검은 점과 굵은 역 이름. 그 자리에서 무언가를 정했어요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="halo" cx="28" cy="14" r="11"/><circle class="now" cx="28" cy="14" r="7"/></svg>지금</dt><dd>빨간 점과 둘레의 빛. 대화가 와 있는 자리예요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><path class="spur" d="M16 14 L28 26 H46"/><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="12" cy="14" r="3.5"/><circle class="hole" cx="46" cy="26" r="3.5"/></svg>곁길</dt><dd>아래로 45° 내려가는 회색 선. 하던 이야기에서 잠깐 벗어난 질문이에요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="todo" cx="28" cy="26" r="4"/></svg>할 일</dt><dd>역 아래의 빨간 고리. 아직 안 한 일이 있어요. 올리면 내용이 보여요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="done" cx="28" cy="26" r="4"/></svg>끝낸 할 일</dt><dd>회색 고리. 끝낸 일이에요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="10" cy="14" r="3.5"/><circle class="ink" cx="12" cy="26" r="2.5"/><text x="18" y="29">a.py</text></svg>산출물</dt><dd>작은 점과 파일 이름. 그 자리에서 파일이 나오거나 바뀌었어요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><text x="0" y="8">구현</text><rect class="bar" x="0" y="16" width="56" height="8"/></svg>구간</dt><dd>노선 위의 이름표. 이야기의 단계예요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="10" cy="14" r="1.8"/><circle class="ink" cx="17" cy="14" r="1.8"/><circle class="ink" cx="24" cy="14" r="1.8"/><circle class="ink" cx="31" cy="14" r="1.8"/><circle class="ink" cx="38" cy="14" r="1.8"/><circle class="ink" cx="45" cy="14" r="1.8"/></svg>접힌 구간</dt><dd>지난 구간은 눈금으로 줄어요. 이름표를 누르면 펴져요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><path class="dash" d="M18 14 C18 2, 38 2, 38 14"/><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="ghost" cx="28" cy="6" r="3"/></svg>숨은 가지</dt><dd>역 위의 점선 곡선. 질문을 고쳐 다시 물은 흔적이에요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="18" height="8"/><path class="dots" d="M22 14 H34"/><rect class="bar" x="38" y="10" width="18" height="8"/></svg>대화 사이</dt><dd>회색 점선. ‘프로젝트 전체’로 볼 때 대화와 대화 사이를 이어요.</dd></div>
-  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="ink" x="4" y="11.5" width="30" height="5"/><path class="ink" d="M32 5 L50 14 L32 23 Z"/></svg>환승하기</dt><dd>노선 끝의 검은 화살표. 이 대화의 요약을 복사해요. 새 대화 첫머리에 붙여 넣어요.</dd></div>
-  <div class="e"><dt>전체 지도</dt><dd>맨 위 검은 띠의 버튼. 최근 30일의 모든 프로젝트와 대화를 한 장에 그려요. <kbd>포스터로 보기</kbd>로 바꿔 볼 수 있고, <kbd>Esc</kbd>로 닫아요.</dd></div>
-  <div class="e"><dt>낮 · 밤</dt><dd>맨 위 검은 띠 오른쪽의 스위치(전체 지도에도 있어요). 밝은 화면과 어두운 화면을 바꿔요. 고른 것은 이 <span class="os-mac">Mac</span><span class="os-win">PC</span>에 남아요.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/></svg>Main line</dt><dd>A thick line in the project’s colour. The same colour on the system map.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/></svg>Station</dt><dd>A small black dot. One question and its answer. Click it to go there.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="6"/></svg>Decided</dt><dd>A large black dot with a bold station name. Something was decided there.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="halo" cx="28" cy="14" r="11"/><circle class="now" cx="28" cy="14" r="7"/></svg>Now</dt><dd>A red dot with a glow. Where the chat is now.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><path class="spur" d="M16 14 L28 26 H46"/><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="12" cy="14" r="3.5"/><circle class="hole" cx="46" cy="26" r="3.5"/></svg>Side trip</dt><dd>A grey line dropping 45° below. A question that wandered off for a while.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="todo" cx="28" cy="26" r="4"/></svg>To do</dt><dd>A red ring below a station. Something is still left to do. Hover to see it.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="done" cx="28" cy="26" r="4"/></svg>Done</dt><dd>A grey ring. A to-do that is finished.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="10" cy="14" r="3.5"/><circle class="ink" cx="12" cy="26" r="2.5"/><text x="18" y="29">a.py</text></svg>File</dt><dd>A small dot with a file name. A file was made or changed there.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><text x="0" y="8">Build</text><rect class="bar" x="0" y="16" width="56" height="8"/></svg>Section</dt><dd>The label above the line. A stage of the conversation.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="10" cy="14" r="1.8"/><circle class="ink" cx="17" cy="14" r="1.8"/><circle class="ink" cx="24" cy="14" r="1.8"/><circle class="ink" cx="31" cy="14" r="1.8"/><circle class="ink" cx="38" cy="14" r="1.8"/><circle class="ink" cx="45" cy="14" r="1.8"/></svg>Folded section</dt><dd>Past sections shrink to ticks. Click the label to unfold.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><path class="dash" d="M18 14 C18 2, 38 2, 38 14"/><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="ghost" cx="28" cy="6" r="3"/></svg>Hidden branch</dt><dd>A dotted curve above a station. A trace of a question you edited and asked again.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="18" height="8"/><path class="dots" d="M22 14 H34"/><rect class="bar" x="38" y="10" width="18" height="8"/></svg>Between chats</dt><dd>A grey dotted line. Joins one chat to the next when you view the whole project.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="ink" x="4" y="11.5" width="30" height="5"/><path class="ink" d="M32 5 L50 14 L32 23 Z"/></svg>Transfer</dt><dd>The black arrow at the end of the line. Copies a summary of this chat to paste at the start of a new one.</dd></div>
+  <div class="e"><dt>System map</dt><dd>The button in the black bar at the top. Draws every project and chat from the last 30 days on one sheet. Switch with <kbd>View as poster</kbd> and close with <kbd>Esc</kbd>.</dd></div>
+  <div class="e"><dt>Day · Night</dt><dd>The switch on the right of the black bar at the top (also on the system map). Swaps between a light and a dark screen. Your choice is kept on this <span class="os-mac">Mac</span><span class="os-win">PC</span>.</dd></div>
 </dl>
 </section>
 
-<section id="lists" data-name="할 일과 목록">
-<h1>할 일과 목록</h1>
-<p class="lead">오른쪽에 네 칸이 있어요. 위의 찾기 칸에 낱말을 치면 지난 대화까지 찾아요.</p>
+<section id="lists" data-name="To-dos and lists">
+<h1>To-dos and lists</h1>
+<p class="lead">There are four tabs on the right. Type a word in the search box above them to search past chats too.</p>
 <dl>
-  <div class="e"><dt>할 일</dt><dd>가닥이 찾은 놓친 일과 제안. 버튼을 누르면 AI에게 보낼 글이 복사돼요. 미루려면 <kbd>나중에</kbd>.</dd></div>
-  <div class="e"><dt>정한 것</dt><dd>지금까지 정한 것을 최근 순서로. 누르면 정한 자리로 가요.</dd></div>
-  <div class="e"><dt>산출물</dt><dd>대화에서 나온 파일. 여러 번 고친 파일은 판(v1 · v2)으로 묶여요.</dd></div>
-  <div class="e"><dt>앞길</dt><dd>여기서 갈 수 있는 길을 가닥이 미리 찾아본 것이에요.</dd></div>
+  <div class="e"><dt>To do</dt><dd>Missed work and suggestions Gadak found. Press a button to copy text to send to the AI. To put one off, press <kbd>Later</kbd>.</dd></div>
+  <div class="e"><dt>Decided</dt><dd>Everything decided so far, newest first. Click one to go to where it was decided.</dd></div>
+  <div class="e"><dt>Files</dt><dd>Files that came out of the chat. A file changed several times is grouped into versions (v1 · v2).</dd></div>
+  <div class="e"><dt>Ahead</dt><dd>Ways forward from here that Gadak has scouted.</dd></div>
 </dl>
-<h2>할 일에 올라오는 것</h2>
+<h2>What shows up as a to-do</h2>
 <dl>
-  <div class="e"><dt>빠진 요청</dt><dd>부탁했는데 답에서 빠진 것.</dd></div>
-  <div class="e"><dt>요청 외 변경</dt><dd>부탁하지 않았는데 AI가 바꾼 것.</dd></div>
-  <div class="e"><dt>끝나지 않은 곁길</dt><dd>곁길에서 정한 것 없이 돌아온 것.</dd></div>
-  <div class="e"><dt>이어 가기</dt><dd>새 대화를 열었을 때, 앞 대화에서 정한 것을 붙여 넣기.</dd></div>
-  <div class="e"><dt>반복 질문</dt><dd>다른 대화에서도 물었던 것. 그때 답을 다시 볼 수 있어요.</dd></div>
-  <div class="e"><dt>주제 전환</dt><dd>한 대화에 주제가 여럿 쌓였을 때, 새 대화로 옮기기를 권해요.</dd></div>
-  <div class="e"><dt>다음 할 일</dt><dd>앞길 살피기가 찾은 길.</dd></div>
+  <div class="e"><dt>Missed request</dt><dd>Something you asked for that the answer left out.</dd></div>
+  <div class="e"><dt>Unrequested change</dt><dd>Something the AI changed without being asked.</dd></div>
+  <div class="e"><dt>Unfinished side trip</dt><dd>A side trip you came back from without deciding anything.</dd></div>
+  <div class="e"><dt>Carry on</dt><dd>When you open a new chat, paste in what was decided in the previous one.</dd></div>
+  <div class="e"><dt>Repeated question</dt><dd>Something you asked in another chat too. You can see that answer again.</dd></div>
+  <div class="e"><dt>Topic change</dt><dd>When several topics pile up in one chat, Gadak suggests moving to a new chat.</dd></div>
+  <div class="e"><dt>Next step</dt><dd>A path found by looking ahead.</dd></div>
 </dl>
-<h2>가닥이 알아서 보내는 것</h2>
-<p>‘할 일’ 칸 아래에서 켜요. <b>요청 외 변경 되돌리기</b>와 <b>이어 가기 요약</b> 두 가지만, 켰을 때만 가닥이 직접 보내요. 그 밖에는 글만 만들어 줘요.</p>
+<h2>What Gadak sends by itself</h2>
+<p>Turn these on below the To do tab. Only two kinds, <b>undoing an unrequested change</b> and <b>a summary to carry on</b>, are sent by Gadak itself, and only when you turn them on. For everything else it only prepares the text.</p>
 </section>
 
-<section id="ahead" data-name="앞길">
-<h1>앞길</h1>
-<p class="lead">가닥이 이 대화가 어디로 가려는지 읽고, 갈 수 있는 길을 셋까지 찾아 줘요. 답이 아니라 AI에게 물어볼 거리예요.</p>
+<section id="ahead" data-name="Ahead">
+<h1>Ahead</h1>
+<p class="lead">Gadak reads where this chat is trying to go and finds up to three ways forward. They are questions to take to your AI, not answers.</p>
 <dl>
-  <div class="e"><dt>앞길 보기</dt><dd>‘앞길’ 칸 맨 위의 버튼. 누른 그 자리에서 한 번 살펴요. 30초에서 2분쯤 걸려요.</dd></div>
-  <div class="e"><dt>저절로 살피기</dt><dd>‘할 일’ 칸 아래에서 켜요. 무언가를 정했을 때 · 구간이 바뀔 때 저절로 살펴요.</dd></div>
-  <div class="e"><dt>이어 가기</dt><dd>하던 방향으로 다음에 할 만한 일.</dd></div>
-  <div class="e"><dt>다른 길</dt><dd>지금 방법 말고 해 볼 수 있는 방법.</dd></div>
-  <div class="e"><dt>미리 챙길 것</dt><dd>이대로 가면 걸릴 수 있어 먼저 확인할 것.</dd></div>
-  <div class="e"><dt>이 길 보기</dt><dd>왜 그 길인지, 무엇을 찾아봤는지 보여요. <kbd>이 길로 묻기</kbd>를 누르면 보낼 글이 복사돼요.</dd></div>
+  <div class="e"><dt>Look ahead</dt><dd>The button at the top of the Ahead tab. Looks once, from where you are. Takes 30 seconds to 2 minutes.</dd></div>
+  <div class="e"><dt>Look ahead automatically</dt><dd>Turn it on below the To do tab. Looks by itself when you decide something or the section changes.</dd></div>
+  <div class="e"><dt>Carry on</dt><dd>A likely next step in the direction you were going.</dd></div>
+  <div class="e"><dt>Another way</dt><dd>A different approach you could try.</dd></div>
+  <div class="e"><dt>Prepare first</dt><dd>Something to check first, because it may trip you up if you carry on as you are.</dd></div>
+  <div class="e"><dt>See this path</dt><dd>Shows why this path and what was looked up. Press <kbd>Ask this way</kbd> to copy the text to send.</dd></div>
 </dl>
-<div class="note">살필 때마다 AI 사용 한도를 조금 써요(Claude Pro의 5시간 한도로 한 번에 0.7%쯤). 그래서 저절로 살피기는 꺼 둔 채로 시작해요.</div>
+<div class="note">Each look uses a little of your AI usage limit (about 0.7% of a Claude Pro five-hour limit). That is why automatic look-ahead starts off.</div>
 </section>
 
-<section id="float" data-name="떠 있는 버튼">
-<h1>떠 있는 버튼</h1>
-<p class="lead">Mac 앱에서 화면 가장자리에 걸쳐 있는 가닥 버튼이에요.<span class="os-win"> Windows에 깐 가닥에는 아직 없어요.</span> 다른 앱을 쓰는 동안에도 보여요. 마우스를 올리면 둘레에 버튼이 펴져요.</p>
+<section id="float" data-name="Floating button">
+<h1>Floating button</h1>
+<p class="lead">The Gadak button that rests on the edge of the screen in the Mac app.<span class="os-win"> Not available yet in Gadak for Windows.</span> It stays visible while you use other apps. Hover over it and buttons fan out around it.</p>
 <dl>
-  <div class="e"><dt>노선도</dt><dd>지금 쓰는 대화의 노선도를 화면 위쪽에 띄워요. 한 번 더 누르면 닫혀요.</dd></div>
-  <div class="e"><dt>할 일 · 정함 · 산출물</dt><dd>그 칸을 연 목록 창을 따로 띄워요.</dd></div>
-  <div class="e"><dt>찾기 · 창</dt><dd>가닥 창을 열어요. ‘찾기’는 대화 찾기 칸으로 바로 가요.</dd></div>
-  <div class="e"><dt>버튼 바꾸기</dt><dd>가닥 버튼을 오른쪽 클릭 → <kbd>버튼 편집</kbd>. 버튼을 빼거나 더하고, 차례를 바꿔요. 여섯 개까지 둬요.</dd></div>
-  <div class="e"><dt>프로젝트 버튼</dt><dd>버튼 편집에서 프로젝트를 더하면, 그 버튼이 그 프로젝트의 노선도를 띄워요. 가닥 창을 열지 않고 프로젝트를 바꿔 봐요.</dd></div>
-  <div class="e"><dt>옮기기</dt><dd>가닥 버튼을 끌면 다른 가장자리로 옮겨져요.</dd></div>
-  <div class="e"><dt>닫기</dt><dd>떠 있는 창은 <kbd>Esc</kbd>로 닫아요.</dd></div>
-  <div class="e"><dt>숨기기 · 다시 켜기</dt><dd>가닥 버튼을 오른쪽 클릭 → <kbd>버튼 숨기기</kbd>. 다시 켜려면 가닥 창 맨 위 오른쪽의 <kbd>가닥 토글</kbd> 스위치, <kbd>⇧⌘B</kbd>, 메뉴 <kbd>보기 → 떠 있는 버튼</kbd>, 또는 Dock의 가닥 아이콘을 오른쪽 클릭 → <kbd>떠 있는 버튼 보이기</kbd>.</dd></div>
-</dl>
-</section>
-
-<section id="words" data-name="낱말 풀이">
-<h1>낱말 풀이</h1>
-<p class="lead">가닥에서 쓰는 말이에요. 위의 찾기 칸에 치면 바로 찾아요.</p>
-<dl>
-  <div class="e"><dt>가닥</dt><dd>“가닥을 잡다”에서 온 이름이에요.</dd></div>
-  <div class="e"><dt>노선 · 본선</dt><dd>대화 한 개의 흐름을 그린 굵은 선.</dd></div>
-  <div class="e"><dt>역</dt><dd>질문 하나와 그 답.</dd></div>
-  <div class="e"><dt>구간</dt><dd>이야기의 단계. 노선 위의 이름표.</dd></div>
-  <div class="e"><dt>곁길</dt><dd>하던 이야기에서 잠깐 벗어난 질문.</dd></div>
-  <div class="e"><dt>정함</dt><dd>그 자리에서 무언가를 결정했다는 표시.</dd></div>
-  <div class="e"><dt>산출물</dt><dd>대화에서 만들어지거나 고쳐진 파일.</dd></div>
-  <div class="e"><dt>놓친 일</dt><dd>그냥 지나치기 쉬운 일. 빠진 요청 · 요청 외 변경 · 끝나지 않은 곁길.</dd></div>
-  <div class="e"><dt>제안</dt><dd>가닥이 권하는 일. 이어 가기 · 반복 질문 · 주제 전환 · 다음 할 일.</dd></div>
-  <div class="e"><dt>한마디</dt><dd>새 할 일이 생겼을 때 화면 구석에 뜨는 작은 카드.</dd></div>
-  <div class="e"><dt>앞길</dt><dd>여기서 갈 수 있는 길을 미리 찾아본 것.</dd></div>
-  <div class="e"><dt>환승하기</dt><dd>이 대화의 요약을 복사해 새 대화로 넘어가는 것.</dd></div>
-  <div class="e"><dt>전체 지도</dt><dd>모든 프로젝트와 대화를 한 장에 그린 지도.</dd></div>
-  <div class="e"><dt>찾은 곳</dt><dd>가닥이 어디에서 대화를 읽는지 보여 주는 창. 왼쪽 아래에 있어요.</dd></div>
-  <div class="e"><dt>정리 엔진</dt><dd>대화를 정리하는 AI. <kbd>AI 연결</kbd>에서 골라요.</dd></div>
-  <div class="e"><dt>판단 기록</dt><dd>가닥이 할 일을 찾을 때 무엇을 보고 판단했는지 적은 기록.</dd></div>
+  <div class="e"><dt>Strip map</dt><dd>Shows the strip map of the chat you are in at the top of the screen. Press again to close it.</dd></div>
+  <div class="e"><dt>To do · Decided · Files</dt><dd>Opens a separate list window on that tab.</dd></div>
+  <div class="e"><dt>Search · Window</dt><dd>Opens the Gadak window. Search goes straight to the chat search box.</dd></div>
+  <div class="e"><dt>Change buttons</dt><dd>Right-click the Gadak button → <kbd>Edit Buttons</kbd>. Remove or add buttons and change their order. Up to six.</dd></div>
+  <div class="e"><dt>Project buttons</dt><dd>Add a project in Edit Buttons and that button opens the project’s strip map. Switch projects without opening the Gadak window.</dd></div>
+  <div class="e"><dt>Move</dt><dd>Drag the Gadak button to move it to another edge.</dd></div>
+  <div class="e"><dt>Close</dt><dd>Close floating windows with <kbd>Esc</kbd>.</dd></div>
+  <div class="e"><dt>Hide · Show again</dt><dd>Right-click the Gadak button → <kbd>Hide Button</kbd>. To show it again, use the <kbd>Gadak button</kbd> switch at the top right of the Gadak window, <kbd>⇧⌘B</kbd>, the menu <kbd>View → Floating Button</kbd>, or right-click the Gadak icon in the Dock → <kbd>Show Floating Button</kbd>.</dd></div>
 </dl>
 </section>
 
-<section id="stuck" data-name="막힐 때">
-<h1>막힐 때</h1>
-<p class="lead">먼저 왼쪽 아래의 한 줄을 봐 주세요. 가닥이 지금 무엇을 하는지, 왜 멈췄는지가 거기에 나와요.</p>
-<details class="e"><summary>역 이름이 질문 첫머리 그대로예요</summary><p>정리할 AI가 연결되지 않았어요. 왼쪽 아래 <kbd>AI 연결</kbd>에서 하나를 골라요.</p></details>
-<details class="e"><summary>빨간 글씨로 멈췄다고 나와요</summary><p>사용 한도에 걸렸거나 로그인이 풀렸어요. 한도가 풀린 뒤 <kbd>정리 다시</kbd>를 누르면 멈춘 데서 이어 가요.</p></details>
-<details class="e"><summary>앞길 보기를 눌렀는데 아무것도 안 나와요</summary><p>버튼 아래 한 줄을 봐 주세요. “살피는 중”이면 기다리면 돼요. “내밀 만한 길을 찾지 못했어요”는 근거 있는 길이 없었다는 뜻이에요. “살피지 못했어요” 뒤에는 까닭이 적혀 있어요.</p></details>
-<details class="e"><summary>대화가 하나도 안 보여요</summary><p><kbd>찾은 곳</kbd>에서 무엇을 찾았는지 봐 주세요. 이 <span class="os-mac">Mac</span><span class="os-win">PC</span>에서 AI를 쓴 적이 없으면 읽을 기록이 없어요.</p></details>
-<details class="e"><summary>필요 없는 대화가 섞여 보여요</summary><p>그 대화에 마우스를 올리고 ×를 눌러요. 목록 맨 아래 “뺀 대화”에서 되돌려요.</p></details>
-<details class="e"><summary>웹에서 한 대화가 안 들어와요</summary><p>크롬의 가닥 확장 아이콘을 눌러 봐요. 가닥이 꺼져 있으면 켜고, 확장을 넣기 전에 열어 둔 탭은 새로고침해요.</p></details>
-<details class="e"><summary>떠 있는 버튼이 안 보여요</summary><p>숨겨 둔 거예요. 가닥 창 맨 위 오른쪽의 <kbd>가닥 토글</kbd> 스위치를 켜거나, Dock의 가닥 아이콘을 오른쪽 클릭 → <kbd>떠 있는 버튼 보이기</kbd>. 켰는데도 없으면 화면의 네 가장자리를 둘러봐요.</p></details>
-<details class="e"><summary>화면이 너무 밝거나 어두워요</summary><p>맨 위 검은 띠 오른쪽의 <kbd>낮 · 밤</kbd> 스위치로 바꿔요. 고르지 않으면 <span class="os-mac">Mac</span><span class="os-win">Windows</span>의 화면 모드를 따라가요.</p></details>
-<details class="e os-mac"><summary>처음 열 때 Mac이 막아요</summary><p>시스템 설정 → 개인정보 보호 및 보안 → 아래쪽의 <kbd>그래도 열기</kbd>를 눌러요. 한 번만 하면 돼요.</p></details>
-<details class="e os-win"><summary>설치할 때 Windows가 막아요</summary><p>“Windows의 PC 보호” 창에서 <kbd>추가 정보</kbd> → <kbd>실행</kbd>을 눌러요.</p></details>
+<section id="words" data-name="Glossary">
+<h1>Glossary</h1>
+<p class="lead">The words Gadak uses. Type one in the search box above to find it.</p>
+<dl>
+  <div class="e"><dt>Gadak</dt><dd>Korean for a strand. From “가닥을 잡다”, to get hold of the thread of something.</dd></div>
+  <div class="e"><dt>Line · Main line</dt><dd>The thick line drawing the flow of one chat.</dd></div>
+  <div class="e"><dt>Station</dt><dd>One question and its answer.</dd></div>
+  <div class="e"><dt>Section</dt><dd>A stage of the conversation. The label above the line.</dd></div>
+  <div class="e"><dt>Side trip</dt><dd>A question that wandered off from what you were talking about.</dd></div>
+  <div class="e"><dt>Decided</dt><dd>A mark that something was decided there.</dd></div>
+  <div class="e"><dt>File</dt><dd>A file made or changed in the chat.</dd></div>
+  <div class="e"><dt>Missed</dt><dd>Things that are easy to let slip. Missed requests, unrequested changes and unfinished side trips.</dd></div>
+  <div class="e"><dt>Suggestion</dt><dd>Something Gadak recommends. Carry on, repeated question, topic change and next step.</dd></div>
+  <div class="e"><dt>Note</dt><dd>The small card that pops up in a corner when a new to-do appears.</dd></div>
+  <div class="e"><dt>Ahead</dt><dd>Ways forward from here, scouted in advance.</dd></div>
+  <div class="e"><dt>Transfer</dt><dd>Copying a summary of this chat to move on to a new one.</dd></div>
+  <div class="e"><dt>System map</dt><dd>A map of every project and chat on one sheet.</dd></div>
+  <div class="e"><dt>Sources</dt><dd>The panel showing where Gadak reads chats from. At the bottom left.</dd></div>
+  <div class="e"><dt>Sorting engine</dt><dd>The AI that sorts your chats. Choose it under <kbd>Connect AI</kbd>.</dd></div>
+  <div class="e"><dt>Decision trace</dt><dd>A record of what Gadak looked at when it decided something was a to-do.</dd></div>
+</dl>
 </section>
 
-<p id="none" class="none" hidden>찾는 말이 든 설명이 없어요. 다른 낱말로 찾아봐 주세요.</p>
+<section id="stuck" data-name="When you’re stuck">
+<h1>When you’re stuck</h1>
+<p class="lead">First look at the line at the bottom left. It says what Gadak is doing now, or why it stopped.</p>
+<details class="e"><summary>Station names are just the start of my questions</summary><p>No AI is connected for sorting. Pick one under <kbd>Connect AI</kbd> at the bottom left.</p></details>
+<details class="e"><summary>It says in red that it stopped</summary><p>You hit the usage limit or were signed out. Once the limit resets, press <kbd>Resume sorting</kbd> and it carries on from where it stopped.</p></details>
+<details class="e"><summary>I pressed Look ahead and nothing appeared</summary><p>Look at the line below the button. “Looking ahead” means just wait. “Found no path worth offering” means there was no path with evidence behind it. After “Could not look ahead” the reason is given.</p></details>
+<details class="e"><summary>I don’t see any chats</summary><p>Check what was found under <kbd>Sources</kbd>. If you have never used an AI on this <span class="os-mac">Mac</span><span class="os-win">PC</span>, there is nothing to read.</p></details>
+<details class="e"><summary>Chats I don’t need are mixed in</summary><p>Hover over the chat and press ×. Restore it under “removed” at the bottom of the list.</p></details>
+<details class="e"><summary>A web chat doesn’t come in</summary><p>Click the Gadak extension icon in Chrome. If Gadak is off, turn it on, and reload tabs you opened before adding the extension.</p></details>
+<details class="e"><summary>I can’t see the floating button</summary><p>It is hidden. Turn on the <kbd>Gadak button</kbd> switch at the top right of the Gadak window, or right-click the Gadak icon in the Dock → <kbd>Show Floating Button</kbd>. If it still isn’t there, check all four edges of the screen.</p></details>
+<details class="e"><summary>The screen is too bright or too dark</summary><p>Change it with the <kbd>Day · Night</kbd> switch on the right of the black bar at the top. If you don’t choose, it follows the <span class="os-mac">Mac</span><span class="os-win">Windows</span> appearance setting.</p></details>
+<details class="e os-mac"><summary>The Mac blocks it the first time I open it</summary><p>Go to System Settings → Privacy &amp; Security and press <kbd>Open Anyway</kbd> near the bottom. You only need to do this once.</p></details>
+<details class="e os-win"><summary>Windows blocks the installer</summary><p>In the “Windows protected your PC” window, press <kbd>More info</kbd> → <kbd>Run anyway</kbd>.</p></details>
+</section>
+
+<p id="none" class="none" hidden>No help matches that. Try another word.</p>
 </main>
 </div>
 <script>

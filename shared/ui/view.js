@@ -25,15 +25,15 @@
   var el = G.el, fname = G.fname;
 
   G.KIND = {
-    missing: { g: 'miss', label: '빠진 요청', p: 1 }, yours: { g: 'miss', label: '내가 할 일', p: 2 }, open: { g: 'miss', label: '끝나지 않은 곁길', p: 3 },
-    unasked: { g: 'miss', label: '요청 외 변경', p: 1 }, branch: { g: 'miss', label: '숨은 가지', p: 2 },
-    check: { g: 'sug', label: '이해 확인', p: 4 }, topic: { g: 'sug', label: '주제 전환', p: 4 }, repeat: { g: 'sug', label: '반복 질문', p: 4 }, handoff: { g: 'sug', label: '이어 가기', p: 5 }, next: { g: 'sug', label: '다음 할 일', p: 6 }
+    missing: { g: 'miss', label: 'Missed request', p: 1 }, yours: { g: 'miss', label: 'Yours to do', p: 2 }, open: { g: 'miss', label: 'Unfinished side trip', p: 3 },
+    unasked: { g: 'miss', label: 'Unrequested change', p: 1 }, branch: { g: 'miss', label: 'Hidden branch', p: 2 },
+    check: { g: 'sug', label: 'Check understanding', p: 4 }, topic: { g: 'sug', label: 'Topic change', p: 4 }, repeat: { g: 'sug', label: 'Repeated question', p: 4 }, handoff: { g: 'sug', label: 'Carry on', p: 5 }, next: { g: 'sug', label: 'Next step', p: 6 }
   };
 
   /* 가닥이 직접 보낼 수 있는 종류는 둘뿐이에요 (README 3-2). 값은 켤 때 보여 주는 설명 */
   G.AUTO = {
-    unasked: '이런 요청 외 변경은 다음부터 가닥이 바로 되돌려 달라고 보내요. 할 일 목록에서 끌 수 있어요.',
-    handoff: '같은 프로젝트의 새 대화에는 다음부터 가닥이 시작할 때 요약을 넣어요. 할 일 목록에서 끌 수 있어요.'
+    unasked: 'From now on Gadak asks right away for unrequested changes like this to be undone. You can turn this off in the to-do list.',
+    handoff: 'From now on Gadak puts a summary at the start of each new chat in the same project. You can turn this off in the to-do list.'
   };
 
   G.create = function (hooks) {
@@ -163,8 +163,8 @@
       (t.parts || []).forEach(function (p, i) {
         if (!p.open0) return;
         // follow는 프로토타입 예시에만 있어요. 실제 대화에서는 다시 묻는 글을 만들어 넣어요
-        out.push({ id: t.id + ':p' + i, t: t, kind: 'missing', text: '“' + p.t + '” 답이 안 왔어요', why: t.n + '에서 요청 ' + t.parts.length + '개 중 하나가 답에서 빠졌어요.', btn: '다시 묻기',
-          prompt: p.follow ? p.follow.user : '앞에서 요청한 것 중 “' + p.t + '”에 대한 답이 빠졌어. 이 부분도 답해 줘.', follow: p.follow, part: i });
+        out.push({ id: t.id + ':p' + i, t: t, kind: 'missing', text: 'No answer to “' + p.t + '”', why: 'One of ' + t.parts.length + ' requests at ' + t.n + ' was left out of the answer.', btn: 'Ask again',
+          prompt: p.follow ? p.follow.user : 'Your answer left out one of my earlier requests: “' + p.t + '”. Please answer that part too.', follow: p.follow, part: i });
       });
       (t.todo || []).forEach(function (d, i) { var o = Object.assign({ id: t.id + ':' + i, t: t }, d); out.push(o); });
       return out;

@@ -101,7 +101,7 @@ class MacAppTest(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_info_plist_points_at_this_folder(self):
         info = macapp.info_plist()
-        self.assertEqual((info["CFBundleName"], info["CFBundleExecutable"], info["CFBundleIconFile"]), ("가닥", "Gadak", "AppIcon"))
+        self.assertEqual((info["CFBundleName"], info["CFBundleExecutable"], info["CFBundleIconFile"]), ("Gadak", "Gadak", "AppIcon"))
         self.assertEqual(info["GadakRoot"], str(launch.config.ROOT))
         self.assertTrue(info["GadakPython"].endswith("python"))
         self.assertNotIn("LSUIElement", info)       # Dock에 보이는 보통 앱이에요
@@ -122,10 +122,10 @@ class MacAppTest(unittest.TestCase):
 
     def test_install_replaces_the_old_copy(self):
         with tempfile.TemporaryDirectory() as tmp:
-            built = Path(tmp) / "dist" / "가닥.app"
+            built = Path(tmp) / "dist" / "Gadak.app"
             (built / "Contents").mkdir(parents=True)
             (built / "Contents" / "Info.plist").write_text("new", encoding="utf-8")
-            old = Path(tmp) / "Applications" / "가닥.app"
+            old = Path(tmp) / "Applications" / "Gadak.app"
             old.mkdir(parents=True)
             (old / "stale").write_text("old", encoding="utf-8")
             target = macapp.install(built, Path(tmp) / "Applications")
@@ -142,24 +142,24 @@ class MacAppTest(unittest.TestCase):
         """받아서 쓰는 사람에게 가는 것: 가닥 · 응용 프로그램 폴더로 가는 길 · 처음 여는 법 · 그림이 든 설치 안내(PDF)."""
         self.assertTrue(macapp.GUIDE.is_file())
         self.assertEqual(macapp.GUIDE.read_bytes()[:5], b"%PDF-")
-        for words in ("그래도 열기", "AI 연결", "터미널을 열 일은 없어요", "가닥 설치 안내.pdf"):
+        for words in ("Open Anyway", "Connect AI", "no need to open a terminal", "Gadak install guide.pdf"):
             self.assertIn(words, macapp.FIRST_OPEN)
         made = []
         def fake_run(command, what):
             made.append(sorted(p.name for p in Path(command[command.index("-srcfolder") + 1]).iterdir()))
         with tempfile.TemporaryDirectory() as tmp:
-            app = Path(tmp) / "가닥.app"
+            app = Path(tmp) / "Gadak.app"
             (app / "Contents").mkdir(parents=True)
             with mock.patch.object(macapp, "_run", fake_run):
                 target = macapp.dmg(app, Path(tmp) / "out")
-        self.assertEqual(made, [sorted(["Applications", "가닥 설치 안내.pdf", "가닥.app", "처음 여는 법.txt"])])
-        self.assertTrue(target.name.startswith("가닥-") and target.name.endswith(".dmg"))
+        self.assertEqual(made, [sorted(["Applications", "Gadak install guide.pdf", "Gadak.app", "How to open Gadak.txt"])])
+        self.assertTrue(target.name.startswith("Gadak-") and target.name.endswith(".dmg"))
         # 설명서의 글 · 그림 · 다시 찍는 스크립트가 같이 있어요. 그림에 실제 대화가 들어가지 않게 지어낸 예시로 찍어요 (README에 적어 둠)
         guide = macapp.GUIDE.parent / "install-guide"
         html = (guide / "guide.html").read_text(encoding="utf-8")
         for image in re.findall(r'src="(img/[^"]+)"', html):
             self.assertTrue((guide / image).is_file(), image)
-        for words in ("그래도 열기", "AI 연결", "연결하기", "버튼 편집", "chrome://extensions", "~/.gadak"):
+        for words in ("Open Anyway", "Connect AI", "Connect", "Edit Buttons", "chrome://extensions", "~/.gadak"):
             self.assertIn(words, html)
         self.assertTrue((guide / "make-pdf.sh").is_file())
 

@@ -34,7 +34,7 @@ class FloatBarTest(unittest.TestCase):
 
     def test_the_six_stock_buttons_until_the_user_changes_them(self):
         self.assertEqual([(s["key"], s["kind"]) for s in self.slots()], [(key, "action") for key in STOCK])
-        self.assertEqual([s["label"] for s in self.slots()], ["노선도", "할 일", "정함", "산출물", "찾기", "창"])
+        self.assertEqual([s["label"] for s in self.slots()], ["Map", "To do", "Decided", "Files", "Search", "Window"])
         editing = self.client.get("/float/slots").get_json()
         self.assertEqual(([s["action"] for s in editing["slots"]], editing["max"], editing["labelMax"]), (STOCK, 6, 4))
         self.assertEqual([a["key"] for a in editing["actions"]], ["map", "todo", "dec", "files", "ahead", "find", "window", "help"])
@@ -62,9 +62,9 @@ class FloatBarTest(unittest.TestCase):
         self.put([{"action": "map"}, {"project": "DB 수업", "label": " 디비 수업반 "}, {"project": "환율 알리미"}, {"project": "없는 프로젝트"},
                   {"project": "DB 수업"}])
         mine = self.slots()
-        self.assertEqual([(s["key"], s["label"]) for s in mine], [("map", "노선도"), ("p:DB 수업", "디비 수"), ("p:환율 알리미", "환율")])
+        self.assertEqual([(s["key"], s["label"]) for s in mine], [("map", "Map"), ("p:DB 수업", "디비 수"), ("p:환율 알리미", "환율")])
         project = mine[1]
-        self.assertEqual((project["kind"], project["project"], project["tip"]), ("project", "DB 수업", "DB 수업 · 이 프로젝트의 노선도"))
+        self.assertEqual((project["kind"], project["project"], project["tip"]), ("project", "DB 수업", "DB 수업 · this project's strip map"))
         self.assertRegex(project["color"], r"#[0-9A-Fa-f]{6}")
         # 누르면 화면이 그 프로젝트의 가장 최근 대화를 물어요. 그냥 물으면 ‘지금 쓰는 대화’
         self.assertEqual(self.client.get("/float").get_json()["chat"]["id"], "c3")
@@ -76,7 +76,7 @@ class FloatBarTest(unittest.TestCase):
         self.assertEqual([s["key"] for s in self.slots()], ["map", "p:환율 알리미"])
 
     def test_a_short_name_for_the_button_comes_from_the_project_name(self):
-        for name, label in (("환율 알리미", "환율"), ("AI 응용사례특강-공훈의", "AI"), ("데이터베이스", "데이터"), ("(프로젝트 없음)", "프로젝"), ("", "프로젝트")):
+        for name, label in (("환율 알리미", "환율"), ("AI 응용사례특강-공훈의", "AI"), ("데이터베이스", "데이터"), ("(프로젝트 없음)", "프로젝"), ("", "Proj")):
             self.assertEqual(floatbar.short(name), label, name)
 
     def test_the_button_the_screens_and_the_backend_agree(self):
@@ -84,7 +84,7 @@ class FloatBarTest(unittest.TestCase):
         self.assertEqual(re.findall(r'FloatAction\(key: "(\w+)"', swift), list(floatbar.DEFAULT))          # 처음 모양이 같아요
         handled = set(re.findall(r'case "(\w+)":', swift.split("func choose(")[1].split("func pinnedScript")[0]))
         self.assertEqual(handled | set(floatbar.LISTS), set(floatbar.ACTIONS))                              # 고를 수 있는 기능은 다 눌려요
-        for words in ('json["slots"]', "applySlots", '"버튼 편집…"', 'URLQueryItem(name: "project"'):
+        for words in ('json["slots"]', "applySlots", '"Edit Buttons…"', 'URLQueryItem(name: "project"'):
             self.assertIn(words, swift)
         self.assertIn('path: "float/edit"', (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8"))
         strip = (ROOT / "backend" / "web" / "strip.js").read_text(encoding="utf-8")
@@ -95,7 +95,7 @@ class FloatBarTest(unittest.TestCase):
         with self.client.get("/float/edit") as page:
             html = page.get_data(as_text=True)
         self.assertEqual(page.status_code, 200)
-        for words in ("떠 있는 버튼 편집", "여섯 개까지", "처음 모양으로", "fetch('slots'"):
+        for words in ("Edit floating buttons", "Up to six", "Reset to default", "fetch('slots'"):
             self.assertIn(words, html)
         self.assertNotIn("<textarea", html)
 

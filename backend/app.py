@@ -169,7 +169,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
             elif isinstance(body.get("slots"), list):
                 floatbar.save(conn, body["slots"])
             else:
-                return jsonify(ok=False, reason="바꿀 자리를 받지 못했어요."), 400
+                return jsonify(ok=False, reason="Did not receive the slots to change."), 400
         rt.bump()
         return jsonify(dict(floatbar.editing(conn), ok=True))
 
@@ -208,7 +208,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
         """‘AI 연결’에서 고른 엔진으로 바꾸고 기억해요. auto면 가닥이 알아서 골라요."""
         name = str((request.get_json(silent=True) or {}).get("name") or "").lower()
         if name not in engines.CHOICES:
-            return jsonify(ok=False, reason="고를 수 없는 엔진이에요."), 400
+            return jsonify(ok=False, reason="That engine cannot be chosen."), 400
         choose_engine(name)
         return jsonify(ok=True, engine=engine_info())
 
@@ -386,9 +386,9 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if store.chat_row(db(), chat_id) is None:
             abort(404)
         if not config.AHEAD:
-            return jsonify(ok=False, reason="앞길 살피기는 꺼져 있어요."), 409
+            return jsonify(ok=False, reason="Look ahead is turned off."), 409
         if rt.classifier.engine() is None:
-            return jsonify(ok=False, reason="정리에 쓸 엔진이 없어요."), 409
+            return jsonify(ok=False, reason="No engine is available for sorting."), 409
         rt.classifier.request(chat_id, front=True)       # 아직 정리하지 않은 턴이 있으면 그것부터
         rt.classifier.checker.want_ahead(chat_id)
         return jsonify(ok=True)
@@ -401,7 +401,7 @@ def create_app(db_path=None, engine="auto") -> Flask:
         if not isinstance(body.get("on"), bool):
             abort(400)
         if not config.AHEAD:
-            return jsonify(ok=False, reason="앞길 살피기는 꺼져 있어요."), 409
+            return jsonify(ok=False, reason="Look ahead is turned off."), 409
         conn = db()
         with conn:
             store.set_setting(conn, ahead.AUTO_KEY, "1" if body["on"] else "0")

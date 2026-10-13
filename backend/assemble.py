@@ -26,10 +26,10 @@ def _target_turn(conn, chat_id, message_ref):
 
 def ingest_event(conn, event):
     if not isinstance(event, dict):
-        raise BadEvent("이벤트는 JSON 객체여야 해요")
+        raise BadEvent("The event must be a JSON object")
     kind, site, chat_id = event.get("kind"), event.get("site"), event.get("chat_id")
     if kind not in KINDS or not site or not chat_id:
-        raise BadEvent("kind · site · chat_id가 필요해요")
+        raise BadEvent("kind, site and chat_id are required")
     if kind == "session_start":
         return None
 
@@ -59,10 +59,10 @@ def ingest_event(conn, event):
 def ingest_turn(conn, body):
     """docs/schema.md의 POST /turns 요청."""
     if not isinstance(body, dict):
-        raise BadEvent("요청은 JSON 객체여야 해요")
+        raise BadEvent("The request must be a JSON object")
     chat, turn = body.get("chat") or {}, body.get("turn") or {}
     if not chat.get("id") or not chat.get("site") or not turn.get("messageRef"):
-        raise BadEvent("chat.id · chat.site · turn.messageRef가 필요해요")
+        raise BadEvent("chat.id, chat.site and turn.messageRef are required")
     with conn:
         store.upsert_chat(
             conn, project=body.get("project"), chat_id=chat["id"], site=chat["site"], title=chat.get("title")

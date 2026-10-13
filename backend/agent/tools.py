@@ -14,15 +14,16 @@ import difflib
 import json
 
 from .. import store
+from ..store import many
 
 NAMES = ("get_request", "get_diff", "search_decisions", "list_open_items")
-LABELS = {"get_request": "요청 원문 보기", "get_diff": "바뀐 곳 보기",
-          "search_decisions": "정한 것 찾기", "list_open_items": "열린 할 일 보기",
-          "search_turns": "지난 물음 찾기", "list_files": "파일 목록 보기", "search_files": "파일에서 찾기",
-          "read_file": "파일 읽기", "look_up": "웹에서 찾아보기"}
-KIND_LABELS = {"missing": "빠진 요청", "unasked": "요청 외 변경", "yours": "내가 할 일", "branch": "숨은 가지",
-               "open": "끝나지 않은 곁길", "check": "이해 확인", "topic": "주제 전환", "repeat": "반복 질문",
-               "handoff": "이어 가기", "next": "다음 할 일"}
+LABELS = {"get_request": "Read the request", "get_diff": "See what changed",
+          "search_decisions": "Look up decisions", "list_open_items": "See open to-dos",
+          "search_turns": "Search past questions", "list_files": "List files", "search_files": "Search files",
+          "read_file": "Read a file", "look_up": "Look up on the web"}
+KIND_LABELS = {"missing": "Missed request", "unasked": "Unrequested change", "yours": "Yours to do", "branch": "Hidden branch",
+               "open": "Unfinished side trip", "check": "Check understanding", "topic": "Topic change", "repeat": "Repeated question",
+               "handoff": "Carry on", "next": "Next step"}
 
 USER_MAX = 4000
 AI_HEAD, AI_TAIL = 3000, 3000      # 답은 앞과 끝 (결론은 끝에 있어요)
@@ -39,7 +40,7 @@ def _clip(text, limit):
 
 def _ends(text, head, tail):
     text = text or ""
-    return text if len(text) <= head + tail + 1 else text[:head] + "\n…(가운데 줄임)…\n" + text[-tail:]
+    return text if len(text) <= head + tail + 1 else text[:head] + "\n…(middle cut)…\n" + text[-tail:]
 
 
 def _like(word):
@@ -132,7 +133,7 @@ class Context:
 
 
 def _missing_turn(arg) -> dict:
-    return {"error": f"‘{arg}’ 턴을 찾지 못했어요. outline이나 search_decisions에 나온 id를 쓰세요."}
+    return {"error": f"Could not find turn ‘{arg}’. Use an id from outline or search_decisions."}
 
 
 def get_request(ctx, arg=None) -> dict:
@@ -153,7 +154,7 @@ def get_request(ctx, arg=None) -> dict:
     if files:
         out["files"] = files[:20]
     if row["state"] != "done":
-        out["note"] = "답이 아직 오는 중일 수 있어요"
+        out["note"] = "The answer may still be coming in"
     return out
 
 
@@ -165,8 +166,8 @@ def get_diff(ctx, arg=None) -> dict:
     if not edits:
         names = [ctx.shown(r["name"], row["chat_id"])
                  for r in ctx.conn.execute("SELECT name FROM files WHERE turn_id = ? ORDER BY rowid", (row["id"],))]
-        note = "이 턴에는 바뀐 줄 기록이 없어요"
-        return {"id": row["id"], "files": [], "note": note + (" (파일 이름만 있어요: " + ", ".join(names[:10]) + ")" if names else "")}
+        note = "No record of changed lines for this turn"
+        return {"id": row["id"], "files": [], "note": note + (" (file names only: " + ", ".join(names[:10]) + ")" if names else "")}
     out, left = [], DIFF_LINES
     for name, pairs in edits.items():
         lines = file_diff(pairs)
@@ -221,7 +222,7 @@ def search_decisions(ctx, arg=None) -> dict:
                 "user": _clip(" ".join(r["user"].split()), SNIP),
             } for r in related]
     if not out["decisions"]:
-        out["note"] = "맞는 정한 것이 없어요" + (". arg를 비우면 최근에 정한 것부터 보여 줘요" if words else "")
+        out["note"] = "No matching decisions" + (". Leave arg empty to see the most recent decisions first" if words else "")
     return out
 
 
@@ -246,7 +247,7 @@ def open_items(conn, where, values) -> list:
     ):
         if (r["state"] or "open") in ("open", "later"):
             out.append({"id": f"{r['turn_id']}:p{r['idx']}", "kind": "missing", "label": KIND_LABELS["missing"],
-                        "text": f"“{r['t']}” 답이 안 왔어요", "turn": r["turn_id"], "chat": r["chat_title"],
+                        "text": f"No answer to “{r['t']}”", "turn": r["turn_id"], "chat": r["chat_title"],
                         "seq": r["seq"], "title": r["title"], "state": r["state"] or "open"})
     return out
 
@@ -257,7 +258,7 @@ def search_turns(ctx, arg=None) -> dict:
     query = " ".join(str(arg or "").split())
     words = query.split(" ")[:6] if query else []
     if not words:
-        return {"error": "찾을 말을 arg에 넣어 주세요."}
+        return {"error": "Put the word to search for in arg."}
     where, values = ctx.scope()
     until, upto = ctx.cut()
     cond, more = _match(words, ("t.title", "t.user", "t.dec", "t.gist"))
@@ -278,7 +279,7 @@ def search_turns(ctx, arg=None) -> dict:
             turn["dec"] = r["dec"]
         out["turns"].append(turn)
     if not out["turns"]:
-        out["note"] = "맞는 턴이 없어요. 낱말을 줄이거나 바꿔 보세요"
+        out["note"] = "No matching turns. Try fewer or different words"
     return out
 
 
@@ -305,21 +306,21 @@ def summary(tool, result) -> str:
     if result.get("error"):
         return result["error"]
     if tool == "get_request":
-        bits = [f"요청 {len(result['user'])}자"]
+        bits = [f"request {len(result['user'])} chars"]
         if result.get("parts"):
-            bits.append(f"나눈 요청 {len(result['parts'])}개")
-        bits.append(f"답 {len(result['ai'])}자")
+            bits.append(many(len(result['parts']), 'split request'))
+        bits.append(f"answer {len(result['ai'])} chars")
         return " · ".join(bits)
     if tool == "get_diff":
         files = result["files"]
         if not files:
-            return "바뀐 줄 기록 없음"
-        return f"파일 {len(files)}개 · 바뀐 줄 {sum(f['changed'] for f in files)}줄"
+            return "no changed-line record"
+        return f"{many(len(files), 'file')} · {many(sum(f['changed'] for f in files), 'line')} changed"
     if tool == "search_decisions":
-        text = f"정한 것 {len(result['decisions'])}개"
+        text = many(len(result['decisions']), 'decision')
         if result.get("related"):
-            text += f" · 관련 턴 {len(result['related'])}개"
+            text += f" · {many(len(result['related']), 'related turn')}"
         return text
     if tool == "search_turns":
-        return f"지난 턴 {len(result['turns'])}개"
-    return f"열린 할 일 {len(result['items']) + result.get('more', 0)}개"
+        return many(len(result['turns']), 'past turn')
+    return many(len(result['items']) + result.get('more', 0), 'open to-do')

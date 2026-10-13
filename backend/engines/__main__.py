@@ -25,7 +25,7 @@ def main(argv) -> int:
         print(exc)
         return 1
     if engine is None:
-        print("엔진 없음: 대화를 기록만 하고 분류하지 않아요.")
+        print("No engine: chats are recorded but not sorted.")
         return 0
     status = engine.check()
     print(json.dumps(status, ensure_ascii=False))
@@ -34,11 +34,11 @@ def main(argv) -> int:
     if "--ping" in argv:
         start = time.time()
         try:
-            answer = engine.complete_json("스키마에 맞는 값만 내.", "ok를 true로 답해.", PING_SCHEMA)
+            answer = engine.complete_json("Output only values that match the schema.", "Answer with ok set to true.", PING_SCHEMA)
         except EngineError as exc:
-            print("실패:", exc)
+            print("Failed:", exc)
             return 1
-        print(f"응답 {json.dumps(answer, ensure_ascii=False)} · {time.time() - start:.1f}초")
+        print(f"Answer {json.dumps(answer, ensure_ascii=False)} · {time.time() - start:.1f}s")
     return 0
 
 

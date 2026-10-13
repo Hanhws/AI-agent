@@ -324,7 +324,7 @@ class KeysTest(unittest.TestCase):
 
     def test_a_key_is_kept_in_the_credential_manager(self):
         self.assertTrue(keys.can_store())
-        self.assertEqual(keys.place(), "자격 증명 관리자")
+        self.assertEqual(keys.place(), "Credential Manager")
         self.assertEqual(keys.find(), (None, None))
         keys.save(KEY)
         self.assertEqual(self.store.items, {"local.gadak.test/api-key": KEY})
@@ -339,7 +339,7 @@ class KeysTest(unittest.TestCase):
         self.store.write = lambda *args: False
         with self.assertRaises(keys.KeyStoreError) as caught:
             keys.save(KEY)
-        self.assertIn("자격 증명 관리자", str(caught.exception))
+        self.assertIn("Credential Manager", str(caught.exception))
         with self.assertRaises(keys.KeyStoreError):
             keys.save("hello")                            # 키 모양이 아닌 것은 넣기 전에 걸러요
 
@@ -532,29 +532,29 @@ class BuildTest(Tmp):
         self.assertTrue(first.startswith(b"\xef\xbb\xbf"))                     # 메모장이 한글을 바로 읽게
         text = first.decode("utf-8-sig")
         self.assertNotIn("\n", text.replace("\r\n", ""))
-        for words in ("추가 정보", "AI 연결", "자격 증명 관리자", "가닥 켜기.cmd", ".gadak", "gadak.log", winapp.names()["setup"], winapp.MANUAL):
+        for words in ("More info", "Connect AI", "Credential Manager", "Start Gadak.cmd", ".gadak", "gadak.log", winapp.names()["setup"], winapp.MANUAL):
             self.assertIn(words, text)
 
     def test_the_guide_people_receive_matches_what_is_built(self):
         """받는 사람이 보는 설치 안내(docs/install-guide/guide.html → PDF)에 적힌 파일 이름 · 누를 것이 만드는 것과 같은지."""
         html = (ROOT / "docs" / "install-guide" / "guide.html").read_text(encoding="utf-8")
         made = winapp.names()
-        for words in (made["setup"], made["zip"], f"가닥-{config.VERSION}-arm64.dmg", f"가닥-{config.VERSION}-x86_64.dmg", winapp.START,
-                      "Windows의 PC 보호", "추가 정보", "가닥 켜기", "자격 증명 관리자", "gadak.log", "전체 지도", "낮 · 밤", "가닥 토글"):
+        for words in (made["setup"], made["zip"], f"Gadak-{config.VERSION}-arm64.dmg", f"Gadak-{config.VERSION}-x86_64.dmg", winapp.START,
+                      "Windows protected your PC", "More info", "Start Gadak", "Credential Manager", "gadak.log", "System map", "Day · Night", "Gadak button"):
             self.assertIn(words, html)
         nsi = (ROOT / "win" / winapp.SCRIPT).read_text(encoding="utf-8")
-        self.assertIn('MUI_FINISHPAGE_RUN_TEXT "가닥 켜기"', nsi)                       # 안내의 ‘가닥 켜기’는 설치 프로그램의 그 칸이에요
+        self.assertIn('MUI_FINISHPAGE_RUN_TEXT "Start Gadak"', nsi)                       # 안내의 ‘가닥 켜기’는 설치 프로그램의 그 칸이에요
         for image in __import__("re").findall(r'src="(img/[^"]+)"', html):
             self.assertTrue((ROOT / "docs" / "install-guide" / image).is_file(), image)
         self.assertNotIn("SUIT", html)                                                  # 글꼴은 가닥 창과 같게 (Helvetica Neue + Pretendard)
 
     def test_the_zip_unpacks_into_one_folder(self):
         target = winapp.zipped(self.stage(), self.tmp / "dist")
-        self.assertEqual(target.name, f"가닥-{config.VERSION}-windows-x64.zip")
+        self.assertEqual(target.name, f"Gadak-{config.VERSION}-windows-x64.zip")
         with zipfile.ZipFile(target) as archive:
             inside = archive.namelist()
         self.assertTrue(all(name.startswith("Gadak/") for name in inside))
-        self.assertIn("Gadak/가닥 켜기.cmd", inside)
+        self.assertIn("Gadak/Start Gadak.cmd", inside)
         self.assertIn("Gadak/python/pythonw.exe", inside)
 
     def test_a_wheel_cannot_write_outside_the_folder(self):
@@ -595,7 +595,7 @@ class BuildTest(Tmp):
         self.assertIn(f'!define RUNNING "{win.RUNNING}"', script)                    # 켜져 있는 가닥을 알아보는 이름
         self.assertIn(f'!define LAUNCH "{winapp.LAUNCH}"', script)
         self.assertIn(f'!define FOLDER "{winapp.FOLDER}"', script)
-        for words in ("RequestExecutionLevel user", "Unicode true", 'MUI_LANGUAGE "Korean"', "$LOCALAPPDATA\\Programs\\${FOLDER}",
+        for words in ("RequestExecutionLevel user", "Unicode true", 'MUI_LANGUAGE "English"', "$LOCALAPPDATA\\Programs\\${FOLDER}",
                       "pythonw.exe", "WriteUninstaller", 'IfFileExists "$INSTDIR\\${MARK}"'):
             self.assertIn(words, script)
         self.assertNotIn(".gadak", script.split('Section "Uninstall"')[1].split("SectionEnd")[0].replace("%USERPROFILE%\\.gadak", ""))
@@ -627,7 +627,7 @@ class BuildTest(Tmp):
         with mock.patch.object(winapp, "find_makensis", return_value=["wine", "C:/nsis/makensis.exe"]), \
                 mock.patch.object(winapp.subprocess, "run", run):
             target = winapp.installer(folder, self.tmp / "dist")
-        self.assertEqual((target.name, target.read_bytes()), (f"가닥-{config.VERSION}-windows-x64-설치.exe", b"MZ"))
+        self.assertEqual((target.name, target.read_bytes()), (f"Gadak-{config.VERSION}-windows-x64-setup.exe", b"MZ"))
         self.assertEqual(seen["files"], [winapp.SCRIPT, "stage"])
         self.assertEqual(seen["command"], ["wine", "C:/nsis/makensis.exe", "/INPUTCHARSET", "UTF8", "/V2", f"/DVERSION={config.VERSION}",
                                            f"/DLAUNCH={winapp.LAUNCH}", f"/DOUTFILE={winapp.SETUP}", winapp.SCRIPT])

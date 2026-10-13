@@ -231,7 +231,7 @@ class ClassifyTest(unittest.TestCase):
         clf = self.start(titled, turns=20, max_calls=1)
         self.assertEqual(clf.classify_chat(self.conn, CHAT), 8)
         self.assertTrue(clf.status["paused"])
-        self.assertIn("1번", clf.status["error"])
+        self.assertIn("1 sorting call", clf.status["error"])
 
     def test_segments_are_redrawn_from_the_whole_chat(self):
         def answer(p):

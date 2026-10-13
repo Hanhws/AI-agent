@@ -88,7 +88,7 @@ def main(argv) -> int:
     spool = config.HOME / "spool.jsonl"
     path = argv[0] if argv else spool
     url = f"http://{config.HOST}:{config.PORT}"
-    print(f"{replay(path, url)}개 이벤트를 {url}로 보냈어요")
+    print(f"Sent {replay(path, url)} events to {url}")
     if not argv:
         spool.write_text("", encoding="utf-8")  # 쌓아 둔 것은 다 보냈으니 비워요
     return 0

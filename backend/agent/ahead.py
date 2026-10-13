@@ -35,7 +35,7 @@ from . import outside, tools
 SYSTEM = (config.ROOT / "backend" / "prompts" / "ahead.txt").read_text(encoding="utf-8")
 
 KINDS = ("onward", "other", "check")
-LABELS = {"onward": "이어 가기", "other": "다른 길", "check": "미리 챙길 것"}
+LABELS = {"onward": "Carry on", "other": "Another way", "check": "Prepare first"}
 WHYS = ("decided", "stage", "asked", "button")
 # 사용자가 다음에 할 일이나 나아갈 길을 묻는 말
 ASKED = re.compile(
@@ -58,7 +58,7 @@ OUTLINE, RECENT, DECIDED, EARLIER = 40, 4, 12, 6
 USER_NOW, USER_RECENT, ANSWER_END = 800, 300, 700
 GOAL_MAX, TITLE_MAX, TEXT_MAX, WHY_MAX, LINE_MAX, ASK_MAX, ARG_MAX = 80, 44, 60, 200, 120, 600, 200
 BASIS_KEEP, FOUND_KEEP = 3, 4
-NOTE = "가닥이 미리 찾아본 길이에요. 답이 아니라 물어볼 거리라서, 고쳐서 보내도 돼요."
+NOTE = "A path Gadak scouted in advance. It is a question to ask, not an answer, so feel free to edit it before sending."
 
 _TEXT = {"type": ["string", "null"]}
 PATH = {
@@ -253,8 +253,8 @@ def opening(ctx, names) -> list:
         heads = outside.headings(ctx, PLAN_WORDS)       # 문서의 목차: 계획 · 일정 · 미정 · 규칙이 적힌 제목과 줄 번호
         if not heads.get("hits"):
             heads = outside.find_lines(ctx, PLAN_WORDS)  # 그런 제목이 없으면(코드뿐인 폴더) 그런 낱말이 든 줄
-        moves.append(("search_files", "계획 · 일정 · 미정 · 규칙이 적힌 곳", heads))
-    return [{"tool": tool, "arg": arg, "think": "가닥이 늘 먼저 보는 것이에요.", "saw": summary(tool, data), "data": data, "by": "gadak"}
+        moves.append(("search_files", "where plans · schedules · open questions · rules are written", heads))
+    return [{"tool": tool, "arg": arg, "think": "Gadak always looks at this first.", "saw": summary(tool, data), "data": data, "by": "gadak"}
             for tool, arg, data in moves]
 
 
@@ -280,7 +280,7 @@ def scout(ctx, why, call, max_steps=None) -> dict:
             break
         arg = _arg(out.get("arg"))
         if tool == "look_up" and looked >= LOOKUPS:
-            data = {"error": "이번에는 웹에서 더 찾아볼 수 없어요."}
+            data = {"error": "No more web lookups this time."}
         else:
             data = RUN[tool](ctx, arg)
             looked += tool == "look_up"
@@ -331,9 +331,9 @@ def _turn(ctx, ref, seen):
 
 def _where(ctx, row) -> str:
     if row["chat_id"] == ctx.chat["id"]:
-        return "이 대화"
+        return "this chat"
     chat = store.chat_row(ctx.conn, row["chat_id"])
-    return f"{store.display_date(chat['created_at'])} {chat['title'] or '지난 대화'}"
+    return f"{store.display_date(chat['created_at'])} {chat['title'] or 'a past chat'}"
 
 
 def _host(url) -> str:
@@ -408,13 +408,13 @@ def conclude(ctx, steps, out) -> dict:
             if row is not None and all(row["id"] != b["id"] for b in basis):
                 basis.append(row)
         if kind not in KINDS:
-            drop(kind, "모르는 종류라 버렸어요")
+            drop(kind, "Dropped: unknown kind")
         elif any(p["kind"] == kind for p in paths):
-            drop(kind, "같은 종류의 길이 이미 있어서 버렸어요")
+            drop(kind, "Dropped: a path of the same kind already exists")
         elif not title or not ask:
-            drop(kind, "길의 이름이나 보낼 글이 없어서 버렸어요")
+            drop(kind, "Dropped: no title or text to send")
         elif not basis:
-            drop(kind, "근거가 된 턴이 이번에 본 기록에 없어서 버렸어요")
+            drop(kind, "Dropped: its basis turn is not in the records seen this time")
         else:
             found, lost = [], 0
             for item in raw.get("found") or []:
@@ -435,10 +435,10 @@ def conclude(ctx, steps, out) -> dict:
                     lost += 1          # 출처가 도구 결과에 없거나, 방금 대화에 있던 것이거나, 출처에 없는 수가 든 줄
             cut += lost
             if not found:
-                drop(kind, "찾아본 것이 없는 길이라 버렸어요" + (f" (출처로 칠 수 없는 줄 {lost}개)" if lost else ""))
+                drop(kind, "Dropped: nothing was found behind this path" + (f" ({store.many(lost, 'line')} without a usable source)" if lost else ""))
                 continue
             if lost:
-                drop(kind, f"출처로 칠 수 없는 줄 {lost}개를 뺐어요 (길은 남겼어요)")
+                drop(kind, f"Removed {store.many(lost, 'line')} without a usable source (kept the path)")
             paths.append({"kind": kind, "title": title, "why": _line(_plain(ctx, raw.get("why")), WHY_MAX), "ask": ask,
                           "basis": basis[:BASIS_KEEP], "found": found[:FOUND_KEEP]})
     return {"goal": goal, "paths": [public(p) for p in paths], "items": [path_item(ctx, goal, p) for p in paths],
@@ -457,21 +457,21 @@ def path_item(ctx, goal, path) -> dict:
     label = LABELS[path["kind"]]
     detail = []
     if goal:
-        detail += ["지금 하려는 일", goal, ""]
+        detail += ["What you are trying to do", goal, ""]
     detail += [f"{label}: {path['title']}"]
     if path["why"]:
         detail.append(path["why"])
-    detail += ["", "근거"] + [f"· ‘{b['title']}’ ({_where(ctx, b)})" for b in path["basis"]]
+    detail += ["", "Based on"] + [f"· ‘{b['title']}’ ({_where(ctx, b)})" for b in path["basis"]]
     if path["found"]:
-        detail += ["", "찾아본 것"] + [f"· {f['line']} ({f['label']})" for f in path["found"]]
-    detail += ["", "보낼 글", path["ask"]]
+        detail += ["", "What was found"] + [f"· {f['line']} ({f['label']})" for f in path["found"]]
+    detail += ["", "Text to send", path["ask"]]
     prompt = path["ask"]
     if path["found"]:
-        prompt += "\n\n참고로 미리 찾아본 것이야. 맞는지도 같이 봐 줘.\n" + "\n".join(
+        prompt += "\n\nFor reference, here is what I looked up in advance. Please check whether it holds.\n" + "\n".join(
             f"- {f['line']} ({f['source'] if f['from'] != 'turn' else f['label']})" for f in path["found"])
     return {
         "kind": "next", "text": _line(f"{label} · {path['title']}", TEXT_MAX),
-        "why": path["why"] or "지금 자리에서 갈 수 있는 길이에요.",
-        "btn": "이 길 보기",
-        "pop": {"title": f"앞길 · {label}", "text": "\n".join(detail), "note": NOTE, "btn": "이 길로 묻기", "prompt": prompt},
+        "why": path["why"] or "A way you could go from here.",
+        "btn": "See this path",
+        "pop": {"title": f"Ahead · {label}", "text": "\n".join(detail), "note": NOTE, "btn": "Ask this way", "prompt": prompt},
     }

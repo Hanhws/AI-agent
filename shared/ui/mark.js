@@ -42,7 +42,7 @@
     b.sync(); return b;
   };
   G.themeSwitch = function () {
-    var b = G.makeSwitch({ label: '밤 화면', off: '낮', on: '밤', get: G.isDark, set: function (on) { G.setTheme(on ? 'dark' : 'light'); } });
+    var b = G.makeSwitch({ label: 'Night mode', off: 'Day', on: 'Night', get: G.isDark, set: function (on) { G.setTheme(on ? 'dark' : 'light'); } });
     window.addEventListener('storage', b.sync); return b;
   };
   G.fname = function (f) { return typeof f === 'string' ? f : f.n; };

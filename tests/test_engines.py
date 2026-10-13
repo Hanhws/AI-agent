@@ -111,7 +111,7 @@ class ClaudeCliTest(unittest.TestCase):
     def test_login_or_limit_trouble_stops_at_once(self):
         out, run, _ = self.ask(said(is_error=True, result="Not logged in · Please run /login"))
         self.assertIsInstance(out, EngineError)
-        self.assertIn("로그인되어 있지 않아요", str(out))                  # 가닥 창에 한 줄로 보이는 말
+        self.assertIn("Not signed in", str(out))                  # 가닥 창에 한 줄로 보이는 말
         self.assertEqual(run.call_count, 1)
         out, _, _ = self.ask(said(is_error=True, result="Claude AI usage limit reached|1791234567"))
         self.assertIn("usage limit", str(out))
@@ -165,7 +165,7 @@ class CodexCliTest(unittest.TestCase):
         self.assertEqual(self.seen["schema"], SCHEMA)
         self.assertEqual(command[command.index("-c") + 1], 'model_reasoning_effort="low"')
         self.assertNotIn("-m", command)                                                              # 모델은 Codex의 기본값
-        self.assertTrue(kwargs["input"].endswith('정리해\n\n입력:\n{"turns": []}'))
+        self.assertTrue(kwargs["input"].endswith('정리해\n\nInput:\n{"turns": []}'))
         self.assertNotIn("OPENAI_API_KEY", kwargs["env"])                                            # 구독 로그인으로 돌려요
         self.assertEqual(engine.last, {"input_tokens": 13400, "output_tokens": 19, "cost": None})
         self.assertEqual(engine.last_usage, {"input_tokens": 1400, "cache_read_input_tokens": 12000, "cache_creation_input_tokens": 0,
@@ -184,7 +184,7 @@ class CodexCliTest(unittest.TestCase):
     def test_login_or_limit_trouble_stops_and_an_odd_answer_fails_only_that_batch(self):
         out, _ = self.ask(None, [{"type": "error", "message": "401 Unauthorized: not logged in"}], code=1)
         self.assertIsInstance(out, EngineError)
-        self.assertIn("ChatGPT 구독을 다시 연결", str(out))                    # 가닥 창에 한 줄로 보이는 말
+        self.assertIn("Reconnect the ChatGPT subscription", str(out))                    # 가닥 창에 한 줄로 보이는 말
         out, _ = self.ask(None, [{"type": "turn.failed", "error": {"message": "You've hit your usage limit. Try again at 3pm."}}], code=1)
         self.assertIsInstance(out, EngineError)
         self.assertIn("usage limit", str(out))
@@ -414,14 +414,14 @@ class AnthropicApiTest(WithKeychain):
 
     def test_api_trouble_becomes_one_line_for_the_window(self):
         cases = [
-            (api_error(anthropic.AuthenticationError, 401), "API 키가 맞지 않아요"),
-            (api_error(anthropic.PermissionDeniedError, 403), "이 모델을 쓸 수 없어요"),
-            (api_error(anthropic.NotFoundError, 404), "모델 이름이 맞지 않아요: claude-haiku-4-5"),
-            (api_error(anthropic.RateLimitError, 429), "한도에 걸렸어요"),
-            (api_error(anthropic.BadRequestError, 400, "Your credit balance is too low to access the API"), "크레딧이 모자라요"),
-            (api_error(anthropic.BadRequestError, 400, "messages: bad shape"), "받아들여지지 않았어요: messages: bad shape"),
-            (api_error(anthropic.InternalServerError, 529), "서버가 잠시 답하지 못해요"),
-            (anthropic.APIConnectionError(request=httpx2.Request("POST", "https://api.anthropic.com")), "인터넷 연결"),
+            (api_error(anthropic.AuthenticationError, 401), "The API key is not valid"),
+            (api_error(anthropic.PermissionDeniedError, 403), "cannot use this model"),
+            (api_error(anthropic.NotFoundError, 404), "Unknown model name: claude-haiku-4-5"),
+            (api_error(anthropic.RateLimitError, 429), "rate limit"),
+            (api_error(anthropic.BadRequestError, 400, "Your credit balance is too low to access the API"), "Not enough API credit"),
+            (api_error(anthropic.BadRequestError, 400, "messages: bad shape"), "was not accepted: messages: bad shape"),
+            (api_error(anthropic.InternalServerError, 529), "servers are not answering"),
+            (anthropic.APIConnectionError(request=httpx2.Request("POST", "https://api.anthropic.com")), "internet connection"),
         ]
         for raised, words in cases:
             out, _, _ = self.ask(raised)
@@ -433,7 +433,7 @@ class AnthropicApiTest(WithKeychain):
         engine = anthropic_api.AnthropicApiEngine(model="haiku")
         with self.assertRaises(EngineError) as caught:
             engine.complete_json("정리해", "{}", NULLABLE)
-        self.assertIn("API 키가 없어요", str(caught.exception))
+        self.assertIn("No API key", str(caught.exception))
         keys.save(KEY)
         with mock.patch.object(anthropic, "Anthropic") as made:
             anthropic_api.AnthropicApiEngine(model="haiku").client()
@@ -452,7 +452,7 @@ class AnthropicApiTest(WithKeychain):
         self.assertEqual((made.call_args.kwargs["api_key"], made.call_args.kwargs["max_retries"]), (KEY, 0))
         result, _, _ = checked(api_error(anthropic.AuthenticationError, 401))
         self.assertEqual((result["ok"], result["verified"]), (False, True))
-        self.assertIn("API 키가 맞지 않아요", result["reason"])
+        self.assertIn("The API key is not valid", result["reason"])
         result, _, _ = checked(anthropic.APIConnectionError(request=httpx2.Request("GET", "https://api.anthropic.com")))
         self.assertEqual((result["ok"], result["verified"]), (True, False))  # 인터넷이 안 되면 확인은 못 했지만 넣어는 둬요
 
@@ -503,9 +503,9 @@ class RestTest(WithWire):
         self.assertEqual(len(wire.calls), 1)
 
     def test_a_dropped_line_is_tried_again_but_a_slow_answer_is_not(self):
-        wire = self.wire(rest.Unreachable("닿지 못했어요"), (200, {"ok": True}))
+        wire = self.wire(rest.Unreachable("Could not reach"), (200, {"ok": True}))
         self.assertEqual(rest.call("OpenAI", "POST", "https://x/y", {}), (200, {"ok": True}))
-        wire = self.wire(rest.Unreachable("닿지 못했어요"))
+        wire = self.wire(rest.Unreachable("Could not reach"))
         with self.assertRaises(rest.Unreachable):
             rest.call("OpenAI", "POST", "https://x/y", {})
         self.assertEqual(len(wire.calls), 1 + rest.RETRIES)
@@ -524,8 +524,8 @@ class RestTest(WithWire):
                          (("POST", "https://x/y"), {"headers": {"Authorization": "Bearer k"}, "json": {"q": "한글"}, "timeout": 7}))
         with mock.patch.object(httpx2, "request", return_value=httpx2.Response(502, text="<html>bad gateway</html>", request=request)):
             self.assertEqual(rest.send("OpenAI", "GET", "https://x/y", {})[:2], (502, {}))       # JSON이 아닌 답은 빈 것으로
-        for raised, kind, words in ((httpx2.ConnectError("no route"), rest.Unreachable, "OpenAI에 닿지 못했어요"),
-                                    (httpx2.ReadTimeout("slow"), rest.TooSlow, "OpenAI가 7초 안에 답하지 않았어요")):
+        for raised, kind, words in ((httpx2.ConnectError("no route"), rest.Unreachable, "Could not reach OpenAI"),
+                                    (httpx2.ReadTimeout("slow"), rest.TooSlow, "OpenAI did not answer within 7 seconds")):
             with mock.patch.object(httpx2, "request", side_effect=raised), self.assertRaises(kind) as caught:
                 rest.send("OpenAI", "POST", "https://x/y", {}, {}, timeout=7)
             self.assertIn(words, str(caught.exception))
@@ -605,18 +605,18 @@ class OpenAiApiTest(WithWire):
 
     def test_api_trouble_becomes_one_line_for_the_window(self):
         cases = [
-            (openai_error(401, "invalid_api_key", "Incorrect API key provided: sk-proj-****qrst."), "API 키가 맞지 않아요", 1),
+            (openai_error(401, "invalid_api_key", "Incorrect API key provided: sk-proj-****qrst."), "The API key is not valid", 1),
             (openai_error(403, "unsupported_country_region_territory", "Country, region, or territory not supported"),
-             "이 API 키로는 쓸 수 없어요: Country", 1),
+             "This API key cannot be used: Country", 1),
             (openai_error(404, "model_not_found", "The model `gpt-6-luna` does not exist or you do not have access to it."),
-             "이 키로 쓸 수 없는 모델이에요: gpt-6-luna", 1),
-            (openai_error(429, "rate_limit_exceeded", "Rate limit reached", "rate_limit_error"), "한도에 걸렸어요", 3),
-            (openai_error(429, "credit_balance_exhausted", "Your organization has no prepaid credits remaining"), "크레딧이 모자라요", 1),
-            (openai_error(429, None, "You exceeded your current quota", "insufficient_quota"), "크레딧이 모자라요", 1),
-            (openai_error(400, "invalid_json_schema", "Invalid schema for response_format 'gadak'"), "받아들여지지 않았어요: Invalid schema", 1),
-            (openai_error(503, "server_is_overloaded", "overloaded", "service_unavailable_error"), "서버가 잠시 답하지 못해요", 3),
-            (rest.Unreachable("OpenAI에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), "인터넷 연결", 3),
-            (openai_reply("", status="failed", error={"code": "server_error", "message": "x"}), "답을 만들지 못했어요", 1),
+             "This key cannot use the model: gpt-6-luna", 1),
+            (openai_error(429, "rate_limit_exceeded", "Rate limit reached", "rate_limit_error"), "rate limit", 3),
+            (openai_error(429, "credit_balance_exhausted", "Your organization has no prepaid credits remaining"), "Not enough API credit", 1),
+            (openai_error(429, None, "You exceeded your current quota", "insufficient_quota"), "Not enough API credit", 1),
+            (openai_error(400, "invalid_json_schema", "Invalid schema for response_format 'gadak'"), "was not accepted: Invalid schema", 1),
+            (openai_error(503, "server_is_overloaded", "overloaded", "service_unavailable_error"), "servers are not answering", 3),
+            (rest.Unreachable("Could not reach OpenAI. Check your internet connection."), "internet connection", 3),
+            (openai_reply("", status="failed", error={"code": "server_error", "message": "x"}), "could not produce an answer", 1),
         ]
         for answer, words, sent in cases:
             out, wire, _ = self.ask(answer)
@@ -630,7 +630,7 @@ class OpenAiApiTest(WithWire):
             keys.delete()
             out, wire, _ = self.ask(openai_reply("{}"), key=key)
             self.assertIsInstance(out, EngineError)
-            self.assertIn("API 키가 없어요", str(out))
+            self.assertIn("No API key", str(out))
             self.assertEqual(wire.calls, [])                                       # 남의 회사 키를 OpenAI로 보내지 않아요
 
     def test_check_looks_at_the_key_and_the_model_only(self):
@@ -640,7 +640,7 @@ class OpenAiApiTest(WithWire):
         self.assertEqual((wire.calls[0]["method"], wire.calls[0]["url"], wire.calls[0]["body"]),
                          ("GET", "https://api.openai.com/v1/models/gpt-6-luna", None))
         self.wire(openai_error(401, "invalid_api_key"))
-        self.assertEqual(openai_api.OpenAiApiEngine(model="haiku").check(), {"ok": False, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."})
+        self.assertEqual(openai_api.OpenAiApiEngine(model="haiku").check(), {"ok": False, "reason": "The API key is not valid. Please enter it again."})
 
     def test_a_new_key_is_checked_without_spending_money(self):
         wire = self.wire((200, {"id": "gpt-6-luna", "object": "model"}))
@@ -649,11 +649,11 @@ class OpenAiApiTest(WithWire):
         self.assertEqual((sent["method"], sent["url"], sent["body"]), ("GET", "https://api.openai.com/v1/models/gpt-6-luna", None))   # 모델 정보만 물어요
         self.assertEqual((sent["headers"]["Authorization"], len(wire.calls)), ("Bearer " + OPENAI_KEY, 1))
         self.assertEqual(self.keychain.items, {})                                  # 확인만 해요. 넣는 것은 부른 쪽이 해요
-        for answer, ok, verified, words in ((openai_error(401, "invalid_api_key"), False, True, "API 키가 맞지 않아요"),
-                                            (openai_error(403, None, "Missing scopes: api.model.read"), False, True, "쓸 수 없어요: Missing scopes"),
-                                            (openai_error(404, "model_not_found"), True, False, "이 키로 쓸 수 없는 모델이에요"),
-                                            (openai_error(500), True, False, "서버가 잠시"),
-                                            (rest.Unreachable("OpenAI에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), True, False, "닿지 못했어요")):
+        for answer, ok, verified, words in ((openai_error(401, "invalid_api_key"), False, True, "The API key is not valid"),
+                                            (openai_error(403, None, "Missing scopes: api.model.read"), False, True, "cannot be used: Missing scopes"),
+                                            (openai_error(404, "model_not_found"), True, False, "This key cannot use the model"),
+                                            (openai_error(500), True, False, "servers are not"),
+                                            (rest.Unreachable("Could not reach OpenAI. Check your internet connection."), True, False, "Could not reach")):
             wire = self.wire(answer)
             result = openai_api.verify(OPENAI_KEY)
             self.assertEqual((result["ok"], result["verified"], len(wire.calls)), (ok, verified, 1), words)   # 한 번만 물어요
@@ -750,16 +750,16 @@ class GeminiApiTest(WithWire):
 
     def test_api_trouble_becomes_one_line_for_the_window(self):
         cases = [
-            (GEMINI_BAD_KEY, "API 키가 맞지 않아요", 1, []),
-            (gemini_error(401, "UNAUTHENTICATED", "Request had invalid authentication credentials."), "API 키가 맞지 않아요", 1, []),
-            (gemini_error(400, "INVALID_ARGUMENT", "API key expired. Please renew the API key."), "API 키가 맞지 않아요", 1, []),
-            (gemini_error(403, "PERMISSION_DENIED", "Your API key was reported as leaked."), "이 API 키로는 쓸 수 없어요: Your API key was reported", 1, []),
-            (gemini_error(404, "NOT_FOUND", "models/gemini-3.5-flash-lite is not found"), "이 키로 쓸 수 없는 모델이에요: gemini-3.5-flash-lite", 1, []),
-            (gemini_limit("Minute", "7s"), "한도에 걸렸어요", 3, [7.0, 7.0]),                # 분 한도: 서버가 말한 만큼 기다렸다 다시
-            (gemini_limit("Day", "41s"), "하루 사용 한도를 다 썼어요", 1, []),               # 하루 한도: 기다려도 안 풀려요
-            (gemini_error(503, "UNAVAILABLE", "The model is overloaded."), "서버가 잠시 답하지 못해요", 3, [0.5, 1.0]),
-            (gemini_error(400, "FAILED_PRECONDITION", "User location is not supported for the API use."), "받아들여지지 않았어요: User location", 1, []),
-            (rest.Unreachable("Gemini에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), "인터넷 연결", 3, [0.5, 1.0]),
+            (GEMINI_BAD_KEY, "The API key is not valid", 1, []),
+            (gemini_error(401, "UNAUTHENTICATED", "Request had invalid authentication credentials."), "The API key is not valid", 1, []),
+            (gemini_error(400, "INVALID_ARGUMENT", "API key expired. Please renew the API key."), "The API key is not valid", 1, []),
+            (gemini_error(403, "PERMISSION_DENIED", "Your API key was reported as leaked."), "This API key cannot be used: Your API key was reported", 1, []),
+            (gemini_error(404, "NOT_FOUND", "models/gemini-3.5-flash-lite is not found"), "This key cannot use the model: gemini-3.5-flash-lite", 1, []),
+            (gemini_limit("Minute", "7s"), "rate limit", 3, [7.0, 7.0]),                # 분 한도: 서버가 말한 만큼 기다렸다 다시
+            (gemini_limit("Day", "41s"), "Used up the daily Gemini limit", 1, []),               # 하루 한도: 기다려도 안 풀려요
+            (gemini_error(503, "UNAVAILABLE", "The model is overloaded."), "servers are not answering", 3, [0.5, 1.0]),
+            (gemini_error(400, "FAILED_PRECONDITION", "User location is not supported for the API use."), "was not accepted: User location", 1, []),
+            (rest.Unreachable("Could not reach Gemini. Check your internet connection."), "internet connection", 3, [0.5, 1.0]),
         ]
         for answer, words, sent, waited in cases:
             out, wire, _ = self.ask(answer)
@@ -773,7 +773,7 @@ class GeminiApiTest(WithWire):
             keys.delete()
             out, wire, _ = self.ask(gemini_reply("{}"), key=key)
             self.assertIsInstance(out, EngineError)
-            self.assertIn("API 키가 없어요", str(out))
+            self.assertIn("No API key", str(out))
             self.assertEqual(wire.calls, [])                                       # 남의 회사 키를 Google로 보내지 않아요
 
     def test_check_looks_at_the_key_and_the_model_only(self):
@@ -783,7 +783,7 @@ class GeminiApiTest(WithWire):
         self.assertEqual((wire.calls[0]["method"], wire.calls[0]["url"], wire.calls[0]["body"]),
                          ("GET", "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite", None))
         self.wire(GEMINI_BAD_KEY)
-        self.assertEqual(gemini_api.GeminiApiEngine(model="haiku").check(), {"ok": False, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."})
+        self.assertEqual(gemini_api.GeminiApiEngine(model="haiku").check(), {"ok": False, "reason": "The API key is not valid. Please enter it again."})
 
     def test_a_new_key_is_checked_without_spending_money(self):
         wire = self.wire((200, {"name": "models/gemini-3.5-flash-lite"}))
@@ -793,12 +793,12 @@ class GeminiApiTest(WithWire):
                          ("GET", "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite", None))   # 모델 정보만 물어요
         self.assertEqual((sent["headers"]["x-goog-api-key"], len(wire.calls)), (GEMINI_NEW_KEY, 1))
         self.assertEqual(self.keychain.items, {})
-        for answer, ok, verified, words in ((GEMINI_BAD_KEY, False, True, "API 키가 맞지 않아요"),
-                                            (gemini_error(401, "UNAUTHENTICATED", "Request had invalid authentication credentials."), False, True, "API 키가 맞지 않아요"),
-                                            (gemini_error(403, "PERMISSION_DENIED", "Requests from unrestricted keys are blocked."), False, True, "쓸 수 없어요: Requests"),
-                                            (gemini_error(404, "NOT_FOUND"), True, False, "이 키로 쓸 수 없는 모델이에요"),
-                                            (gemini_error(503, "UNAVAILABLE"), True, False, "서버가 잠시"),
-                                            (rest.Unreachable("Gemini에 닿지 못했어요. 인터넷 연결을 확인해 주세요."), True, False, "닿지 못했어요")):
+        for answer, ok, verified, words in ((GEMINI_BAD_KEY, False, True, "The API key is not valid"),
+                                            (gemini_error(401, "UNAUTHENTICATED", "Request had invalid authentication credentials."), False, True, "The API key is not valid"),
+                                            (gemini_error(403, "PERMISSION_DENIED", "Requests from unrestricted keys are blocked."), False, True, "cannot be used: Requests"),
+                                            (gemini_error(404, "NOT_FOUND"), True, False, "This key cannot use the model"),
+                                            (gemini_error(503, "UNAVAILABLE"), True, False, "servers are not"),
+                                            (rest.Unreachable("Could not reach Gemini. Check your internet connection."), True, False, "Could not reach")):
             wire = self.wire(answer)
             result = gemini_api.verify(GEMINI_NEW_KEY)
             self.assertEqual((result["ok"], result["verified"], len(wire.calls)), (ok, verified, 1), words)   # 한 번만 물어요
@@ -971,11 +971,11 @@ class EngineRoutesTest(WithKeychain):
         for key in ("", "hello", None, 42):
             response, verify = self.post(key)
             self.assertEqual(response.status_code, 400)
-            self.assertIn("API 키 모양이 아니에요", response.get_json()["reason"])
+            self.assertIn("does not look like an API key", response.get_json()["reason"])
             verify.assert_not_called()                                   # 모양이 아니면 물어보지도 않아요
-        response, _ = self.post(KEY, {"ok": False, "verified": True, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."})
+        response, _ = self.post(KEY, {"ok": False, "verified": True, "reason": "The API key is not valid. Please enter it again."})
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.get_json()["reason"], "API 키가 맞지 않아요. 키를 다시 넣어 주세요.")
+        self.assertEqual(response.get_json()["reason"], "The API key is not valid. Please enter it again.")
         self.assertEqual((self.keychain.items, response.get_json()["engine"]["resolved"]), ({}, "none"))
         self.assertEqual(self.client.post("/engine/key", data="key=" + KEY).status_code, 415)   # 다른 사이트가 폼으로 못 보내게
 
@@ -1001,7 +1001,7 @@ class EngineRoutesTest(WithKeychain):
             self.assertNotIn(key[:-4], response.get_data(as_text=True))
         picked = self.client.post("/engine/choose", json={"name": "anthropic_api"}).get_json()["engine"]
         self.assertEqual((picked["choice"], picked["resolved"]), ("anthropic_api", "gemini_api"))   # 예전에 골라 둔 이름이어도 지금 키의 회사로
-        response, verify = self.post(OPENAI_KEY, {"ok": False, "verified": True, "reason": "API 키가 맞지 않아요. 키를 다시 넣어 주세요."}, api=openai_api)
+        response, verify = self.post(OPENAI_KEY, {"ok": False, "verified": True, "reason": "The API key is not valid. Please enter it again."}, api=openai_api)
         self.assertEqual((response.status_code, self.keychain.items), (400, {("local.gadak.test", keys.ACCOUNT): GEMINI_NEW_KEY}))   # 틀린 키는 있던 키를 밀어내지 않아요
 
     def test_a_key_that_stops_working_shows_as_one_line_in_the_status(self):
@@ -1014,8 +1014,8 @@ class EngineRoutesTest(WithKeychain):
                                              "turn": {"messageRef": "m1", "user": "임계값은 얼마가 좋아?", "ai": "1,380원이 무난해요."}})
             self.assertTrue(self.rt.classifier.step(conn))
         status = self.client.get("/status").get_json()["classify"]
-        self.assertEqual((status["engine"], status["paused"], status["error"]), ("anthropic_api", True, "API 키가 맞지 않아요. 키를 다시 넣어 주세요."))
-        self.assertEqual(self.client.get("/engine").get_json()["error"], "API 키가 맞지 않아요. 키를 다시 넣어 주세요.")
+        self.assertEqual((status["engine"], status["paused"], status["error"]), ("anthropic_api", True, "The API key is not valid. Please enter it again."))
+        self.assertEqual(self.client.get("/engine").get_json()["error"], "The API key is not valid. Please enter it again.")
 
 
 class ConnectTest(unittest.TestCase):
@@ -1049,7 +1049,7 @@ class ConnectTest(unittest.TestCase):
     def test_what_is_missing_is_fetched_and_then_the_login_window_opens(self):
         started, job = self.run_job()
         self.assertEqual((started, self.steps, self.done), ({"ok": True}, ["install", "login"], ["claude_cli"]))
-        self.assertEqual((job["state"], job["message"]), ("done", "연결했어요."))
+        self.assertEqual((job["state"], job["message"]), ("done", "Connected."))
         self.steps.clear()
         self.state.update(found=True, logged_in=False)            # 깔려 있으면 로그인만
         self.assertEqual((self.run_job("codex_cli")[1]["state"], self.steps), ("done", ["login"]))
@@ -1064,13 +1064,13 @@ class ConnectTest(unittest.TestCase):
         self.assertIn("인터넷을 확인", job["message"])
         _, job = self.run_job(login=lambda name: None)             # 로그인 창을 닫아 버렸어요: 받기는 됐지만 고르지 않아요
         self.assertEqual((job["state"], self.done, self.state["found"]), ("failed", [], True))
-        self.assertIn("로그인이 끝나지 않았어요", job["message"])
+        self.assertIn("Sign-in did not finish", job["message"])
         def odd(name):
             raise ValueError("예상하지 못한 것")
         self.state.update(found=True, logged_in=False)
         _, job = self.run_job(login=odd)
         self.assertEqual(job["state"], "failed")
-        self.assertIn("연결하지 못했어요", job["message"])
+        self.assertIn("Could not connect", job["message"])
 
     def test_only_subscriptions_connect_this_way_and_one_at_a_time(self):
         self.assertEqual(connect.start("anthropic_api")["ok"], False)
@@ -1082,7 +1082,7 @@ class ConnectTest(unittest.TestCase):
             self.assertEqual(connect.start("claude_cli"), {"ok": True})
             second = connect.start("codex_cli")
             self.assertEqual(second["ok"], False)
-            self.assertIn("연결하는 중", second["reason"])
+            self.assertIn("Connecting", second["reason"])
             self.assertEqual(connect.status()["step"], "install")
             gate.set()
             for _ in range(200):                       # 뒤에서 돌던 것이 끝난 뒤에 가짜를 걷어요 (다음 테스트로 새지 않게)

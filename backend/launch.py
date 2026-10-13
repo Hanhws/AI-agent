@@ -1,6 +1,6 @@
 """가닥을 켜요.
 
-macOS에서는 가닥 앱이 켜요(만들기: python -m backend.launch --install-app, 또는 ‘가닥 설치.command’ 더블클릭).
+macOS에서는 가닥 앱이 켜요(만들기: python -m backend.launch --install-app, 또는 ‘Install Gadak.command’ 더블클릭).
 Windows에서는 깔아 둔 가닥(시작 메뉴의 가닥)이 --app으로 켜요 (설치 파일 만들기: python -m backend.winapp).
 앱 없이 켜거나 다른 운영체제에서는:
 
@@ -136,7 +136,7 @@ def serve(window=True, shell=False, parent=None, own=False) -> int:
         except OSError:
             time.sleep(0.5)
     if server is None:
-        busy = f"{config.PORT}번 포트를 다른 프로그램이 쓰고 있어요. GADAK_PORT로 다른 번호를 정해 주세요."
+        busy = f"Another program is using port {config.PORT}. Set a different number with GADAK_PORT."
         print(busy)
         if own:
             win.alert(busy)
@@ -149,9 +149,9 @@ def serve(window=True, shell=False, parent=None, own=False) -> int:
     if shell:
         print(f"{READY} {URL}", flush=True)
     else:
-        print(f"가닥을 켰어요: {URL}")
-        print("내 PC에 남은 대화 기록을 찾아 읽는 중이에요. 화면의 ‘찾은 곳’에서 무엇을 읽었는지 볼 수 있어요.")
-        print("끄려면 화면의 ‘끄기’를 누르거나 이 창에서 Ctrl+C.")
+        print(f"Gadak is on: {URL}")
+        print("Finding and reading the chat records on this computer. See what was read under Sources in the window.")
+        print("To stop, press Quit in the window or Ctrl+C here.")
     if own:
         threading.Timer(0.4, own_window, args=(rt,)).start()
     elif window:
@@ -160,7 +160,7 @@ def serve(window=True, shell=False, parent=None, own=False) -> int:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
-    print("가닥을 껐어요.")
+    print("Gadak is off.")
     return 0
 
 
@@ -184,7 +184,7 @@ def main(argv) -> int:
         return run(argv)
     except Exception:
         traceback.print_exc()
-        win.alert(f"가닥을 켜지 못했어요. 무슨 일인지는 여기에 적어 뒀어요.\n{config.HOME / 'gadak.log'}")
+        win.alert(f"Gadak could not start. What happened is written here:\n{config.HOME / 'gadak.log'}")
         return 1
 
 
@@ -197,11 +197,11 @@ def run(argv) -> int:
     if state is not None and state.get("code") != config.CODE and stop_old():
         # 켜져 있던 가닥이 예전 코드예요(코드를 고친 뒤에도 뒤에서 계속 돌던 것). 끄고 지금 코드로 다시 켜요
         if not shell:
-            print("켜져 있던 가닥이 예전 코드라서 끄고 다시 켜요.")
+            print("The running Gadak is an older version, so restarting it.")
         state = None
     if state is not None:
         # 같은 코드의 가닥이 이미 켜져 있으면 하나 더 켜지 않아요. 앱에는 그 주소에 붙으라고 알려요
-        print(f"{READY} {URL} attached" if shell else f"가닥이 이미 켜져 있어요: {URL}", flush=True)
+        print(f"{READY} {URL} attached" if shell else f"Gadak is already running: {URL}", flush=True)
         if window or own:
             open_window(own=own)      # 가닥만 쓰는 창이 이미 떠 있으면 브라우저가 그쪽에 창을 하나 더 열어요
         return 0

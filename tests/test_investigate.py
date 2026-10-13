@@ -180,19 +180,19 @@ class CheckTest(Base):
         todo = store.turn_full(self.conn, turn_id)["todo"]
         self.assertEqual(len(todo), 1)
         it = todo[0]
-        self.assertEqual((it["id"], it["kind"], it["btn"]), (turn_id + ":0", "unasked", "바뀐 곳 보기"))
+        self.assertEqual((it["id"], it["kind"], it["btn"]), (turn_id + ":0", "unasked", "See what changed"))
         self.assertEqual(it["text"], "임계값만 요청했는데 알림 문구도 바뀌었어요")
-        self.assertEqual(it["pop"]["title"], "요청 외 변경 · notify.py")
+        self.assertEqual(it["pop"]["title"], "Unrequested change · notify.py")
         self.assertIn(["d", '-    text = f"{pair} {rate}원"'], it["pop"]["diff"])
         self.assertIn(["a", '+    text = f"[환율 알림] {pair}이 {rate}원을 넘었어요"'], it["pop"]["diff"])
         self.assertEqual(it["pop"]["prompt"],
-                         "notify.py에서 “알림 문구” 부분은 내가 요청하지 않았어. 원래대로 되돌리고, “임계값” 변경만 남겨 줘.")
+                         "I didn't ask for the “알림 문구” part in notify.py. Put it back and keep only the “임계값” change.")
         self.assertEqual(self.row(turn_id)["checked"], 1)
         runs = trace.runs(self.conn, turn_id=turn_id)
         self.assertEqual(len(runs), 1)
         run = runs[0]
         self.assertEqual([s["tool"] for s in run["steps"]], ["get_diff", "get_request"])
-        self.assertEqual(run["steps"][0]["saw"], "파일 2개 · 바뀐 줄 4줄")
+        self.assertEqual(run["steps"][0]["saw"], "2 files · 4 lines changed")
         self.assertEqual(run["steps"][0]["think"], "파일 두 개가 바뀌었어요. 무엇이 바뀌었는지 봐요")
         self.assertEqual((run["ended"], run["calls"], run["trigger"]), ("finish", 3, ["unasked"]))
         self.assertEqual(run["items"], [{"id": turn_id + ":0", "kind": "unasked", "text": it["text"]}])
@@ -204,7 +204,7 @@ class CheckTest(Base):
         turn_id = self.unasked_turn([finish(item("unasked", file="notify.py", asked="임계값", what="알림 문구"))])
         self.assertNotIn("todo", store.turn_full(self.conn, turn_id))
         run = trace.runs(self.conn, turn_id=turn_id)[0]
-        self.assertEqual(run["dropped"], [{"kind": "unasked", "why": "바뀐 곳을 보지 않고 낸 결론이라 버렸어요"}])
+        self.assertEqual(run["dropped"], [{"kind": "unasked", "why": "Dropped: concluded without looking at what changed"}])
         self.assertEqual(self.row(turn_id)["checked"], 1)
 
     def test_a_file_the_turn_did_not_touch_is_dropped_and_wording_falls_back(self):
@@ -214,10 +214,10 @@ class CheckTest(Base):
                    item("unasked", text="아주 " * 40, file="/work/fx/notify.py", what="알림 문구")),
         ])
         todo = store.turn_full(self.conn, turn_id)["todo"]
-        self.assertEqual([t["text"] for t in todo], ["요청하지 않은 “알림 문구”도 바뀌었어요"])   # 너무 긴 글은 틀로
-        self.assertEqual(todo[0]["pop"]["prompt"], "notify.py에서 “알림 문구” 부분은 내가 요청하지 않았어. 원래대로 되돌려 줘.")
+        self.assertEqual([t["text"] for t in todo], ["“알림 문구” changed too, which you did not ask for"])   # 너무 긴 글은 틀로
+        self.assertEqual(todo[0]["pop"]["prompt"], "I didn't ask for the “알림 문구” part in notify.py. Put it back the way it was.")
         dropped = trace.runs(self.conn, turn_id=turn_id)[0]["dropped"]
-        self.assertEqual(dropped, [{"kind": "unasked", "why": "이 턴에서 바뀐 파일이 아니라 버렸어요"}])
+        self.assertEqual(dropped, [{"kind": "unasked", "why": "Dropped: that file was not changed in this turn"}])
 
     def test_the_last_step_can_only_finish(self):
         def stubborn(payload, schema):
@@ -262,7 +262,7 @@ class CheckTest(Base):
         self.assertEqual([p["maybe_missing"] for p in seen["parts"]], [False, True, True])
         run = trace.runs(self.conn, turn_id=turn_id)[0]
         self.assertEqual(run["missing"], [{"no": 2, "t": "테스트는 어떻게 하냐", "why": "답에 테스트 이야기가 없어요."}])
-        self.assertEqual(run["dropped"], [{"kind": "missing", "why": "이 턴에 없는 요청 번호라 버렸어요"}])
+        self.assertEqual(run["dropped"], [{"kind": "missing", "why": "Dropped: no request with that number in this turn"}])
         opened = tools.list_open_items(tools.Context(self.conn, self.row(turn_id)))["items"]
         self.assertEqual([i["id"] for i in opened], [turn_id + ":p2"])
 
@@ -290,10 +290,10 @@ class CheckTest(Base):
         todo = store.turn_full(self.conn, first)["todo"]
         self.assertEqual(len(todo), 1)
         it = todo[0]
-        self.assertEqual((it["kind"], it["btn"], it["text"]), ("handoff", "요약 붙이기", "지난 대화에서 정한 것 2개를 이 대화에 붙일까요?"))
+        self.assertEqual((it["kind"], it["btn"], it["text"]), ("handoff", "Paste summary", "Paste 2 decisions from the last chat into this one?"))
         date = store.display_date("2026-10-01T02:00:00+00:00")
-        self.assertEqual(it["pop"]["text"], f"지난 대화({date} 환율 알리미 기획)에서 정한 것\n1. 오전 11시 확인\n2. 텔레그램 봇\n"
-                                            "이 결정을 그대로 두고 이어서 진행해 줘.")
+        self.assertEqual(it["pop"]["text"], f"Decided in the last chat ({date} 환율 알리미 기획)\n1. 오전 11시 확인\n2. 텔레그램 봇\n"
+                                            "Keep these decisions as they are and carry on from here.")
         self.assertEqual(it["pop"]["prompt"], it["pop"]["text"])
 
 
@@ -324,10 +324,10 @@ class ToolsTest(Base):
         self.assertEqual((related["decisions"], [r["id"] for r in related["related"]]), ([], [b1]))
         self.assertIn("note", related)
         self.assertEqual(tools.search_decisions(ctx, "없는말")["decisions"], [])
-        self.assertEqual(tools.summary("search_decisions", found), "정한 것 1개")
+        self.assertEqual(tools.summary("search_decisions", found), "1 decision")
         with self.conn:
-            store.set_items(self.conn, b1, [{"kind": "unasked", "text": "하나", "why": "", "btn": "바뀐 곳 보기"},
-                                            {"kind": "unasked", "text": "둘", "why": "", "btn": "바뀐 곳 보기"}])
+            store.set_items(self.conn, b1, [{"kind": "unasked", "text": "하나", "why": "", "btn": "See what changed"},
+                                            {"kind": "unasked", "text": "둘", "why": "", "btn": "See what changed"}])
             store.set_item_state(self.conn, b1 + ":1", "done")
         self.assertEqual([i["text"] for i in tools.list_open_items(ctx)["items"]], ["하나"])
 
@@ -355,7 +355,7 @@ class WorkerTest(Base):
         self.clf.request(CHAT)
         self.run_worker()
         self.assertTrue(self.clf.status["paused"])
-        self.assertIn("2번", self.clf.status["error"])
+        self.assertIn("2 sorting calls", self.clf.status["error"])
         self.assertEqual(self.row(turn_id)["checked"], 0)                 # 끝까지 못 봤으니 다음에 다시
         self.assertEqual(self.clf.checker.tries[turn_id], 0)              # 한도는 턴 탓이 아니라 실패로 안 세요
         self.assertEqual(trace.runs(self.conn), [])
@@ -429,7 +429,7 @@ class TraceApiTest(unittest.TestCase):
             self.assertNotIn("<textarea", html)
             runs = client.get("/runs").get_json()["runs"]
             self.assertEqual(len(runs), 1)
-            self.assertEqual((runs[0]["steps"][0]["label"], runs[0]["turn"]["chat"]), ("바뀐 곳 보기", "알림 봇 구현"))
+            self.assertEqual((runs[0]["steps"][0]["label"], runs[0]["turn"]["chat"]), ("See what changed", "알림 봇 구현"))
             self.assertTrue(runs[0]["steps"][0]["data"]["cut"])                    # 큰 결과는 잘라서 남겨요
             self.assertEqual(client.get(f"/runs?project={PROJECT}").get_json()["runs"][0]["id"], runs[0]["id"])
             self.assertEqual(client.get("/runs?project=없음").get_json()["runs"], [])

@@ -22,18 +22,18 @@ def _conversations(data: bytes) -> list:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 name = next((n for n in archive.namelist() if n.split("/")[-1] == "conversations.json"), None)
                 if name is None:
-                    raise BadExport("zip 안에 conversations.json이 없어요")
+                    raise BadExport("There is no conversations.json in the zip")
                 data = archive.read(name)
         except zipfile.BadZipFile as exc:
-            raise BadExport("zip 파일을 열지 못했어요") from exc
+            raise BadExport("Could not open the zip file") from exc
     try:
         parsed = json.loads(data.decode("utf-8-sig"))
     except (ValueError, UnicodeDecodeError) as exc:
-        raise BadExport("JSON으로 읽지 못했어요") from exc
+        raise BadExport("Could not read it as JSON") from exc
     if isinstance(parsed, dict) and isinstance(parsed.get("conversations"), list):
         parsed = parsed["conversations"]
     if not isinstance(parsed, list):
-        raise BadExport("대화 목록이 아니에요")
+        raise BadExport("This is not a list of conversations")
     return [c for c in parsed if isinstance(c, dict)]
 
 
@@ -102,7 +102,7 @@ def read(data: bytes) -> list:
         if chat["id"] and chat["turns"]:
             out.append(chat)
     if not out:
-        raise BadExport("Claude나 ChatGPT의 대화 내보내기 파일이 아니에요")
+        raise BadExport("This is not a Claude or ChatGPT conversation export")
     return out
 
 

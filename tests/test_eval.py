@@ -85,14 +85,14 @@ class FeedTest(unittest.TestCase):
             self.assertEqual(list(fed["turns"]), [t["id"] for c in scenario["chats"] for t in c["turns"]])
             first, second = (store.chat_row(conn, c) for c in fed["chats"])
             self.assertLess(first["created_at"], second["created_at"])            # 뒤 대화가 더 새 대화여야 이어 가기가 걸려요
-            self.assertEqual((first["site"], first["project_id"]), ("cursor", "환율 알리미"))
+            self.assertEqual((first["site"], first["project_id"]), ("cursor", "Exchange-rate alert"))
             rows = store.chat_turns(conn, "demo:c2")
             self.assertEqual([r["message_ref"] for r in rows], ["b1", "b2", "b3", "b4", "b5", "b6"])
             self.assertTrue(all(r["state"] == "done" and r["classified"] == 0 and r["dec"] is None for r in rows))  # 정답 칸은 안 넣어요
             edits = conn.execute("SELECT file, old, new FROM edits WHERE turn_id = ?", (fed["turns"]["b5"],)).fetchall()
             self.assertEqual([e["file"] for e in edits], ["notify.py"])
-            self.assertIn("[환율 알림]", edits[0]["new"])
-            self.assertNotIn("[환율 알림]", edits[0]["old"])
+            self.assertIn("[Rate alert]", edits[0]["new"])
+            self.assertNotIn("[Rate alert]", edits[0]["old"])
             files = [r["name"] for r in conn.execute("SELECT name FROM files WHERE turn_id = ? ORDER BY name", (fed["turns"]["b5"],))]
             self.assertEqual(files, ["main.py", "notify.py"])
             conn.close()                                     # 임시 폴더를 지우기 전에 닫아요 (Windows는 열린 파일을 못 지워요)

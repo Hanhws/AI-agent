@@ -180,21 +180,21 @@ class ScoutTest(Story):
         self.assertEqual(first["decided"], [{"id": self.now, "seq": 3, "what": "임계값 1300원"}])
         self.assertEqual((first["earlier"][0]["title"], first["stages"]), ("알림 봇 구상", []))
         self.assertEqual((result["goal"], result["ended"], result["calls"], len(result["steps"])), ("환율 알림 봇 내보내기", "finish", 2, 3))
-        self.assertEqual([i["text"] for i in result["items"]], ["다른 길 · 디스코드로도 보내기", "미리 챙길 것 · 알림 채널부터 맞추기"])
+        self.assertEqual([i["text"] for i in result["items"]], ["Another way · 디스코드로도 보내기", "Prepare first · 알림 채널부터 맞추기"])
         other = result["items"][0]
-        self.assertEqual((other["kind"], other["btn"], other["pop"]["btn"]), ("next", "이 길 보기", "이 길로 묻기"))
+        self.assertEqual((other["kind"], other["btn"], other["pop"]["btn"]), ("next", "See this path", "Ask this way"))
         self.assertNotIn("at", other)
         text = other["pop"]["text"]
-        for line in ("지금 하려는 일\n환율 알림 봇 내보내기", "다른 길: 디스코드로도 보내기", "· ‘임계값 정하기’ (이 대화)",
+        for line in ("What you are trying to do\n환율 알림 봇 내보내기", "Another way: 디스코드로도 보내기", "· ‘임계값 정하기’ (this chat)",
                      "· 웹훅을 쓰면 디스코드로도 보낼 수 있어요. (10/1 알림 봇 구상 ‘디스코드 되냐’)",
-                     "보낼 글\n알림을 디스코드 웹훅으로도 보내게 해 줘."):
+                     "Text to send\n알림을 디스코드 웹훅으로도 보내게 해 줘."):
             self.assertIn(line, text)
         self.assertNotIn("지어낸", text)                                           # 출처가 도구 결과에 없는 줄은 빼요
         self.assertTrue(other["pop"]["prompt"].startswith("알림을 디스코드 웹훅으로도 보내게 해 줘."))
-        self.assertIn("참고로 미리 찾아본 것이야", other["pop"]["prompt"])
+        self.assertIn("For reference, here is what I looked up in advance", other["pop"]["prompt"])
         self.assertEqual((result["cut"], result["dropped"]), (1, [
-            {"kind": "onward", "why": "찾아본 것이 없는 길이라 버렸어요"},
-            {"kind": "other", "why": "출처로 칠 수 없는 줄 1개를 뺐어요 (길은 남겼어요)"}]))
+            {"kind": "onward", "why": "Dropped: nothing was found behind this path"},
+            {"kind": "other", "why": "Removed 1 line without a usable source (kept the path)"}]))
         self.assertEqual(result["paths"][1]["basis"], [{"id": self.second, "title": "환율 출처"}])   # 차례 번호로 가리켜도 돼요
         self.assertEqual(result["paths"][0]["found"], [{"line": "웹훅을 쓰면 디스코드로도 보낼 수 있어요.", "from": "turn", "source": self.asked}])
 
@@ -213,11 +213,11 @@ class ScoutTest(Story):
         )])
         result = ahead.scout(ctx, "asked", lambda *_: next(answers))
         self.assertEqual(result["steps"][-1]["data"]["turns"][0]["id"], self.first)            # 찾아봤지만 방금 대화의 것
-        self.assertEqual([i["text"] for i in result["items"]], ["이어 가기 · 알림 문구부터 정하기"])
+        self.assertEqual([i["text"] for i in result["items"]], ["Carry on · 알림 문구부터 정하기"])
         self.assertEqual([d["why"] for d in result["dropped"]], [
-            "근거가 된 턴이 이번에 본 기록에 없어서 버렸어요", "근거가 된 턴이 이번에 본 기록에 없어서 버렸어요",
-            "찾아본 것이 없는 길이라 버렸어요 (출처로 칠 수 없는 줄 1개)", "찾아본 것이 없는 길이라 버렸어요 (출처로 칠 수 없는 줄 1개)",
-            "길의 이름이나 보낼 글이 없어서 버렸어요", "모르는 종류라 버렸어요", "같은 종류의 길이 이미 있어서 버렸어요"])
+            "Dropped: its basis turn is not in the records seen this time", "Dropped: its basis turn is not in the records seen this time",
+            "Dropped: nothing was found behind this path (1 line without a usable source)", "Dropped: nothing was found behind this path (1 line without a usable source)",
+            "Dropped: no title or text to send", "Dropped: unknown kind", "Dropped: a path of the same kind already exists"])
         # 이 대화에서도 한참 앞의 턴은 출처가 돼요
         with mock.patch.object(ahead, "NEAR", 2):
             again = iter([step("search_turns", "뼈대"), done(path("check", basis=[self.now], found=[
@@ -309,7 +309,7 @@ class ScoutTest(Story):
         self.assertEqual(ahead.scout(ctx, "decided", lambda *_: next(figures))["items"], [])
         self.assertIn("(https://core.telegram.org/bots/faq#broadcasting)", item["pop"]["prompt"])   # 보낼 글에는 주소를 그대로
         self.assertNotIn("검색에 없던", item["pop"]["text"])
-        self.assertEqual(outside.summary("look_up", mine[0]["data"]), "찾은 것 1줄 · 검색 1번")
+        self.assertEqual(outside.summary("look_up", mine[0]["data"]), "1 line found · 1 search")
         self.assertIn("error", outside.look_up(tools.Context(self.conn, self.row(self.now)), "무엇"))   # 꺼 둔 동안
 
 
@@ -361,13 +361,13 @@ class OutsideTest(Story):
         read = outside.read_file(ctx, "README.md")
         self.assertEqual((read["path"], read["cut"], len(read["text"])), ("README.md", True, outside.READ_CHARS))
         self.assertEqual(outside.read_file(ctx, "src/main.py")["text"], "T = 1300\n")
-        refused = {"../outside.md": "안의 경로만", "/etc/hosts": "안의 경로만", "link.md": "밖을 가리키는",
-                   ".env": "비밀", "서버-정보.local.md": "비밀", "notes.md": "깃이 무시하는", "src/logo.png": "글 파일만",
-                   "big.md": "너무 큰", "bad.txt": "글로 읽을 수 없는", "없는파일.md": "파일이 없어요", "": "경로를"}
+        refused = {"../outside.md": "inside the working folder", "/etc/hosts": "inside the working folder", "link.md": "point outside",
+                   ".env": "secrets", "서버-정보.local.md": "secrets", "notes.md": "ignored by git", "src/logo.png": "Only text files",
+                   "big.md": "too large", "bad.txt": "cannot be read as text", "없는파일.md": "There is no file", "": "path of the file"}
         for name, why in refused.items():
             self.assertIn(why, outside.read_file(ctx, name).get("error", ""), name)
-        self.assertEqual(outside.summary("read_file", read), f"README.md · {read['lines']}줄 (한 부분만)")
-        self.assertEqual(outside.summary("list_files", listed), f"파일 {len(names)}개")
+        self.assertEqual(outside.summary("read_file", read), f"README.md · {read['lines']} lines (part only)")
+        self.assertEqual(outside.summary("list_files", listed), f"{len(names)} files")
         # 낱말로 찾기: 읽어도 되는 파일에서만
         hits = outside.search_files(ctx, "1300 설명")
         self.assertEqual(hits["files"], 2)
@@ -385,7 +385,7 @@ class OutsideTest(Story):
         for word in ("secret", "암호", "무시하는", "폴더 밖"):                       # .env · *.local.* · 깃이 무시하는 파일 · 폴더 밖
             self.assertEqual(outside.search_files(ctx, word)["hits"], [], word)
         self.assertIn("error", outside.search_files(ctx, "x"))
-        self.assertEqual(outside.summary("search_files", hits), "파일 2개에서 9줄 (더 있음)")
+        self.assertEqual(outside.summary("search_files", hits), "9 lines in 2 files (more)")
         spot = outside.read_file(ctx, "README.md:1500")
         self.assertEqual((spot["from_line"], spot["text"].splitlines()[0], spot["path"]), (1498, "설명 줄", "README.md"))
         with on():       # 작업 폴더가 있으면 가닥이 목차도 먼저 봐요. 길의 출처는 풀어 쓴 표기로 적어도 같은 파일이에요
@@ -393,7 +393,7 @@ class OutsideTest(Story):
                 {"line": "알림 채널이 아직 미정이에요.", "source": unicodedata.normalize("NFD", "가닥/계획.md") + ":3"}]))])
             result = ahead.scout(ctx, "decided", lambda system, payload, schema: next(answers)(json.loads(payload), schema))
         self.assertEqual([(s["tool"], s["arg"]) for s in result["steps"]],
-                         [("search_decisions", None), ("list_open_items", None), ("search_files", "계획 · 일정 · 미정 · 규칙이 적힌 곳")])
+                         [("search_decisions", None), ("list_open_items", None), ("search_files", "where plans · schedules · open questions · rules are written")])
         self.assertEqual(len(result["steps"][2]["data"]["hits"]), 3)
         self.assertEqual(len(result["items"]), 1)
 
@@ -426,7 +426,7 @@ class OutsideTest(Story):
         self.assertIn("inner/kept.md", names)
         self.assertNotIn("inner/draft.md", names)
         self.assertEqual(outside.search_files(ctx, "초안")["hits"], [])
-        self.assertIn("깃이 무시하는", outside.read_file(ctx, "inner/draft.md")["error"])
+        self.assertIn("ignored by git", outside.read_file(ctx, "inner/draft.md")["error"])
         self.assertEqual(outside.read_file(ctx, "inner/kept.md")["lines"], 2)
         self.assertIn({"path": "inner/kept.md", "line": 1, "text": "일정"}, outside.headings(ctx, ahead.PLAN_WORDS)["hits"])
         # 홈 · 문서 · 바탕화면처럼 넓은 곳에서 연 대화에서는 파일을 읽지 않아요
@@ -453,7 +453,7 @@ class OutsideTest(Story):
             names = [f["path"] for f in outside.list_files(ctx)["files"]]
             self.assertIn("README.md", names)                      # 저장소가 아닌 곳의 파일은 이름으로만 가려서 봐요
             self.assertNotIn("inner/kept.md", names)               # 저장소 안은 무엇을 무시하기로 했는지 몰라서 안 봐요
-            self.assertIn("깃을 쓸 수 없어서", outside.read_file(ctx, "inner/kept.md")["error"])
+            self.assertIn("git is not available", outside.read_file(ctx, "inner/kept.md")["error"])
             self.assertEqual(outside.read_file(ctx, "src/main.py")["text"], "T = 1300\n")
             run.assert_not_called()                                # 깃을 부르지 않아요 (개발자 도구 설치 창이 뜨지 않게)
             with self.conn:
@@ -484,7 +484,7 @@ class OutsideTest(Story):
         with on():
             result = ahead.scout(ctx, "decided", lambda *_: next(wrong))
         self.assertEqual([f["line"] for f in result["paths"][0]["found"]], ["10/10까지 알림 문구를 끝내야 해요."])
-        self.assertEqual((result["cut"], result["dropped"][0]["why"]), (3, "출처로 칠 수 없는 줄 3개를 뺐어요 (길은 남겼어요)"))
+        self.assertEqual((result["cut"], result["dropped"][0]["why"]), (3, "Removed 3 lines without a usable source (kept the path)"))
         self.assertEqual(ahead._figures("PR #2 · #4를 10/13에 85.5%로 3번"), {"#2", "#4", "10", "13", "85.5%"})
 
 
@@ -544,8 +544,8 @@ class WorkerTest(Story):
         self.assertEqual(sorted(runs), [("ahead",), ("missing",)])
         run = runs[("ahead",)]
         self.assertEqual((run["goal"], run["why"], run["paths"][0]["kind"], [s["label"] for s in run["steps"]]),
-                         ("환율 알림 봇 내보내기", "decided", "onward", ["정한 것 찾기", "열린 할 일 보기", "지난 물음 찾기"]))
-        self.assertEqual(run["items"], [{"id": ids[2] + ":a0", "kind": "next", "text": "이어 가기 · 알림 문구부터 정하기"}])
+                         ("환율 알림 봇 내보내기", "decided", "onward", ["Look up decisions", "See open to-dos", "Search past questions"]))
+        self.assertEqual(run["items"], [{"id": ids[2] + ":a0", "kind": "next", "text": "Carry on · 알림 문구부터 정하기"}])
         self.assertEqual(len([c for c in engine.calls if c[0] == "ahead"]), 2)
         records = [(r["name"], json.loads(r["fields_json"])) for r in self.conn.execute("SELECT * FROM usage")]
         self.assertIn(("item", {"kind": "next", "did": "made", "at": "auto"}), records)
@@ -564,7 +564,7 @@ class WorkerTest(Story):
             ids = self.junction(Engine(marks, ahead=[bad]))
         self.assertEqual((self.row(ids[2])["checked"], store.turn_items(self.conn, ids[2])), (1, []))   # 못 살펴도 확인은 끝
         seen = self.clf.checker.ahead_state(self.conn, CHAT)                       # 왜 아무것도 안 떴는지는 남겨요
-        self.assertEqual((seen["state"], seen["turn"], "형식" in seen["reason"]), ("failed", ids[2], True))
+        self.assertEqual((seen["state"], seen["turn"], "format" in seen["reason"]), ("failed", ids[2], True))
 
     def test_engine_trouble_pauses_and_the_turn_waits(self):
         marks = lambda p: labels(p, t3={"chose": True, "dec": "임계값 1300원"})
@@ -639,7 +639,7 @@ class WorkerTest(Story):
                 before = rt.classifier.status["calls"]
                 work()                                                                               # 1단이 먼저, 그다음 앞길
                 last = ids[2]
-                self.assertEqual([i["text"] for i in store.turn_items(conn, last)], ["이어 가기 · 첫 번째 길"])
+                self.assertEqual([i["text"] for i in store.turn_items(conn, last)], ["Carry on · 첫 번째 길"])
                 self.assertEqual([seen()[k] for k in ("state", "turn", "why", "paths")], ["done", last, "button", 1])
                 self.assertEqual(engine.calls[-1][1]["ahead"], {"why": "button"})
                 self.assertIn("look_up", engine.calls[-1][1]["tools"])
@@ -698,7 +698,7 @@ class ResearchTest(unittest.TestCase):
             self.run_with([{"type": "system"}])
         with self.assertRaises(EngineError) as caught:
             self.run_with([{"type": "result", "is_error": True, "result": "Not logged in · Please run /login"}])
-        self.assertIn("로그인", str(caught.exception))
+        self.assertIn("signed in", str(caught.exception))
         _, _, empty = self.run_with([{"type": "result", "is_error": False, "result": "글로 답했어요"}])
         self.assertEqual(empty, {"found": [], "searched": [], "dropped": 0})
 

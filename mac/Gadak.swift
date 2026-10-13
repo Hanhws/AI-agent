@@ -8,7 +8,7 @@
 // 백엔드를 찾는 차례
 //  1) 환경 변수 GADAK_ROOT · GADAK_PYTHON (시험할 때)
 //  2) 앱 안에 묶인 백엔드: Contents/Resources/backend/gadak-backend (남에게 건네는 앱 · python -m backend.macapp --bundle)
-//  3) Info.plist의 GadakRoot · GadakPython · GadakPath (내 PC의 저장소 폴더를 돌리는 앱 · ‘가닥 설치.command’)
+//  3) Info.plist의 GadakRoot · GadakPython · GadakPath (내 PC의 저장소 폴더를 돌리는 앱 · ‘Install Gadak.command’)
 
 import Cocoa
 import WebKit
@@ -20,8 +20,8 @@ func setting(_ key: String, _ envKey: String) -> String? {
     return Bundle.main.object(forInfoDictionaryKey: key) as? String
 }
 
-let helpTitle = "가닥 도움말"       // 메뉴 ‘도움말’의 항목 이름이자 그 창의 제목
-let floatEditTitle = "떠 있는 버튼 편집"
+let helpTitle = "Gadak Help"       // 메뉴 ‘도움말’의 항목 이름이자 그 창의 제목
+let floatEditTitle = "Edit Floating Buttons"
 
 /// 종이색 바탕 (docs/design/tokens.css의 --bg). 화면이 뜨기 전에 흰색이 번쩍이지 않게 해요.
 let paper = NSColor(name: nil) { appearance in
@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     /// Dock의 가닥 아이콘을 오른쪽 클릭하면: 떠 있는 버튼을 숨겼어도 여기서 바로 다시 켜요
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        let entry = NSMenuItem(title: float == nil ? "떠 있는 버튼 보이기" : "떠 있는 버튼 숨기기", action: #selector(toggleFloat(_:)), keyEquivalent: "")
+        let entry = NSMenuItem(title: float == nil ? "Show Floating Button" : "Hide Floating Button", action: #selector(toggleFloat(_:)), keyEquivalent: "")
         entry.target = self
         menu.addItem(entry)
         return menu
@@ -109,7 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1320, height: 860),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
-        window.title = "가닥"
+        window.title = "Gadak"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 900, height: 600)
@@ -137,7 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         if #available(macOS 13.3, *), env["GADAK_DEBUG"] == "1" { webView.isInspectable = true }
         content.addSubview(webView)
 
-        status = NSTextField(labelWithString: "가닥을 켜는 중이에요…")
+        status = NSTextField(labelWithString: "Starting Gadak…")
         status.font = .systemFont(ofSize: 14)
         status.textColor = .secondaryLabelColor
         status.translatesAutoresizingMaskIntoConstraints = false
@@ -209,11 +209,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             process.currentDirectoryURL = files.homeDirectoryForCurrentUser
         } else {
             guard let root = setting("GadakRoot", "GADAK_ROOT"), let python = setting("GadakPython", "GADAK_PYTHON") else {
-                return fail("이 앱에 가닥 폴더가 적혀 있지 않아요.", "가닥 폴더에서 ‘가닥 설치.command’를 다시 실행해 주세요.")
+                return fail("This app does not know where the Gadak folder is.", "Run ‘Install Gadak.command’ in the Gadak folder again.")
             }
             guard files.fileExists(atPath: root + "/backend/launch.py"), files.isExecutableFile(atPath: python) else {
-                return fail("가닥 폴더를 찾지 못했어요.",
-                            "\(root)\n\n폴더를 옮기거나 이름을 바꿨다면, 그 폴더의 ‘가닥 설치.command’를 다시 실행해 주세요.")
+                return fail("Could not find the Gadak folder.",
+                            "\(root)\n\nIf you moved or renamed the folder, run ‘Install Gadak.command’ in that folder again.")
             }
             process.executableURL = URL(fileURLWithPath: python)
             process.arguments = ["-u", "-m", "backend.launch"] + asked
@@ -241,7 +241,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             try process.run()
             backend = process
         } catch {
-            fail("가닥을 켜지 못했어요.", "\(process.executableURL?.path ?? "")\n\(error.localizedDescription)")
+            fail("Gadak could not start.", "\(process.executableURL?.path ?? "")\n\(error.localizedDescription)")
         }
     }
 
@@ -293,7 +293,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         if quitting { return }
         if url != nil && !ours { return }                       // 이미 켜져 있던 가닥에 붙었어요. 알려 주고 끝난 거예요
         if url != nil && code == 0 { return NSApp.terminate(nil) }   // 화면의 ‘끄기’를 눌렀어요
-        fail("가닥을 켜지 못했어요.", heard.trimmingCharacters(in: .whitespacesAndNewlines))
+        fail("Gadak could not start.", heard.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     func fail(_ message: String, _ detail: String) {
@@ -301,7 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         alert.alertStyle = .warning
         alert.messageText = message
         alert.informativeText = String(detail.suffix(900))
-        alert.addButton(withTitle: "종료")
+        alert.addButton(withTitle: "Quit")
         alert.runModal()
         NSApp.terminate(nil)
     }
@@ -370,7 +370,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let popup = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 720),
                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                              backing: .buffered, defer: false)
-        popup.title = "가닥"
+        popup.title = "Gadak"
         popup.isReleasedWhenClosed = false
         popup.tabbingMode = .disallowed
         popup.backgroundColor = paper
@@ -503,50 +503,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             bar.addItem(top)
             return list
         }
-        menu("가닥", [
-            item("가닥에 관하여", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+        menu("Gadak", [
+            item("About Gadak", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             .separator(),
-            item("가닥 가리기", #selector(NSApplication.hide(_:)), "h"),
-            item("기타 가리기", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
-            item("모두 보기", #selector(NSApplication.unhideAllApplications(_:))),
+            item("Hide Gadak", #selector(NSApplication.hide(_:)), "h"),
+            item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
+            item("Show All", #selector(NSApplication.unhideAllApplications(_:))),
             .separator(),
-            item("가닥 종료", #selector(NSApplication.terminate(_:)), "q"),
+            item("Quit Gadak", #selector(NSApplication.terminate(_:)), "q"),
         ])
-        menu("편집", [
-            item("실행 취소", Selector(("undo:")), "z"),
-            item("실행 복귀", Selector(("redo:")), "z", [.command, .shift]),
+        menu("Edit", [
+            item("Undo", Selector(("undo:")), "z"),
+            item("Redo", Selector(("redo:")), "z", [.command, .shift]),
             .separator(),
-            item("오려두기", #selector(NSText.cut(_:)), "x"),
-            item("복사하기", #selector(NSText.copy(_:)), "c"),
-            item("붙여넣기", #selector(NSText.paste(_:)), "v"),
-            item("전체 선택", #selector(NSText.selectAll(_:)), "a"),
+            item("Cut", #selector(NSText.cut(_:)), "x"),
+            item("Copy", #selector(NSText.copy(_:)), "c"),
+            item("Paste", #selector(NSText.paste(_:)), "v"),
+            item("Select All", #selector(NSText.selectAll(_:)), "a"),
         ])
         // 숨긴 버튼을 다시 켜는 길: 이 메뉴 · ⇧⌘B · Dock 아이콘 오른쪽 클릭(applicationDockMenu)
-        let floating = item("떠 있는 버튼", #selector(toggleFloat(_:)), "b", [.command, .shift])
+        let floating = item("Floating Button", #selector(toggleFloat(_:)), "b", [.command, .shift])
         floating.target = self
         floatItem = floating
-        menu("보기", [
-            item("다시 읽기", #selector(reloadPage(_:)), "r"),
-            item("뒤로", #selector(pageBack(_:)), "["),
-            item("앞으로", #selector(pageForward(_:)), "]"),
+        menu("View", [
+            item("Reload", #selector(reloadPage(_:)), "r"),
+            item("Back", #selector(pageBack(_:)), "["),
+            item("Forward", #selector(pageForward(_:)), "]"),
             .separator(),
-            item("실제 크기", #selector(zoomReset(_:)), "0"),
-            item("확대", #selector(zoomIn(_:)), "+"),
-            item("축소", #selector(zoomOut(_:)), "-"),
+            item("Actual Size", #selector(zoomReset(_:)), "0"),
+            item("Zoom In", #selector(zoomIn(_:)), "+"),
+            item("Zoom Out", #selector(zoomOut(_:)), "-"),
             .separator(),
             floating,
-            item("떠 있는 버튼 편집…", #selector(showFloatEditor(_:))),
+            item("Edit Floating Buttons…", #selector(showFloatEditor(_:))),
         ])
-        let windows = menu("윈도우", [
-            item("최소화", #selector(NSWindow.performMiniaturize(_:)), "m"),
-            item("확대/축소", #selector(NSWindow.performZoom(_:))),
+        let windows = menu("Window", [
+            item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
+            item("Zoom", #selector(NSWindow.performZoom(_:))),
             .separator(),
-            item("닫기", #selector(NSWindow.performClose(_:)), "w"),
+            item("Close", #selector(NSWindow.performClose(_:)), "w"),
         ])
         // 도움말: 가닥을 쓰는 법과 낱말 풀이 (backend/web/help.html)
         let guide = item(helpTitle, #selector(showHelp(_:)), "?")
         guide.target = self
-        let help = menu("도움말", [guide])
+        let help = menu("Help", [guide])
         NSApp.mainMenu = bar
         NSApp.windowsMenu = windows
         NSApp.helpMenu = help
