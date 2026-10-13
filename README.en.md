@@ -12,7 +12,7 @@ A team project for the AI applications course of the SNU Big Data & FinTech prog
 
 ## 1. At a glance
 
-| | |
+| Item | Summary |
 |---|---|
 | Problem | A chat piles up in one line, but work branches as it goes. Side questions, decisions and files get buried in the scroll |
 | Answer | Gadak sits beside the chat, reads the flow and draws it as a transit map. One question is one station, a decision is a large dot, a side trip is a grey branch, and a red dot marks where you are |
@@ -37,8 +37,8 @@ Existing tools (ChatGPT's branching, tree extensions) only draw the structure, o
 ## 3. What Gadak does
 
 <p>
-<img src="https://hanhws.github.io/AI-agent/assets/shots/en/feature-route.png" width="62%" alt="The route card: a main line with a side trip, a decided station and the current station">
-<img src="https://hanhws.github.io/AI-agent/assets/shots/en/feature-todo.png" width="30%" alt="The to-do list: an unrequested change, something that is yours to do and a missed request">
+<img src="https://hanhws.github.io/AI-agent/assets/shots/en/feature-route.png" width="62%" align="top" alt="The route card: a main line with a side trip, a decided station and the current station">
+<img src="https://hanhws.github.io/AI-agent/assets/shots/en/feature-todo.png" width="30%" align="top" alt="The to-do list: an unrequested change, something that is yours to do and a missed request">
 </p>
 
 | Feature | What it does |
@@ -86,14 +86,13 @@ We split each job into steps, marked the bottlenecks and decided where Gadak tak
 
 ```mermaid
 flowchart LR
-  T["New turn"] --> C["Stage 1 · classify<br>every turn · small model"]
-  C -->|"all other turns"| M["Station on the map"]
-  C -->|"only turns that meet a condition"| L["Stage 2 · checking loop<br>picks its own tools"]
-  L --> E{"Evidence seen directly?"}
-  E -->|"no"| D["Dropped<br>reason kept in the trace"]
-  E -->|"yes"| N["To-do · nudge"]
-  N --> H["The person reads and sends"]
-  N -->|"only the 2 kinds switched on"| A["Gadak sends it itself"]
+  C["Stage 1 · classify<br>every turn<br>small model"]
+  C -->|"other turns"| M["Station<br>on the map"]
+  C -->|"flagged turns"| L["Stage 2 · check<br>picks its own tools<br>looks at the evidence"]
+  L -->|"no evidence"| D["Dropped<br>reason in the trace"]
+  L -->|"evidence seen"| N["To-do · nudge"]
+  N --> H["The person<br>reads and sends"]
+  N -->|"2 approved kinds"| A["Gadak sends<br>it itself"]
 ```
 
 | Stage | When | What it does |
@@ -140,20 +139,27 @@ A larger model (Sonnet) was not better. It found every side trip but called twic
 
 ## 7. Structure and stack
 
-```
-[Claude Code · Codex]         session files ──────┐
-[Cursor]                      hooks ──────────────┼─▶ backend (Python · Flask · 127.0.0.1:7311 on your computer)
-[Claude · ChatGPT on the web] Chrome extension ───┤     ├─ sources/  find and read the records
-[Export files]                import ─────────────┘     ├─ agent/    stage 1 classify · stage 2 checking loop · look ahead · decision trace
-                                                        ├─ engines/  Claude subscription · ChatGPT subscription · LLM API key
-                                                        └─ store.py  one SQLite file (~/.gadak/gadak.db)
-        screens (shared/ui · plain JS, no framework)  ◀── map · to-dos · nudges
-        the Gadak window · the macOS app and floating button · the Windows window · the demo on the site
+```mermaid
+flowchart LR
+  A1["Claude Code · Codex<br>session files"] --> S
+  A2["Cursor<br>hooks"] --> S
+  A3["Claude · ChatGPT web<br>Chrome extension"] --> S
+  A4["Export files<br>import"] --> S
+  subgraph BE["Backend · your computer"]
+    S["sources/<br>find and read records"]
+    D[("store.py<br>one SQLite file")]
+    G["agent/<br>classify · checking loop<br>look ahead · decision trace"]
+    E["engines/<br>Claude · ChatGPT subscription<br>LLM API key"]
+    S --> D
+    D <--> G
+    G <--> E
+  end
+  D --> U["Screens · shared/ui<br>Gadak window · macOS app<br>Windows window · site demo"]
 ```
 
 | Layer | Used |
 |---|---|
-| Backend | Python 3.14 · Flask · SQLite. There is no separate server or database. Chats are stored only on your computer, and only while sorting does part of a turn go to the AI you connected |
+| Backend | Python 3.14 · Flask (`127.0.0.1:7311` on your computer) · SQLite (one file, `~/.gadak/gadak.db`). There is no separate server or database. Chats are stored only on your computer, and only while sorting does part of a turn go to the AI you connected |
 | LLM | Claude subscription (`claude -p`) · ChatGPT subscription (`codex exec`) · the Anthropic, OpenAI and Gemini APIs. The answer format is fixed with a JSON schema |
 | Screens | Plain JS and CSS, no framework. The line grammar is borrowed from Massimo Vignelli's 1972 New York subway map |
 | Apps | macOS: Swift (AppKit · WKWebView) with PyInstaller. Windows: embeddable Python with NSIS |
@@ -180,12 +186,12 @@ To run from source, start at the top of the tree of the edition you want (see se
 
 ```bash
 python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m backend.launch                 # opens the Gadak window. Add ?demo to the address for the made-up example
-.venv/bin/python -m unittest discover -s tests     # 385 tests (Korean edition) · 387 (English edition)
-.venv/bin/python -m eval                           # measures accuracy (on a computer that has the labelled conversation)
+.venv/bin/python -m backend.launch                 # open the Gadak window
+.venv/bin/python -m unittest discover -s tests     # 385 tests (Korean) · 387 (English)
+.venv/bin/python -m eval                           # measure accuracy
 ```
 
-On a Mac, double-clicking `Install Gadak.command` (English edition) or `가닥 설치.command` (Korean edition) builds the app and puts it in Applications.
+Add `?demo` to the address of the Gadak window to see the made-up example. `python -m eval` runs only on a computer that has the labelled conversation. On a Mac, double-clicking `Install Gadak.command` (English edition) or `가닥 설치.command` (Korean edition) builds the app and puts it in Applications.
 
 ## 9. Two editions
 
