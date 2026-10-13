@@ -103,13 +103,14 @@ def info_plist(root=None, python=None, bundled=False) -> dict:
         "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": "1",
-        "CFBundleDevelopmentRegion": "ko",
-        "CFBundleLocalizations": ["ko"],
+        # 영어판: 여기가 ko면 macOS가 그리는 것(파일 고르기 창 · 기본 메뉴 항목)이 영어 사용자에게도 한글로 떠요
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": ["en"],
         "LSMinimumSystemVersion": MIN_MACOS,
         "LSApplicationCategoryType": "public.app-category.productivity",
         "NSHighResolutionCapable": True,
         "NSPrincipalClass": "NSApplication",
-        "NSHumanReadableCopyright": "긴 대화도 가닥을 잡아 드려요.",
+        "NSHumanReadableCopyright": "Keep the thread of every long chat.",
         # 화면은 내 PC 안의 백엔드(http://127.0.0.1)에서 받아요
         "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     }

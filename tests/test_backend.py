@@ -137,6 +137,10 @@ class ScratchFolderTest(unittest.TestCase):
             conn.close()
             conn = store.connect(db)   # 예전 DB를 다시 열면 옮겨져요
             self.assertEqual(store.chat_row(conn, "c1")["project_id"], store.LOOSE_PROJECT)
+            # 목록에 보이는 이름은 영어예요. id는 한글판과 같아요 (두 판이 ~/.gadak을 같이 써요)
+            store.upsert_chat(conn, project=None, chat_id="c2", site="claude")
+            names = dict(conn.execute("SELECT id, name FROM projects WHERE id IN (?, ?)", (store.LOOSE_PROJECT, store.NO_PROJECT)).fetchall())
+            self.assertEqual(names, {store.LOOSE_PROJECT: "Chats without a folder", store.NO_PROJECT: "(No project)"})
             conn.close()
 
 

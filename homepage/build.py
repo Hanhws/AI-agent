@@ -2,17 +2,25 @@
 
     ./.venv/bin/python -m homepage.build            # dist/site/ 에 만들어요
     ./.venv/bin/python -m homepage.build --serve    # 만들고 http://127.0.0.1:7398 에서 보여 줘요
-    ./.venv/bin/python -m homepage.build --stamp    # dist/ 의 설치 파일로 downloads.json 을 다시 적어요
+    ./.venv/bin/python -m homepage.build --stamp    # dist/ 의 설치 파일(한국어판)로 downloads.json 을 다시 적어요
     ./.venv/bin/python -m homepage.build --artifact # Claude 아티팩트(비공개 미리보기)로 올릴 모양으로
+
+영어판 — <폴더>는 english 브랜치를 받아 둔 곳이에요 (예: git worktree add ../gadak-english english)
+    ./.venv/bin/python -m homepage.build --pull-english <폴더>    # 영어 화면 · 그림 · 설치 안내를 가져와요
+    ./.venv/bin/python -m homepage.build --stamp-english <폴더>   # 그 폴더의 dist/ 에 만든 설치 파일로 다시 적어요
 
 사이트는 정적 파일뿐이에요(서버 코드가 없어요). 주소가 어디든 돌게 모든 길을 상대 경로로 적어요.
 
-바로 써 보는 데모(app/)는 가닥 창(backend/web · shared/ui)을 그대로 복사해, 백엔드를 부르지 않고
+말마다 그 말의 가닥을 줘요. 한국어 쪽(뿌리)은 한국어판을, 영어 쪽(en/)은 영어판을 받게 하고, 데모 · 화면 그림 · 설치 안내도
+그 판의 것이에요. 영어판은 english 브랜치에 있어요(같은 자리의 파일을 영어로 바꾼 것이라 이 브랜치에 같이 둘 수 없어요).
+그래서 사이트가 쓰는 영어판 파일만 homepage/english/ 에 같은 경로로 가져와 두고(--pull-english), 사이트는 이 브랜치에서 만들어요.
+
+바로 써 보는 데모(app/ · en/app/)는 가닥 창(backend/web · shared/ui)을 그대로 복사해, 백엔드를 부르지 않고
 만든 예시(data/demo_conversations.json)만 보여 주게 몇 줄을 바꾼 것이에요. 실제 대화는 들어가지 않아요.
-바꾸는 줄은 PATCHES에 다 적혀 있고, 가닥 창의 코드가 달라져 그 줄을 못 찾으면 만들기를 멈춰요.
+바꾸는 줄은 PATCHES · TITLES에 다 적혀 있고, 가닥 창의 코드가 달라져 그 줄을 못 찾으면 만들기를 멈춰요.
 
 설치 파일은 사이트에 넣지 않아요. 받기 버튼은 GitHub Releases의 파일을 가리키고,
-파일 이름 · 크기 · 확인 값은 homepage/downloads.json 에 적어 둬요(--stamp 가 다시 적어요).
+파일 이름 · 크기 · 확인 값은 homepage/downloads.json 에 판마다 적어 둬요(--stamp · --stamp-english 가 다시 적어요).
 """
 from __future__ import annotations
 
@@ -38,46 +46,69 @@ REPO = "Hanhws/AI-agent"
 LANGS = ("ko", "en")             # 앞의 것이 사이트의 뿌리에 놓여요. 나머지는 그 이름의 폴더에
 PAGES = ("index", "download", "demo")
 DOWNLOADS = HERE / "downloads.json"
-GUIDE = ROOT / "docs" / "가닥-설치-안내.pdf"
-GUIDE_NAME = "gadak-install-guide.pdf"
-SHOTS = ROOT / "docs" / "install-guide" / "img"   # 설치 안내에 쓴 화면 그림(만든 예시). 아래 것만 사이트에 같이 써요
+ENGLISH = HERE / "english"       # english 브랜치에서 가져온 파일 (경로 그대로). 여기서 고치지 않고 --pull-english 로 다시 가져와요
+ENGLISH_BRANCH = "english"
+TREE = {"ko": ROOT, "en": ENGLISH}      # 말마다 그 판의 가닥 창 · 화면 그림이 있는 곳
+GUIDE = {"ko": Path("docs", "가닥-설치-안내.pdf"), "en": Path("docs", "gadak-install-guide.pdf")}      # 판마다의 설치 안내 (이 폴더에서의 경로)
+GUIDE_NAME = "gadak-install-guide.pdf"      # 사이트에서의 이름. 영어판은 en/ 아래에 같은 이름으로
+USAGE = {"ko": "docs/usage-guide.md", "en": "docs/usage-guide.en.md"}      # 발치의 ‘쓰는 법 자세히’가 가리키는 문서
+SHOTS = Path("docs", "install-guide", "img")      # 설치 안내에 쓴 화면 그림(만든 예시). 아래 것만 사이트에 같이 써요
 SITE_SHOTS = ("window.png", "map.png", "float-fan.png")
 
-# 설치 파일: dist/ 에서의 이름 → 올릴 때의 이름. GitHub는 한글 파일 이름을 지워 버려서 로마자로 올려요
-INSTALLERS = (
-    ("mac-arm64", "가닥-{v}-arm64.dmg", "Gadak-{v}-mac-arm64.dmg"),
-    ("mac-x86_64", "가닥-{v}-x86_64.dmg", "Gadak-{v}-mac-x86_64.dmg"),
-    ("win-setup", "가닥-{v}-windows-x64-설치.exe", "Gadak-{v}-windows-x64-setup.exe"),
-    ("win-zip", "가닥-{v}-windows-x64.zip", "Gadak-{v}-windows-x64.zip"),
-)
+# 설치 파일: 판마다 (열쇠, 만든 폴더의 dist/ 에서의 이름, 올릴 때의 이름)
+INSTALLERS = {
+    # GitHub는 한글 파일 이름을 지워 버려서 로마자로 올려요
+    "ko": (
+        ("mac-arm64", "가닥-{v}-arm64.dmg", "Gadak-{v}-mac-arm64.dmg"),
+        ("mac-x86_64", "가닥-{v}-x86_64.dmg", "Gadak-{v}-mac-x86_64.dmg"),
+        ("win-setup", "가닥-{v}-windows-x64-설치.exe", "Gadak-{v}-windows-x64-setup.exe"),
+        ("win-zip", "가닥-{v}-windows-x64.zip", "Gadak-{v}-windows-x64.zip"),
+    ),
+    # 영어판은 만든 이름 그대로 올려요 (영어 설치 안내 · ‘How to open Gadak.txt’에 적힌 이름과 같게)
+    "en": (
+        ("mac-arm64", "Gadak-{v}-arm64.dmg", "Gadak-{v}-arm64.dmg"),
+        ("mac-x86_64", "Gadak-{v}-x86_64.dmg", "Gadak-{v}-x86_64.dmg"),
+        ("win-setup", "Gadak-{v}-windows-x64-setup.exe", "Gadak-{v}-windows-x64-setup.exe"),
+        ("win-zip", "Gadak-{v}-windows-x64.zip", "Gadak-{v}-windows-x64.zip"),
+    ),
+}
 EXTENSION = ("extension", "Gadak-{v}-chrome-extension.zip")
+SUMS = "SHA256SUMS.txt"
 
 # 가닥 창을 데모로 옮길 때 가져오는 것
 APP_WEB = ("index.html", "app.css", "app.js", "map.html", "help.html")
 APP_DATA = "demo_conversations.json"
-# (파일, 원래 글, 바꿀 글): 백엔드 없이 만든 예시만 보여 주게 하는 줄들
+# (파일, 원래 글, 바꿀 글): 백엔드 없이 만든 예시만 보여 주게 하는 줄들. 두 판의 코드에서 같은 줄이에요
 PATCHES = (
-    ("index.html", "<title>가닥</title>", "<title>가닥 — 바로 써 보는 데모</title>"),
     ("web/app.js", "var S = { demo: params.has('demo'),", "var S = { demo: true,"),
     ("web/app.js", "R.mapFrame.src = 'map';", "R.mapFrame.src = 'map.html';"),   # /map 이 아니면 지도가 만든 예시를 그려요
     ("web/app.js", "window.open('help', 'gadak-help')", "window.open('help.html', 'gadak-help')"),
     ("map.html", '<script src="/ui/mark.js"></script>', '<script src="ui/mark.js"></script>'),
-    ("map.html", "<title>가닥 전체 지도</title>",
-     '<title>가닥 전체 지도 — 바로 써 보는 데모</title>\n<link rel="icon" href="../assets/gadak.svg" type="image/svg+xml">'),
 )
+# 제목은 판마다 달라요: (파일, 가닥 창의 제목, 데모의 제목)
+TITLES = {
+    "ko": (("index.html", "가닥", "가닥 — 바로 써 보는 데모"), ("map.html", "가닥 전체 지도", "가닥 전체 지도 — 바로 써 보는 데모"),
+           ("help.html", "가닥 도움말", "가닥 도움말")),
+    "en": (("index.html", "Gadak", "Gadak — live demo"), ("map.html", "Gadak System Map", "Gadak System Map — live demo"),
+           ("help.html", "Gadak Help", "Gadak Help")),
+}
+ICONLESS = ("map.html", "help.html")      # 가닥에서는 아이콘 없이 뜨던 쪽. 데모에서는 사이트의 아이콘을 붙여요 (없으면 브라우저가 /favicon.ico를 찾다 404)
 
 
 class Stop(Exception):
     """만들 수 없을 때 — 사람이 읽을 한 줄을 담아요."""
 
 
-def version() -> str:
-    return json.loads(DOWNLOADS.read_text(encoding="utf-8"))["version"]
+def edition(tree: Path = ROOT) -> str:
+    """그 폴더의 가닥이 어느 말의 판인지 (가닥 창의 <html lang>)."""
+    page = tree / "backend" / "web" / "index.html"
+    found = re.search(r'<html lang="([a-z]+)"', page.read_text(encoding="utf-8")[:400]) if page.is_file() else None
+    return found.group(1) if found else ""
 
 
-def downloads() -> dict:
-    """받기 버튼에 쓸 것: 파일마다 올린 이름 · 크기 · 확인 값과 받는 주소."""
-    info = json.loads(DOWNLOADS.read_text(encoding="utf-8"))
+def downloads(lang: str = LANGS[0]) -> dict:
+    """받기 버튼에 쓸 것: 그 판의 파일마다 올린 이름 · 크기 · 확인 값과 받는 주소."""
+    info = json.loads(DOWNLOADS.read_text(encoding="utf-8"))[lang]
     base = f"https://github.com/{REPO}/releases/download/{info['tag']}/"
     for item in info["files"].values():
         item["url"] = base + item["asset"]
@@ -95,12 +126,12 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def extension_zip(out: Path) -> Path:
+def extension_zip(out: Path, folder: Path | None = None, version: str | None = None) -> Path:
     """크롬 확장 폴더를 zip으로 묶어요. 같은 내용이면 늘 같은 파일이 나오게 시각과 차례를 고정해요."""
     import zipfile
 
-    folder, name = ROOT / EXTENSION[0], EXTENSION[1].format(v=version())
-    target = out / name
+    folder = folder or ROOT / EXTENSION[0]
+    target = out / EXTENSION[1].format(v=version or downloads()["version"])
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
         for path in sorted(p for p in folder.rglob("*") if p.is_file() and p.name != ".DS_Store"):
             entry = zipfile.ZipInfo(f"gadak-extension/{path.relative_to(folder).as_posix()}", (2026, 10, 12, 0, 0, 0))
@@ -110,41 +141,88 @@ def extension_zip(out: Path) -> Path:
     return target
 
 
-def stamp(staged: Path | None = None) -> dict:
-    """dist/ 의 설치 파일을 읽어 downloads.json 의 크기 · 확인 값을 다시 적어요.
-    staged 를 주면 올릴 이름으로 복사한 파일(과 확장 zip)을 그 폴더에 모아요."""
-    info = json.loads(DOWNLOADS.read_text(encoding="utf-8"))
+def stamp(lang: str = LANGS[0], staged: Path | None = None, source: Path | None = None) -> dict:
+    """그 판의 설치 파일을 읽어 downloads.json 의 크기 · 확인 값을 다시 적어요. source 는 그 판을 만든 폴더예요
+    (dist/ 와 extension/ 이 있는 곳 · 비우면 이 폴더). staged 를 주면 올릴 이름으로 복사한 파일 · 확장 zip · 확인 값 목록을 거기에 모아요."""
+    source = Path(source or ROOT)
+    if edition(source) != lang:
+        raise Stop(f"{source} 는 {lang} 판이 아니에요 (가닥 창의 말: {edition(source) or '모름'}). 영어판은 --stamp-english <english 브랜치를 받아 둔 폴더> 로 적어요.")
+    everything = json.loads(DOWNLOADS.read_text(encoding="utf-8"))
+    info = everything[lang]
     v = info["version"]
-    for key, local, asset in INSTALLERS:
-        path = ROOT / "dist" / local.format(v=v)
+    for key, local, asset in INSTALLERS[lang]:
+        path = source / "dist" / local.format(v=v)
         if not path.exists():
-            raise Stop(f"설치 파일이 없어요: dist/{path.name} (먼저 backend.macapp · backend.winapp 으로 만들어요)")
+            raise Stop(f"설치 파일이 없어요: {path} (먼저 backend.macapp · backend.winapp 으로 만들어요)")
         info["files"][key].update(asset=asset.format(v=v), bytes=path.stat().st_size, sha256=_sha256(path))
         if staged:
             shutil.copyfile(path, staged / asset.format(v=v))
     if staged:
-        packed = extension_zip(staged)
+        packed = extension_zip(staged, source / EXTENSION[0], v)
         info["files"]["extension"].update(asset=packed.name, bytes=packed.stat().st_size, sha256=_sha256(packed))
-    DOWNLOADS.write_text(json.dumps(info, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        lines = [f"{item['sha256']}  {item['asset']}" for item in sorted(info["files"].values(), key=lambda item: item["asset"])]
+        (staged / SUMS).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    DOWNLOADS.write_text(json.dumps(everything, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return info
 
 
-def demo(out: Path) -> Path:
-    """가닥 창을 out/app/ 에 복사해 만든 예시만 보여 주는 정적 페이지로 만들어요."""
-    app = out / "app"
+def english_files(tree: Path) -> list[Path]:
+    """사이트가 영어판에서 가져다 쓰는 파일들 (그 폴더에서의 경로)."""
+    files = [Path("backend", "web", name) for name in APP_WEB]
+    files += sorted(p.relative_to(tree) for p in (tree / "shared" / "ui").iterdir() if p.is_file() and p.name != ".DS_Store")
+    return files + [Path("data", APP_DATA)] + [SHOTS / name for name in SITE_SHOTS]
+
+
+def pull_english(source: Path, into: Path = ROOT) -> list[Path]:
+    """영어판 폴더(english 브랜치를 받아 둔 곳)에서 사이트가 쓰는 파일을 homepage/english/ 로, 영어 설치 안내를 docs/ 로 가져와요."""
+    source, into = Path(source).resolve(), Path(into).resolve()
+    kept = into / ENGLISH.relative_to(ROOT)
+    if edition(source) != "en":
+        raise Stop(f"{source} 는 영어판이 아니에요 (가닥 창의 말: {edition(source) or '모름'}). {ENGLISH_BRANCH} 브랜치를 받아 둔 폴더를 줘요.")
+    wanted = english_files(source)
+    missing = [rel for rel in wanted + [GUIDE["en"]] if not (source / rel).is_file()]
+    if missing:
+        raise Stop("영어판 폴더에 없는 파일이 있어요: " + ", ".join(path.as_posix() for path in missing))
+    fresh = kept.with_name(kept.name + ".new")              # 다 가져온 뒤에 바꿔 놓아요 (중간에 멈춰도 있던 것이 남게)
+    if fresh.exists():
+        shutil.rmtree(fresh)
+    for rel in wanted:
+        (fresh / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source / rel, fresh / rel)
+    if kept.exists():
+        shutil.rmtree(kept)
+    fresh.rename(kept)
+    if source != into:
+        (into / GUIDE["en"]).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source / GUIDE["en"], into / GUIDE["en"])
+    return wanted
+
+
+def _site(lang: str, *parts: str) -> Path:
+    """그 말의 것이 놓이는 자리 (사이트 뿌리에서부터): 첫 말은 뿌리에, 나머지는 그 이름의 폴더에."""
+    return Path(*(() if lang == LANGS[0] else (lang,)), *parts)
+
+
+def demo(out: Path, lang: str = LANGS[0]) -> Path:
+    """그 판의 가닥 창을 out/app/ (영어판은 out/en/app/) 에 복사해 만든 예시만 보여 주는 정적 페이지로 만들어요."""
+    tree, app = TREE[lang], out / _site(lang, "app")
+    up = "../" * len(_site(lang, "app").parts)             # 데모에서 사이트 뿌리까지
     (app / "web").mkdir(parents=True)
     (app / "data").mkdir()
     for name in APP_WEB:
         # index · map · help 는 가닥에서 뿌리 주소(/ · /map · /help)로 열리던 것이라 app/ 바로 아래에 둬요
         target = app / name if name.endswith(".html") else app / "web" / name
-        shutil.copyfile(ROOT / "backend" / "web" / name, target)
-    shutil.copytree(ROOT / "shared" / "ui", app / "ui")
-    shutil.copyfile(ROOT / "data" / APP_DATA, app / "data" / APP_DATA)
-    for name, old, new in PATCHES:
+        shutil.copyfile(tree / "backend" / "web" / name, target)
+    shutil.copytree(tree / "shared" / "ui", app / "ui", ignore=shutil.ignore_patterns(".DS_Store"))
+    shutil.copyfile(tree / "data" / APP_DATA, app / "data" / APP_DATA)
+    icon = f'\n<link rel="icon" href="{up}assets/gadak.svg" type="image/svg+xml">'
+    titles = tuple((name, f"<title>{old}</title>", f"<title>{new}</title>" + (icon if name in ICONLESS else ""))
+                   for name, old, new in TITLES[lang])
+    for name, old, new in PATCHES + titles:
         path = app / name
         text = path.read_text(encoding="utf-8")
         if text.count(old) != 1:
-            raise Stop(f"데모로 옮길 줄을 못 찾았어요: {name} 의 「{old}」 (가닥 창 코드가 바뀌었으면 homepage/build.py 의 PATCHES 를 맞춰요)")
+            raise Stop(f"데모로 옮길 줄을 못 찾았어요: {lang} 판 {name} 의 「{old}」 (가닥 창 코드가 바뀌었으면 homepage/build.py 의 PATCHES · TITLES 를 맞춰요)")
         path.write_text(text.replace(old, new), encoding="utf-8")
     return app
 
@@ -155,10 +233,7 @@ def _strings(lang: str) -> dict:
 
 def _where(lang: str, page: str) -> Path:
     """그 말 · 그 쪽이 놓이는 자리 (사이트 뿌리에서부터)."""
-    parts = [] if lang == LANGS[0] else [lang]
-    if page != "index":
-        parts.append(page)
-    return Path(*parts, "index.html")
+    return _site(lang, *(() if page == "index" else (page,)), "index.html")
 
 
 def _png_size(path: Path) -> tuple[int, int]:
@@ -168,14 +243,22 @@ def _png_size(path: Path) -> tuple[int, int]:
     return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
-def _shot(up: str, name: str, alt: str) -> Markup:
+def _shot_file(lang: str, name: str) -> tuple[Path, str]:
+    """화면 그림 한 장의 원본과 사이트에서의 자리. 그 판의 화면으로 찍은 것을 써요 (영어는 shots/en/)."""
+    folder = _site(lang).as_posix()
+    spot = "assets/shots/" + ("" if folder == "." else folder + "/") + name
+    for path in (HERE / "static" / "shots" / _site(lang, name), TREE[lang] / SHOTS / name):
+        if path.is_file():
+            return path, spot
+    raise Stop(f"화면 그림이 없어요: {lang} 판의 {name}")
+
+
+def _shot(up: str, lang: str, name: str, alt: str) -> Markup:
     """화면 그림 한 장. 크기를 같이 적어 두면 그림이 뜨기 전에도 자리가 잡혀요."""
-    path = next((p for p in (HERE / "static" / "shots" / name, SHOTS / name) if p.exists()), None)
-    if path is None:
-        raise Stop(f"화면 그림이 없어요: {name}")
+    path, spot = _shot_file(lang, name)
     width, height = _png_size(path)
     # --ratio(너비 ÷ 높이)는 옆 그림을 화면 높이에 맞춰 줄일 때 써요 (site.css의 .feat-media)
-    return Markup(f'<img src="{escape(up)}assets/shots/{escape(name)}" width="{width}" height="{height}" '
+    return Markup(f'<img src="{escape(up)}{escape(spot)}" width="{width}" height="{height}" '
                   f'style="--ratio: {width / height:.4f}" alt="{escape(alt)}" loading="lazy">')
 
 
@@ -189,9 +272,9 @@ def _date(lang: str, iso: str) -> str:
 def pages(out: Path) -> list[Path]:
     env = Environment(loader=FileSystemLoader(HERE / "pages"), autoescape=select_autoescape(["html"]),
                       undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)
-    info, made = downloads(), []
+    made = []
     for lang in LANGS:
-        text = _strings(lang)
+        text, info = _strings(lang), downloads(lang)
         for page in PAGES:
             where = _where(lang, page)
             up = "../" * (len(where.parts) - 1)            # 이 쪽에서 사이트 뿌리까지
@@ -199,8 +282,9 @@ def pages(out: Path) -> list[Path]:
             html = env.get_template(f"{page}.html").render(
                 t=text, lang=lang, page=page, root=up, dl=info, files=info["files"], other=other,
                 link={name: up + _where(lang, name).as_posix() for name in PAGES},
-                other_link=up + _where(other, page).as_posix(), guide=up + GUIDE_NAME,
-                shot=functools.partial(_shot, up), date=_date(lang, info["date"]))
+                other_link=up + _where(other, page).as_posix(), guide=up + _site(lang, GUIDE_NAME).as_posix(),
+                app=up + _site(lang, "app").as_posix() + "/", usage=f"{info['repo']}/blob/main/{USAGE[lang]}",
+                shot=functools.partial(_shot, up, lang), date=_date(lang, info["date"]))
             target = out / where
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(html.strip() + "\n", encoding="utf-8")
@@ -209,12 +293,16 @@ def pages(out: Path) -> list[Path]:
 
 
 def assets(out: Path) -> None:
-    shutil.copytree(HERE / "static", out / "assets")
-    shots = out / "assets" / "shots"
-    shots.mkdir(exist_ok=True)
-    for name in SITE_SHOTS:
-        shutil.copyfile(SHOTS / name, shots / name)
-    shutil.copyfile(GUIDE, out / GUIDE_NAME)
+    shutil.copytree(HERE / "static", out / "assets", ignore=shutil.ignore_patterns(".DS_Store"))
+    for lang in LANGS:
+        for name in SITE_SHOTS:
+            path, spot = _shot_file(lang, name)
+            (out / spot).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, out / spot)
+        if not (ROOT / GUIDE[lang]).is_file():
+            raise Stop(f"설치 안내 PDF가 없어요: {GUIDE[lang]}")
+        (out / _site(lang)).mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / GUIDE[lang], out / _site(lang, GUIDE_NAME))
     (out / ".nojekyll").write_text("", encoding="utf-8")   # GitHub Pages가 파일을 그대로 내보내게
 
 
@@ -236,11 +324,17 @@ def for_artifact(out: Path) -> None:
 
 
 def build(out: Path = OUT, artifact: bool = False) -> Path:
+    if edition() != LANGS[0]:
+        raise Stop(f"배포 사이트는 한국어판(main)에서 만들어요. 여기는 {edition() or '모르는'} 판이라 한국어 데모를 만들 수 없어요. "
+                   f"영어 화면을 사이트에 반영하려면 main에서 python -m homepage.build --pull-english <이 폴더> 를 돌려요.")
+    if not ENGLISH.is_dir():
+        raise Stop(f"영어판 파일이 없어요: {ENGLISH.relative_to(ROOT)} ({ENGLISH_BRANCH} 브랜치를 받아 둔 폴더에서 --pull-english 로 가져와요)")
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
     assets(out)
-    demo(out)
+    for lang in LANGS:
+        demo(out, lang)
     pages(out)
     if artifact:
         for_artifact(out)
@@ -259,15 +353,22 @@ def main(argv=None) -> int:
     parser.add_argument("--out", type=Path, default=OUT, help="만들 폴더 (기본 dist/site)")
     parser.add_argument("--serve", action="store_true", help=f"만든 뒤 127.0.0.1:{PORT} 에서 보여 주기")
     parser.add_argument("--port", type=int, default=PORT)
-    parser.add_argument("--stamp", action="store_true", help="dist/ 의 설치 파일로 downloads.json 다시 적기")
-    parser.add_argument("--stage", type=Path, help="--stamp 와 같이: 올릴 이름으로 복사한 파일을 모을 폴더")
+    parser.add_argument("--stamp", action="store_true", help="dist/ 의 설치 파일(한국어판)로 downloads.json 다시 적기")
+    parser.add_argument("--stamp-english", type=Path, metavar="폴더", help=f"{ENGLISH_BRANCH} 브랜치를 받아 둔 폴더의 dist/ (영어판)로 다시 적기")
+    parser.add_argument("--stage", type=Path, help="--stamp · --stamp-english 와 같이: 올릴 이름으로 복사한 파일을 모을 폴더")
+    parser.add_argument("--pull-english", type=Path, metavar="폴더", help=f"{ENGLISH_BRANCH} 브랜치를 받아 둔 폴더에서 영어 화면 · 그림 · 설치 안내 가져오기")
     parser.add_argument("--artifact", action="store_true", help="Claude 아티팩트로 올릴 모양으로 (기본 폴더는 dist/site-artifact)")
     args = parser.parse_args(argv)
     try:
-        if args.stamp:
+        if args.pull_english:
+            pulled = pull_english(args.pull_english)
+            print(f"가져왔어요: {len(pulled)}개 → {ENGLISH.relative_to(ROOT)}/ · {GUIDE['en']}")
+            if edition() != LANGS[0]:
+                return 0                 # 영어판 폴더 안에서 돌렸으면 가져오기만 해요 (사이트는 main에서 만들어요)
+        if args.stamp or args.stamp_english:
             if args.stage:
                 args.stage.mkdir(parents=True, exist_ok=True)
-            info = stamp(args.stage)
+            info = stamp("en", args.stage, args.stamp_english) if args.stamp_english else stamp(LANGS[0], args.stage)
             for item in info["files"].values():
                 print(f"{item['sha256'][:16]}…  {item['bytes']:>10,}  {item['asset']}")
         out = build(args.out if args.out != OUT or not args.artifact else OUT.with_name("site-artifact"), args.artifact)

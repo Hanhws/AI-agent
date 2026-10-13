@@ -60,14 +60,17 @@ GROUP_SCHEMA = {
     }}},
     "required": ["chats"], "additionalProperties": False,
 }
-GROUP_BATCH, GROUP_ASKS, GROUP_ASK_MAX, GROUP_NAME_MAX = 60, 3, 120, 20
+GROUP_BATCH, GROUP_ASKS, GROUP_ASK_MAX, GROUP_NAME_MAX = 60, 3, 120, 30
 
 CHUNK = 8                 # 한 번에 묻는 턴 수
 USER_CLIP = 500           # 질문은 앞부분
 AI_HEAD, AI_TAIL = 500, 400   # 답은 앞과 끝 (결론은 끝에 있어요). 간추리려면 분류할 때(220 · 220)보다 넉넉히 봐야 해요
-GIST_LINES, GIST_MAX = 4, 70  # 답 간추림: 줄 수 · 한 줄 길이
+GIST_LINES, GIST_MAX = 4, 100  # 답 간추림: 줄 수 · 한 줄 길이
 STATE_MAINS, STATE_DECISIONS = 12, 8
-TITLE_MAX, SEG_MAX, DEC_MAX, PART_MAX = 18, 12, 40, 60   # 역 라벨은 두 줄(12자 안팎)까지 보여요
+# 영어판: 글자 수 한도를 프롬프트가 말한 낱말 수에 맞췄어요 (역 이름 2–5 · 구간 1–3 · 간추림 한 줄 8–12 · 프로젝트 이름 1–4 낱말).
+# 한글 기준(18 · 12 · 70 · 20)으로는 영어가 거의 다 잘려요. 역 이름은 임시 제목(store.TITLE_LEN)과 같은 길이예요.
+# 구간 이름은 노선도가 글 너비를 재서 자리를 벌리니 조금 넉넉히 둬요
+TITLE_MAX, SEG_MAX, DEC_MAX, PART_MAX = 28, 28, 40, 60
 DEC_NOTE_MAX = 120        # 정한 것을 풀어 쓴 한 문장 (이어 가기 요약에 써요)
 MAX_TRIES = 2
 SEG_MIN, SEG_EVERY = 6, 6  # 정리된 역이 이만큼 있고, 지난 구간 나누기 뒤로 이만큼 늘면 대화 전체를 보고 다시 나눠요
@@ -87,7 +90,10 @@ def _clip_ends(text, head, tail):
 def _word(value, limit):
     value = " ".join(value.split()) if isinstance(value, str) else ""
     if len(value) > limit:
-        value = value[:limit - 1].rstrip() + "…"
+        cut = value[:limit - 1]
+        if value[limit - 1] != " " and " " in cut[4:]:
+            cut = cut.rsplit(" ", 1)[0]          # 낱말 중간에서 끊지 않아요 (store.provisional_title과 같은 규칙)
+        value = cut.rstrip() + "…"
     return value or None
 
 
@@ -242,7 +248,7 @@ def apply_groups(conn, chat_ids, output) -> int:
     picks = {}
     for item in (output or {}).get("chats") or []:
         name = _word(item.get("project"), GROUP_NAME_MAX) if isinstance(item, dict) else None
-        if name and name != "(프로젝트 없음)" and item.get("id") in chat_ids:
+        if name and name not in ("(프로젝트 없음)", store.NO_PROJECT_NAME) and item.get("id") in chat_ids:
             picks[item["id"]] = store.project_key(name)
     sizes = collections.Counter(picks.values())
     return sum(store.move_chat(conn, chat_id, name) for chat_id, name in picks.items()

@@ -107,6 +107,12 @@ class MacAppTest(unittest.TestCase):
         self.assertNotIn("LSUIElement", info)       # Dock에 보이는 보통 앱이에요
         plistlib.loads(plistlib.dumps(info))         # plist로 쓸 수 있는 값만
 
+    def test_the_english_app_says_it_runs_in_english(self):
+        """여기가 ko면 macOS가 그리는 것(파일 고르기 창 · 기본 메뉴 항목)이 영어 사용자에게도 한글로 떠요."""
+        info = macapp.info_plist(bundled=True)
+        self.assertEqual((info["CFBundleDevelopmentRegion"], info["CFBundleLocalizations"]), ("en", ["en"]))
+        self.assertTrue(all(str(value).isascii() for value in info.values()), info)     # 정보 창에 보이는 글도 영어
+
     @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_search_path_keeps_only_real_folders_once(self):
         with tempfile.TemporaryDirectory() as tmp, \

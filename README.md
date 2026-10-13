@@ -40,6 +40,8 @@
 
 **10/13 갱신 · 배포 사이트** — 가닥을 소개하고 받게 하는 사이트를 올렸어요: https://hanhws.github.io/AI-agent/ (소개 · OS별 받기와 처음 여는 법 · 설치 없이 눌러 보는 데모 · 토큰과 비용 · 한국어와 영어). 원본은 `homepage/`이고 `./.venv/bin/python -m homepage.build`로 만들어요. 설치 파일 넷과 크롬 확장 zip은 GitHub Releases(`v0.1.0`)에 올렸어요. 사이트의 데모는 가닥 창(`backend/web` · `shared/ui`)을 복사해 만든 예시만 보여 주게 한 것이라, 가닥 창을 고치면 `tests/test_homepage.py`가 데모가 깨지지 않는지 봐요. 자세한 것은 `docs/changes-detail.md` 29번.
 
+**10/13 갱신 (2) · 영어판** — 화면 · 프롬프트 · 만든 예시 · 설치 안내가 영어인 가닥이 `english` 브랜치에 따로 있어요(기획 담당 · 기능은 같아요). 같은 자리의 파일을 영어로 바꾼 것이라 `main`에 합치지 않고 따로 배포해요: 설치 파일은 GitHub Releases `v0.1.0-en`, 받는 곳은 사이트의 영어 쪽(https://hanhws.github.io/AI-agent/en/). 사이트는 `main`에서 만들고 말마다 그 판을 줘요. 영어 쪽이 쓰는 영어판 파일만 `homepage/english/`에 사본으로 둬요. 영어 문서는 `README.en.md` · `docs/gadak-install-guide.pdf`(설치 안내) · `docs/usage-guide.en.md`(쓰는 법). 두 판을 어떻게 맞춰 가는지는 `docs/handoff-english.md`, 10/13에 한 일은 `docs/changes-detail.md` 30번.
+
 **10/3 갱신 (3) · 2단** — 놓친 일을 찾는 2단(도구 넷 · 도구 루프 · 판단 기록)을 만들었어요. 1단이 같은 호출에서 후보를 내고, 걸린 턴만 2단이 기록을 다시 읽어 빠진 요청 · 요청 외 변경 · 이어 가기를 할 일에 올려요. 판단 기록은 `/trace`. 바뀐 곳은 3-1과 `docs/changes-detail.md` 8번.
 
 ---
@@ -54,7 +56,7 @@
 ├─ Install Gadak.command            ← 한 번 더블클릭하면 가닥 앱이 응용 프로그램 폴더에 생겨요 (macOS). 쓰는 법은 docs/usage-guide.md
 ├─ CLAUDE.md                    ← Claude Code가 자동으로 읽는 작업 규칙
 ├─ .cursor/rules/gadak.mdc      ← Cursor가 자동으로 읽는 작업 규칙 (내용은 CLAUDE.md와 같음)
-├─ homepage/                   ← 배포 사이트의 원본 (소개 · 받기 · 바로 써 보는 데모 · 한국어 · 영어). 만드는 법은 homepage/README.md
+├─ homepage/                   ← 배포 사이트의 원본 (소개 · 받기 · 바로 써 보는 데모 · 한국어 · 영어). 만드는 법은 homepage/README.md. english/ 는 영어판(english 브랜치)에서 가져온 사본
 ├─ prototype/
 │  ├─ index.html                ← ★ 화면의 정답. 브라우저로 바로 열림 (파일 하나, 라이브러리 없음)
 │  └─ symbol.html               ← 심볼 시안 A · B · C (A 채택)
@@ -431,7 +433,7 @@ gadak/
 ├─ mac/                  macOS 앱의 겉: Gadak.swift(창 · Dock · 메뉴. 켜지면 백엔드를 뒤에서 돌림) · Float.swift(다른 앱 위에 떠 있는 가닥 버튼 · 위쪽 노선도 창) · FloatCheck.swift(그 버튼을 앱이 스스로 확인) · backend_main.py(앱 안에 묶는 백엔드의 첫 줄) · icon.swift(아이콘)
 ├─ prototype/            지금 이 프로토타입 (화면 기준점, 수정 금지에 가깝게)
 ├─ win/                  Windows 설치 프로그램의 틀(gadak.nsi · NSIS) · 아이콘(gadak.ico). 만드는 것은 backend/winapp.py
-├─ homepage/             배포 사이트: build.py(만들기 · dist/site/) · strings/(글 · 한국어와 영어) · pages/(쪽의 틀) · static/(모양 · 움직이는 노선도) · downloads.json(받기 버튼의 주소 · 크기 · 확인 값). 데모는 backend/web · shared/ui의 정적 사본
+├─ homepage/             배포 사이트: build.py(만들기 · dist/site/) · strings/(글 · 한국어와 영어) · pages/(쪽의 틀) · static/(모양 · 움직이는 노선도) · downloads.json(받기 버튼의 주소 · 크기 · 확인 값 · 판마다) · english/(영어 쪽이 쓰는 영어판 파일의 사본). 데모는 backend/web · shared/ui의 정적 사본
 ├─ docs/                 schema · agent-prompt · design · survey
 ├─ data/                 example_conversations.json (각자 PC) · demo_conversations.json (만든 예시)
 ├─ shared/ui/            ★ 모든 입구가 같이 쓰는 화면 (prototype에서 분리)
@@ -843,6 +845,7 @@ Scenario(프로토타입 전용) = { key, name, site, url, project?, defScope?, 
 | 10/8 | ‘AI 연결’의 API 키 칸이 OpenAI · Gemini 키도 받음. 칸은 하나(이름 ‘LLM API 키’)이고 회사는 가닥이 키를 보고 알아봄. 엔진 `openai_api` · `gemini_api`를 더함 | 구현 담당이 정한 것. Anthropic 키만 받으면 다른 회사 키를 가진 사람은 쓸 수 없었어요. 10/3에 정한 ‘분류용 LLM은 Claude’와 달라져요(그 키로는 GPT · Gemini가 분류해요). 그 모델들로는 정확도를 재지 않았고, 실제 키로 불러 보지도 못했어요 |
 | 10/12 | 건네는 설치 파일을 Mac용 둘(Apple Silicon · Intel)과 Windows용 둘(설치 프로그램 · zip)로. Windows 판은 파이썬과 코드를 폴더째 깔고, 창은 Edge의 주소창 없는 창, 키는 자격 증명 관리자. 떠 있는 버튼 · 대신 받아 주기 · hook 연결 · Claude 한도 게이지는 Windows에서 뺌 | 구현 담당이 정한 것. Windows를 쓰는 사람도 받아서 쓸 수 있게 하려고요. 돌려 보지 못한 hook을 남의 프로그램 설정에 적지 않으려고 그쪽은 막았어요. Windows PC가 없어 Wine으로만 확인했고, 진짜 Windows에서는 아직 켜 보지 못했어요 |
 | 10/13 | 배포 사이트를 GitHub Pages에(https://hanhws.github.io/AI-agent/), 설치 파일은 GitHub Releases에. 사이트의 데모는 가닥 창의 정적 사본(만든 예시만) · 한국어와 영어 · 만든 사람은 실명 없이 과정 이름만 | 구현 담당이 정한 것. 둘 다 무료이고 저장소와 같은 곳에 있어요. 설치 파일을 깃에 넣으면 지울 수 없이 쌓여서 Releases에 뒀어요. 10/3에 정한 ‘배포 웹 데모는 미리 분류해 둔 예시만’을 그대로 지켰어요. 사이트의 글 · 모양 · 토큰 숫자는 기획 담당 확인 전이에요 |
+| 10/13 | 영어판은 `english` 브랜치에 따로 두고 따로 배포(GitHub Releases `v0.1.0-en`). 앱 안에 말을 바꾸는 스위치는 없음. 사이트는 말마다 그 판을 주고, 영어 쪽이 쓰는 영어판 파일은 `homepage/english/`에 사본으로 | 기획 담당이 영어판을 브랜치로 만들었어요. 같은 자리의 파일을 영어로 바꾼 것이라 `main`에 같이 둘 수 없어요. 사이트는 한 곳(`main`)에서 만들어야 해서, 거기에 필요한 파일만 가져와요 |
 
 ---
 

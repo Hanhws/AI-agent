@@ -143,6 +143,9 @@ ADDED_COLUMNS = {
 
 NO_PROJECT = "_none"
 LOOSE_PROJECT = "폴더 없는 대화"   # Claude 데스크톱이 폴더 없이 연 세션은 앱이 만든 임시 폴더(scratch-workspaces)에서 돌아요
+# 위 둘이 목록에 보일 때의 이름. id는 한글판과 같게 둬요(두 판이 ~/.gadak을 같이 써요). 한글판이 먼저 만든 줄의 이름은 그대로예요
+NO_PROJECT_NAME = "(No project)"
+LOOSE_NAME = "Chats without a folder"
 TITLE_LEN = 28
 MAX_AI = 20000            # 답이 아주 긴 턴은 앞 조금과 끝을 남겨요 (결론은 끝에 있어요)
 AI_HEAD = 4000
@@ -202,7 +205,7 @@ def _create(conn) -> None:
     _add_columns(conn)
     # 폴더 없이 연 데스크톱 대화(임시 폴더)는 한 프로젝트로 묶어요
     if conn.execute("SELECT 1 FROM chats WHERE cwd LIKE '%/scratch-workspaces/%' LIMIT 1").fetchone():
-        conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (LOOSE_PROJECT, LOOSE_PROJECT))
+        conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (LOOSE_PROJECT, LOOSE_NAME))
         conn.execute("UPDATE chats SET project_id = ? WHERE cwd LIKE '%/scratch-workspaces/%'", (LOOSE_PROJECT,))
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
@@ -248,7 +251,7 @@ def upsert_chat(conn, *, project, chat_id, site, title=None, created_at=None, vi
     project_id = project or NO_PROJECT
     conn.execute(
         "INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)",
-        (project_id, project or "(프로젝트 없음)"),
+        (project_id, LOOSE_NAME if project == LOOSE_PROJECT else project or NO_PROJECT_NAME),
     )
     conn.execute(
         "INSERT OR IGNORE INTO chats(id, project_id, title, site, created_at, via, cwd) VALUES(?, ?, ?, ?, ?, ?, ?)",

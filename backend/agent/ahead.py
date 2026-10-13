@@ -56,7 +56,8 @@ ASK_GAP = 2           # 사용자가 물어서 살핀 뒤에는 이만큼의 턴
 LOOKUPS = 2           # 한 번 살필 때 웹에서 찾아보는 횟수의 한도
 OUTLINE, RECENT, DECIDED, EARLIER = 40, 4, 12, 6
 USER_NOW, USER_RECENT, ANSWER_END = 800, 300, 700
-GOAL_MAX, TITLE_MAX, TEXT_MAX, WHY_MAX, LINE_MAX, ASK_MAX, ARG_MAX = 80, 44, 60, 200, 120, 600, 200
+# 영어판: 가려는 곳(8–12 낱말) · 길의 제목(4–7 낱말)이 잘리지 않게. 할 일에 뜨는 글은 ‘Prepare first · 제목’이 다 들어가는 길이
+GOAL_MAX, TITLE_MAX, TEXT_MAX, WHY_MAX, LINE_MAX, ASK_MAX, ARG_MAX = 100, 56, 76, 200, 120, 600, 200
 BASIS_KEEP, FOUND_KEEP = 3, 4
 NOTE = "A path Gadak scouted in advance. It is a question to ask, not an answer, so feel free to edit it before sending."
 

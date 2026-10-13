@@ -100,11 +100,11 @@
       <header class="sec-head">
         <p class="eyebrow">{{ t.demo.eyebrow }}</p>
         <h2>{{ t.demo.title }}</h2>
-        <p class="sec-lead">{{ t.demo.body }}{% if t.demo.korean_only %} {{ t.demo.korean_only }}{% endif %}</p>
+        <p class="sec-lead">{{ t.demo.body }}</p>
       </header>
       <div class="window window-live">
         <div class="window-bar"><span>{{ t.demo.frame }}</span><a href="{{ link.demo }}">{{ t.demo.open }} ↗</a></div>
-        <div class="window-body" id="demo-body"><iframe id="demo-frame" title="{{ t.demo.frame }}" data-src="{{ root }}app/index.html" width="1440" height="900" loading="lazy"></iframe></div>
+        <div class="window-body" id="demo-body"><iframe id="demo-frame" title="{{ t.demo.frame }}" data-src="{{ app }}index.html" width="1440" height="900" loading="lazy"></iframe></div>
       </div>
       <div class="demo-still">
         <a class="shot" href="{{ link.demo }}">{{ shot("window.png", t.getit.img_alt) }}</a>

@@ -91,6 +91,21 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(len(whole["turns"]), 12)
         self.assertEqual(clf.status["calls"], 3)
 
+    def test_english_names_of_the_length_the_prompts_ask_for_are_not_cut(self):
+        """영어는 같은 말에 글자가 더 들어요. 프롬프트가 말한 낱말 수(역 이름 2–5 · 구간 1–3 · 간추림 8–12)가 낱말 중간에서 잘리지 않아요."""
+        for text, limit in (("What is the base rate?", classify.TITLE_MAX), ("Compare rate with the target", classify.TITLE_MAX),
+                            ("Views and independence", classify.SEG_MAX),          # backend/prompts/segment.txt가 든 예
+                            ("Alert bot notifications", classify.SEG_MAX),
+                            ("It updates only a few times a day, so it is not for minute-by-minute alerts", classify.GIST_MAX),
+                            ("Exchange-rate alert bot", classify.GROUP_NAME_MAX)):
+            self.assertEqual(classify._word(text, limit), text)
+        self.assertEqual(classify.TITLE_MAX, store.TITLE_LEN)        # 정리 전의 임시 제목과 같은 길이
+        # 넘치면 낱말 사이에서 끊어요. 한도에서 낱말이 딱 끝나면 그 낱말은 남기고, 띄어쓰기가 없는 긴 말은 그대로 잘라요
+        self.assertEqual(classify._word("Polling vs webhook difference", 28), "Polling vs webhook…")
+        self.assertEqual(classify._word("Build fetch and notify functions", 28), "Build fetch and notify…")
+        self.assertEqual(classify._word("Set the threshold to 1,380 won exactly", 28), "Set the threshold to 1,380…")
+        self.assertEqual(classify._word("x" * 40, 28), "x" * 27 + "…")
+
     def test_wrong_values_from_the_model_are_corrected(self):
         clf = self.start(lambda p: titled(
             p,
