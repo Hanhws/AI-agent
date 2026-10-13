@@ -21,8 +21,8 @@
   function tell(msg) { try { window.webkit.messageHandlers.gadak.postMessage(msg); } catch (e) {} }
 
   var g = G.create({
-    render: render, go: go, goPart: function (t) { go(t); }, itemState: saveItem, insert: copyOut, insertLabel: '복사하기',
-    goHint: '역을 누르면 가닥 창에서 그 대화를 열어요', setAuto: setAuto, transfer: transfer,
+    render: render, go: go, goPart: function (t) { go(t); }, itemState: saveItem, insert: copyOut, insertLabel: 'Copy',
+    goHint: 'Click a station to open that chat in the Gadak window', setAuto: setAuto, transfer: transfer,
     // 앞길 살피기 (README 3-1): 목록의 넷째 칸 ‘앞길’과, 할 일 칸 아래의 ‘저절로 살피기’ 줄
     ahead: ahead, aheadOn: function () { return !!(S.status && S.status.ahead && S.status.ahead.on); },
     aheadAuto: function () { return !!(S.status && S.status.ahead && S.status.ahead.auto); }, setAheadAuto: setAheadAuto,
@@ -36,17 +36,17 @@
     if (ONLY) {
       // 목록 창: 노선도 카드 없이 목록만. 카드 모양 틀에 머리줄(가닥 · 대화 제목 · 닫기)과 목록을 놓아요
       shell.classList.add('listonly');
-      var card = el('section', 'drawer lcard'); card.setAttribute('aria-label', '가닥 목록'); shell.appendChild(card); R.drawer = card;
-      var head = el('div', 'dhead'), mk = el('span', 'mk'); mk.appendChild(G.miniMark(15)); mk.appendChild(el('b', null, '가닥')); head.appendChild(mk);
+      var card = el('section', 'drawer lcard'); card.setAttribute('aria-label', 'Gadak list'); shell.appendChild(card); R.drawer = card;
+      var head = el('div', 'dhead'), mk = el('span', 'mk'); mk.appendChild(G.miniMark(15)); mk.appendChild(el('b', null, 'Gadak')); head.appendChild(mk);
       R.listTitle = el('span', 'map-title'); head.appendChild(R.listTitle); head.appendChild(el('span', 'sp'));
-      var shut = el('button', 'btn sm', '닫기'); shut.type = 'button'; shut.onclick = function () { tell({ float: 'close' }); }; head.appendChild(shut);
+      var shut = el('button', 'btn sm', 'Close'); shut.type = 'button'; shut.onclick = function () { tell({ float: 'close' }); }; head.appendChild(shut);
       card.appendChild(head);
       g.mountSide(card, true);
     } else {
       g.mountDrawer(shell, null, APART);
     }
     R.none = el('div', 'none'); R.none.hidden = true; R.drawer.appendChild(R.none);
-    R.none.appendChild(el('b', null, '아직 잡힌 가닥이 없어요.')); R.none.appendChild(document.createTextNode('대화를 시작하면 여기에 흐름이 그려져요.'));
+    R.none.appendChild(el('b', null, 'No thread to follow yet.')); R.none.appendChild(document.createTextNode('Start a chat and its flow is drawn here.'));
     R.toastEl = el('div', 'toast'); R.toastEl.hidden = true; shell.appendChild(R.toastEl);
   }
   /* 볼 칸과, 목록을 펼지. 목록 창은 늘 펴 있고, 목록 창을 따로 쓰는 앱의 노선도 창은 늘 접혀 있어요 */
@@ -84,23 +84,23 @@
   }
 
   function go(t) { tell({ open: { project: S.project, chat: t.chat.id, turn: t.id } }); }
-  function copyOut(text, label, done) { G.copy(text).then(function () { g.flashToast('복사했어요. 대화 창에 붙여 넣으면 돼요.'); done(); }); }
+  function copyOut(text, label, done) { G.copy(text).then(function () { g.flashToast('Copied. Paste it into the chat.'); done(); }); }
   function saveItem(id, state) { api('items/' + enc(id), 'PATCH', { state: state }).catch(function () {}); }
   function setAuto(kind, on) {
     api('auto', 'POST', { kind: kind, on: on }).then(function (r) {
       g.SC.auto = r.auto;
-      g.flashToast(on ? '다음부터 ‘' + G.KIND[kind].label + '’은 가닥이 바로 보내요.' : '‘' + G.KIND[kind].label + '’은 다시 물어보고 보낼게요.');
+      g.flashToast(on ? 'From now on Gadak sends ‘' + G.KIND[kind].label + '’ right away.' : 'Gadak will ask again before sending ‘' + G.KIND[kind].label + '’.');
       g.render();
-    }, function () { g.flashToast('바꾸지 못했어요.'); });
+    }, function () { g.flashToast('Could not change that.'); });
   }
   /* ‘주제 전환’ 한마디의 ‘환승하기’: 가닥 창의 노선도 끝 환승하기와 같은 요약을 복사해요 (이 창의 노선도에는 그 표시를 그리지 않아요) */
   function transfer() {
     if (!S.chat) return;
-    g.flashToast('다음 대화에 붙일 요약을 쓰고 있어요…');
+    g.flashToast('Writing a summary for the next chat…');
     api('chats/' + enc(S.chat) + '/handoff').then(function (r) {
-      if (!r.text) { g.flashToast('아직 정한 것도 남은 일도 없어요.'); return; }
-      G.copy(r.text).then(function () { g.flashToast('다음 대화에 붙일 요약을 복사했어요.'); });
-    }, function () { g.flashToast('요약을 만들지 못했어요.'); });
+      if (!r.text) { g.flashToast('Nothing decided and nothing left to do yet.'); return; }
+      G.copy(r.text).then(function () { g.flashToast('Copied a summary to paste into the next chat.'); });
+    }, function () { g.flashToast('Could not write the summary.'); });
   }
   /* 앞길 보기 · 저절로 살피기 (가닥 창의 app.js와 같은 일). 어디까지 갔는지는 ‘앞길’ 칸에 나타나요 */
   function ahead() {
@@ -108,15 +108,15 @@
     st.sideTab = 'ahead';
     api('chats/' + enc(S.chat) + '/ahead', 'POST').then(function (r) {
       g.SC.ahead = r.ok ? { state: 'queued' } : { state: 'failed', reason: r.reason }; g.render();
-    }, function () { g.SC.ahead = { state: 'failed', reason: '가닥에 닿지 못했어요. 가닥이 켜져 있는지 봐 주세요.' }; g.render(); });
+    }, function () { g.SC.ahead = { state: 'failed', reason: 'Could not reach Gadak. Check that Gadak is running.' }; g.render(); });
   }
   function setAheadAuto(on) {
     api('ahead/auto', 'POST', { on: on }).then(function (r) {
-      if (!r.ok) { g.flashToast(r.reason || '바꾸지 못했어요.'); return; }
+      if (!r.ok) { g.flashToast(r.reason || 'Could not change that.'); return; }
       if (S.status && S.status.ahead) S.status.ahead.auto = !!r.auto;
-      g.flashToast(r.auto ? '이제 길이 갈리는 순간마다 앞길을 저절로 살펴요. Claude 사용 한도를 더 써요.' : '저절로 살피기를 껐어요. ‘앞길 보기’를 누를 때만 살펴요.');
+      g.flashToast(r.auto ? 'Gadak now looks ahead by itself whenever the road forks. This uses more of your Claude limit.' : 'Automatic look-ahead is off. Gadak looks only when you press Look ahead.');
       g.render();
-    }, function () { g.flashToast('바꾸지 못했어요.'); });
+    }, function () { g.flashToast('Could not change that.'); });
   }
 
   function load() {
@@ -128,7 +128,7 @@
         var real = v.project.id !== '_none', tab = st.sideTab, open = st.ledgerOpen;
         // 노선 색: 가닥 창 · 전체 지도와 같은 프로젝트 색 (store.project_color). 이게 없으면 본선과 역이 같은 색이라 역이 안 보여요
         R.root.style.setProperty('--route', v.project.color || '');
-        g.load({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? '프로젝트 전체' : null,
+        g.load({ project: real ? v.project.name : null, scopeLabel: real && v.chats.length > 1 ? 'Whole project' : null,
           chats: v.chats, itemStates: v.itemStates, auto: v.auto, ahead: v.ahead }, S.first || moved);
         if (S.first) panel(params.get('tab'), params.get('list') === '1'); else if (moved) { st.sideTab = tab; st.ledgerOpen = open; }
         st.nudge = null;                         // 이 창에는 한마디 카드가 없어요. 할 일은 목록에서 봐요

@@ -148,7 +148,7 @@ class PagesTest(unittest.TestCase):
         self.page([turn("대본을 써 줘", "3분 대본이에요.", "u1")])
         other = "cccccccc-1111-2222-3333-444444444444"
         refused = self.page([turn("대본을 써 줘", "3분 대본이에요.", "u1")], chat=other, status=409)
-        self.assertIn("다른 대화", refused["error"])
+        self.assertIn("another chat", refused["error"])
         self.assertEqual(self.rows(other), [])
         self.assertEqual(self.page([turn("대본을 써 줘", "3분 대본이에요.", "u1")], chat=other, sure=True)["new"], 1)
 
@@ -191,7 +191,7 @@ class PagesTest(unittest.TestCase):
         self.client.get("/health", headers={EXTENSION_HEADER: "0.1.0"})
         self.page([turn("대본을 써 줘", "3분 대본이에요.", "u1")])
         after = row()
-        self.assertEqual((after["connected"], after["seen"], after["chats"]), (True, "오늘", 1))
+        self.assertEqual((after["connected"], after["seen"], after["chats"]), (True, "Today", 1))
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ from pathlib import Path
 from .. import win
 
 SECURITY = "/usr/bin/security"
-LABEL = "가닥 · LLM API 키"          # 키체인 · 자격 증명 관리자에서 보이는 이름
+LABEL = "Gadak · LLM API key"          # 키체인 · 자격 증명 관리자에서 보이는 이름
 ACCOUNT = "api-key"
 OLD_ACCOUNT = "anthropic-api-key"     # Anthropic 키만 받던 때(10/8까지)의 자리. 거기 남은 키도 읽어요
 ENV = "GADAK_API_KEY"
@@ -29,7 +29,7 @@ COMPANIES = {"anthropic": "Anthropic", "openai": "OpenAI", "gemini": "Gemini"}  
 ENGINES = {"anthropic": "anthropic_api", "openai": "openai_api", "gemini": "gemini_api"}
 # 키체인 명령에 넣어도 되는 글자만. 모양은 앞머리까지만 봐요: 회사가 키의 길이나 생김새를 바꿔도 받게요 (맞는 키인지는 그 회사가 답해요)
 SHAPE = re.compile(r"[A-Za-z0-9_\-.]{20,400}")
-WRONG_SHAPE = "API 키 모양이 아니에요. Anthropic · OpenAI · Gemini의 키를 넣어 주세요."      # 화면에 한 줄로 떠요
+WRONG_SHAPE = "That does not look like an API key. Enter an Anthropic, OpenAI or Gemini key."      # 화면에 한 줄로 떠요
 REMEMBER = 20.0       # 초. 키체인을 이 간격으로만 다시 물어요 (엔진을 고를 때마다 명령을 띄우지 않게)
 _seen = {"at": 0.0, "service": None, "key": None}
 
@@ -49,7 +49,7 @@ def can_store() -> bool:
 
 def place() -> str:
     """키를 넣어 두는 곳을 부르는 말 (화면에 한 줄로 보이는 글에 써요)."""
-    return "자격 증명 관리자" if win.WINDOWS else "키체인"
+    return "Credential Manager" if win.WINDOWS else "Keychain"
 
 
 def _target(account) -> str:
@@ -125,24 +125,24 @@ def save(key) -> None:
     if not looks_right(key):
         raise KeyStoreError(WRONG_SHAPE)
     if not can_store():
-        raise KeyStoreError(f"이 컴퓨터에는 키를 넣어 둘 키체인이 없어요. 환경 변수 {ENV}로 넘겨 주세요.")
+        raise KeyStoreError(f"This computer has no keychain to keep the key in. Pass it in the environment variable {ENV}.")
     if win.WINDOWS:
         from . import wincred
         try:
             done = wincred.write(_target(ACCOUNT), key, LABEL)
         except OSError as exc:
-            raise KeyStoreError(f"{place()}에 넣지 못했어요.") from exc
+            raise KeyStoreError(f"Could not save it to the {place()}.") from exc
         if not done or _stored(fresh=True) != key:
-            raise KeyStoreError(f"{place()}에 넣지 못했어요.")
+            raise KeyStoreError(f"Could not save it to the {place()}.")
         _remove(OLD_ACCOUNT)
         return
     command = f'add-generic-password -U -s "{service()}" -a "{ACCOUNT}" -l "{LABEL}" -w "{key}"\n'
     try:
         out = subprocess.run([SECURITY, "-i"], input=command, capture_output=True, text=True, timeout=15)
     except (OSError, subprocess.SubprocessError) as exc:
-        raise KeyStoreError("키체인에 넣지 못했어요.") from exc
+        raise KeyStoreError("Could not save it to the Keychain.") from exc
     if out.returncode != 0 or _stored(fresh=True) != key:
-        raise KeyStoreError("키체인에 넣지 못했어요. 키체인 접근을 허용했는지 확인해 주세요.")
+        raise KeyStoreError("Could not save it to the Keychain. Check that Keychain access is allowed.")
     _remove(OLD_ACCOUNT)      # 예전 자리의 키는 치워요 (새 키를 지웠을 때 되살아나지 않게)
 
 

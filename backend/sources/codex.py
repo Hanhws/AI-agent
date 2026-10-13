@@ -12,7 +12,7 @@ from .. import store
 KEY = "codex"
 SITE = "codex"
 NAME = "Codex"
-WHERE = "터미널 · VS Code 확장"
+WHERE = "Terminal · VS Code extension"
 
 MAX_TEXT = 20000
 
@@ -48,7 +48,7 @@ def parse(lines, state) -> list:
             continue
         kind, sub = line.get("type"), payload.get("type")
         if kind == "session_meta" and not state["cwd"] and payload.get("cwd"):
-            via = "VS Code" if "vscode" in str(payload.get("originator") or payload.get("source")) else "터미널"
+            via = "VS Code" if "vscode" in str(payload.get("originator") or payload.get("source")) else "Terminal"
             state.update(cwd=payload["cwd"], via=via, started=payload.get("timestamp"))
         elif kind != "event_msg":
             continue

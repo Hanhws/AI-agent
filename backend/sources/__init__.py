@@ -21,8 +21,8 @@ APP_DIRS = (Path("/Applications"), Path.home() / "Applications")
 BROWSERS = ("Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser", "Arc", "Whale")   # 크롬 확장을 넣을 수 있는 것
 # Windows에서는 다른 프로그램의 설정에 가닥을 더하는 일(hook)을 아직 하지 않아요: hook을 돌리는 방식이 달라서, 돌려 보지 못한 설정을
 # 남의 Cursor · Claude Code에 적어 넣지 않아요. 대화 읽기(Claude Code · Codex 기록 · 크롬 확장 · 내보내기 파일)는 그대로 돼요
-NO_CURSOR_ON_WINDOWS = "Windows에서는 아직 Cursor를 연결하지 못해요. Claude Code · Codex · 크롬 확장 · 내보내기 파일은 읽어요."
-NO_AUTO_ON_WINDOWS = "Windows에서는 아직 자동 실행을 연결하지 못해요. 대화는 지금처럼 알아서 읽어요."
+NO_CURSOR_ON_WINDOWS = "Cursor cannot be connected on Windows yet. Claude Code, Codex, the Chrome extension and export files are read."
+NO_AUTO_ON_WINDOWS = "Auto-run cannot be connected on Windows yet. Chats are still read automatically."
 
 
 def _app(name) -> bool:
@@ -49,7 +49,7 @@ def cursor_connected() -> bool:
         return False
 
 
-MOVED = "가닥 앱을 응용 프로그램 폴더로 옮긴 뒤 다시 켜고 눌러 주세요. 지금 자리는 임시 자리라 연결해도 곧 끊겨요."
+MOVED = "Move the Gadak app to the Applications folder, reopen it and press again. Its current location is temporary, so a connection would soon break."
 
 
 def hook_runner() -> str:
@@ -72,7 +72,7 @@ def connect_cursor() -> dict:
     if win.WINDOWS:
         return {"ok": False, "reason": NO_CURSOR_ON_WINDOWS}
     if (base / "hooks.json").exists():
-        return {"ok": False, "reason": "쓰고 계신 hooks.json이 있어서 덮어쓰지 않았어요. docs/usage-guide.md 4-2를 봐 주세요."}
+        return {"ok": False, "reason": "You already have a hooks.json, so it was not overwritten. See docs/usage-guide.md 4-2."}
     if on_the_move():
         return {"ok": False, "reason": MOVED}
     spec = importlib.util.spec_from_file_location("gadak_install", config.ROOT / "cursor-hooks" / "install.py")
@@ -127,7 +127,7 @@ def connect_claude() -> dict:
     """Claude Code의 사용자 설정에 가닥 hook 둘을 더해요. 있던 설정은 그대로 두고, 고치기 전의 파일을 옆에 남겨요."""
     path, data = claude_settings(), _read_claude_settings()
     if data is None:
-        return {"ok": False, "reason": "Claude Code 설정 파일을 읽지 못해서 건드리지 않았어요. docs/usage-guide.md 4-1을 봐 주세요."}
+        return {"ok": False, "reason": "Could not read the Claude Code settings file, so it was left untouched. See docs/usage-guide.md 4-1."}
     if claude_connected():
         return {"ok": True, "already": True}
     if win.WINDOWS:
@@ -150,7 +150,7 @@ def disconnect_claude() -> dict:
     """가닥이 더한 hook만 떼요."""
     path, data = claude_settings(), _read_claude_settings()
     if data is None:
-        return {"ok": False, "reason": "Claude Code 설정 파일을 읽지 못해서 건드리지 않았어요."}
+        return {"ok": False, "reason": "Could not read the Claude Code settings file, so it was left untouched."}
     hooks = data.get("hooks", {})
     if not any(_is_ours(e) for entries in hooks.values() for e in entries):
         return {"ok": True, "already": True}
@@ -183,19 +183,19 @@ def detect(counts=None, extension=None) -> list:
         if reader.KEY == "claude-code":
             rows[-1]["hooks"] = claude_connected()     # 자동 실행에 쓰는 hook이 붙어 있는지
     rows.append({
-        "key": "cursor", "name": "Cursor", "where": "Agent 채팅", "mode": "connect",
+        "key": "cursor", "name": "Cursor", "where": "Agent chat", "mode": "connect",
         "found": _app("Cursor") or cursor_home().is_dir(), "connected": cursor_connected(),
         "chats": counts.get("cursor", 0),
     })
     seen = extension.get("seen")
     rows.append({
-        "key": "extension", "name": "Claude · ChatGPT 웹", "where": "크롬 확장", "mode": "extension",
+        "key": "extension", "name": "Claude · ChatGPT on the web", "where": "Chrome extension", "mode": "extension",
         "found": _browser(), "connected": bool(seen),
         "seen": store.display_date(seen) if seen else None, "chats": extension.get("chats", 0),
         "folder": str(config.ROOT / "extension"),
     })
     rows.append({
-        "key": "export", "name": "Claude · ChatGPT 웹과 데스크톱 앱", "where": "채팅", "mode": "file",
+        "key": "export", "name": "Claude · ChatGPT web and desktop apps", "where": "Chats", "mode": "file",
         "found": True, "apps": [name for name in ("Claude", "ChatGPT") if _app(name)],
         # 확장이 읽은 대화는 위 줄에서 세요
         "chats": max(0, counts.get("claude", 0) + counts.get("chatgpt", 0) - extension.get("chats", 0)),

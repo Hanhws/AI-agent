@@ -16,7 +16,7 @@ from unittest import mock
 from backend import config, frozen, macapp, sources
 
 ROOT = Path(__file__).resolve().parent.parent
-BACKEND_IN_APP = "/Applications/가닥.app/Contents/Resources/backend/gadak-backend"
+BACKEND_IN_APP = "/Applications/Gadak.app/Contents/Resources/backend/gadak-backend"
 QUOTED = shlex.quote(BACKEND_IN_APP)      # 한글이 든 길이라 따옴표로 싸요
 
 _spec = importlib.util.spec_from_file_location("gadak_install", ROOT / "cursor-hooks" / "install.py")
@@ -77,8 +77,8 @@ class BundledTest(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "Windows에서는 다른 프로그램의 설정에 hook을 더하지 않아요 (backend/sources)")
     def test_an_app_running_from_a_temporary_place_does_not_write_hooks(self):
         """내려받은 앱을 옮기지 않고 켜면 macOS가 임시 자리에서 돌려요. 그 자리를 다른 프로그램의 설정에 적으면 곧 끊겨요."""
-        for place in ("/private/var/folders/ab/T/AppTranslocation/1234/d/가닥.app/Contents/Resources/backend/gadak-backend",
-                      "/Volumes/가닥/가닥.app/Contents/Resources/backend/gadak-backend"):
+        for place in ("/private/var/folders/ab/T/AppTranslocation/1234/d/Gadak.app/Contents/Resources/backend/gadak-backend",
+                      "/Volumes/Gadak/Gadak.app/Contents/Resources/backend/gadak-backend"):
             frozen_, executable = self.bundled(place)
             with frozen_, executable:
                 for connect in (sources.connect_claude, sources.connect_cursor):

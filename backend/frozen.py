@@ -27,7 +27,7 @@ def main(argv) -> int:
     if argv[:1] == ["hook"]:
         return hook(argv[1:])
     if argv[:1] == ["--version"]:
-        print(f"가닥 {config.VERSION} · {config.CODE}")
+        print(f"Gadak {config.VERSION} · {config.CODE}")
         return 0
     from . import launch
     return launch.main(argv)

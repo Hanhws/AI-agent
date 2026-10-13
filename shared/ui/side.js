@@ -16,13 +16,13 @@
       var n = g.openItems().length;
       if (R.sideHost) { if (g.hooks.sideFold) g.hooks.sideFold(st.ledgerOpen, n); else R.sideHost.hidden = !st.ledgerOpen; } else if (R.dbody) R.dbody.classList.toggle('noled', !st.ledgerOpen);
       if (R.ledBtn) {
-        R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
+        R.ledBtn.textContent = st.ledgerOpen ? 'Collapse list ›' : '‹ To do' + (n ? ' ' + n : '') + ' · Search';
         R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);
         R.ledBtn.setAttribute('aria-expanded', String(st.ledgerOpen));
       }
       if (!st.ledgerOpen) return;
-      var list = [['todo', '할 일', n], ['dec', '정한 것'], ['files', '산출물']];
-      if (aheadShown()) list.push(['ahead', '앞길', aheadPaths().filter(function (it) { return g.stateOf(it) === 'open'; }).length]);
+      var list = [['todo', 'To do', n], ['dec', 'Decided'], ['files', 'Files']];
+      if (aheadShown()) list.push(['ahead', 'Ahead', aheadPaths().filter(function (it) { return g.stateOf(it) === 'open'; }).length]);
       else if (st.sideTab === 'ahead') st.sideTab = 'todo';
       tabs(R.sideHead, list, st.sideTab, function (v) { st.sideTab = v; });
       if (R.qInput.value.trim() !== st.q) R.qInput.value = st.q;
@@ -98,21 +98,21 @@
     }
     function renderDecisions(host) {
       var list = g.allKnown().filter(function (t) { return t.dec; }).reverse();
-      if (!list.length) { host.appendChild(el('div', 'lempty', '아직 정한 것이 없어요.')); return; }
-      host.appendChild(el('div', 'lsum', (g.SC.project ? '이 프로젝트' : '이 대화') + '에서 정한 것 ' + list.length + '개 · 최근 순'));
+      if (!list.length) { host.appendChild(el('div', 'lempty', 'Nothing decided yet.')); return; }
+      host.appendChild(el('div', 'lsum', list.length + ' decided in ' + (g.SC.project ? 'this project' : 'this chat') + ' · newest first'));
       list.forEach(function (t) { rowBtn(host, g.numLabel(t) + ' · ' + t.title, t.dec, null, t).classList.add('dec'); });
     }
     function renderArtifacts(host) {
       var fv = g.fileVersions();
-      if (!fv.order.length) { host.appendChild(el('div', 'lempty', '아직 나온 산출물이 없어요.')); return; }
+      if (!fv.order.length) { host.appendChild(el('div', 'lempty', 'No files yet.')); return; }
       var unaskedT = g.openItems().filter(function (i) { return i.kind === 'unasked'; }).map(function (i) { return i.t; });
-      host.appendChild(el('div', 'lsum', '산출물 ' + fv.order.length + '개 · 같은 파일은 판(v)으로 묶었어요'));
+      host.appendChild(el('div', 'lsum', fv.order.length + (fv.order.length === 1 ? ' file' : ' files') + ' · versions of the same file are grouped (v)'));
       fv.order.slice().reverse().forEach(function (b) {
         var vs = fv.map[b], last = vs[vs.length - 1];
         var grp = el('div', 'fgrp');
         var h = el('button', 'fhead'); h.type = 'button'; h.appendChild(el('span', 'sq'));
-        h.appendChild(el('span', 'fn', b)); h.appendChild(el('span', 'latest', vs.length > 1 ? 'v' + vs.length + ' 최신' : '최신'));
-        if (unaskedT.indexOf(last.t) >= 0) h.appendChild(el('span', 'warn', '요청 외 변경'));
+        h.appendChild(el('span', 'fn', b)); h.appendChild(el('span', 'latest', vs.length > 1 ? 'v' + vs.length + ' latest' : 'Latest'));
+        if (unaskedT.indexOf(last.t) >= 0) h.appendChild(el('span', 'warn', 'Unrequested change'));
         h.title = b;
         h.onclick = function () { st.file = last.n; g.go(last.t.id); };
         grp.appendChild(h);
@@ -125,18 +125,18 @@
     }
     function renderFound(host) {
       var ts = g.foundList();
-      host.appendChild(el('div', 'lsum', ts.length ? '“' + st.q + '” · ' + ts.length + '곳. 정한 것이 먼저 나와요.' : '“' + st.q + '”이 나온 곳이 없어요.'));
+      host.appendChild(el('div', 'lsum', ts.length ? '“' + st.q + '” · ' + ts.length + (ts.length === 1 ? ' match' : ' matches') + '. Decisions come first.' : 'No matches for “' + st.q + '”.'));
       ts.slice(0, 12).forEach(function (f) {
         var t = f.t;
-        rowBtn(host, g.numLabel(t) + ' · ' + (t.chat !== g.ACT ? t.chat.title : '이 대화') + (t.dec ? ' · 정함' : ''), t.title, f.snip, t);
+        rowBtn(host, g.numLabel(t) + ' · ' + (t.chat !== g.ACT ? t.chat.title : 'This chat') + (t.dec ? ' · Decided' : ''), t.title, f.snip, t);
       });
     }
 
     /* ---------- 할 일 장부 ---------- */
     function renderLedger(host) {
       var all = g.allItems().filter(function (i) { return g.stateOf(i) !== 'dismissed'; }), led = el('div', 'led'); host.appendChild(led);
-      if (!all.length) led.appendChild(el('div', 'lempty', '아직 없어요. 빠진 요청이나 다음 할 일이 생기면 가닥이 여기 모아요.'));
-      [['miss', '놓친 일'], ['sug', '제안']].forEach(function (gr) {
+      if (!all.length) led.appendChild(el('div', 'lempty', 'Nothing yet. When a request is missed or a next step comes up, Gadak collects it here.'));
+      [['miss', 'Missed'], ['sug', 'Suggestions']].forEach(function (gr) {
         var list = all.filter(function (i) { return KIND[i.kind].g === gr[0]; });
         if (!list.length) return;
         var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, gr[1]));
@@ -156,11 +156,11 @@
       return (d.toDateString() === new Date().toDateString() ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + hm;
     }
     function aheadLine(a) {
-      if (a.state === 'queued') return '차례를 기다리고 있어요. 하던 정리가 끝나면 바로 살펴요.';
-      if (a.state === 'looking') return '살피는 중이에요. 보통 30초에서 2분쯤 걸려요.';
-      if (a.state === 'done') return when(a.at) + '에 살폈어요 · 길 ' + a.paths + '개' + (a.why && a.why !== 'button' ? ' · 저절로 살핌' : '');
-      if (a.state === 'none') return when(a.at) + '에 살폈는데, 내밀 만한 길을 찾지 못했어요.' + (a.dropped ? ' 찾아본 근거가 없는 길 ' + a.dropped + '개는 버렸어요.' : '');
-      if (a.state === 'failed') return '살피지 못했어요. ' + (a.reason || '');
+      if (a.state === 'queued') return 'Waiting its turn. It looks as soon as the current sorting finishes.';
+      if (a.state === 'looking') return 'Looking ahead. This usually takes 30 seconds to 2 minutes.';
+      if (a.state === 'done') return 'Looked at ' + when(a.at) + ' · ' + a.paths + (a.paths === 1 ? ' path' : ' paths') + (a.why && a.why !== 'button' ? ' · automatic' : '');
+      if (a.state === 'none') return 'Looked at ' + when(a.at) + ' but found no path worth offering.' + (a.dropped ? ' Dropped ' + a.dropped + (a.dropped === 1 ? ' path' : ' paths') + ' with nothing found behind them.' : '');
+      if (a.state === 'failed') return 'Could not look ahead. ' + (a.reason || '');
       return '';
     }
     /* 넷째 칸: 맨 위에 ‘앞길 보기’(저절로 살피기를 꺼 둔 동안), 그 아래 어디까지 갔는지, 그 아래 찾은 길 */
@@ -168,50 +168,50 @@
       var a = g.SC.ahead || { state: 'idle' }, auto = !!(g.hooks.aheadAuto && g.hooks.aheadAuto());
       var busy = a.state === 'queued' || a.state === 'looking', box = el('div', 'led'); host.appendChild(box);
       var top = el('div', 'lgrp'), r = el('div', 'lauto' + (auto ? ' on' : ''));
-      if (auto) r.appendChild(el('span', null, '길이 갈리는 순간마다 저절로 살피고 있어요'));
+      if (auto) r.appendChild(el('span', null, 'Looking ahead automatically whenever the road forks'));
       else {
-        r.appendChild(el('span', null, '지금 자리에서 갈 수 있는 길'));
-        var b = el('button', 'btn sm primary', busy ? '살피는 중…' : '앞길 보기'); b.type = 'button'; b.disabled = busy;
-        b.title = '이 대화가 향하는 곳을 읽고, 지난 기록 · 작업 폴더의 문서 · 웹(켰을 때)에서 갈 수 있는 길을 찾아봐요.';
+        r.appendChild(el('span', null, 'Where you could go from here'));
+        var b = el('button', 'btn sm primary', busy ? 'Looking…' : 'Look ahead'); b.type = 'button'; b.disabled = busy;
+        b.title = 'Reads where this chat is heading and searches past records, documents in the working folder and the web (when on) for ways forward.';
         b.onclick = function () { g.hooks.ahead(); }; r.appendChild(b);
       }
       top.appendChild(r);
       var line = aheadLine(a); if (line) top.appendChild(el('div', 'astate' + (a.state === 'failed' ? ' bad' : ''), line));
-      if (a.goal && (a.state === 'done' || a.state === 'none')) top.appendChild(el('div', 'agoal', '가닥이 읽은 목적지 · ' + a.goal));
-      if (!auto) top.appendChild(el('div', 'lnote', '누를 때마다 Claude 사용 한도를 조금 써요(Pro 5시간 한도의 0.7%쯤).'));
+      if (a.goal && (a.state === 'done' || a.state === 'none')) top.appendChild(el('div', 'agoal', 'Where Gadak thinks you are heading · ' + a.goal));
+      if (!auto) top.appendChild(el('div', 'lnote', 'Each press uses a little of your Claude limit (about 0.7% of a Pro five-hour limit).'));
       box.appendChild(top);
       var list = aheadPaths();
       if (list.length) {
-        var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '찾은 길'));
+        var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, 'Paths found'));
         list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
         box.appendChild(grp);
       } else if (a.state === 'idle') {
-        box.appendChild(el('div', 'lempty', auto ? '아직 살핀 적이 없어요. 방금 무언가를 정했거나 구간이 바뀌면 가닥이 갈 수 있는 길을 찾아 여기에 모아요.'
-          : '아직 살핀 적이 없어요. ‘앞길 보기’를 누르면 가닥이 지난 기록과 작업 폴더의 문서에서 갈 수 있는 길을 찾아 여기에 모아요.'));
+        box.appendChild(el('div', 'lempty', auto ? 'Not looked ahead yet. When you decide something or the section changes, Gadak finds ways forward and collects them here.'
+          : 'Not looked ahead yet. Press Look ahead and Gadak searches past records and documents in the working folder for ways forward, and collects them here.'));
       }
     }
     /* 할 일 칸 아래의 ‘저절로 살피기’: 켜 두면 길이 갈리는 순간마다 가닥이 앞길을 살펴요. 한도를 더 써서 기본은 꺼짐이에요 */
     function renderAheadAuto(host) {
       if (!aheadShown() || !g.hooks.aheadAuto || !g.hooks.setAheadAuto) return;
       var on = !!g.hooks.aheadAuto();
-      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '가닥이 알아서 살피는 것'));
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, 'What Gadak looks at by itself'));
       var r = el('div', 'lauto' + (on ? ' on' : ''));
-      r.title = '켜 두면 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 가닥이 앞길을 저절로 살펴요. 꺼 두면 ‘앞길’ 칸의 ‘앞길 보기’를 누를 때만 살펴요.';
-      r.appendChild(el('span', null, '앞길 저절로 살피기' + (on ? ' · 켜짐' : ' · 꺼짐')));
-      var b = el('button', 'linkbtn', on ? '끄기' : '켜기'); b.type = 'button'; b.onclick = function () { g.hooks.setAheadAuto(!on); }; r.appendChild(b);
+      r.title = 'When on, Gadak looks ahead by itself whenever the road forks (you just decided, the section changed, or you asked what to do next). When off, it looks only when you press Look ahead in the Ahead tab.';
+      r.appendChild(el('span', null, 'Look ahead automatically' + (on ? ' · On' : ' · Off')));
+      var b = el('button', 'linkbtn', on ? 'Turn off' : 'Turn on'); b.type = 'button'; b.onclick = function () { g.hooks.setAheadAuto(!on); }; r.appendChild(b);
       grp.appendChild(r);
-      grp.appendChild(el('div', 'lnote', '켜 두면 Claude 사용 한도를 더 써요(한 번에 Pro 5시간 한도의 0.7%쯤).'));
+      grp.appendChild(el('div', 'lnote', 'Uses more of your Claude limit while on (about 0.7% of a Pro five-hour limit each time).'));
       host.appendChild(grp);
     }
     /* 사용자가 ‘앞으로는 알아서’를 켠 종류. 여기서 다시 꺼요 (README 3-2: 종류별로 다시 끌 수 있어요) */
     function renderAuto(host) {
       if (!g.hooks.setAuto) return;
-      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '가닥이 알아서 보내는 것'));
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, 'What Gadak sends by itself'));
       Object.keys(G.AUTO).forEach(function (k) {
         var on = !!(g.SC.auto && g.SC.auto[k]);
         var r = el('div', 'lauto' + (on ? ' on' : '')); r.title = G.AUTO[k];
-        r.appendChild(el('span', null, KIND[k].label + (on ? ' · 켜짐' : ' · 꺼짐')));
-        var b = el('button', 'linkbtn', on ? '끄기' : '켜기'); b.type = 'button'; b.onclick = function () { g.hooks.setAuto(k, !on); }; r.appendChild(b);
+        r.appendChild(el('span', null, KIND[k].label + (on ? ' · On' : ' · Off')));
+        var b = el('button', 'linkbtn', on ? 'Turn off' : 'Turn on'); b.type = 'button'; b.onclick = function () { g.hooks.setAuto(k, !on); }; r.appendChild(b);
         grp.appendChild(r);
       });
       host.appendChild(grp);
@@ -221,19 +221,19 @@
       var d = el('div', 'litem' + (sg ? ' sg' : '') + (s === 'done' ? ' done' : '') + (s === 'later' ? ' later' : '') + (st.fresh[it.id] ? ' new' : ''));
       d.appendChild(el('span', 'mk'));
       // ×: 쓸모없는 할 일을 지워요. 목록 · 노선도의 고리 · 알림 수에서 같이 빠져요 (상태 dismissed)
-      var x = el('button', 'lx', '×'); x.type = 'button'; x.title = '이 할 일 지우기'; x.setAttribute('aria-label', '이 할 일 지우기');
+      var x = el('button', 'lx', '×'); x.type = 'button'; x.title = 'Remove this to-do'; x.setAttribute('aria-label', 'Remove this to-do');
       x.onclick = function (e) { e.stopPropagation(); g.setItem(it.id, 'dismissed'); if (st.nudge === it.id) st.nudge = null; if (G.reduce) g.render(); else { d.classList.add('gone'); setTimeout(g.render, 380); } };
       d.appendChild(x);
       var body = el('div'); d.appendChild(body);
       var at = it.at && g.byId[it.at] ? g.byId[it.at] : it.t;
-      body.appendChild(el('div', 'k', (it.t ? g.numLabel(at) + ' · ' : '') + KIND[it.kind].label + (it.sent === 'auto' ? ' · 가닥이 보냄' : '')));
+      body.appendChild(el('div', 'k', (it.t ? g.numLabel(at) + ' · ' : '') + KIND[it.kind].label + (it.sent === 'auto' ? ' · sent by Gadak' : '')));
       var t = el('div', 't', it.text); body.appendChild(t);
       if (it.t && s !== 'done') { t.classList.add('lk'); t.onclick = function () { g.go(at.id); }; }
       if (s !== 'done') {
         var row = el('div', 'row');
         var a = el('button', 'btn sm primary', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a, 'list'); }; row.appendChild(a);
         // 나중에: 그 칸이 옆으로 빠지며 접힌 뒤에 목록을 다시 그려요
-        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; if (G.reduce) g.render(); else { d.classList.add('gone'); setTimeout(g.render, 380); } }; row.appendChild(l); }
+        if (s !== 'later') { var l = el('button', 'btn sm', 'Later'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; if (G.reduce) g.render(); else { d.classList.add('gone'); setTimeout(g.render, 380); } }; row.appendChild(l); }
         body.appendChild(row);
       }
       return d;

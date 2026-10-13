@@ -1,10 +1,10 @@
 #!/bin/sh
-# 가닥 설치 안내를 PDF로 찍어요: docs/install-guide/guide.html → docs/가닥-설치-안내.pdf
+# 가닥 설치 안내를 PDF로 찍어요: docs/install-guide/guide.html → docs/gadak-install-guide.pdf
 # 크롬이 있어야 해요. 한글 글꼴(Pretendard)을 받아야 해서 인터넷도 필요해요. Finder에서 더블클릭해도 되고, 터미널에서 sh로 돌려도 돼요.
 # 크롬은 PDF를 다 쓰고도 스스로 안 꺼질 때가 있어서, 파일이 다 쓰인 것을 보고 끝내요.
 cd "$(dirname "$0")" || exit 1
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-OUT="$(cd .. && pwd)/가닥-설치-안내.pdf"
+OUT="$(cd .. && pwd)/gadak-install-guide.pdf"
 [ -x "$CHROME" ] || { echo "크롬을 찾지 못했어요: $CHROME"; exit 1; }
 PROFILE="$(mktemp -d)"
 rm -f "$OUT"

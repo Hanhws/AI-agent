@@ -333,7 +333,7 @@ class Classifier:
         """엔진 호출 한 번. 1단 · 2단이 같은 한도를 써요. 쓴 토큰은 내 PC에만 적어요(backend/tokens.py)."""
         engine = engine or self.engine()
         if self.status["calls"] >= self.max_calls:
-            self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
+            self.status.update(paused=True, error=f"Stopped after using {store.many(self.max_calls, 'sorting call')} since Gadak was turned on.")
             raise OutOfCalls()
         self.status["calls"] += 1
         try:
@@ -345,7 +345,7 @@ class Classifier:
         """웹에서 찾아보기 한 번 (앞길 살피기 · 엔진이 할 줄 알 때만). 정리 호출과 같은 한도를 써요."""
         engine = engine or self.engine()
         if self.status["calls"] >= self.max_calls:
-            self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
+            self.status.update(paused=True, error=f"Stopped after using {store.many(self.max_calls, 'sorting call')} since Gadak was turned on.")
             raise OutOfCalls()
         self.status["calls"] += 1
         try:

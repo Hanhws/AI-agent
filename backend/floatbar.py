@@ -16,14 +16,14 @@ MAX = 6                 # 둘레에 놓을 수 있는 수 (가닥 버튼 둘레�
 LABEL_MAX = 4           # 프로젝트 버튼에 쓰는 이름의 글자 수 (동그라미 안에 들어가는 만큼)
 # 기능: (버튼의 글, 마우스를 올리면 뜨는 말). 차례는 편집 화면에 보이는 차례예요
 ACTIONS = {
-    "map": ("노선도", "지금 대화의 노선도"),
-    "todo": ("할 일", "놓친 일과 제안"),
-    "dec": ("정함", "지금까지 정한 것"),
-    "files": ("산출물", "나온 파일"),
-    "ahead": ("앞길", "가닥이 찾아본 길"),
-    "find": ("찾기", "가닥 창에서 대화 찾기"),
-    "window": ("창", "가닥 창 열기"),
-    "help": ("도움말", "쓰는 법과 낱말 풀이"),
+    "map": ("Map", "Strip map of the current chat"),
+    "todo": ("To do", "Missed work and suggestions"),
+    "dec": ("Decided", "Everything decided so far"),
+    "files": ("Files", "Files that came out"),
+    "ahead": ("Ahead", "Paths Gadak scouted"),
+    "find": ("Search", "Search chats in the Gadak window"),
+    "window": ("Window", "Open the Gadak window"),
+    "help": ("Help", "How to use it and a glossary"),
 }
 DEFAULT = ("map", "todo", "dec", "files", "find", "window")
 LISTS = ("todo", "dec", "files", "ahead")       # 목록 창의 칸을 여는 기능 (backend/web/strip.js가 아는 칸)
@@ -33,7 +33,7 @@ def short(name) -> str:
     """프로젝트 이름에서 버튼에 쓸 짧은 이름: 첫 낱말의 앞 세 글자."""
     words = re.split(r"[\s\-_·/()\[\]]+", (name or "").strip())
     first = next((w for w in words if w), "")
-    return first[:3] or "프로젝트"
+    return first[:3] or "Proj"
 
 
 def _projects(conn) -> dict:
@@ -89,7 +89,7 @@ def resolved(conn) -> list:
         else:
             project = known[slot["project"]]
             out.append({"key": "p:" + project["id"], "kind": "project", "project": project["id"], "label": slot["label"],
-                        "tip": f"{project['name']} · 이 프로젝트의 노선도", "color": project["color"]})
+                        "tip": f"{project['name']} · this project's strip map", "color": project["color"]})
     return out
 
 

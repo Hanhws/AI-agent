@@ -143,10 +143,10 @@ ADDED_COLUMNS = {
 
 NO_PROJECT = "_none"
 LOOSE_PROJECT = "폴더 없는 대화"   # Claude 데스크톱이 폴더 없이 연 세션은 앱이 만든 임시 폴더(scratch-workspaces)에서 돌아요
-TITLE_LEN = 16
+TITLE_LEN = 28
 MAX_AI = 20000            # 답이 아주 긴 턴은 앞 조금과 끝을 남겨요 (결론은 끝에 있어요)
 AI_HEAD = 4000
-CUT = "\n…(가운데 줄임)…\n"
+CUT = "\n…(middle cut)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
 ITEM_STATES = {"open", "later", "done", "dismissed"}   # dismissed: 사용자가 ×로 지운 것 (목록 · 노선도 · 알림 수에서 빠져요)
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
@@ -223,7 +223,7 @@ def provisional_title(text: str) -> str:
     first = re.sub(r"^(\d+[.)]|[-*•■#>]+)\s*", "", first)
     first = re.split(r"(?<=[.?!])\s|[,，]", first)[0].strip()
     if not first:
-        return "(질문 없음)"
+        return "(no question)"
     if len(first) <= TITLE_LEN:
         return first
     cut = first[:TITLE_LEN]
@@ -310,7 +310,7 @@ def hidden_chats(conn) -> list:
         " (SELECT t.title FROM turns t WHERE t.chat_id = c.id ORDER BY t.seq LIMIT 1) AS first"
         " FROM chats c JOIN projects p ON p.id = c.project_id WHERE c.hidden = 1 ORDER BY last DESC, c.rowid DESC"
     )
-    return [{"id": r["id"], "title": r["title"] or r["first"] or "(질문 없음)", "site": r["site"],
+    return [{"id": r["id"], "title": r["title"] or r["first"] or "(no question)", "site": r["site"],
              "date": display_date(r["last"] or r["created_at"]),
              "project": {"id": r["project_id"], "name": r["project"]}} for r in rows]
 
@@ -669,17 +669,22 @@ def handoff_note(text) -> dict:
     """가닥이 새 대화에 넣은 이어 가기 요약을 할 일 장부에 보이는 모양으로. 이미 한 일이라 ‘done’이에요."""
     count = sum(1 for line in text.splitlines() if line[:1].isdigit() and ". " in line[:5])
     return {
-        "kind": "handoff", "text": f"지난 대화에서 정한 것 {count}개를 이 대화에 붙였어요",
-        "why": "같은 프로젝트의 새 대화라서, 시작할 때 가닥이 넣었어요.", "btn": "요약 보기",
-        "pop": {"title": "이어 가기 요약", "text": text, "note": "새 대화가 시작될 때 가닥이 넣은 글이에요."},
+        "kind": "handoff", "text": f"Pasted {many(count, 'decision')} from the last chat into this one",
+        "why": "A new chat in the same project, so Gadak added it at the start.", "btn": "See summary",
+        "pop": {"title": "Carry-on summary", "text": text, "note": "The text Gadak added when the new chat started."},
         "state": "done", "sent": "auto",
     }
+
+
+def many(n, word) -> str:
+    """영어 화면의 수: 1 chat · 2 chats."""
+    return f"{n} {word}" + ("" if n == 1 else "s")
 
 
 def display_date(created_at: str) -> str:
     day = datetime.fromisoformat(created_at).astimezone()
     today = datetime.now().astimezone().date()
-    return "오늘" if day.date() == today else f"{day.month}/{day.day}"
+    return "Today" if day.date() == today else f"{day.month}/{day.day}"
 
 
 def projects(conn) -> list:
@@ -753,7 +758,7 @@ def view(conn, project_id, scope="all", chat_id=None):
 
 MAP_COLORS = ("#0039A6", "#FF6319", "#00933C", "#FCCC0A", "#B933AD", "#EE352E", "#6CBE45", "#00A1DE",
               "#996633", "#4D5357", "#C2185B", "#00796B", "#5C6BC0", "#8C8C8C")   # 비녤리 지도의 노선 색
-MAP_LINKS = {"handoff": "이어 가기", "repeat": "지난 대화 참조"}   # 다른 대화를 근거(at)로 든 할 일 → 환승
+MAP_LINKS = {"handoff": "carry on", "repeat": "refers to past chat"}   # 다른 대화를 근거(at)로 든 할 일 → 환승
 
 
 def project_color(conn, project_id) -> str:

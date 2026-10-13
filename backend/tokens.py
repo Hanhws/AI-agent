@@ -86,8 +86,8 @@ def main() -> None:
         pass
     rows = report(config.HOME, claude_code.root(), titles)
     if not rows:
-        sys.exit("아직 견줄 기록이 없어요. 가닥을 켠 채로 Claude Code 대화를 몇 턴 해 보세요.")
-    head = f"{'대화':<24} {'내 LLM 전체':>12} {'캐시 뺀':>10} {'가닥 전체':>10} {'캐시 뺀':>9} {'비율(전체)':>9} {'비율(캐시 뺀)':>11}  가닥 비용"
+        sys.exit("Nothing to compare yet. Keep Gadak on and have a few turns in Claude Code.")
+    head = f"{'Chat':<24} {'My LLM total':>12} {'no cache':>10} {'Gadak total':>10} {'no cache':>9} {'ratio':>9} {'ratio(nc)':>11}  Gadak cost"
     print(head)
     fresh = ("in", "cache_w", "out")
     totals = [collections.Counter(), collections.Counter()]
@@ -97,14 +97,14 @@ def main() -> None:
         print(f"{r['title'][:24]:<24} {lt:>12,} {lf:>10,} {gt:>10,} {gf:>9,} {gt / max(lt, 1):>9.1%} {gf / max(lf, 1):>11.1%}"
               f"  ${r['gadak']['cost_micro'] / 1e6:.4f}")
     lt, lf, gt, gf = _sum(totals[0]), _sum(totals[0], fresh), _sum(totals[1]), _sum(totals[1], fresh)
-    print(f"{'합계':<24} {lt:>12,} {lf:>10,} {gt:>10,} {gf:>9,} {gt / max(lt, 1):>9.1%} {gf / max(lf, 1):>11.1%}"
+    print(f"{'Total':<24} {lt:>12,} {lf:>10,} {gt:>10,} {gf:>9,} {gt / max(lt, 1):>9.1%} {gf / max(lf, 1):>11.1%}"
           f"  ${totals[1]['cost_micro'] / 1e6:.4f}")
     kinds = collections.defaultdict(collections.Counter)
     for r in rows:
         for kind, c in r["by_kind"].items():
             kinds[kind].update(c)
-    print("\n가닥 호출 종류별:", ", ".join(f"{k} {c['calls']}번 {_sum(c):,}토큰" for k, c in sorted(kinds.items(), key=str)))
-    print("캐시 뺀 = 새로 읽은 입력 + 캐시에 쓴 입력 + 출력. 내 LLM과 가닥(Haiku)은 모델이 달라 토큰 값이 달라요.")
+    print("\nGadak calls by kind:", ", ".join(f"{k} {c['calls']} calls {_sum(c):,} tokens" for k, c in sorted(kinds.items(), key=str)))
+    print("no cache = fresh input + cache-write input + output. My LLM and Gadak (Haiku) are different models, so token prices differ.")
 
 
 if __name__ == "__main__":

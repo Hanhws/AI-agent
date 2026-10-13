@@ -16,7 +16,7 @@ from .. import store, usage
 KINDS = ("open", "repeat", "topic")
 SEG_TRANSFER = 3
 SIDE_MIN = 3
-POSTPONE = re.compile(r"나중에|다음에|이따가?|보류|미루|미뤄|일단 넘어")
+POSTPONE = re.compile(r"나중에|다음에|이따가?|보류|미루|미뤄|일단 넘어|later|next time|postpone|put (it )?off|hold off|for now", re.I)
 SIMILAR = 0.8
 TITLE_MIN = 4
 
@@ -41,11 +41,11 @@ def open_side(rows, at) -> dict | None:
         return None
     first = next((r["title"] for r in chain if r["title"]), "")
     return {
-        "kind": "open", "at": chain[0]["id"], "btn": "정리 받기",
-        "text": f"{_q(first)}" + (f" 외 {len(chain) - 1}개" if len(chain) > 1 else "") + " 곁길이 결론 없이 끝났어요",
-        "why": "곁길에서 본류로 돌아왔는데 그 곁길에서 정한 것이 없어요.",
-        "prompt": "앞에서 곁길로 물어본 것들(" + ", ".join(_q(r["title"]) for r in chain if r["title"])
-                  + ")을 하나씩 한두 줄로 정리하고, 지금 하던 일과 어떻게 이어지는지 알려 줘.",
+        "kind": "open", "at": chain[0]["id"], "btn": "Get a recap",
+        "text": "The side trip " + f"{_q(first)}" + (f" and {len(chain) - 1} more" if len(chain) > 1 else "") + " ended without a conclusion",
+        "why": "You came back to the main line, but nothing was decided on that side trip.",
+        "prompt": "Recap the side questions I asked earlier (" + ", ".join(_q(r["title"]) for r in chain if r["title"])
+                  + ") in a line or two each, and tell me how they connect to what we are doing now.",
     }
 
 
@@ -72,12 +72,12 @@ def repeat_question(conn, chat, row) -> dict | None:
         return None
     day = store.display_date(best["created_at"])
     return {
-        "kind": "repeat", "at": best["id"], "btn": "지난 답 보기",
-        "text": f"{_q(best['title'])}, {day} 대화에서도 물으셨어요",
-        "why": "같은 프로젝트의 지난 대화에 이름이 거의 같은 역이 있어요.",
-        "pop": {"title": f"{day} · {best['chat_title'] or '지난 대화'}",
+        "kind": "repeat", "at": best["id"], "btn": "See the past answer",
+        "text": f"You asked {_q(best['title'])} in the {day} chat too",
+        "why": "A past chat in the same project has a station with almost the same name.",
+        "pop": {"title": f"{day} · {best['chat_title'] or 'a past chat'}",
                 "text": (best["ai"] or "")[:600] + ("…" if len(best["ai"] or "") > 600 else ""),
-                "note": "지난 대화의 답 앞부분이에요. 노선도에서 그 역을 누르면 그 대화로 가요."},
+                "note": "The start of the answer in the past chat. Click that station on the map to go to that chat."},
     }
 
 
@@ -90,10 +90,10 @@ def transfer(conn, chat_id) -> bool:
     ).fetchone():
         return False
     item = {
-        "kind": "topic", "effect": "transfer", "btn": "환승하기",
-        "text": f"이 대화에 주제가 {len(starts)}개 쌓였어요 · 새 대화로 갈아탈까요?",
-        "why": f"‘{starts[0]['seg']}’부터 ‘{starts[-1]['seg']}’까지 한 대화에서 이어졌어요. "
-               "정한 것만 들고 새 대화로 가면 답이 앞 내용을 덜 끌고 와요.",
+        "kind": "topic", "effect": "transfer", "btn": "Transfer",
+        "text": f"{len(starts)} topics have piled up in this chat · switch to a new one?",
+        "why": f"This chat ran from ‘{starts[0]['seg']}’ to ‘{starts[-1]['seg']}’. "
+               "Taking only the decisions to a new chat keeps answers from dragging in earlier context.",
     }
     if store.add_items(conn, starts[-1]["id"], [item]):
         usage.record(conn, "item", kind="topic", did="made", at="list")

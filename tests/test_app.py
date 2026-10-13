@@ -298,18 +298,18 @@ class AppTest(unittest.TestCase):
         self.assertIn("if (!rail) return;", (ROOT / "shared" / "ui" / "rail.js").read_text(encoding="utf-8"))
         self.assertIn("fillAnswer(para, d.turn.ai, t.id); more.remove(); g.renderRail();", window)   # ‘전체 보기’로 받은 답도 구획 · 표 · 코드로
         side = (ROOT / "shared" / "ui" / "side.js").read_text(encoding="utf-8")
-        for words in ("['ahead', '앞길'", "앞길 저절로 살피기", "살피지 못했어요", "내밀 만한 길을 찾지 못했어요"):
+        for words in ("['ahead', 'Ahead'", "Look ahead automatically", "Could not look ahead", "found no path worth offering"):
             self.assertIn(words, side)
         with self.client.get("/help") as page:
             html = page.get_data(as_text=True)
         self.assertEqual(page.status_code, 200)
-        for words in ("가닥 도움말", "노선도 읽기", "낱말 풀이", "앞길 보기", "저절로 살피기", "막힐 때"):
+        for words in ("Gadak Help", "Reading the map", "Glossary", "Look ahead", "Look ahead automatically", "When you’re stuck"):
             self.assertIn(words, html)
         self.assertNotIn("<textarea", html)
         # 도움말은 주제별로 나뉘어 한 번에 하나만 보이고(왼쪽에서 고르기), 위의 칸에서 낱말로 찾아요
         topics = re.findall(r'<section id="(\w+)" data-name="([^"]+)"', html)
         self.assertEqual([name for _, name in topics],
-                         ["처음 3분", "AI 연결", "대화 읽어 오기", "노선도 읽기", "할 일과 목록", "앞길", "떠 있는 버튼", "낱말 풀이", "막힐 때"])
+                         ["First 3 minutes", "Connect AI", "Reading chats", "Reading the map", "To-dos and lists", "Ahead", "Floating button", "Glossary", "When you’re stuck"])
         self.assertIn('id="find"', html)
         # Mac과 Windows에서 다른 말은 둘 다 적혀 있고(.os-mac · .os-win), 화면은 지금 컴퓨터의 것만 보여 줘요. 그래서 한쪽씩 세요
         self.assertIn("'.os-mac' : '.os-win'", html)
@@ -318,16 +318,16 @@ class AppTest(unittest.TestCase):
             self.assertNotIn(other, seen.split("<main>")[1].split("</main>")[0])
             for _, name, body in re.findall(r'<section id="(\w+)" data-name="([^"]+)">(.*?)</section>', seen, flags=re.S):
                 words = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body)).strip()
-                self.assertLess(len(words), 800, name)              # 한 주제는 한 화면에 (전에는 한 쪽에 4,500자가 이어져 있었어요)
-        self.assertIn("자격 증명 관리자", html)                      # Windows에 깐 가닥에서는 키를 두는 곳의 이름이 달라요
-        for words in ("AI 연결", "버튼 편집"):                         # 화면의 이름과 같은 말로 안내해요
+                self.assertLess(len(words), 1800, name)             # 한 주제는 한 화면에 (전에는 한 쪽에 4,500자가 이어져 있었어요). 영어는 한글의 두 배쯤 글자를 써요
+        self.assertIn("Credential Manager", html)                      # Windows에 깐 가닥에서는 키를 두는 곳의 이름이 달라요
+        for words in ("Connect AI", "Edit Buttons"):                         # 화면의 이름과 같은 말로 안내해요
             self.assertIn(words, html)
         self.assertIn("window.open('help'", window)
         # AI 연결: 정리에 쓸 AI를 화면에서 고르고 연결해요 (구독은 한 번 누르기 · API 키는 붙여 넣기). 키를 치는 칸은 가려져요
-        for words in ("'AI 연결'", "engine/connect", "engine/choose", "engine/key", "input.type = 'password'", "Claude 구독", "ChatGPT 구독", "LLM API 키"):
+        for words in ("'Connect AI'", "engine/connect", "engine/choose", "engine/key", "input.type = 'password'", "Claude subscription", "ChatGPT subscription", "LLM API key"):
             self.assertIn(words, window)
         swift = (ROOT / "mac" / "Gadak.swift").read_text(encoding="utf-8")
-        self.assertIn('menu("도움말"', swift)
+        self.assertIn('menu("Help"', swift)
         self.assertIn('showPage(helpTitle, path: "help"', swift)
         # 전체 지도 닫기: 지도 쪽이 가닥 창의 길을 바로 부르고, 가닥 창에서는 Esc로도 닫혀요
         self.assertIn("window.gadakMapClose = closeMap", window)

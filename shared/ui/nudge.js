@@ -14,12 +14,12 @@
       var n = el('div', 'nudge ' + (g.hooks.nudgeClass || 'nudge-app') + (lastNudge === it.id ? ' still' : ''));
       if (lastNudge !== it.id) g.track('item', { kind: it.kind, did: 'shown', at: 'nudge' });
       lastNudge = it.id;
-      var who = el('div', 'who'); who.appendChild(G.miniMark(12)); who.appendChild(el('b', null, '가닥')); who.appendChild(el('span', null, '· ' + KIND[it.kind].label)); n.appendChild(who);
-      var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', '한마디 닫기'); x.onclick = function () { g.track('item', { kind: it.kind, did: 'close', at: 'nudge' }); g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; n.appendChild(x);
+      var who = el('div', 'who'); who.appendChild(G.miniMark(12)); who.appendChild(el('b', null, 'Gadak')); who.appendChild(el('span', null, '· ' + KIND[it.kind].label)); n.appendChild(who);
+      var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Close this note'); x.onclick = function () { g.track('item', { kind: it.kind, did: 'close', at: 'nudge' }); g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; n.appendChild(x);
       n.appendChild(el('div', 't', it.text)); n.appendChild(el('div', 'w', it.why));
       var row = el('div', 'row');
       var a = el('button', 'btn sm accent', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a, 'nudge'); }; row.appendChild(a);
-      var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'nudge' }); g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; row.appendChild(l);
+      var l = el('button', 'btn sm', 'Later'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'nudge' }); g.setItem(it.id, 'later'); st.nudge = null; g.render(); }; row.appendChild(l);
       n.appendChild(row);
       R.nudgeHost.appendChild(n); R.nudgeEl = n;
     };
@@ -34,7 +34,7 @@
       if (st.typing) return;
       g.track('item', { kind: it.kind, did: 'run', at: at || 'list' });
       st.fresh = {};
-      if (it.effect === 'split') { st.split = true; finish(it); st.focusMap = true; g.flashToast('주제별 노선으로 나눴어요. 다음 전환부터는 알아서 나눠요.'); g.render(); return; }
+      if (it.effect === 'split') { st.split = true; finish(it); st.focusMap = true; g.flashToast('Split into one line per topic. From the next change of topic it splits by itself.'); g.render(); return; }
       // 주제 전환 → 환승하기 (요약 복사). 노선도 끝에 환승 표시를 그리지 않는 창(떠 있는 창)은 transfer hook으로 같은 일을 해요
       var xfer = it.effect === 'transfer' && (g.hooks.handoff || g.hooks.transfer);
       if (xfer) { finish(it); xfer(); g.render(); return; }
@@ -53,31 +53,31 @@
       var auto = null, was = !!(g.SC.auto && g.SC.auto[it.kind]);
       if (P.prompt && g.hooks.setAuto && G.AUTO[it.kind]) {
         var lab = el('label', 'auto'); auto = el('input'); auto.type = 'checkbox'; auto.checked = was;
-        lab.appendChild(auto); lab.appendChild(el('span', null, '앞으로는 알아서')); pop.appendChild(lab);
+        lab.appendChild(auto); lab.appendChild(el('span', null, 'Do this automatically from now on')); pop.appendChild(lab);
         pop.appendChild(el('div', 'note', G.AUTO[it.kind]));
       }
       var row = el('div', 'row');
-      var c = el('button', 'btn sm', '닫기'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
+      var c = el('button', 'btn sm', 'Close'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
       if (P.prompt) { var a = el('button', 'btn sm primary', P.btn); a.type = 'button'; a.onclick = function () {
         pop.hidden = true;
         if (auto && auto.checked !== was) g.hooks.setAuto(it.kind, auto.checked);
         insert(P.prompt, KIND[it.kind].label, function () { finish(it); g.render(); }); }; row.appendChild(a); }
-      else { var cp = el('button', 'btn sm primary', '새 창에 붙일 글 복사'); cp.type = 'button'; cp.onclick = function () {
-        var ok = function () { finish(it); pop.hidden = true; g.flashToast('복사했어요. 새 창 첫 메시지에 붙여 넣으면 돼요.'); g.render(); };
+      else { var cp = el('button', 'btn sm primary', 'Copy text for a new chat'); cp.type = 'button'; cp.onclick = function () {
+        var ok = function () { finish(it); pop.hidden = true; g.flashToast('Copied. Paste it as the first message of a new chat.'); g.render(); };
         G.copy(P.text).then(ok); }; row.appendChild(cp); }
       pop.appendChild(row);
       g.placePop(anchor);
     }
     g.showRevPop = function (anchor) {
       var rv = g.revisions(); pop.innerHTML = '';
-      pop.appendChild(el('b', null, '모아 둔 수정 ' + rv.length + '건'));
-      var lines = ['지금까지 모은 수정사항을 반영해서 최종본을 한 번에 다시 써줘.'];
+      pop.appendChild(el('b', null, rv.length + (rv.length === 1 ? ' edit collected' : ' edits collected')));
+      var lines = ['Apply all the edits collected so far and rewrite the final version in one go.'];
       rv.forEach(function (r, i) { var tg = g.byId[r.p.target]; lines.push((i + 1) + '. ' + r.p.t + (tg ? ' (' + g.numLabel(tg) + ' ' + tg.title + (tg.chat !== g.ACT ? ' · ' + tg.chat.title : '') + ')' : '')); });
-      lines.push('위 항목 말고는 바꾸지 마.');
+      lines.push('Do not change anything other than the items above.');
       pop.appendChild(el('pre', null, lines.join('\n')));
-      pop.appendChild(el('div', 'note', '바로 재생성하지 않고 모아 두었다가, 최종본을 한 번만 요청해요.'));
-      var row = el('div', 'row'); var c = el('button', 'btn sm', '닫기'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
-      var a = el('button', 'btn sm primary', g.hooks.insertLabel || '입력창에 넣기'); a.type = 'button'; a.onclick = function () { pop.hidden = true; insert(lines.join('\n'), '수정 모음', function () { g.render(); }); }; row.appendChild(a);
+      pop.appendChild(el('div', 'note', 'Instead of regenerating each time, edits are collected and the final version is requested once.'));
+      var row = el('div', 'row'); var c = el('button', 'btn sm', 'Close'); c.type = 'button'; c.onclick = function () { pop.hidden = true; }; row.appendChild(c);
+      var a = el('button', 'btn sm primary', g.hooks.insertLabel || 'Put in the message box'); a.type = 'button'; a.onclick = function () { pop.hidden = true; insert(lines.join('\n'), 'Edits collected', function () { g.render(); }); }; row.appendChild(a);
       pop.appendChild(row); g.placePop(anchor);
     };
     g.placePop = function (anchor) {

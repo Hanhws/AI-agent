@@ -59,7 +59,7 @@ func draw(_ pixels: Int) -> Data? {
 }
 
 guard CommandLine.arguments.count == 2 else {
-    print("쓰는 법: icon <AppIcon.iconset 폴더>")
+    print("Usage: icon <AppIcon.iconset folder>")
     exit(1)
 }
 let folder = URL(fileURLWithPath: CommandLine.arguments[1])

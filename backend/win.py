@@ -129,7 +129,7 @@ def log_streams(home) -> None:
     sys.stderr = sys.stderr or stream
 
 
-def alert(text, title="가닥") -> None:
+def alert(text, title="Gadak") -> None:
     """켜지 못했을 때 알리는 작은 창. 창 없이 도는 가닥은 이것 말고는 알릴 길이 없어요."""
     if not WINDOWS:
         return

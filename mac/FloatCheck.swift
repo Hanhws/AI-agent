@@ -126,10 +126,10 @@ extension FloatController {
         }
         var customs: [String] = [], sheets: [NSBitmapImageRep?] = []
         panel.appearance = NSAppearance(named: .aqua)
-        for slots in [[slot("map", "노선도")],
-                      [slot("map", "노선도"), slot("환율", "환율", "#6CBE45"), slot("todo", "할 일"), slot("수업", "DB수업", "#0039A6")],
-                      [slot("todo", "할 일"), slot("ahead", "앞길"), slot("환율", "환율", "#6CBE45"), slot("help", "도움말"),
-                       slot("수업", "수업", "#FF6319"), slot("window", "창")]] {
+        for slots in [[slot("map", "Map")],
+                      [slot("map", "Map"), slot("rate", "Rate", "#6CBE45"), slot("todo", "To do"), slot("class", "DB", "#0039A6")],
+                      [slot("todo", "To do"), slot("ahead", "Ahead"), slot("rate", "Rate", "#6CBE45"), slot("help", "Help"),
+                       slot("course", "Lab", "#FF6319"), slot("window", "Window")]] {
             applySlots(slots)
             var bad = 0
             for side in FloatEdge.allCases {
@@ -150,7 +150,7 @@ extension FloatController {
         }
         write("buttons-custom.png", sheet(sheets, columns: 4))
         panel.appearance = nil
-        pinned = "수업"                      // 보고 있던 프로젝트의 버튼을 빼면 ‘지금 쓰는 대화’로 돌아와요
+        pinned = "course"                    // 보고 있던 프로젝트의 버튼을 빼면 ‘지금 쓰는 대화’로 돌아와요
         applySlots(stock)
         note("slots " + customs.joined(separator: " ") + " back=\(satellites.count) pinnedCleared=\(pinned == nil)")
         for (label, point) in [("left", NSPoint(x: screen.frame.minX + 200, y: screen.frame.midY)),
@@ -264,7 +264,7 @@ extension FloatController {
                             write("overlay-map.png", png(image))
                             // 노선도 창 안을 진짜 클릭처럼 눌러 봐요: 가닥이 앞에 있지 않아도 첫 클릭에 목록 창이 뜨는지 → 한 번 더 누르면 닫히는지 →
                             // 역을 누르면 가닥 창이 그 대화의 그 역을 열라는 부탁을 받는지 → ‘접기’로 창이 닫히는지
-                            let find = "(function(n){var b=n==='station'?document.querySelector('button.st[data-tid]'):[].slice.call(document.querySelectorAll('button')).filter(function(x){return n==='fold'?x.textContent==='접기':x.className==='ledbtn'})[0];if(!b)return null;var r=b.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2,b.dataset.tid||'']})"
+                            let find = "(function(n){var b=n==='station'?document.querySelector('button.st[data-tid]'):[].slice.call(document.querySelectorAll('button')).filter(function(x){return n==='fold'?x.textContent==='Collapse':x.className==='ledbtn'})[0];if(!b)return null;var r=b.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2,b.dataset.tid||'']})"
                             func tap(_ name: String, then: @escaping (String) -> Void) {
                                 web?.evaluateJavaScript("\(find)('\(name)')") { [self] found, _ in
                                     guard let at = found as? [Any], at.count == 3, let x = (at[0] as? NSNumber)?.doubleValue,

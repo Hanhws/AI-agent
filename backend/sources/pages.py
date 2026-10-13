@@ -17,7 +17,7 @@ import unicodedata
 from .. import store
 
 SITES = ("claude", "chatgpt", "gemini")
-VIA = "크롬 확장"
+VIA = "Chrome extension"
 MAX_TURNS = 3000
 KEY_LEN = 120             # 질문을 알아보는 데 쓰는 앞부분 (글자 · 숫자만)
 TITLE_MAX, PROJECT_MAX = 200, 80
@@ -74,23 +74,23 @@ def _line(value, limit):
 
 def _check(body):
     if not isinstance(body, dict):
-        raise BadPage("요청은 JSON 객체여야 해요")
+        raise BadPage("The request must be a JSON object")
     site, chat, turns = body.get("site"), body.get("chat"), body.get("turns")
     if site not in SITES:
-        raise BadPage("site는 " + " · ".join(SITES) + " 중 하나여야 해요")
+        raise BadPage("site must be one of " + " · ".join(SITES) + "")
     if not isinstance(chat, dict) or not isinstance(chat.get("id"), str) or not _ID.fullmatch(chat["id"]):
-        raise BadPage("chat.id가 필요해요")
+        raise BadPage("chat.id is required")
     if not isinstance(turns, list) or len(turns) > MAX_TURNS:
-        raise BadPage("turns는 목록이어야 해요")
+        raise BadPage("turns must be a list")
     out, seen = [], collections.Counter()
     for turn in turns:
         if not isinstance(turn, dict):
-            raise BadPage("턴은 JSON 객체여야 해요")
+            raise BadPage("Each turn must be a JSON object")
         user, ai, ref = turn.get("user"), turn.get("ai"), turn.get("ref")
         if not isinstance(user, str) or not (ai is None or isinstance(ai, str)):
-            raise BadPage("턴에는 user(글)와 ai(글 또는 null)가 필요해요")
+            raise BadPage("Each turn needs user (text) and ai (text or null)")
         if ref is not None and not (isinstance(ref, str) and _ID.fullmatch(ref)):
-            raise BadPage("ref는 사이트의 메시지 id여야 해요")
+            raise BadPage("ref must be the site's message id")
         user, ai = fit(user), (None if ai is None else fit(ai))
         if not user and not ai:
             continue
@@ -99,7 +99,7 @@ def _check(body):
                     "key": text_key, "nth": seen[text_key]})
         seen[text_key] += 1
     if not out:
-        raise BadPage("읽은 턴이 없어요")
+        raise BadPage("No turns were read")
     out[-1]["open"] = turns[-1].get("open") is True     # 답이 오는 중일 수 있는 건 마지막 턴뿐이에요
     return site, {"id": chat["id"], "title": _line(chat.get("title"), TITLE_MAX),
                   "project": _line(chat.get("project"), PROJECT_MAX)}, out
@@ -135,7 +135,7 @@ def ingest(conn, body) -> dict:
     chat_id = chat["id"]
     refs = [t["ref"] for t in turns if t["ref"]]
     if refs and body.get("sure") is not True and _elsewhere(conn, site, chat_id, refs):
-        raise Elsewhere("이 화면의 메시지가 다른 대화에 이미 있어요. 화면이 바뀌는 중일 수 있어서 넣지 않았어요.")
+        raise Elsewhere("Messages on this page are already in another chat. The page may be changing, so they were not added.")
     new = changed = 0
     live = False
     with conn:

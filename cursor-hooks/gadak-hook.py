@@ -36,7 +36,7 @@ CLAUDE_EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 def _clip(text):
     if isinstance(text, str) and len(text) > MAX_TEXT:
-        return text[:MAX_TEXT] + "\n…(잘림)"
+        return text[:MAX_TEXT] + "\n…(cut)"
     return text
 
 

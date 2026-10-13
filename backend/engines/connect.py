@@ -55,11 +55,11 @@ def _say(**fields) -> None:
 def start(name, done=None) -> dict:
     """연결을 시작해요(뒤에서 돌아요). done(name)은 다 됐을 때 한 번 불려요."""
     if name not in NAMES:
-        return {"ok": False, "reason": "구독으로 연결할 수 있는 것은 Claude와 ChatGPT예요."}
+        return {"ok": False, "reason": "Only Claude and ChatGPT can be connected by subscription."}
     with _lock:
         if _job["state"] == "running":
-            return {"ok": False, "reason": f"{NAMES[_job['name']]}를 연결하는 중이에요. 끝난 뒤에 다시 눌러 주세요."}
-        _job.update(name=name, step=None, state="running", message="준비하고 있어요…", at=time.time())
+            return {"ok": False, "reason": f"Connecting {NAMES[_job['name']]}. Press again once it finishes."}
+        _job.update(name=name, step=None, state="running", message="Getting ready…", at=time.time())
         _running.update(process=None, stop=False)
     threading.Thread(target=_run, args=(name, done), daemon=True).start()
     return {"ok": True}
@@ -79,29 +79,29 @@ def _run(name, done) -> None:
     from . import forget_logins
     try:
         if _find(name) is None:
-            _say(step="install", message=f"{NAMES[name]}를 받고 있어요. 1~2분 걸려요…")
+            _say(step="install", message=f"Downloading {NAMES[name]}. This takes 1–2 minutes…")
             (_install_claude if name == "claude_cli" else _install_codex)()
             if _find(name) is None:
-                raise Problem(f"{NAMES[name]}를 받았는데 찾지 못했어요. 가닥을 껐다 켠 뒤 다시 눌러 주세요.")
+                raise Problem(f"Downloaded {NAMES[name]} but could not find it. Restart Gadak and press again.")
         forget_logins()
         if not _logged_in(name):
-            _say(step="login", message="브라우저에서 로그인을 마쳐 주세요. 끝나면 여기가 저절로 바뀌어요.")
+            _say(step="login", message="Finish signing in in your browser. This updates by itself when you are done.")
             _login(name)
             forget_logins()
             if not _running["stop"] and not _logged_in(name):
-                raise Problem("로그인이 끝나지 않았어요. 브라우저에서 로그인을 마친 뒤 다시 눌러 주세요.")
+                raise Problem("Sign-in did not finish. Finish signing in in your browser and press again.")
         forget_logins()
         if _running["stop"]:
             return
         if done:
             done(name)
-        _say(step=None, state="done", message="연결했어요.")
+        _say(step=None, state="done", message="Connected.")
     except Problem as exc:
         if not _running["stop"]:
             _say(step=None, state="failed", message=str(exc))
     except Exception as exc:                                       # 예상하지 못한 것도 화면에 한 줄로
         if not _running["stop"]:
-            _say(step=None, state="failed", message=f"연결하지 못했어요: {str(exc)[:160]}")
+            _say(step=None, state="failed", message=f"Could not connect: {str(exc)[:160]}")
     finally:
         _running["process"] = None
         forget_logins()
@@ -133,7 +133,7 @@ def _trust():
 def _fetch(url, target, what) -> None:
     """https 주소의 파일을 받아 target에 적어요. 받는 동안 얼마나 받았는지 알려요."""
     if not url.startswith("https://"):
-        raise Problem("https 주소에서만 받아요.")
+        raise Problem("Downloads only from https addresses.")
     try:
         _download(url, target, what)
     except Problem:
@@ -142,13 +142,13 @@ def _fetch(url, target, what) -> None:
         # 파이썬이 인증서를 확인하지 못하는 Mac이 있어요. 그때는 Mac에 들어 있는 curl로 받아요 (Mac의 인증서를 써요)
         curl = "/usr/bin/curl"
         if not os.access(curl, os.X_OK):
-            raise Problem(f"{what}를 받지 못했어요. 인터넷을 확인하고 다시 눌러 주세요. ({str(exc)[:80]})") from exc
-        _say(message=f"{what}를 받고 있어요…")
+            raise Problem(f"Could not download {what}. Check your internet and press again. ({str(exc)[:80]})") from exc
+        _say(message=f"Downloading {what}…")
         done = _wait(subprocess.Popen([curl, "-fsSL", "--proto", "=https", "--max-time", str(INSTALL_SECONDS), "-o", str(target), url],
                                       stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True),
-                     INSTALL_SECONDS + 10, f"{what}를 받는 데 너무 오래 걸려요. 인터넷을 확인하고 다시 눌러 주세요.")
+                     INSTALL_SECONDS + 10, f"Downloading {what} is taking too long. Check your internet and press again.")
         if done.returncode != 0:
-            raise Problem(f"{what}를 받지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.") from exc
+            raise Problem(f"Could not download {what}. Check your internet and press again.") from exc
 
 
 def _download(url, target, what) -> None:
@@ -157,21 +157,21 @@ def _download(url, target, what) -> None:
         total, got, began = int(response.headers.get("Content-Length") or 0), 0, time.time()
         while True:
             if _running["stop"]:
-                raise Problem("그만뒀어요.")
+                raise Problem("Cancelled.")
             if time.time() - began > INSTALL_SECONDS:
-                raise Problem(f"{what}를 받는 데 너무 오래 걸려요. 인터넷을 확인하고 다시 눌러 주세요.")
+                raise Problem(f"Downloading {what} is taking too long. Check your internet and press again.")
             chunk = response.read(1 << 16)
             if not chunk:
                 break
             out.write(chunk)
             got += len(chunk)
             if total:
-                _say(message=f"{what}를 받고 있어요 · {got * 100 // total}%")
+                _say(message=f"Downloading {what} · {got * 100 // total}%")
 
 
 def _mac_only() -> None:
     if sys.platform != "darwin":
-        raise Problem("이 컴퓨터에서는 대신 받아 줄 수 없어요. 그 도구의 안내대로 설치한 뒤 다시 눌러 주세요.")
+        raise Problem("Gadak cannot download it for you on this computer. Install it following that tool's instructions, then press again.")
 
 
 def _install_claude() -> None:
@@ -179,17 +179,17 @@ def _install_claude() -> None:
     _mac_only()
     with tempfile.TemporaryDirectory(prefix="gadak-claude-") as tmp:
         script = Path(tmp) / "install.sh"
-        _fetch(CLAUDE_INSTALLER, script, "Claude Code 설치 파일")
+        _fetch(CLAUDE_INSTALLER, script, "the Claude Code installer")
         text = script.read_text(encoding="utf-8", errors="replace")
         if not text.startswith("#!") or "claude" not in text.lower() or len(text) > SCRIPT_MAX:
-            raise Problem("받은 설치 파일이 평소와 달라서 돌리지 않았어요. 잠시 뒤에 다시 눌러 주세요.")
-        _say(message="Claude Code를 받아 설치하고 있어요. 1~2분 걸려요…")
+            raise Problem("The downloaded installer looked unusual, so it was not run. Press again in a moment.")
+        _say(message="Downloading and installing Claude Code. This takes 1–2 minutes…")
         out = _wait(subprocess.Popen(["/bin/bash", str(script)], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, text=True, env=dict(os.environ)), INSTALL_SECONDS,
-                    "Claude Code를 설치하는 데 너무 오래 걸려요. 다시 눌러 주세요.")
+                    "Installing Claude Code is taking too long. Press again.")
         if out.returncode != 0:
             tail = " ".join((out.stdout_text or "").split())[-160:]
-            raise Problem(f"Claude Code를 설치하지 못했어요. {tail}")
+            raise Problem(f"Could not install Claude Code. {tail}")
 
 
 def _install_codex() -> None:
@@ -199,19 +199,19 @@ def _install_codex() -> None:
     with tempfile.TemporaryDirectory(prefix="gadak-codex-") as tmp:
         packed = Path(tmp) / "codex.tar.gz"
         _fetch(CODEX_RELEASE.format(arch=arch), packed, "Codex")
-        _say(message="Codex를 풀고 있어요…")
+        _say(message="Unpacking Codex…")
         try:
             with tarfile.open(packed) as archive:
                 inside = [m for m in archive.getmembers() if m.isfile() and Path(m.name).name.startswith("codex")]
                 if len(inside) != 1:
-                    raise Problem("받은 Codex 파일이 평소와 달라서 쓰지 않았어요.")
+                    raise Problem("The downloaded Codex file looked unusual, so it was not used.")
                 source = archive.extractfile(inside[0])
                 target = config.HOME / "bin" / "codex"
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with open(str(target) + ".new", "wb") as out:
                     shutil.copyfileobj(source, out)
         except (tarfile.TarError, OSError) as exc:
-            raise Problem(f"Codex를 풀지 못했어요. ({str(exc)[:80]})") from exc
+            raise Problem(f"Could not unpack Codex. ({str(exc)[:80]})") from exc
         os.chmod(str(target) + ".new", 0o755)
         os.replace(str(target) + ".new", target)
     try:
@@ -220,7 +220,7 @@ def _install_codex() -> None:
         ok = False
     if not ok:
         target.unlink(missing_ok=True)
-        raise Problem("받은 Codex가 이 Mac에서 켜지지 않았어요.")
+        raise Problem("The downloaded Codex did not start on this Mac.")
 
 
 def _login(name) -> None:
@@ -230,8 +230,8 @@ def _login(name) -> None:
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, env=dict(os.environ), **win.QUIET, **win.TEXT)
     except OSError as exc:
-        raise Problem(f"로그인 창을 띄우지 못했어요. ({str(exc)[:80]})") from exc
-    late = "5분 안에 로그인이 끝나지 않았어요. 다시 눌러 주세요."
+        raise Problem(f"Could not open the sign-in window. ({str(exc)[:80]})") from exc
+    late = "Sign-in did not finish within 5 minutes. Press again."
     _wait(process, LOGIN_SECONDS, late, until=lambda: _logged_in(name))
 
 
@@ -243,7 +243,7 @@ def _wait(process, seconds, late, until=None):
         while process.poll() is None:
             if _running["stop"]:
                 process.terminate()
-                raise Problem("그만뒀어요.")
+                raise Problem("Cancelled.")
             if time.time() - began > seconds:
                 process.terminate()
                 raise Problem(late)

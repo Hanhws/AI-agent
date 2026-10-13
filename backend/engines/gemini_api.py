@@ -72,18 +72,18 @@ def _trouble(status, data, model) -> EngineError:
     error = rest.error_of(data)
     text = rest.line(error.get("message"))
     if _bad_key(status, error):
-        return EngineError("API 키가 맞지 않아요. 키를 다시 넣어 주세요.")
+        return EngineError("The API key is not valid. Please enter it again.")
     if status == 403:
-        return EngineError("이 API 키로는 쓸 수 없어요: " + (text or "권한이 없어요"))
+        return EngineError("This API key cannot be used: " + (text or "no permission"))
     if status == 404:
-        return EngineError(f"이 키로 쓸 수 없는 모델이에요: {model}")      # 이름이 틀렸거나, 이 키에 권한이 없거나
+        return EngineError(f"This key cannot use the model: {model}")      # 이름이 틀렸거나, 이 키에 권한이 없거나
     if status == 429:
         if _for_today(error):
-            return EngineError("Gemini의 하루 사용 한도를 다 썼어요. 한도가 다시 채워진 뒤 ‘정리 다시’를 눌러 주세요.")
-        return EngineError("API 사용 한도에 걸렸어요. 잠시 뒤에 ‘정리 다시’를 눌러 주세요.")
+            return EngineError("Used up the daily Gemini limit. Press Resume sorting once it resets.")
+        return EngineError("Hit the API rate limit. Press Resume sorting in a moment.")
     if status >= 500:
-        return EngineError("Gemini 서버가 잠시 답하지 못해요. 조금 뒤에 ‘정리 다시’를 눌러 주세요.")
-    return EngineError("요청이 받아들여지지 않았어요: " + (text or f"HTTP {status}"))
+        return EngineError("The Gemini servers are not answering for now. Press Resume sorting in a little while.")
+    return EngineError("The request was not accepted: " + (text or f"HTTP {status}"))
 
 
 class GeminiApiEngine:
@@ -100,7 +100,7 @@ class GeminiApiEngine:
     def _key(self) -> str:
         key = keys.get("gemini")
         if not key:
-            raise EngineError("API 키가 없어요. 키를 넣어 주세요.")
+            raise EngineError("No API key. Please add one.")
         return key
 
     def _url(self, verb="") -> str:
@@ -145,11 +145,11 @@ class GeminiApiEngine:
         blocked = data.get("promptFeedback") if isinstance(data.get("promptFeedback"), dict) else {}
         first = (data.get("candidates") or [None])[0]
         if blocked.get("blockReason") or not isinstance(first, dict):
-            raise BadOutput("모델이 이 묶음은 다루지 않겠다고 했어요")      # 보낸 글이 막혔어요. 답이 아예 없어요
+            raise BadOutput("The model declined to handle this batch")      # 보낸 글이 막혔어요. 답이 아예 없어요
         if first.get("finishReason") == "MAX_TOKENS":
-            raise BadOutput("답이 길어서 중간에 잘렸어요")
+            raise BadOutput("The answer was too long and got cut off")
         if first.get("finishReason") not in (None, "STOP"):
-            raise BadOutput("모델이 이 묶음은 다루지 않겠다고 했어요")      # SAFETY · RECITATION 같은 까닭으로 멈췄어요
+            raise BadOutput("The model declined to handle this batch")      # SAFETY · RECITATION 같은 까닭으로 멈췄어요
         content = first.get("content") if isinstance(first.get("content"), dict) else {}
         parts = [p for p in content.get("parts") or [] if isinstance(p, dict) and not p.get("thought")]      # 생각을 간추린 조각은 빼요
         return rest.answer("".join(str(p.get("text") or "") for p in parts))

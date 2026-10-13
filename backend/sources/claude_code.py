@@ -15,10 +15,10 @@ from .. import store
 KEY = "claude-code"
 SITE = "claude-code"
 NAME = "Claude Code"
-WHERE = "VS Code 확장 · 터미널 · 데스크톱 앱의 Code 탭"
+WHERE = "VS Code extension · terminal · Code tab of the desktop app"
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
-VIA = {"claude-vscode": "VS Code", "cli": "터미널", "claude-desktop": "데스크톱 앱"}
+VIA = {"claude-vscode": "VS Code", "cli": "Terminal", "claude-desktop": "Desktop app"}
 TITLE_KEYS = {"custom-title": "customTitle", "ai-title": "aiTitle", "summary": "summary"}
 MAX_TEXT = 20000
 
@@ -73,7 +73,7 @@ def clean_prompt(content):
     if text.startswith(_NOT_A_PROMPT):
         return None
     if not text:
-        return f"(첨부 {attached}개)" if attached else None
+        return f"({store.many(attached, 'attachment')})" if attached else None
     return text[:MAX_TEXT]
 
 
@@ -90,7 +90,7 @@ def _is_human(line) -> bool:
 
 def _clip(text):
     if isinstance(text, str) and len(text) > MAX_TEXT:
-        return text[:MAX_TEXT] + "\n…(잘림)"
+        return text[:MAX_TEXT] + "\n…(cut)"
     return text
 
 

@@ -17,9 +17,9 @@ RequestExecutionLevel user
 !ifndef OUTFILE
   !define OUTFILE "gadak-setup.exe"
 !endif
-!define NAME "가닥"
+!define NAME "Gadak"
 !define FOLDER "Gadak"
-!define TAGLINE "긴 대화도 가닥을 잡아 드려요."
+!define TAGLINE "Keep the thread of every long chat."
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gadak"
 ; 켜져 있는 가닥이 쥐고 있는 표시 (backend/win.py의 RUNNING과 같은 이름)
 !define RUNNING "GadakAppRunning"
@@ -33,7 +33,7 @@ InstallDirRegKey HKCU "${UNINSTALL_KEY}" "InstallLocation"
 BrandingText "${NAME} ${VERSION}"
 VIProductVersion "${VERSION}.0"
 VIAddVersionKey "ProductName" "${NAME}"
-VIAddVersionKey "FileDescription" "${NAME} 설치"
+VIAddVersionKey "FileDescription" "${NAME} Setup"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "${TAGLINE}"
@@ -44,12 +44,12 @@ VIAddVersionKey "LegalCopyright" "${TAGLINE}"
 !define MUI_ICON "stage\gadak.ico"
 !define MUI_UNICON "stage\gadak.ico"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TEXT "${TAGLINE}$\r$\n$\r$\n가닥을 이 PC의 내 계정에 깔아요. 관리자 암호는 필요 없어요.$\r$\n$\r$\n대화는 이 PC에만 저장돼요."
+!define MUI_WELCOMEPAGE_TEXT "${TAGLINE}$\r$\n$\r$\nInstalls Gadak for your account on this PC. No administrator password is needed.$\r$\n$\r$\nChats are stored only on this PC."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\python\pythonw.exe"
 !define MUI_FINISHPAGE_RUN_PARAMETERS "${LAUNCH}"
-!define MUI_FINISHPAGE_RUN_TEXT "가닥 켜기"
-!define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\처음 여는 법.txt"
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "처음 여는 법 보기"
+!define MUI_FINISHPAGE_RUN_TEXT "Start Gadak"
+!define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\How to open Gadak.txt"
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "Show how to open Gadak"
 !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
 
 !insertmacro MUI_PAGE_WELCOME
@@ -57,14 +57,14 @@ VIAddVersionKey "LegalCopyright" "${TAGLINE}"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
-!insertmacro MUI_LANGUAGE "Korean"
+!insertmacro MUI_LANGUAGE "English"
 
 ; 가닥이 켜져 있으면 파일을 바꿀 수 없어요. 끄고 다시 하라고 알려요
 !macro StopIfRunning
   System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "${RUNNING}") p .r0'
   StrCmp $0 0 +4
     System::Call 'kernel32::CloseHandle(p r0)'
-    MessageBox MB_OK|MB_ICONEXCLAMATION "가닥이 켜져 있어요. 가닥 창을 닫은 뒤 다시 해 주세요." /SD IDOK
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Gadak is running. Close the Gadak window and try again." /SD IDOK
     Abort
 !macroend
 
@@ -115,9 +115,9 @@ Section "Uninstall"
     RMDir /r "$INSTDIR\site-packages"
     RMDir /r "$INSTDIR\python"
   Delete "$INSTDIR\gadak.ico"
-  Delete "$INSTDIR\가닥 켜기.cmd"
-  Delete "$INSTDIR\처음 여는 법.txt"
-  Delete "$INSTDIR\가닥 설치 안내.pdf"
+  Delete "$INSTDIR\Start Gadak.cmd"
+  Delete "$INSTDIR\How to open Gadak.txt"
+  Delete "$INSTDIR\Gadak install guide.pdf"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"
   DeleteRegKey HKCU "${UNINSTALL_KEY}"

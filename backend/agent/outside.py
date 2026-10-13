@@ -23,6 +23,7 @@ import unicodedata
 from pathlib import Path
 
 from .. import win
+from ..store import many
 
 NAMES = ("list_files", "search_files", "read_file", "look_up")
 HEADING = re.compile(r"^(#{1,4})\s+(.+?)\s*#*$")       # 마크다운 제목
@@ -185,12 +186,12 @@ def _text(base, rel):
 def list_files(ctx, arg=None) -> dict:
     base = root(ctx)
     if base is None:
-        return {"error": "이 대화에는 작업 폴더가 없어요."}
+        return {"error": "This chat has no working folder."}
     under = nfc(arg).strip().strip("/")
     if under in (".", "this", "지금"):
         under = ""
     if under and (".." in Path(under).parts or Path(under).is_absolute()):
-        return {"error": "작업 폴더 안의 경로만 볼 수 있어요."}
+        return {"error": "Only paths inside the working folder can be viewed."}
     names = [n for n in _readable(base) if not under or n == under or n.startswith(under + "/")]
     files = []
     for name in names[:LIST_MAX]:
@@ -209,7 +210,7 @@ def list_files(ctx, arg=None) -> dict:
             tops[top] = tops.get(top, 0) + 1
         out["more"] = dict(sorted(tops.items(), key=lambda kv: -kv[1])[:12])      # 더 있는 곳. arg에 폴더를 넣으면 그 안을 봐요
     if not files:
-        out["note"] = "읽을 수 있는 글 파일이 없어요"
+        out["note"] = "No readable text files"
     return out
 
 
@@ -217,7 +218,7 @@ def search_files(ctx, arg=None) -> dict:
     """작업 폴더의 글 파일에서 낱말이 든 줄. 낱말 여럿은 띄어 써요(하나라도 든 줄). 많이 든 파일부터 보여 줘요."""
     words = [w.lower() for w in str(arg or "").split()[:4] if len(w) >= 2]
     if not words:
-        return {"error": "찾을 낱말을 arg에 넣어 주세요 (두 글자 이상)."}
+        return {"error": "Put the word to search for in arg (two characters or more)."}
     return find_lines(ctx, words)
 
 
@@ -225,7 +226,7 @@ def find_lines(ctx, words) -> dict:
     """낱말 중 하나라도 든 줄을, 많이 든 파일부터. search_files와 가닥이 먼저 두는 수(ahead.opening)가 같이 써요."""
     base = root(ctx)
     if base is None:
-        return {"error": "이 대화에는 작업 폴더가 없어요."}
+        return {"error": "This chat has no working folder."}
     words = [w.lower() for w in words]
     found = []
     for name in _readable(base)[:SEARCH_FILES]:
@@ -245,7 +246,7 @@ def find_lines(ctx, words) -> dict:
     if sum(len(lines) for _, lines in found) > len(hits):
         out["more"] = sum(len(lines) for _, lines in found) - len(hits)     # 더 있어요. 낱말을 좁히거나 read_file로 ‘경로:줄’부터 읽어요
     if not hits:
-        out["note"] = "그 낱말이 든 줄이 없어요"
+        out["note"] = "No lines contain that word"
     return out
 
 
@@ -254,7 +255,7 @@ def headings(ctx, words) -> dict:
     가닥이 먼저 두는 수(ahead.opening)가 써요. 얕은 곳의 문서부터 봐요."""
     base = root(ctx)
     if base is None:
-        return {"error": "이 대화에는 작업 폴더가 없어요."}
+        return {"error": "This chat has no working folder."}
     words = [w.lower() for w in words]
     heads, files = [], 0
     for name in [n for n in _readable(base) if n.lower().endswith((".md", ".mdc", ".rst", ".txt"))][:HEADS_FILES]:
@@ -271,46 +272,46 @@ def headings(ctx, words) -> dict:
             heads += mine[:HITS_PER_FILE]
     out = {"query": " ".join(words), "hits": heads[:HEADS_MAX], "files": files}
     if not heads:
-        out["note"] = "그 낱말이 든 제목이 없어요"
+        out["note"] = "No headings contain that word"
     return out
 
 
 def read_file(ctx, arg=None) -> dict:
     base = root(ctx)
     if base is None:
-        return {"error": "이 대화에는 작업 폴더가 없어요."}
+        return {"error": "This chat has no working folder."}
     rel, start = nfc(arg).strip(), 1
     spot = re.fullmatch(r"(.+?):(\d+)", rel)
     if spot:                                       # ‘경로:줄 번호’ — 그 줄의 조금 앞부터 읽어요
         rel, start = spot.group(1).strip(), max(1, int(spot.group(2)) - 2)
     if not rel:
-        return {"error": "읽을 파일의 경로를 arg에 넣어 주세요 (list_files에 나온 값)."}
+        return {"error": "Put the path of the file to read in arg (a value from list_files)."}
     path = Path(rel)
     if path.is_absolute() or ".." in path.parts:
-        return {"error": "작업 폴더 안의 경로만 읽을 수 있어요."}
+        return {"error": "Only paths inside the working folder can be read."}
     try:
         real, home = (base / path).resolve(), base.resolve()
     except OSError:
-        return {"error": f"‘{rel}’을 찾지 못했어요."}
+        return {"error": f"Could not find ‘{rel}’."}
     if home != real and home not in real.parents:
-        return {"error": "작업 폴더 밖을 가리키는 파일은 읽지 않아요."}
+        return {"error": "Files that point outside the working folder are not read."}
     if not real.is_file():
-        return {"error": f"‘{rel}’이라는 파일이 없어요. list_files로 경로를 확인하세요."}
+        return {"error": f"There is no file ‘{rel}’. Check the path with list_files."}
     inside = nfc(real.relative_to(home))
     if _hidden(inside) or _hidden(rel):
-        return {"error": "비밀이 들었을 수 있는 파일이라 읽지 않아요."}
+        return {"error": "Not read: the file may contain secrets."}
     if _ignored(base, rel):
-        return {"error": "깃이 무시하는 파일은 읽지 않아요."}
+        return {"error": "Files ignored by git are not read."}
     if not git_ready() and _repo_above(real.parent):
-        return {"error": "이 Mac에서는 깃을 쓸 수 없어서, 저장소 안의 파일은 읽지 않아요."}
+        return {"error": "git is not available on this Mac, so files inside a repository are not read."}
     if not _texty(inside):
-        return {"error": "글 파일만 읽어요."}
+        return {"error": "Only text files are read."}
     if real.stat().st_size > READ_BYTES:
-        return {"error": "너무 큰 파일이라 읽지 않아요."}
+        return {"error": "Not read: the file is too large."}
     try:
         text = real.read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError):
-        return {"error": "글로 읽을 수 없는 파일이에요."}
+        return {"error": "The file cannot be read as text."}
     lines = text.splitlines(keepends=True)
     part = "".join(lines[start - 1:])
     out = {"path": rel, "lines": len(lines), "text": part[:READ_CHARS]}
@@ -323,10 +324,10 @@ def read_file(ctx, arg=None) -> dict:
 
 def look_up(ctx, arg=None) -> dict:
     if ctx.lookup is None:
-        return {"error": "웹에서 찾아보기는 꺼져 있어요."}
+        return {"error": "Web lookup is off."}
     question = " ".join(str(arg or "").split())[:QUESTION_MAX]
     if not question:
-        return {"error": "찾아볼 물음을 arg에 넣어 주세요."}
+        return {"error": "Put the question to look up in arg."}
     result = ctx.lookup(question) or {}
     found = [{"line": " ".join(str(f.get("line") or "").split()), "source": str(f.get("source") or "").strip()}
              for f in result.get("found") or [] if isinstance(f, dict)]
@@ -335,7 +336,7 @@ def look_up(ctx, arg=None) -> dict:
     if result.get("dropped"):
         out["dropped"] = result["dropped"]     # 검색 결과에 없는 주소를 출처로 대서 버린 줄 수
     if not found:
-        out["note"] = "찾은 것이 없어요"
+        out["note"] = "Nothing found"
     return out
 
 
@@ -347,9 +348,9 @@ def summary(tool, result) -> str:
     if result.get("error"):
         return result["error"]
     if tool == "list_files":
-        return f"파일 {len(result['files'])}개" + (" (더 있음)" if result.get("more") else "")
+        return many(len(result['files']), 'file') + (" (more)" if result.get("more") else "")
     if tool == "search_files":
-        return f"파일 {result['files']}개에서 {len(result['hits'])}줄" + (" (더 있음)" if result.get("more") else "")
+        return f"{many(len(result['hits']), 'line')} in {many(result['files'], 'file')}" + (" (more)" if result.get("more") else "")
     if tool == "read_file":
-        return f"{result['path']} · {result['lines']}줄" + (" (한 부분만)" if result.get("cut") or result.get("from_line") else "")
-    return f"찾은 것 {len(result['found'])}줄 · 검색 {len(result['searched'])}번"
+        return f"{result['path']} · {many(result['lines'], 'line')}" + (" (part only)" if result.get("cut") or result.get("from_line") else "")
+    return f"{many(len(result['found']), 'line')} found · {len(result['searched'])} search" + ("" if len(result['searched']) == 1 else "es")

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>가닥 전체 지도</title>
+<title>Gadak System Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <script src="/ui/mark.js"></script>
@@ -161,43 +161,43 @@ body, text { letter-spacing: var(--tr-body); }
 </head>
 <body>
 <header>
-  <b>가닥<i>GADAK</i></b><span class="crumb-map">전체 지도</span>
-  <button class="axis" id="poster-btn" type="button">포스터로 보기</button>
-  <span class="range" id="range" role="group" aria-label="보는 기간" hidden><span class="lbl-r">최근</span></span>
-  <button id="back">← 전체 지도</button><span id="crumb"></span>
-  <button class="open" id="open" type="button">대화 열기</button>
+  <b>가닥<i>GADAK</i></b><span class="crumb-map">System map</span>
+  <button class="axis" id="poster-btn" type="button">View as poster</button>
+  <span class="range" id="range" role="group" aria-label="Period" hidden><span class="lbl-r">Last</span></span>
+  <button id="back">← System map</button><span id="crumb"></span>
+  <button class="open" id="open" type="button">Open chat</button>
   <small id="meta"></small>
-  <button class="close" id="close" type="button" aria-label="전체 지도 닫기">닫기</button>
+  <button class="close" id="close" type="button" aria-label="Close system map">Close</button>
 </header>
-<svg id="map" class="view" aria-label="프로젝트와 대화를 노선으로 그린 전체 지도">
+<svg id="map" class="view" aria-label="System map drawing projects and chats as lines">
   <!-- 환승 화살촉: 비녤리 포스터의 굵은 검은 화살표처럼 열린 꺾쇠 -->
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
     <path d="M1.5 1.5 L7 5 L1.5 8.5" fill="none" style="stroke: var(--ink)" stroke-width="2" stroke-linecap="square"/></marker></defs>
   <g id="world"></g></svg>
-<svg id="poster" class="view" aria-label="전체 지도를 포스터처럼 그린 그림">
+<svg id="poster" class="view" aria-label="The system map drawn as a poster">
   <defs><marker id="parrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">
     <path d="M1.5 1.5 L7 5 L1.5 8.5" fill="none" style="stroke: var(--ink)" stroke-width="2" stroke-linecap="square"/></marker></defs>
   <g id="pworld"></g></svg>
-<svg id="strip" class="view" aria-label="대화 하나의 한 줄 노선도"><g id="sworld"></g></svg>
+<svg id="strip" class="view" aria-label="Strip map of one chat"><g id="sworld"></g></svg>
 <div class="key" id="key-map">
-  <span><i style="width:10px;height:10px;border-radius:50%"></i>정함 (큰 점 · 굵은 이름)</span>
-  <span><i style="width:10px;height:10px;border-radius:50%;background:#C8401A"></i>지금</span>
-  <span><i style="width:14px;height:5px;background:var(--spur)"></i>곁길</span>
-  <span><i style="width:12px;height:3px"></i>환승 (이어진 대화)</span>
-  <span>노선을 누르면 한 줄 노선도로</span>
+  <span><i style="width:10px;height:10px;border-radius:50%"></i>Decided (large dot · bold name)</span>
+  <span><i style="width:10px;height:10px;border-radius:50%;background:#C8401A"></i>Now</span>
+  <span><i style="width:14px;height:5px;background:var(--spur)"></i>Side trip</span>
+  <span><i style="width:12px;height:3px"></i>Transfer (continued chat)</span>
+  <span>Click a line for its strip map</span>
 </div>
 <div class="key" id="key-strip">
-  <span><b>굵은 이름</b> 정함</span>
-  <span><i style="width:16px;height:6px;background:var(--spur)"></i>곁길 (아래로 갈라짐)</span>
-  <span><i style="width:16px;height:6px;background:var(--spur);border-right:3px solid var(--paper);box-shadow:3px 0 0 var(--spur)"></i>안 돌아온 곁길</span>
-  <span><i style="width:9px;height:9px;border-radius:50%"></i>산출물 (옆에 파일 이름)</span>
-  <span><i class="ring" style="width:12px;height:12px;border-radius:50%;border-color:#C8401A"></i>할 일</span>
-  <span><i class="ring" style="width:12px;height:12px;border-radius:50%;border-color:var(--ink3)"></i>끝낸 일</span>
+  <span><b>Bold name</b> Decided</span>
+  <span><i style="width:16px;height:6px;background:var(--spur)"></i>Side trip (branches below)</span>
+  <span><i style="width:16px;height:6px;background:var(--spur);border-right:3px solid var(--paper);box-shadow:3px 0 0 var(--spur)"></i>Side trip not returned from</span>
+  <span><i style="width:9px;height:9px;border-radius:50%"></i>File (name beside it)</span>
+  <span><i class="ring" style="width:12px;height:12px;border-radius:50%;border-color:#C8401A"></i>To do</span>
+  <span><i class="ring" style="width:12px;height:12px;border-radius:50%;border-color:var(--ink3)"></i>Done</span>
 </div>
 <div class="ctl">
-  <button id="out" aria-label="작게">−</button>
-  <button id="fit" class="wide">전체</button>
-  <button id="in" aria-label="크게">+</button>
+  <button id="out" aria-label="Zoom out">−</button>
+  <button id="fit" class="wide">Fit</button>
+  <button id="in" aria-label="Zoom in">+</button>
 </div>
 <script type="module">
 // ── 만든 예시 (실제 대화 아님). 날은 9/22를 0으로 센 번호예요.
@@ -206,44 +206,44 @@ let START = new Date(2026, 8, 22), TODAY = 14;
 const T = (t, o = {}) => ({ t, d: o.d, f: o.f || [], todo: o.todo || [], side: o.side });
 let DATA = {
   projects: [
-    { name: "가닥", color: "#0039A6", chats: [
-      { id: "g1", title: "가닥 기획", from: 0, to: 4, turns: [T("문제 정의"), T("노선도 은유로", { d: 1 }), T("설문 문항", { f: ["설문지.md"] }), T("입구 넷으로", { d: 1 }), T("README 초안", { f: ["README.md"], todo: [["내가 할 일 · 설문 돌리기", 1]] }), T("일정")] },
-      { id: "g2", title: "프로토타입", from: 3, to: 8, turns: [T("화면 구성"), T("첫 화면", { f: ["index.html"] }), T("빨강은 지금에만", { d: 1 }), T("레일이 뭐야?", { side: 1 }), T("한마디 카드", { todo: [["빠진 요청 · 다크 모드", 0]] }), T("색 토큰", { f: ["tokens.css"] })] },
-      { id: "g3", title: "백엔드", from: 6, to: 12, turns: [
-        T("Flask 뼈대", { f: ["app.py"] }),
-        T("2단 에이전트", { d: 1 }),
-        T("분류 프롬프트", { f: ["classify.py", "classify.txt"] }),
-        T("JSON이 뭐야?", { side: 1 }),
-        T("스키마는 왜 필요해?", { side: 2 }),
-        T("예시 하나만", { side: 1 }),
-        T("기록 파일 읽기", { f: ["claude_code.py"], todo: [["빠진 요청 · Codex도 읽기", 1]] }),
-        T("구독 엔진", { d: 1, f: ["claude_cli.py"] }),
-        T("API 키는?", { side: 1, todo: [["이어 가기 · 키 엔진은 나중에", 0]] }),
-        T("2단 확인 루프", { f: ["investigate.py", "tools.py"], todo: [["요청 외 변경 · store.py", 0]] }),
-        T("자동 실행", { d: 1, f: ["auto.py"], todo: [["내가 할 일 · 켜는 문구", 0], ["빠진 요청 · 테스트", 0], ["다음 할 일 · README", 1]] }),
+    { name: "Gadak", color: "#0039A6", chats: [
+      { id: "g1", title: "Gadak plan", from: 0, to: 4, turns: [T("Problem"), T("Transit map it is", { d: 1 }), T("Survey", { f: ["survey.md"] }), T("Four entry points", { d: 1 }), T("README draft", { f: ["README.md"], todo: [["Yours to do · run the survey", 1]] }), T("Schedule")] },
+      { id: "g2", title: "Prototype", from: 3, to: 8, turns: [T("Layout"), T("First screen", { f: ["index.html"] }), T("Red only for now", { d: 1 }), T("What is a rail?", { side: 1 }), T("Note card", { todo: [["Missed request · dark mode", 0]] }), T("Colour tokens", { f: ["tokens.css"] })] },
+      { id: "g3", title: "Backend", from: 6, to: 12, turns: [
+        T("Flask skeleton", { f: ["app.py"] }),
+        T("Two-stage agent", { d: 1 }),
+        T("Classify prompt", { f: ["classify.py", "classify.txt"] }),
+        T("What is JSON?", { side: 1 }),
+        T("Why a schema?", { side: 2 }),
+        T("Just one example", { side: 1 }),
+        T("Read log files", { f: ["claude_code.py"], todo: [["Missed request · read Codex too", 1]] }),
+        T("Subscription engine", { d: 1, f: ["claude_cli.py"] }),
+        T("API keys?", { side: 1, todo: [["Carry on · key engine later", 0]] }),
+        T("Check loop", { f: ["investigate.py", "tools.py"], todo: [["Unrequested change · store.py", 0]] }),
+        T("Auto-run", { d: 1, f: ["auto.py"], todo: [["Yours to do · switch wording", 0], ["Missed request · tests", 0], ["Next step · README", 1]] }),
       ] },
-      { id: "g4", title: "크롬 확장", from: 10, to: 13, turns: [T("화면 읽기"), T("내 PC로만 보냄", { d: 1 }), T("역 맞추기", { f: ["pages.py"] }), T("확인", { todo: [["빠진 요청 · ChatGPT 확인", 0]] }), T("Gemini도 될까?", { side: 1, todo: [["끝나지 않은 곁길 · 결론 없이 닫힘", 0]] })] },
-      { id: "g5", title: "디자인 개편", from: 14, to: 14, active: true, turns: [T("AI 티 진단"), T("비녤리 지도로", { d: 1 }), T("전체 지도 시안", { f: ["map.html"] })] },
+      { id: "g4", title: "Chrome extension", from: 10, to: 13, turns: [T("Read the page"), T("Send to my PC only", { d: 1 }), T("Match stations", { f: ["pages.py"] }), T("Check", { todo: [["Missed request · check ChatGPT", 0]] }), T("Gemini too?", { side: 1, todo: [["Unfinished side trip · closed with no answer", 0]] })] },
+      { id: "g5", title: "Redesign", from: 14, to: 14, active: true, turns: [T("Why it looks AI-made"), T("Vignelli map it is", { d: 1 }), T("System map draft", { f: ["map.html"] })] },
     ] },
-    { name: "빅데이터 과제", color: "#FF6319", chats: [
-      { id: "b1", title: "데이터 수집", from: 1, to: 3, turns: [T("공공 API"), T("따릉이 데이터", { d: 1 }), T("수집 코드", { f: ["collect.py"] }), T("결측치", { todo: [["빠진 요청 · 이상치", 0]] })] },
-      { id: "b2", title: "모델링", from: 5, to: 9, turns: [T("피처"), T("XGBoost", { d: 1 }), T("노트북", { f: ["model.ipynb"] }), T("튜닝"), T("RMSE 기준", { d: 1 })] },
-      { id: "b3", title: "보고서", from: 11, to: 12, turns: [T("목차"), T("본문", { f: ["report.docx"] }), T("그래프", { todo: [["내가 할 일 · 출처 달기", 0]] })] },
+    { name: "Data project", color: "#FF6319", chats: [
+      { id: "b1", title: "Collect data", from: 1, to: 3, turns: [T("Public APIs"), T("Bike-share data", { d: 1 }), T("Collector", { f: ["collect.py"] }), T("Missing values", { todo: [["Missed request · outliers", 0]] })] },
+      { id: "b2", title: "Modelling", from: 5, to: 9, turns: [T("Features"), T("XGBoost", { d: 1 }), T("Notebook", { f: ["model.ipynb"] }), T("Tuning"), T("RMSE target", { d: 1 })] },
+      { id: "b3", title: "Report", from: 11, to: 12, turns: [T("Outline"), T("Body", { f: ["report.docx"] }), T("Charts", { todo: [["Yours to do · add sources", 0]] })] },
     ] },
-    { name: "졸업 전시", color: "#00933C", chats: [
-      { id: "e1", title: "포스터 컨셉", from: 2, to: 6, turns: [T("레퍼런스"), T("스위스 스타일", { d: 1 }), T("1차 시안", { f: ["poster_v1.ai"] }), T("피드백")] },
-      { id: "e2", title: "리플릿", from: 8, to: 10, turns: [T("판형"), T("A5 3단", { d: 1 }), T("조판", { f: ["leaflet.indd"] })] },
-      { id: "e3", title: "포스터 수정", from: 12, to: 14, turns: [T("교수님 피드백"), T("제목 크게", { d: 1 }), T("3차 시안", { f: ["poster_v3.ai"], todo: [["내가 할 일 · 인쇄소 예약", 0]] })] },
+    { name: "Grad show", color: "#00933C", chats: [
+      { id: "e1", title: "Poster concept", from: 2, to: 6, turns: [T("References"), T("Swiss style", { d: 1 }), T("Draft 1", { f: ["poster_v1.ai"] }), T("Feedback")] },
+      { id: "e2", title: "Leaflet", from: 8, to: 10, turns: [T("Format"), T("A5 tri-fold", { d: 1 }), T("Typesetting", { f: ["leaflet.indd"] })] },
+      { id: "e3", title: "Poster revision", from: 12, to: 14, turns: [T("Professor’s notes"), T("Bigger title", { d: 1 }), T("Draft 3", { f: ["poster_v3.ai"], todo: [["Yours to do · book the printer", 0]] })] },
     ] },
-    { name: "토익", color: "#FCCC0A", ink: "#111", chats: [
-      { id: "t1", title: "LC 오답", from: 0, to: 1, turns: [T("Part 2"), T("오답 정리", { f: ["오답노트.md"] })] },
-      { id: "t2", title: "RC 문법", from: 4, to: 5, turns: [T("관계사"), T("가정법")] },
-      { id: "t3", title: "모의고사", from: 9, to: 9, turns: [T("채점"), T("목표 850", { d: 1 })] },
-      { id: "t4", title: "단어", from: 13, to: 13, turns: [T("Day 21"), T("Day 22")] },
+    { name: "TOEIC", color: "#FCCC0A", ink: "#111", chats: [
+      { id: "t1", title: "LC mistakes", from: 0, to: 1, turns: [T("Part 2"), T("Mistake notes", { f: ["mistakes.md"] })] },
+      { id: "t2", title: "RC grammar", from: 4, to: 5, turns: [T("Relative clauses"), T("Conditionals")] },
+      { id: "t3", title: "Mock test", from: 9, to: 9, turns: [T("Scoring"), T("Target 850", { d: 1 })] },
+      { id: "t4", title: "Vocabulary", from: 13, to: 13, turns: [T("Day 21"), T("Day 22")] },
     ] },
   ],
   // 환승: 실제로 이어진 대화만 (이어 가기 · 지난 대화 참조 · 같은 파일)
-  links: [["g1", "g2", "이어 가기"], ["g2", "g3", "이어 가기"], ["e1", "e3", "같은 파일"], ["e1", "g5", "지난 대화 참조"], ["b2", "g3", "지난 대화 참조"]],
+  links: [["g1", "g2", "carry on"], ["g2", "g3", "carry on"], ["e1", "e3", "same file"], ["e1", "g5", "refers to past chat"], ["b2", "g3", "refers to past chat"]],
 };
 
 // 그릴 대화: 가닥 앱(/map)에서 열면 백엔드가 모아 둔 대화(/map/data), ?data=파일.json이면 그 파일,
@@ -258,8 +258,8 @@ const source = params.get("data") || (live ? `/map/data?days=${range}` : null);
 if (live) {
   const box = document.getElementById("range");
   RANGES.forEach(n => {
-    const b = document.createElement("button"); b.type = "button"; b.textContent = `${n}일`;
-    b.setAttribute("aria-pressed", String(n === range)); b.setAttribute("aria-label", `최근 ${n}일 보기`);
+    const b = document.createElement("button"); b.type = "button"; b.textContent = `${n} d`;
+    b.setAttribute("aria-pressed", String(n === range)); b.setAttribute("aria-label", `Show the last ${n} days`);
     b.onclick = () => { if (n === range) return; try { localStorage.setItem("gadak.mapDays", n); } catch {} location.reload(); };
     box.appendChild(b);
   });
@@ -494,8 +494,8 @@ function drawMap() {
     el("line", { x1, y1, x2, y2 }, grid);
     if (!dayH[d]) continue;
     // 쉼 구간은 ‘n일 쉼’ 한 칸으로 요약해요
-    let label = d === TODAY ? "오늘" : dayLabel(d), cls = d === TODAY ? "now" : "";
-    if (!busy[d]) { let n = 1; while (d + n < days && !busy[d + n]) n++; label = `${n}일 쉼`; cls = "rest"; }
+    let label = d === TODAY ? "Today" : dayLabel(d), cls = d === TODAY ? "now" : "";
+    if (!busy[d]) { let n = 1; while (d + n < days && !busy[d + n]) n++; label = `${n} d off`; cls = "rest"; }
     const at = HORIZ ? { x: Ty(d) + 6, y: -100 } : { x: -40, y: Ty(d) + 22, "text-anchor": "end" };
     el("text", { ...at, class: cls }, grid).textContent = label;
   }
@@ -566,7 +566,7 @@ function drawMap() {
         }
         else if (u.side) el("circle", { cx: pt, cy: pc, r: 4.5, class: "mst-side minor-dot" }, g);   // 곁길 역은 가까이서만
         else el("circle", { cx: pt, cy: pc, r: u.d ? 5.5 : 3, class: u.d ? "dot" : "dot minor-dot" }, g);
-        tags.push({ t, cls: now || u.d ? "dec" : u.f.length ? "" : "minor", text: now ? `지금 · ${u.t}` : u.t });
+        tags.push({ t, cls: now || u.d ? "dec" : u.f.length ? "" : "minor", text: now ? `Now · ${u.t}` : u.t });
         c.at.times.push([pt, pc]);
       });
       // 곁길 지선: 앞 본선 역에서 갈라져 곁길 역들을 지나고, 본선 질문이 다시 오면 돌아와요. 안 돌아오면 막다른 지선
@@ -660,7 +660,7 @@ if (window.Gadak?.makeMark) {
 }
 
 document.getElementById("meta").textContent =
-  `${DATA === real ? "실제 대화" : "만든 예시"} · ${dayLabel(0)} – 오늘 · 프로젝트 ${DATA.projects.length} · 대화 ${Object.keys(chats).length}`;
+  `${DATA === real ? "Real chats" : "Made-up example"} · ${dayLabel(0)} – today · ${DATA.projects.length} projects · ${Object.keys(chats).length} chats`;
 
 drawMap();
 
@@ -761,7 +761,7 @@ function drawPoster() {
           // 비녤리 포스터의 굵은 검은 화살표가 지금 있는 역을 가리켜요
           // 오른쪽에 이름이 들어갈 자리가 없으면 왼쪽 아래에서
           const tag = el("text", { y: y + 178, class: "p-now" }, marks);
-          tag.textContent = `지금 · ${u.t}`;
+          tag.textContent = `Now · ${u.t}`;
           const s = x + 182 + tag.getComputedTextLength() > R - 30 ? -1 : 1;
           tag.setAttribute("x", x + s * 182); tag.setAttribute("text-anchor", s > 0 ? "start" : "end");
           el("path", { d: `M${x + s * 170} ${y + 170} L${x + s * 26} ${y + 26}`, class: "p-here", "marker-end": "url(#parrow)" }, marks);
@@ -795,7 +795,7 @@ function drawPoster() {
   const [ts, tx] = spot(["top", "bot"], tw), ty = ts === "top" ? top + 190 : bot - 70;
   title.setAttribute("x", tx + tw); title.setAttribute("y", ty);
   el("text", { x: tx + tw, y: ty + 48, "text-anchor": "end", class: "p-sub" }, marks).textContent =
-    `${dayLabel(0)} – 오늘 · 프로젝트 ${n} · 대화 ${Object.keys(chats).length} · 정함 ${decs}`;
+    `${dayLabel(0)} – today · ${n} projects · ${Object.keys(chats).length} chats · ${decs} decided`;
   // 견본 칸 폭은 이름 길이대로
   const names = P.map(p => { const t = el("text", { "text-anchor": "middle", class: "p-name" }, marks); t.textContent = p.name; return t; });
   const cell = names.map(t => Math.max(110, t.getComputedTextLength() + 40));
@@ -831,7 +831,7 @@ function drawIn(root) {
 
 function togglePoster(on) {
   document.body.classList.toggle("poster-on", on);
-  document.getElementById("poster-btn").textContent = on ? "지도로 보기" : "포스터로 보기";
+  document.getElementById("poster-btn").textContent = on ? "View as map" : "View as poster";
   if (on && !posterDrawn) drawPoster();
   cur().all(true);
   drawIn(on ? pworld : world);
@@ -858,7 +858,7 @@ function openStrip(id) {
 
   // 대화 이름과 날짜
   el("circle", { cx: x0 + 12, cy: -281, r: 13, fill: p.color }, G);   // 노선 색 동그라미 (비녤리 포스터의 색 견본처럼)
-  el("text", { x: x0 + 34, y: -274, class: "st-sub" }, G).textContent = `${p.name} · ${c.from === c.to ? dayLabel(c.from) : `${dayLabel(c.from)} – ${c.to === TODAY ? "오늘" : dayLabel(c.to)}`}`;
+  el("text", { x: x0 + 34, y: -274, class: "st-sub" }, G).textContent = `${p.name} · ${c.from === c.to ? dayLabel(c.from) : `${dayLabel(c.from)} – ${c.to === TODAY ? "today" : dayLabel(c.to)}`}`;
   el("text", { x: x0, y: -226, class: "st-title" }, G).textContent = c.title;
 
   // 지선: 본선의 앞 역에서 빠져 나가 곁길 역들을 지나고, 본선이 다시 이어지면 돌아와요. 끝내 안 돌아오면 막다른 지선
@@ -905,7 +905,7 @@ function openStrip(id) {
     // 이름: 본선은 위로 45°(정함은 굵게), 곁길은 지선 아래로 45°
     const [nx, ny, rot] = u.side ? [x + 10, y0 + 18, 45] : [x - 4, -24, -45];
     const nm = el("text", { x: nx, y: ny, transform: `rotate(${rot} ${nx} ${ny})`, class: `st-name${u.d || now ? " dec" : ""}${u.side ? " side" : ""}` }, G);
-    nm.textContent = now ? `지금 · ${u.t}` : u.t;
+    nm.textContent = now ? `Now · ${u.t}` : u.t;
 
     // 아래에 쌓기: 환승 → 산출물 → 할 일. 넘치면 마지막 칸을 +n으로
     const stack = [
@@ -925,10 +925,10 @@ function openStrip(id) {
         // 산출물: 작은 검은 점 하나에 파일 이름을 회색으로 얇게 (길면 줄이고, 전체 이름은 마우스를 올리면)
         el("circle", { cx: x, cy: y, r: 4.5, class: "dot" }, g);
         el("text", { x: x + 9, y: y + 4, class: "made" }, g).textContent = s.f.length > 10 ? s.f.slice(0, 9) + "…" : s.f;
-        el("title", {}, g).textContent = `산출물 · ${s.f}`;
+        el("title", {}, g).textContent = `File · ${s.f}`;
       } else {
         el("circle", { cx: x, cy: y, r: 10, class: `todo${s.done ? " done" : ""}` }, g);
-        el("title", {}, g).textContent = `${s.text}${s.done ? " (끝냄)" : ""}`;
+        el("title", {}, g).textContent = `${s.text}${s.done ? " (done)" : ""}`;
       }
     });
     if (stack.length > SHOW) {

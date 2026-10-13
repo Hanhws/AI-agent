@@ -22,7 +22,7 @@ WAIT_MAX = 45.0       # 턴이 끝난 뒤 확인(1단 + 2단)이 끝나기를 �
 ARRIVE = 6.0          # 방금 끝난 턴이 저장소에 들어오기를 기다리는 시간 (기록 파일은 2.5초마다 읽어요)
 POLL = 0.4
 HANDOFF_MAX = 9       # 새 대화에 넣는 지난 결정 수
-SENT_BY = "[가닥이 대신 보냄] "
+SENT_BY = "[Sent by Gadak] "
 
 
 def state(conn) -> dict:

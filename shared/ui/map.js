@@ -11,17 +11,17 @@
     /* the drawer is the same in every entry: horizontal map + ledger.
        apart이면 목록을 카드에 넣지 않아요. 그 입구가 g.mountSide(자리, true)로 따로 놓아요 (가닥 창의 오른쪽 기둥 · 떠 있는 버튼의 목록 창) */
     g.mountDrawer = function (host, asWindow, apart) {
-      var dr = el('section', 'drawer' + (asWindow ? ' fw' : '')); dr.setAttribute('aria-label', '가닥 노선도'); host.appendChild(dr); R.drawer = dr;
-      if (asWindow) { var wb = el('div', 'wbar'), dots = el('div', 'dots'); dots.innerHTML = '<i></i><i></i><i></i>'; wb.appendChild(dots); wb.appendChild(el('b', null, '가닥')); wb.appendChild(el('span', 'r', asWindow)); dr.appendChild(wb); }
+      var dr = el('section', 'drawer' + (asWindow ? ' fw' : '')); dr.setAttribute('aria-label', 'Gadak strip map'); host.appendChild(dr); R.drawer = dr;
+      if (asWindow) { var wb = el('div', 'wbar'), dots = el('div', 'dots'); dots.innerHTML = '<i></i><i></i><i></i>'; wb.appendChild(dots); wb.appendChild(el('b', null, 'Gadak')); wb.appendChild(el('span', 'r', asWindow)); dr.appendChild(wb); }
       var dh = el('div', 'dhead'); dr.appendChild(dh);
-      if (!asWindow) { var mk = el('span', 'mk'); mk.appendChild(G.miniMark(15)); mk.appendChild(el('b', null, '가닥')); dh.appendChild(mk); }
+      if (!asWindow) { var mk = el('span', 'mk'); mk.appendChild(G.miniMark(15)); mk.appendChild(el('b', null, 'Gadak')); dh.appendChild(mk); }
       R.mapTitle = el('span', 'map-title'); dh.appendChild(R.mapTitle);
       R.scopeBox = el('span'); dh.appendChild(R.scopeBox);
       R.status = el('span', 'map-status'); dh.appendChild(R.status); dh.appendChild(el('span', 'sp'));
       R.segAll = el('button', 'linkbtn'); R.segAll.type = 'button'; dh.appendChild(R.segAll);
       R.qbtn = el('button', 'qbtn'); R.qbtn.type = 'button'; R.qbtn.onclick = function (e) { e.stopPropagation(); g.showRevPop(this); }; dh.appendChild(R.qbtn);
       R.ledBtn = el('button', 'ledbtn'); R.ledBtn.type = 'button'; R.ledBtn.onclick = function () { st.ledgerOpen = !st.ledgerOpen; st.focusMap = true; g.track('ui', { what: st.ledgerOpen ? 'list_open' : 'list_close' }); g.render(); }; dh.appendChild(R.ledBtn);
-      var fold = el('button', 'btn sm', '접기'); fold.type = 'button'; fold.onclick = g.toggleDrawer; dh.appendChild(fold);
+      var fold = el('button', 'btn sm', 'Collapse'); fold.type = 'button'; fold.onclick = g.toggleDrawer; dh.appendChild(fold);
       var db = el('div', 'dbody' + (apart ? ' noled' : '')); dr.appendChild(db); R.dbody = db;
       R.mapScroll = el('div', 'map-scroll'); R.map = el('div', 'map'); R.mapScroll.appendChild(R.map); db.appendChild(R.mapScroll);
       R.mapScroll.addEventListener('scroll', function () { tip.hidden = true; });
@@ -32,8 +32,8 @@
       var side = el('div', 'dside' + (apart ? ' apart' : '')); host.appendChild(side);
       if (apart) R.sideHost = host;
       R.sideHead = el('div', 'ptabs side-tabs'); side.appendChild(R.sideHead);
-      var qw = el('div', 'qwrap'); R.qInput = el('input', 'qin'); R.qInput.type = 'search'; R.qInput.placeholder = '지난 대화에서 찾기 · 예) 이름, Ridge';
-      R.qInput.setAttribute('aria-label', '지난 대화에서 찾기'); R.qInput.value = st.q;
+      var qw = el('div', 'qwrap'); R.qInput = el('input', 'qin'); R.qInput.type = 'search'; R.qInput.placeholder = 'Search past chats · e.g. name, Ridge';
+      R.qInput.setAttribute('aria-label', 'Search past chats'); R.qInput.value = st.q;
       R.qInput.addEventListener('input', function () { g.setQuery(R.qInput.value.trim()); });
       qw.appendChild(R.qInput); side.appendChild(qw);
       R.sideBody = el('div', 'pbody'); side.appendChild(R.sideBody);
@@ -51,7 +51,7 @@
       host.innerHTML = '';
       if (!g.SC.scopeLabel) return;
       var sw = el('span', 'scope');
-      [['chat', '이 대화'], ['all', g.SC.scopeLabel]].forEach(function (o) {
+      [['chat', 'This chat'], ['all', g.SC.scopeLabel]].forEach(function (o) {
         var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(st.scope === o[0]));
         b.onclick = function () { st.scope = o[0]; st.focusMap = true; g.track('ui', { what: 'scope_' + o[0] }); g.render(); };
         sw.appendChild(b);
@@ -59,21 +59,21 @@
       host.appendChild(sw);
     }
     g.renderMapHead = function (V) {
-      R.mapTitle.textContent = st.scope === 'all' ? (g.SC.project || '비슷한 대화 묶음') : g.ACT.title;
+      R.mapTitle.textContent = st.scope === 'all' ? (g.SC.project || 'Related chats') : g.ACT.title;
       scopeSwitch(R.scopeBox);
       R.status.textContent = statusText(V);
-      var rv = g.revisions(); R.qbtn.hidden = !rv.length; R.qbtn.textContent = '수정 ' + rv.length + '건 · 최종본 요청 →';
+      var rv = g.revisions(); R.qbtn.hidden = !rv.length; R.qbtn.textContent = rv.length + (rv.length === 1 ? ' edit' : ' edits') + ' · ask for the final version →';
       R.segAll.hidden = !V.multi;
-      if (V.multi) { var allOpen = V.segs.every(function (_, s) { return V.isOpen(s); }); R.segAll.textContent = allOpen ? '지난 구간 접기' : '모두 펼치기';
+      if (V.multi) { var allOpen = V.segs.every(function (_, s) { return V.isOpen(s); }); R.segAll.textContent = allOpen ? 'Collapse past sections' : 'Expand all';
         R.segAll.onclick = function () { g.track('ui', { what: allOpen ? 'fold_all' : 'open_all' }); st.popSeg = allOpen ? null : 'cur'; V.segs.forEach(function (s, i) { V.setOpen(s, allOpen ? (V.cur && V.sIdx[V.cur.id] != null ? V.segs[V.sIdx[V.cur.id]] === s : i === V.segs.length - 1) : true); }); g.render(); }; }
     };
     function statusText(V) {
       var bits = [];
-      if (st.scope === 'all') bits.push('대화 ' + g.SC.chats.length + '개');
-      if (V.cur && V.cur.depth > 0 && g.byId[V.anc[V.cur.id]]) bits.push(g.byId[V.anc[V.cur.id]].n + '에서 곁길 ' + V.cur.depth + '단계');
-      var op = g.openItems().length; if (op) bits.push('할 일 ' + op + '개');
+      if (st.scope === 'all') bits.push(g.SC.chats.length + (g.SC.chats.length === 1 ? ' chat' : ' chats'));
+      if (V.cur && V.cur.depth > 0 && g.byId[V.anc[V.cur.id]]) bits.push('Side trip from ' + g.byId[V.anc[V.cur.id]].n + ', level ' + V.cur.depth);
+      var op = g.openItems().length; if (op) bits.push(op + (op === 1 ? ' to-do' : ' to-dos'));
       if (g.hooks.statusBits) bits = bits.concat(g.hooks.statusBits(V) || []);
-      if (!bits.length) bits.push(g.hooks.goHint || '역을 누르면 그 대화로 이동해요');
+      if (!bits.length) bits.push(g.hooks.goHint || 'Click a station to jump to that point in the chat');
       return bits.join(' · ');
     }
 
@@ -82,8 +82,8 @@
       var mapEl = R.map, mapScroll = R.mapScroll; mapEl.innerHTML = ''; R.mapDots = {};
       if (!V.vis.length) {
         mapEl.style.height = ''; mapEl.style.width = '';
-        var e = el('div', 'map-empty'); e.appendChild(el('b', null, '아직 잡힌 가닥이 없어요.')); e.appendChild(el('span', null, '대화를 시작하면 여기에 흐름이 그려져요.'));
-        if (g.SC.emptyNote) { var h = el('div', 'hint'); h.appendChild(el('span', null, g.SC.emptyNote)); var eb = el('button', 'btn sm', g.SC.scopeLabel + ' 보기'); eb.type = 'button'; eb.onclick = function () { st.scope = 'all'; g.render(); }; h.appendChild(eb); e.appendChild(h); }
+        var e = el('div', 'map-empty'); e.appendChild(el('b', null, 'No thread to follow yet.')); e.appendChild(el('span', null, 'Start a chat and its flow is drawn here.'));
+        if (g.SC.emptyNote) { var h = el('div', 'hint'); h.appendChild(el('span', null, g.SC.emptyNote)); var eb = el('button', 'btn sm', 'Show ' + g.SC.scopeLabel.toLowerCase()); eb.type = 'button'; eb.onclick = function () { st.scope = 'all'; g.render(); }; h.appendChild(eb); e.appendChild(h); }
         mapEl.appendChild(e); mapScroll.classList.remove('ovf'); return;
       }
       // 한 줄 노선도 문법: 역 이름은 위로 45°, 곁길은 아래로 45° (전체 지도와 같게)
@@ -166,7 +166,7 @@
           var t1 = active && list.indexOf(cur) >= 0 ? cur : list[list.length - 1];
           var b = el('button', 'st ' + (active ? 'br' : 'closed') + (level === 2 ? ' l2' : '') + (t1 === cur ? ' cur' : ''));   // 곁길의 할 일은 갈라진 본선 역 아래에 모아요
           b.type = 'button'; b.style.left = gx + 'px'; b.style.top = y + 'px'; b.dataset.tid = t1.id;
-          b.setAttribute('aria-label', level + '차 곁길: ' + list.map(function (n) { return n.title; }).join(', '));
+          b.setAttribute('aria-label', 'Side trip, level ' + level + ': ' + list.map(function (n) { return n.title; }).join(', '));
           wireGroup(b, nodes, t1, g.byId[aid], active); mapEl.appendChild(b);
           list.forEach(function (n) { R.mapDots[n.id] = b; pos[n.id] = { x: gx, y: y }; });
         }
@@ -182,14 +182,14 @@
         path('M ' + (p.x - w) + ' ' + Y0 + ' C ' + (p.x - w) + ' ' + (Y0 - h) + ', ' + (p.x + w) + ' ' + (Y0 - h) + ', ' + (p.x + w) + ' ' + Y0, 'var(--ring)', 2, '4 4');
         t.alts.forEach(function (a, k) {
           var gx = p.x - 10 + k * 20 - (t.alts.length - 1) * 4, gh = el('button', 'st ghost'); gh.type = 'button';
-          gh.style.left = gx + 'px'; gh.style.top = (Y0 - h * 0.75) + 'px'; gh.setAttribute('aria-label', '숨은 가지 ' + (k + 1) + ': ' + a.user);
+          gh.style.left = gx + 'px'; gh.style.top = (Y0 - h * 0.75) + 'px'; gh.setAttribute('aria-label', 'Hidden branch ' + (k + 1) + ': ' + a.user);
           if (a.dec) gh.style.borderColor = 'var(--accent)';
           gh.onclick = function () { if (g.hooks.goAlt) g.hooks.goAlt(t, k); else g.go(t.id); };
-          gh.onmouseenter = function () { tip.innerHTML = ''; tip.appendChild(el('b', null, '숨은 가지 ' + (k + 1))); tipLine(a.user); if (a.dec) tipLine('정함 · ' + a.dec); tipLine('누르면 이 가지를 대화에서 보여 줘요', 's'); placeTip(gh); };
+          gh.onmouseenter = function () { tip.innerHTML = ''; tip.appendChild(el('b', null, 'Hidden branch ' + (k + 1))); tipLine(a.user); if (a.dec) tipLine('Decided · ' + a.dec); tipLine('Click to show this branch in the chat', 's'); placeTip(gh); };
           gh.onmouseleave = function () { tip.hidden = true; };
           mapEl.appendChild(gh);
         });
-        var lb = el('div', 'alt-l', '가지 ' + (t.alts.length + 1)); lb.style.left = p.x + 'px'; lb.style.top = (Y0 - h - 2) + 'px'; mapEl.appendChild(lb);
+        var lb = el('div', 'alt-l', (t.alts.length + 1) + ' branches'); lb.style.left = p.x + 'px'; lb.style.top = (Y0 - h - 2) + 'px'; mapEl.appendChild(lb);
       });
       // stations
       mains.forEach(function (t) {
@@ -201,11 +201,11 @@
           .filter(function (it) { var s = g.stateOf(it); return s !== 'done' && s !== 'dismissed'; });
         if (!open && todo.length) { var tt = el('i', 'tick-ti'); tt.style.left = p.x + 'px'; tt.style.top = (Y0 + 14) + 'px'; wireTodo(tt, todo); mapEl.appendChild(tt); }
         b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.dataset.tid = t.id;
-        b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' 로 이동');
+        b.setAttribute('aria-label', g.numLabel(t) + ' ' + t.title + ' — go there');
         g.wire(b, t); mapEl.appendChild(b); R.mapDots[t.id] = b; b.dataset.seg = V.segs[V.sIdx[t.id]];
         if (!open) return;
         // 역 이름: 위로 45°. 카드 위 끝(구간 이름 줄)에 닿기 전에 줄여요 — 길이 × sin45°가 쓸 수 있는 높이를 넘지 않게. 전체 이름은 툴팁에
-        var nm = el('div', 'nm' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), k === 'cur' ? '지금 · ' + t.title : t.title);
+        var nm = el('div', 'nm' + (k === 'cur' ? ' now' : '') + (t.dec ? ' dec' : ''), k === 'cur' ? 'Now · ' + t.title : t.title);
         nm.style.left = (p.x - 3) + 'px'; nm.style.top = (Y0 - 34) + 'px';
         nm.style.maxWidth = Math.round((Y0 - 18 - top - (multi ? 20 : 2)) * Math.SQRT2) + 'px';
         nm.dataset.seg = V.segs[V.sIdx[t.id]]; mapEl.appendChild(nm);
@@ -217,7 +217,7 @@
         var fl = brY ? el('div', 'lbl') : l;
         af.slice(0, 1).forEach(function (fx) {   // 카드에는 첫 파일 하나만 (+n). 다 보려면 한 줄 노선도 · 산출물 칸
           var f = el('span', 'f'), v = g.versionOf(t, fx).v; f.appendChild(el('span', 'sq'));
-          f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = '산출물 · ' + fname(fx); fl.appendChild(f);
+          f.appendChild(document.createTextNode(fname(fx) + (v > 1 ? ' · v' + v : ''))); f.title = 'File · ' + fname(fx); fl.appendChild(f);
         });
         if (af.length > 1) { var more = el('span', 'f more', '+' + (af.length - 1)); more.title = af.slice(1).map(fname).join('\n'); fl.appendChild(more); }
         // 그다음 안 한 할 일: 빨간 고리를 하나씩 세로로 (셋까지, 넘으면 +n). 끝낸 할 일은 카드에 그리지 않아요(한 줄 노선도 · 목록에서 회색 고리로)
@@ -244,10 +244,10 @@
         var head = path('M ' + (x1 - 16) + ' ' + (Y0 - 9) + ' L ' + x1 + ' ' + Y0 + ' L ' + (x1 - 16) + ' ' + (Y0 + 9) + ' Z', 'none', 0);
         head.setAttribute('class', 'xfer'); head.style.fill = 'var(--fg)'; head.removeAttribute('pathLength');
         var xb = el('button', 'xfer-btn'); xb.type = 'button'; xb.style.left = x0 + 'px'; xb.style.top = (Y0 - 18) + 'px'; xb.style.width = (x1 - x0 + 8) + 'px';
-        xb.setAttribute('aria-label', '환승하기: 다음 대화에 붙일 요약 복사');
+        xb.setAttribute('aria-label', 'Transfer: copy a summary to paste into the next chat');
         xb.onclick = function () { g.hooks.handoff(); };
         mapEl.appendChild(xb);
-        var xl = el('div', 'lbl xlbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', '환승하기')); mapEl.appendChild(xl);   // 글자는 화살표 가운데 아래
+        var xl = el('div', 'lbl xlbl'); xl.style.left = ((x0 + x1) / 2) + 'px'; xl.style.top = (Y0 + 20) + 'px'; xl.appendChild(el('span', 't now', 'Transfer')); mapEl.appendChild(xl);   // 글자는 화살표 가운데 아래
       }
       // reference arcs (U3 repeats, cross-chat refs) as faint curves under the line
       // 참조 호(빨간 점선)는 그리지 않아요: 빨강은 ‘지금 · 할 일’에만이고, 노선 위가 번잡해져요. 연결은 역 툴팁의 ‘↩ … 와 연결’에 있어요
@@ -272,7 +272,7 @@
       t.parts.forEach(function (q, i) {
         if (q.type === 'rev') return;
         var cell = el('button', 'cell' + (q.open ? ' open' : '')); cell.type = 'button';
-        cell.setAttribute('aria-label', q.t + (q.open ? ' (답 없음)' : ' 로 이동'));
+        cell.setAttribute('aria-label', q.t + (q.open ? ' (no answer)' : ' — go there'));
         cell.addEventListener('click', function (e) { e.stopPropagation(); if (g.hooks.goPart) g.hooks.goPart(t, i); else g.go(t.id); });
         c.appendChild(cell);
       });
@@ -291,14 +291,14 @@
     function tipLine(text, cls) { tip.appendChild(el('span', cls || null, text)); }
     function showTip(t, b) {
       tip.innerHTML = ''; tip.appendChild(el('b', null, t.title));
-      tipLine((t.chat !== g.ACT ? t.chat.title + ' · ' + t.chat.date + ' · ' : '') + (t.depth ? t.depth + '차 곁길' : '본류 ' + t.n), 's');
-      if (t.dec) tipLine('정함 · ' + t.dec);
-      if (t.ret) tipLine('곁길에서 돌아와 이어 붙음', 's');
-      if (t.ref && g.byId[t.ref]) tipLine('↩ ' + g.numLabel(g.byId[t.ref]) + ' ' + g.byId[t.ref].title + '와 연결', 's');
-      if (t.alts) tipLine('⑂ 고쳐 쓴 메시지 · 가지 ' + (t.alts.length + 1) + '개', 's');
-      (t.parts || []).forEach(function (q) { tipLine((q.type === 'rev' ? '→ 수정 대기열 · ' : (q.open ? '○ 답 없음 · ' : '● ')) + q.t, q.type === 'rev' ? 's' : null); });
+      tipLine((t.chat !== g.ACT ? t.chat.title + ' · ' + t.chat.date + ' · ' : '') + (t.depth ? 'Side trip, level ' + t.depth : 'Main line ' + t.n), 's');
+      if (t.dec) tipLine('Decided · ' + t.dec);
+      if (t.ret) tipLine('Back from a side trip, rejoins here', 's');
+      if (t.ref && g.byId[t.ref]) tipLine('↩ Linked to ' + g.numLabel(g.byId[t.ref]) + ' ' + g.byId[t.ref].title, 's');
+      if (t.alts) tipLine('⑂ Edited message · ' + (t.alts.length + 1) + ' branches', 's');
+      (t.parts || []).forEach(function (q) { tipLine((q.type === 'rev' ? '→ Edit queue · ' : (q.open ? '○ No answer · ' : '● ')) + q.t, q.type === 'rev' ? 's' : null); });
       g.allFiles(t).forEach(function (f) { var s = el('span', 'fl'); s.appendChild(el('i')); s.appendChild(document.createTextNode(fname(f))); tip.appendChild(s); });
-      if (g.hasTodo(t)) tipLine('○ 가닥이 찾은 할 일이 있어요', 's');
+      if (g.hasTodo(t)) tipLine('○ Gadak found a to-do here', 's');
       placeTip(b);
     }
     g.wire = function (b, t) {
@@ -314,9 +314,9 @@
         tip.innerHTML = '';
         items.forEach(function (it, i) {
           var at = it.at && g.byId[it.at] ? g.byId[it.at] : it.t;
-          tip.appendChild(el('b', null, (G.KIND[it.kind] ? G.KIND[it.kind].label : '할 일')));
+          tip.appendChild(el('b', null, (G.KIND[it.kind] ? G.KIND[it.kind].label : 'To do')));
           tipLine(it.text);
-          if (at) tipLine(g.numLabel(at) + ' ' + at.title + '에서', 's');
+          if (at) tipLine('At ' + g.numLabel(at) + ' ' + at.title, 's');
         });
         placeTip(b);
       });
@@ -324,10 +324,10 @@
     }
     function wireGroup(b, nodes, target, anchor, active) {
       function show() {
-        tip.innerHTML = ''; tip.appendChild(el('b', null, active ? '곁길 · 지금 여기' : '곁길 ' + nodes.length + '개'));
-        tipLine(anchor.n + ' ' + anchor.title + '에서 갈라짐', 's');
+        tip.innerHTML = ''; tip.appendChild(el('b', null, active ? 'Side trip · you are here' : nodes.length + (nodes.length === 1 ? ' side trip' : ' side trips')));
+        tipLine('Branches off at ' + anchor.n + ' ' + anchor.title, 's');
         nodes.forEach(function (n) { tipLine((n.depth >= 2 ? '　└ ' : '· ') + n.title + (g.hasTodo(n) ? '  ○' : '')); });
-        if (!active) tipLine('끝난 곁길이라 접혀 있어요', 's');
+        if (!active) tipLine('Finished side trip, folded away', 's');
         placeTip(b);
       }
       b.addEventListener('click', function () { g.go(target.id); });

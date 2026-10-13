@@ -50,29 +50,29 @@ def _sdk():
     try:
         import anthropic
     except ImportError as exc:
-        raise EngineError("API 키 엔진에 필요한 것(anthropic)이 없어요. ‘가닥 설치.command’를 다시 실행해 주세요.") from exc
+        raise EngineError("The API key engine needs the anthropic package. Please run ‘Install Gadak.command’ again.") from exc
     return anthropic
 
 
 def _trouble(anthropic, exc, model) -> EngineError:
     """SDK의 오류를 가닥 창에 한 줄로 보여 줄 말로."""
     if isinstance(exc, anthropic.AuthenticationError):
-        return EngineError("API 키가 맞지 않아요. 키를 다시 넣어 주세요.")
+        return EngineError("The API key is not valid. Please enter it again.")
     if isinstance(exc, anthropic.PermissionDeniedError):
-        return EngineError("이 API 키로는 이 모델을 쓸 수 없어요.")
+        return EngineError("This API key cannot use this model.")
     if isinstance(exc, anthropic.NotFoundError):
-        return EngineError(f"모델 이름이 맞지 않아요: {model}")
+        return EngineError(f"Unknown model name: {model}")
     if isinstance(exc, anthropic.RateLimitError):
-        return EngineError("API 사용 한도에 걸렸어요. 잠시 뒤에 ‘정리 다시’를 눌러 주세요.")
+        return EngineError("Hit the API rate limit. Press Resume sorting in a moment.")
     if isinstance(exc, anthropic.APIStatusError):
         text = str(getattr(exc, "message", "") or exc)
         if exc.status_code == 402 or "credit balance" in text.lower():
-            return EngineError("API 크레딧이 모자라요. Anthropic 콘솔에서 충전한 뒤 ‘정리 다시’를 눌러 주세요.")
+            return EngineError("Not enough API credit. Top up in the Anthropic Console, then press Resume sorting.")
         if exc.status_code >= 500:
-            return EngineError("Anthropic 서버가 잠시 답하지 못해요. 조금 뒤에 ‘정리 다시’를 눌러 주세요.")
-        return EngineError("요청이 받아들여지지 않았어요: " + " ".join(text.split())[:140])
+            return EngineError("The Anthropic servers are not answering for now. Press Resume sorting in a little while.")
+        return EngineError("The request was not accepted: " + " ".join(text.split())[:140])
     if isinstance(exc, anthropic.APIConnectionError):
-        return EngineError("Anthropic에 닿지 못했어요. 인터넷 연결을 확인해 주세요.")
+        return EngineError("Could not reach Anthropic. Check your internet connection.")
     return EngineError(str(exc)[:200])
 
 
@@ -92,7 +92,7 @@ class AnthropicApiEngine:
             anthropic = _sdk()
             key = keys.get("anthropic")      # 다른 회사 키가 들어 있으면 쓰지 않아요 (그 키는 그 회사 엔진이 써요)
             if not key:
-                raise EngineError("API 키가 없어요. 키를 넣어 주세요.")
+                raise EngineError("No API key. Please add one.")
             self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout)
         return self._client
 
@@ -138,16 +138,16 @@ class AnthropicApiEngine:
                      "cost": (tokens_in * price[0] + used.output_tokens * price[1]) / 1_000_000 if price else None}
         self.last_usage = dict({k: getattr(used, k, 0) or 0 for k in USAGE_FIELDS}, cost=self.last["cost"], model=self.model)
         if response.stop_reason == "refusal":
-            raise BadOutput("모델이 이 묶음은 다루지 않겠다고 했어요")
+            raise BadOutput("The model declined to handle this batch")
         if response.stop_reason == "max_tokens":
-            raise BadOutput("답이 길어서 중간에 잘렸어요")
+            raise BadOutput("The answer was too long and got cut off")
         text = next((block.text for block in response.content if block.type == "text"), "")
         try:
             data = json.loads(text)
         except ValueError as exc:
-            raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요: " + text[:120]) from exc
+            raise BadOutput("The engine did not answer in the required format: " + text[:120]) from exc
         if not isinstance(data, dict):
-            raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요")
+            raise BadOutput("The engine did not answer in the required format")
         return data
 
 

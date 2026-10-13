@@ -20,7 +20,7 @@ _DROP_ENV = ("OPENAI_API_KEY", "CODEX_API_KEY")
 # 가닥의 모델 이름(작은 것 · 중간 · 큰 것)은 Codex에서 생각 깊이로 옮겨요. 모델 자체는 Codex가 고르는 기본값을 써요
 EFFORT = {"haiku": "low", "sonnet": "medium", "opus": "high"}
 # 답 앞에 붙이는 말. Codex는 코딩 에이전트라서, 파일을 뒤지거나 명령을 돌리지 말고 형식대로만 답하게 해요
-PREFIX = "아래 지시와 입력만 보고 답해. 파일을 읽거나 명령을 돌리는 도구는 쓰지 마. 정해 준 형식의 JSON 하나만 답해.\n\n"
+PREFIX = "Answer using only the instructions and input below. Do not use tools that read files or run commands. Answer with a single JSON object in the required format.\n\n"
 LOGIN_WORDS = ("not logged in", "login required", "unauthorized", "401", "codex login", "sign in")
 
 
@@ -78,7 +78,7 @@ class CodexCliEngine:
     def check(self) -> dict:
         """로그인 상태만 봐요. 모델은 부르지 않아요."""
         if not self.bin:
-            return {"ok": False, "reason": "Codex를 찾지 못했어요. AI 연결에서 ChatGPT 구독을 연결해 주세요."}
+            return {"ok": False, "reason": "Could not find Codex. Connect a ChatGPT subscription under Connect AI."}
         try:
             out = subprocess.run([*win.command(self.bin), "login", "status"], capture_output=True, text=True, env=self._env(),
                                  timeout=30, **win.QUIET, **win.TEXT)
@@ -87,13 +87,13 @@ class CodexCliEngine:
         said = (out.stdout + out.stderr).strip()
         ok = out.returncode == 0 and "logged in" in said.lower() and "not logged in" not in said.lower()
         method = "chatgpt" if "chatgpt" in said.lower() else ("api_key" if "api key" in said.lower() else None)
-        return {"ok": ok, "authMethod": method} if ok else {"ok": False, "reason": said[:200] or "Codex에 로그인되어 있지 않아요."}
+        return {"ok": ok, "authMethod": method} if ok else {"ok": False, "reason": said[:200] or "Not signed in to Codex."}
 
     def complete_json(self, system: str, prompt: str, schema: dict) -> dict:
         """schema에 맞는 JSON 하나를 받아요."""
         self.last_usage = None
         if not self.bin:
-            raise EngineError("Codex를 찾지 못했어요. AI 연결에서 ChatGPT 구독을 다시 연결해 주세요.")
+            raise EngineError("Could not find Codex. Reconnect the ChatGPT subscription under Connect AI.")
         with tempfile.TemporaryDirectory(prefix="gadak-codex-") as tmp:
             shape, answer = Path(tmp) / "schema.json", Path(tmp) / "answer.json"
             shape.write_text(json.dumps(schema, ensure_ascii=False), encoding="utf-8")
@@ -115,13 +115,13 @@ class CodexCliEngine:
                 cmd += ["-m", config.CODEX_MODEL]
             try:
                 out = subprocess.run(
-                    cmd + ["-"], input=PREFIX + system + "\n\n입력:\n" + prompt, capture_output=True, text=True,
+                    cmd + ["-"], input=PREFIX + system + "\n\nInput:\n" + prompt, capture_output=True, text=True,
                     env=self._env(), cwd=self._cwd(), timeout=self.timeout, **win.QUIET, **win.TEXT
                 )
             except subprocess.TimeoutExpired as exc:
-                raise EngineError(f"Codex가 {self.timeout}초 안에 답하지 않았어요") from exc
+                raise EngineError(f"Codex did not answer within {self.timeout} seconds") from exc
             except OSError as exc:
-                raise EngineError(f"Codex를 켜지 못했어요: {exc}") from exc
+                raise EngineError(f"Could not start Codex: {exc}") from exc
             events = self._events(out.stdout)
             self._used(events)
             text = answer.read_text(encoding="utf-8").strip() if answer.is_file() else ""
@@ -130,9 +130,9 @@ class CodexCliEngine:
         try:
             data = json.loads(text)
         except ValueError as exc:
-            raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요: " + text[:120]) from exc
+            raise BadOutput("The engine did not answer in the required format: " + text[:120]) from exc
         if not isinstance(data, dict):
-            raise BadOutput("엔진이 정해 준 형식으로 답하지 않았어요")
+            raise BadOutput("The engine did not answer in the required format")
         return data
 
     @staticmethod
@@ -170,7 +170,7 @@ class CodexCliEngine:
         said = said or (out.stderr or out.stdout or "").strip()[-300:]
         low = said.lower()
         if any(word in low for word in LOGIN_WORDS):
-            raise EngineError("Codex에 로그인되어 있지 않아요. AI 연결에서 ChatGPT 구독을 다시 연결해 주세요.")
+            raise EngineError("Not signed in to Codex. Reconnect the ChatGPT subscription under Connect AI.")
         if not said:
-            raise BadOutput("엔진이 답을 내지 않았어요")
+            raise BadOutput("The engine gave no answer")
         raise EngineError(said[:300])                 # 사용 한도 같은 것

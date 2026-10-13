@@ -32,8 +32,8 @@ class RulesTest(unittest.TestCase):
         items = self.classify("c1", t2={"depth": 1}, t3={"depth": 1}, t4={"depth": 1}, t6={"depth": 1})
         (item,) = items[5]
         rows = store.chat_turns(self.conn, "c1")
-        self.assertEqual((item["kind"], item["at"], item["btn"]), ("open", rows[1]["id"], "정리 받기"))
-        self.assertEqual(item["text"], "‘제목 2’ 외 2개 곁길이 결론 없이 끝났어요")
+        self.assertEqual((item["kind"], item["at"], item["btn"]), ("open", rows[1]["id"], "Get a recap"))
+        self.assertEqual(item["text"], "The side trip ‘제목 2’ and 2 more ended without a conclusion")
         self.assertEqual(items[7], [])                                   # 곁길 하나로 뜻만 물은 것은 두어요
 
     def test_a_side_path_that_decided_or_postponed(self):
@@ -84,8 +84,8 @@ class RulesTest(unittest.TestCase):
         clf.classify_chat(self.conn, "c1")
         rows = store.chat_turns(self.conn, "c1")
         (item,) = store.turn_items(self.conn, rows[4]["id"])
-        self.assertEqual((item["kind"], item["effect"], item["btn"]), ("topic", "transfer", "환승하기"))
-        self.assertEqual(item["text"], "이 대화에 주제가 3개 쌓였어요 · 새 대화로 갈아탈까요?")
+        self.assertEqual((item["kind"], item["effect"], item["btn"]), ("topic", "transfer", "Transfer"))
+        self.assertEqual(item["text"], "3 topics have piled up in this chat · switch to a new one?")
         with self.conn:
             self.assertFalse(rules.transfer(self.conn, "c1"))             # 대화마다 한 번
 
