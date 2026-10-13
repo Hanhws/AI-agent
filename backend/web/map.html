@@ -70,6 +70,7 @@ text { font-family: var(--font); fill: var(--ink); }
 .p-latin { font-weight: 700; }
 .p-sub { font-size: 22px; fill: var(--ink2); }
 .p-name, .p-now { font-size: 22px; font-weight: 700; }
+.p-now { paint-order: stroke; stroke: var(--poster); stroke-width: 10px; stroke-linejoin: round; }   /* 지나가는 선 위에 놓여도 읽히게 종이 색 테두리 */
 .p-here { stroke: var(--ink); stroke-width: 9; fill: none; }
 
 .grid line { stroke: var(--grid); stroke-width: 1; }
@@ -731,7 +732,8 @@ function drawPoster() {
     const dA = p.first, dB = p.last, going = dB === TODAY;
     // 위쪽에 있던 노선은 위 가장자리로, 아래쪽은 아래 가장자리로 드나들어요
     const sideA = rank[dA][i] < 0.5 ? "top" : "bot", sideB = rank[dB][i] < 0.5 ? "top" : "bot", edge = sd => sd === "top" ? top - 40 : bot + 40;
-    const tA = dA ? T0(dA) + 30 : L - 40, tB = going ? R + 40 : T0(dB) + w[dB] - 30;
+    // 드나드는 세로 줄과 꺾임은 역이 놓이는 폭(하루 안쪽 14) 바깥에 둬요. 안에 두면 하루만 달린 노선이 좁은 U자가 되고 역이 세로 줄 · 포스터 밖으로 떨어져요
+    const tA = dA ? Math.max(L + 20, T0(dA) + 14 - PR - PP) : L - 40, tB = going ? R + 40 : Math.min(R - 20, T0(dB) + w[dB] - 14 + PR + PP);
     const band = [[tA, pos[dA][i]]];
     for (let d = dA; d < dB; d++) {
       const c = pos[d][i], next = pos[d + 1][i], dc = Math.abs(next - c);
