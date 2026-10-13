@@ -1,5 +1,7 @@
 # 가닥 — 인수인계 README
 
+**English** → [`README.en.md`](README.en.md) · [hanhws.github.io/AI-agent/en](https://hanhws.github.io/AI-agent/en/) (the English edition lives on the `english` branch)
+
 > **가닥**은 LLM과 긴 작업을 할 때 대화 속에 묻히는 질문 · 결정 · 산출물을 대화 옆 노선도로 정리하고, 놓친 일과 다음 할 일을 먼저 알려 주는 AI 에이전트예요. 크롬 확장 프로그램(웹), Claude 데스크톱 MCP(앱), VS Code · Cursor 확장(개발 도구)으로 기존 LLM 화면 옆에 붙어요.
 
 작성: 기획 담당 (기획 · 디자인 · 발표) → 구현 담당 (Git · 전체 코드 구현) · 최종 갱신 2026-10-03
