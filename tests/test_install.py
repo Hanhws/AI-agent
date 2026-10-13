@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -23,6 +24,7 @@ def run(argv):
 
 
 class InstallTest(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_print_only_points_at_the_hook(self):
         for target in ("cursor", "claude"):
             code, out = run([target])
@@ -52,6 +54,7 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("덮어쓰지 않았어요", out)
 
+    @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_launcher_runs_the_hook_from_the_project_root(self):
         """Cursor가 하듯 프로젝트 루트에서 실행기를 돌려요. 백엔드가 없으니 이벤트는 쌓여요."""
         payload = json.loads((FIXTURES / "cursor_payloads.json").read_text(encoding="utf-8"))[0]

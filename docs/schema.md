@@ -61,10 +61,10 @@
 | `why` | string | 왜 말을 거는지 (근거 한두 문장) |
 | `btn` | string | 실행 버튼 문구 (동사 2~5자: ‘다시 묻기’, ‘요약 붙이기’) |
 | `prompt` | string | 실행하면 입력창에 넣을 글 |
-| `effect` | `split` \| `scopeAll` | 글을 넣는 대신 화면을 바꾸는 실행 |
+| `effect` | `split` \| `scopeAll` \| `transfer` | 글을 넣는 대신 화면을 바꾸는 실행 (`transfer`: 노선도 끝 ‘환승하기’와 같이 요약 복사) |
 | `pop` | {title, text?, diff?, note?, btn?, prompt?} | 실행 전에 보여 줄 창 (요약 · 바뀐 곳) |
 | `at` | string | 근거가 된 다른 턴 id (지난 대화 포함) |
-| `state` | `open` \| `later` \| `done` | 저장소가 관리 |
+| `state` | `open` \| `later` \| `done` \| `dismissed` | 저장소가 관리. `dismissed`는 사용자가 ×로 지운 것 |
 
 **kind 목록과 우선순위** (작을수록 먼저, 한 턴에 한마디는 하나)
 
@@ -76,7 +76,7 @@
 | `branch` | 놓친 일 | 숨은 가지 | 2 | 고쳐 쓴 이전 가지에만 있는 요청 · 결정이 현재 가지에 없음 |
 | `open` | 놓친 일 | 끝나지 않은 곁길 | 3 | 곁길이 결론(dec) 없이 닫힘, 또는 “다음에 하자”로 끝남 |
 | `check` | 제안 | 이해 확인 | 4 | 개념 설명(곁길 질문) 뒤 확인 질문 없이 넘어감 |
-| `topic` | 제안 | 주제 전환 | 4 | 한 창에서 주제가 바뀜. 승인하면 이후 자동 분할 |
+| `topic` | 제안 | 주제 전환 | 4 | 대화 전체를 보고 나눈 구간이 3개 이상 쌓임 → 환승하기 권함 (대화마다 한 번, 10/7) |
 | `repeat` | 제안 | 반복 질문 | 4 | 지난 대화에 비슷한 질문이 있음 (임베딩 유사도) |
 | `handoff` | 제안 | 이어 가기 | 5 | 같은 프로젝트에 새 대화가 열림 / 한 창에 주제가 3개 이상 |
 | `next` | 제안 | 다음 할 일 | 6 | 결정이 났는데 정리 문서가 없음 등 |
@@ -97,7 +97,7 @@
 | `GET` | `/projects/:id/view?scope=chat\|all&chat=:chatId` | 노선도를 그릴 턴 목록 (구간 계산 포함) |
 | `GET` | `/projects/:id/search?q=` | 지난 대화 찾기. 정한 것이 먼저 |
 | `GET` | `/projects/:id/files` | 산출물 판 목록 |
-| `PATCH` | `/items/:id` | `{state: "later" \| "done"}` |
+| `PATCH` | `/items/:id` | `{state: "later" \| "done" \| "dismissed"}` |
 | `POST` | `/import` | 대화 내보내기 파일(ChatGPT · Claude conversations.json) 한꺼번에 불러오기 |
 
 `POST /turns` 요청

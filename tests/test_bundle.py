@@ -55,6 +55,7 @@ class BundledTest(unittest.TestCase):
         self.assertEqual((info["CFBundleExecutable"], info["CFBundleShortVersionString"]), ("Gadak", config.VERSION))
         self.assertIn("GadakRoot", macapp.info_plist())                                          # 내 PC에서 쓰는 앱은 그대로
 
+    @unittest.skipIf(sys.platform == "win32", "Windows에서는 다른 프로그램의 설정에 hook을 더하지 않아요 (backend/sources)")
     def test_hooks_run_through_the_bundled_backend_not_python(self):
         """받은 사람의 Mac에는 파이썬이 없을 수 있어요. hook은 앱 안의 실행 파일이 돌려요."""
         self.assertTrue(sources.hook_runner().startswith("python3 "))
@@ -73,6 +74,7 @@ class BundledTest(unittest.TestCase):
         self.assertFalse(sources.claude_connected())
         self.assertIn("exec python3 ", install.launcher_script())                                # 저장소에서 쓸 때는 그대로
 
+    @unittest.skipIf(sys.platform == "win32", "Windows에서는 다른 프로그램의 설정에 hook을 더하지 않아요 (backend/sources)")
     def test_an_app_running_from_a_temporary_place_does_not_write_hooks(self):
         """내려받은 앱을 옮기지 않고 켜면 macOS가 임시 자리에서 돌려요. 그 자리를 다른 프로그램의 설정에 적으면 곧 끊겨요."""
         for place in ("/private/var/folders/ab/T/AppTranslocation/1234/d/가닥.app/Contents/Resources/backend/gadak-backend",
@@ -111,6 +113,33 @@ class BundledTest(unittest.TestCase):
             with self.assertRaises(macapp.BuildError) as caught:
                 macapp.freeze(self.tmp.name)
         self.assertIn("pip install pyinstaller", str(caught.exception))
+
+    @unittest.skipIf(sys.platform == "win32", "macOS에서 앱을 만드는 길이에요")
+    def test_another_python_can_do_the_bundling(self):
+        """Intel Mac용을 Apple Silicon Mac에서 만들 때: Intel용 꾸러미가 깔린 파이썬으로 묶어요 (GADAK_BUILD_PYTHON)."""
+        asked = []
+
+        def run(command, **kwargs):
+            if "PyInstaller" in command:
+                asked.append((command[0], (kwargs.get("env") or {}).get("PATH", "").split(os.pathsep)[0]))
+                return subprocess.CompletedProcess(command, 1, "", "")
+            return subprocess.CompletedProcess(command, 0, "/Library/Developer/Tools\n", "")       # xcode-select -p
+
+        with mock.patch.object(macapp.subprocess, "run", run), mock.patch.dict(os.environ, {"GADAK_BUILD_PYTHON": "/x86/bin/python"}), \
+                mock.patch.object(macapp.platform, "machine", return_value="arm64"):
+            with self.assertRaises(macapp.BuildError):
+                macapp.freeze(self.tmp.name)
+            with self.assertRaises(macapp.BuildError):
+                macapp.freeze(self.tmp.name, arch="x86_64")                  # 다른 종류면 Rosetta로 돌려요
+            with self.assertRaises(macapp.BuildError):
+                macapp.freeze(self.tmp.name, arch="arm64")
+        self.assertEqual([who for who, _ in asked], ["/x86/bin/python", "arch", "/x86/bin/python"])
+        with mock.patch.object(macapp.subprocess, "run", run), mock.patch.object(macapp.Path, "is_dir", return_value=True):
+            self.assertTrue(macapp.tools_first()["PATH"].startswith("/Library/Developer/Tools/usr/bin" + os.pathsep))   # 진짜 lipo가 먼저 잡히게
+        os.environ.pop("GADAK_BUILD_PYTHON", None)
+        with mock.patch.object(macapp.platform, "machine", return_value="arm64"), self.assertRaises(macapp.BuildError) as caught:
+            macapp.freeze(self.tmp.name, arch="x86_64")                      # 그 종류의 파이썬을 알려 주지 않았어요
+        self.assertIn("GADAK_BUILD_PYTHON", str(caught.exception))
 
 
 @unittest.skipUnless(os.environ.get("GADAK_BUNDLE_TESTS") == "1" and sys.platform == "darwin", "GADAK_BUNDLE_TESTS=1일 때만 실제로 묶어 봐요")

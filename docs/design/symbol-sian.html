@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가닥 심볼 시안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+/* 가닥 심볼 시안 (10/11). 지금 심볼(shared/ui/mark.js)은 둥근 끝 · 가는 선 · 위로 빠지는 곁길이라 10/6 · 10/8 노선 문법과 어긋나요.
+   다섯 시안 모두 비녤리 문법만 써요: 90° · 45°, 끝이 각진 굵은 선, 한 노선 한 색, 흰 틈, 빨강은 ‘지금’ 하나. */
+:root { --ink: #111; --paper: #fff; --line: #E5E5E5; --muted: #5F5F5F; --accent: #C8401A; --halo: #F6DDD4; --spur: #A7A9AC;
+  --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #121212; --ink: #F2F2F2; --line: #2E2E2E; --muted: #A6A6A6; --halo: #4A2A20; } }
+:root[data-theme="dark"] { --paper: #121212; --ink: #F2F2F2; --line: #2E2E2E; --muted: #A6A6A6; --halo: #4A2A20; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); letter-spacing: -0.05em; }
+header { background: #111; color: #fff; padding: 22px 16px 20px; }
+header .in, main { max-width: 1120px; margin: 0 auto; }
+header h1 { margin: 0; font-size: 32px; letter-spacing: -0.08em; }
+header p { margin: 6px 0 0; font-size: 15px; color: #CFCFCF; }
+main { padding: 8px 16px 60px; }
+.now-row { display: flex; gap: 14px; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+.opt { display: grid; grid-template-columns: 300px 1fr; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--line); }
+.opt h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.05em; }
+.opt h2 span { display: inline-block; width: 28px; height: 28px; margin-right: 8px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 15px; line-height: 28px; text-align: center; vertical-align: 3px; letter-spacing: 0; }
+.opt p { margin: 6px 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.opt p b { color: var(--ink); }
+.shows { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+.band { display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 18px; background: #111; color: #fff; --ink: #fff; --paper: #111; min-width: 300px; }
+.band b { font-size: 26px; letter-spacing: -0.08em; }
+.band b i { font-style: normal; margin-left: 6px; }
+.white { display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 16px; border: 1px solid var(--line); }
+.tile { width: 128px; height: 128px; }
+.fav { display: flex; gap: 10px; align-items: flex-end; }
+.cap { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); letter-spacing: -0.03em; }
+.pick { display: inline-block; margin-top: 8px; padding: 3px 9px; border: 1px solid var(--ink); font-size: 13px; font-weight: 700; }
+@media (max-width: 820px) { .opt { grid-template-columns: 1fr; } .band { min-width: 0; } }
+svg { display: block; overflow: visible; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <!-- 지금 심볼 (비교용): 가는 둥근 선, 위로 빠지는 곁길 -->
+  <symbol id="cur" viewBox="26 62 150 76">
+    <g stroke="var(--ink)" stroke-width="10" stroke-linecap="round" fill="none"><path d="M36 122H166M100 122L116 100L132 80H154"/></g>
+    <circle cx="48" cy="122" r="9" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/><circle cx="100" cy="122" r="9" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/>
+    <circle cx="154" cy="80" r="7" fill="var(--paper)" stroke="#8C8C8C" stroke-width="6"/><circle cx="154" cy="122" r="10" fill="var(--accent)"/>
+  </symbol>
+  <!-- A. 문법 맞춤: 굵은 본선(각진 끝) + 아래로 45° 회색 곁길 + 흰 역 + 빨간 지금 -->
+  <symbol id="A" viewBox="0 0 120 60">
+    <path d="M44 22 L66 44 H96" fill="none" stroke="var(--spur)" stroke-width="10" stroke-linejoin="miter"/>
+    <rect x="4" y="15" width="100" height="14" fill="var(--ink)"/>
+    <circle cx="26" cy="22" r="4" fill="var(--paper)"/><circle cx="56" cy="22" r="4" fill="var(--paper)"/>
+    <circle cx="98" cy="44" r="6" fill="var(--paper)" stroke="var(--ink)" stroke-width="3.5"/>
+    <circle cx="106" cy="22" r="11" fill="var(--accent)"/>
+  </symbol>
+  <!-- B. 노선 불릿: 뉴욕 지하철의 동그란 노선 표시에 ‘가’ + 지금 점 -->
+  <symbol id="B" viewBox="0 0 60 60">
+    <circle cx="30" cy="30" r="27" fill="var(--ink)"/>
+    <text x="30" y="41" text-anchor="middle" font-family="Helvetica Neue, Pretendard, sans-serif" font-weight="700" font-size="32" letter-spacing="-1" fill="var(--paper)">가</text>
+    <circle cx="51" cy="9" r="8" fill="var(--accent)" stroke="var(--paper)" stroke-width="3"/>
+  </symbol>
+  <!-- C. 세 가닥: 흰 틈을 둔 나란한 세 노선. 하나는 아래로 45° 갈라지고, 가운데가 지금에 닿아요 -->
+  <symbol id="C" viewBox="0 0 120 60">
+    <path d="M4 10 H100" stroke="#0039A6" stroke-width="8" fill="none"/>
+    <path d="M4 21 H96" stroke="var(--ink)" stroke-width="8" fill="none"/>
+    <path d="M4 32 H40 L58 50 H100" stroke="#00933C" stroke-width="8" fill="none" stroke-linejoin="miter"/>
+    <circle cx="104" cy="21" r="10" fill="var(--accent)" stroke="var(--paper)" stroke-width="3"/>
+  </symbol>
+  <!-- D. ㄱ 노선: ‘가’의 첫소리 ㄱ을 45°로 꺾인 노선 하나로. 꺾인 끝에 지금 -->
+  <symbol id="D" viewBox="0 0 60 60">
+    <path d="M6 12 H38 L50 24 V44" fill="none" stroke="var(--ink)" stroke-width="12" stroke-linejoin="miter"/>
+    <circle cx="16" cy="12" r="3.5" fill="var(--paper)"/><circle cx="30" cy="12" r="3.5" fill="var(--paper)"/>
+    <circle cx="50" cy="34" r="3.5" fill="var(--paper)"/>
+    <circle cx="50" cy="50" r="9" fill="var(--accent)" stroke="var(--paper)" stroke-width="3"/>
+  </symbol>
+  <!-- E. 역 표지판: 비녤리의 검은 표지판(위에 흰 줄) + 노선 불릿 줄. 마지막 불릿이 지금 -->
+  <symbol id="E" viewBox="0 0 60 60">
+    <rect x="0" y="0" width="60" height="60" fill="#111"/>
+    <rect x="0" y="7" width="60" height="2" fill="#fff"/>
+    <text x="6" y="34" font-family="Helvetica Neue, Pretendard, sans-serif" font-weight="700" font-size="21" letter-spacing="-2" fill="#fff">가닥</text>
+    <circle cx="11" cy="47" r="5" fill="#0039A6"/><circle cx="24" cy="47" r="5" fill="#00933C"/><circle cx="37" cy="47" r="5" fill="#FCCC0A"/><circle cx="50" cy="47" r="5" fill="#C8401A"/>
+  </symbol>
+</svg>
+
+<header><div class="in">
+  <h1>가닥 심볼 시안</h1>
+  <p>다섯 개 모두 비녤리 노선 문법만 써요: 90° · 45°, 끝이 각진 굵은 선, 노선마다 한 색, 흰 틈, 빨강은 ‘지금’ 하나.</p>
+</div></header>
+<main>
+  <div class="now-row">
+    <svg width="59" height="30"><use href="#cur"/></svg>
+    <span><b style="color:var(--ink)">지금 심볼</b> · 선이 가늘고 끝이 둥글어요. 곁길이 위로 올라가서 지금 노선도(곁길은 아래로 45°)와 거꾸로예요. 앱 아이콘(mac/icon.swift)도 같은 모양이에요.</span>
+  </div>
+
+  <section class="opt">
+    <div><h2><span>A</span>문법 맞춤</h2>
+      <p>지금 심볼의 뼈대는 두고 <b>노선도 카드 문법</b>으로 고쳐요. 끝이 각진 굵은 본선, 아래로 45° 내려가는 회색 곁길, 빨간 지금.</p>
+      <p>바꾸는 폭이 가장 작아요. 처음 보는 사람도 노선도를 읽는 법을 심볼에서 먼저 배워요.</p><span class="pick">추천 1</span></div>
+    <div class="shows" data-s="A" data-w="120"></div>
+  </section>
+
+  <section class="opt">
+    <div><h2><span>B</span>노선 불릿</h2>
+      <p>뉴욕 지하철에서 노선을 가리키는 <b>동그란 불릿</b>(Ⓐ Ⓑ Ⓒ)에 ‘가’를 넣어요. 오른쪽 위의 빨간 점이 지금이에요.</p>
+      <p>16px에서도 가장 또렷해요. Dock · 메뉴 막대 · 떠 있는 버튼처럼 작은 자리에 강해요.</p><span class="pick">추천 2 · 작은 자리용</span></div>
+    <div class="shows" data-s="B" data-w="60"></div>
+  </section>
+
+  <section class="opt">
+    <div><h2><span>C</span>세 가닥</h2>
+      <p>이름 그대로 ‘가닥’. 비녤리 지도처럼 <b>흰 틈을 둔 나란한 세 노선</b>이 달리다가 하나는 아래로 갈라지고, 가운데가 지금에 닿아요.</p>
+      <p>여러 대화가 함께 가는 전체 지도를 닮았어요. 대신 색이 많아 작게 쓰면 흐려져요.</p></div>
+    <div class="shows" data-s="C" data-w="120"></div>
+  </section>
+
+  <section class="opt">
+    <div><h2><span>D</span>ㄱ 노선</h2>
+      <p>‘가’의 첫소리 <b>ㄱ</b>을 45°로 꺾인 노선 하나로 그려요. 꺾인 끝에 지금.</p>
+      <p>한글 이름과 지하철이 한 번에 읽혀요. 다만 ㄱ으로 보이려면 조금 크게 써야 해요.</p></div>
+    <div class="shows" data-s="D" data-w="60"></div>
+  </section>
+
+  <section class="opt">
+    <div><h2><span>E</span>역 표지판</h2>
+      <p>비녤리가 만든 <b>검은 역 표지판</b>: 위에 흰 줄, Helvetica 이름, 아래에 노선 불릿 줄. 마지막 불릿이 지금이에요.</p>
+      <p>앱 아이콘 · 발표 표지에 잘 맞아요. 머리띠 안에서는 띠와 겹쳐 따로 써야 해요.</p></div>
+    <div class="shows" data-s="E" data-w="60"></div>
+  </section>
+  <p style="font-size:14px;color:var(--muted);margin-top:20px">제안: <b style="color:var(--ink)">A를 가닥 창 · 지도 머리띠에</b>, <b style="color:var(--ink)">B를 앱 아이콘 · 떠 있는 버튼처럼 작은 자리에</b> 같이 써요. 둘 다 같은 검정 · 빨강이라 한 식구로 읽혀요.</p>
+</main>
+<script>
+// 한 시안을 다섯 자리에 놓아 봐요: 검은 머리띠 · 흰 바탕 · 앱 아이콘(128) · 32 · 16
+document.querySelectorAll('.shows').forEach(function (box) {
+  var s = box.dataset.s, wide = +box.dataset.w > 60;
+  function use(h) { return '<svg width="' + (wide ? h * 2 : h) + '" height="' + h + '"><use href="#' + s + '"/></svg>'; }
+  var w = wide ? 104 : 80, h = wide ? 52 : 80;
+  var tile = s === 'E' ? '<svg class="tile" viewBox="0 0 60 60"><use href="#E"/></svg>'
+    : '<svg class="tile" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#FAF9F6" stroke="#E6E3DD"/>' +
+      '<svg x="' + (64 - w / 2) + '" y="' + (64 - h / 2) + '" width="' + w + '" height="' + h + '" style="--ink:#141414;--paper:#FAF9F6"><use href="#' + s + '"/></svg></svg>';
+  box.innerHTML =
+    '<div><div class="band">' + use(30) + '<b>가닥<i>GADAK</i></b></div><span class="cap">검은 머리띠</span></div>' +
+    '<div><div class="white">' + use(30) + '<b style="font-size:22px;letter-spacing:-0.08em">가닥</b></div><span class="cap">흰 바탕</span></div>' +
+    '<div>' + tile + '<span class="cap">앱 아이콘</span></div>' +
+    '<div><div class="fav">' + use(32) + use(16) + '</div><span class="cap">32 · 16</span></div>';
+});
+</script>
+</body>
+</html>

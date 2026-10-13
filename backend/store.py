@@ -8,12 +8,13 @@ chats.hidden은 사용자가 목록에서 뺀 대화예요(1). 읽어 둔 글은
 parts.open은 0 답함 · 1 빠짐(2단이 확인) · 2 빠진 것 같음(1단의 후보, 화면에는 안 보냄)이에요.
 turns.gist는 답을 간추린 두세 줄이에요(JSON 배열). 1단이 분류할 때 같이 적어요. NULL은 아직 안 적은 것, []는 적을 것이 없던 것.
 """
+import collections
 import json
+import re
 import sqlite3
 import threading
 import unicodedata
 import uuid
-import zlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -147,7 +148,7 @@ MAX_AI = 20000            # 답이 아주 긴 턴은 앞 조금과 끝을 남겨
 AI_HEAD = 4000
 CUT = "\n…(가운데 줄임)…\n"
 CLIP_USER, CLIP_AI = 600, 700   # 노선도 화면에 보내는 길이. 전체는 turn_full
-ITEM_STATES = {"open", "later", "done"}
+ITEM_STATES = {"open", "later", "done", "dismissed"}   # dismissed: 사용자가 ×로 지운 것 (목록 · 노선도 · 알림 수에서 빠져요)
 MISSING, MAYBE_MISSING = 1, 2   # parts.open
 # 4: usage · settings (사용 기록) · 5: auto_log (자동 실행) · 6: chats.hidden (목록에서 뺀 대화)
 # 7 · 8: 두 가지에서 따로 올린 번호예요 (turns.gist 답 간추림 / scratch 폴더 대화 묶기 · turns.dec_note). 9: 둘을 합침
@@ -218,9 +219,15 @@ def _add_columns(conn) -> None:
 def provisional_title(text: str) -> str:
     """분류 전까지 쓰는 임시 역 제목. 제목은 원래 에이전트가 만들어요(README 3-1)."""
     first = next((line.strip() for line in (text or "").splitlines() if line.strip()), "")
+    # 목록 번호 · 머리 기호는 떼고, 첫 마디(문장 끝 · 쉼표 앞)만. ‘지금’ 역은 늘 막 온 턴이라 이 제목이 가장 자주 보여요
+    first = re.sub(r"^(\d+[.)]|[-*•■#>]+)\s*", "", first)
+    first = re.split(r"(?<=[.?!])\s|[,，]", first)[0].strip()
     if not first:
         return "(질문 없음)"
-    return first if len(first) <= TITLE_LEN else first[:TITLE_LEN] + "…"
+    if len(first) <= TITLE_LEN:
+        return first
+    cut = first[:TITLE_LEN]
+    return (cut.rsplit(" ", 1)[0] if " " in cut[4:] else cut) + "…"   # 낱말 중간에서 끊지 않아요
 
 
 def folder_project(cwd):
@@ -255,6 +262,14 @@ def upsert_chat(conn, *, project, chat_id, site, title=None, created_at=None, vi
 
 def set_chat_title(conn, chat_id, title) -> None:
     conn.execute("UPDATE chats SET title = ? WHERE id = ?", (title, chat_id))
+
+
+def set_chat_project(conn, chat_id, project) -> bool:
+    """대화를 그 프로젝트로 옮겨요 (사람이 나눈 그룹을 따라갈 때). 옮겼으면 True."""
+    project = project_key(project)
+    conn.execute("INSERT OR IGNORE INTO projects(id, name) VALUES(?, ?)", (project, project))
+    return conn.execute("UPDATE chats SET project_id = ? WHERE id = ? AND project_id != ?",
+                        (project, chat_id, project)).rowcount > 0
 
 
 def move_chat(conn, chat_id, project) -> bool:
@@ -474,22 +489,58 @@ def confirm_missing(conn, turn_id, missing) -> None:
     )
 
 
+RULE_KINDS = ("open", "repeat", "topic")   # 엔진 없이 규칙으로 만드는 할 일 (backend/agent/rules.py). 2단이 다시 써도 남겨요
+
+
 def set_items(conn, turn_id, items) -> list:
-    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요."""
-    conn.execute("DELETE FROM items WHERE turn_id = ?", (turn_id,))
-    ids = []
-    for n, item in enumerate(items):
-        item_id = f"{turn_id}:{n}"
-        pop = item.get("pop")
-        conn.execute(
-            "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
-            " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
-            (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
-             item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
-             item_id, now()),
-        )
-        ids.append(item_id)
+    """2단이 그 턴에서 찾은 할 일을 적어요. id는 docs/schema.md대로 <turnId>:<n>. 상태는 item_states에 남아 있어요.
+    규칙 할 일(RULE_KINDS · add_items)과 앞길 살피기가 낸 길(<turnId>:a<n> · set_ahead_items)은 건드리지 않아요."""
+    conn.execute("DELETE FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) != ':a' AND kind NOT IN (%s)"
+                 % ",".join("?" * len(RULE_KINDS)), (turn_id, *RULE_KINDS))
+    return _insert_items(conn, turn_id, items)
+
+
+def add_items(conn, turn_id, items) -> list:
+    """규칙 할 일을 덧붙여요. 그 턴에 같은 종류가 이미 있으면 두어요. 새로 넣은 것을 돌려줘요."""
+    have = {r["kind"] for r in conn.execute("SELECT kind FROM items WHERE turn_id = ?", (turn_id,))}
+    items = [it for it in items if it["kind"] not in have]
+    _insert_items(conn, turn_id, items)
+    return items
+
+
+def _insert_items(conn, turn_id, items) -> list:
+    """<turnId>:<n>에서 비어 있는 번호에 차례로 넣어요 (남겨 둔 규칙 할 일과 번호가 겹치지 않게)."""
+    taken = {r["id"] for r in conn.execute("SELECT id FROM items WHERE turn_id = ?", (turn_id,))}
+    ids, n = [], 0
+    for item in items:
+        while f"{turn_id}:{n}" in taken:
+            n += 1
+        taken.add(f"{turn_id}:{n}")
+        ids.append(_add_item(conn, turn_id, f"{turn_id}:{n}", item))
     return ids
+
+
+def set_ahead_items(conn, turn_id, items) -> list:
+    """앞길 살피기(backend/agent/ahead.py)가 그 턴에서 낸 길을 적어요. id는 <turnId>:a<n>.
+    다시 살피면 길이 달라지니, 앞서 낸 길과 그 상태(나중에 · 끝냄)는 지우고 새로 적어요."""
+    old = [r["id"] for r in conn.execute(
+        "SELECT id FROM items WHERE turn_id = ? AND substr(id, length(turn_id) + 1, 2) = ':a'", (turn_id,))]
+    for item_id in old:
+        conn.execute("DELETE FROM item_states WHERE id = ?", (item_id,))
+        conn.execute("DELETE FROM items WHERE id = ?", (item_id,))
+    return [_add_item(conn, turn_id, f"{turn_id}:a{n}", item) for n, item in enumerate(items)]
+
+
+def _add_item(conn, turn_id, item_id, item) -> str:
+    pop = item.get("pop")
+    conn.execute(
+        "INSERT INTO items(id, turn_id, kind, text, why, btn, prompt, effect, pop_json, at, state, created_at)"
+        " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT state FROM item_states WHERE id = ?), 'open'), ?)",
+        (item_id, turn_id, item["kind"], item["text"], item.get("why"), item.get("btn"), item.get("prompt"),
+         item.get("effect"), json.dumps(pop, ensure_ascii=False) if pop else None, item.get("at"),
+         item_id, now()),
+    )
+    return item_id
 
 
 def log_auto(conn, chat_id, kind, text, item_id=None) -> None:
@@ -531,11 +582,12 @@ def chat_row(conn, chat_id):
     return conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
 
 
-def now_chat(conn):
-    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None."""
+def now_chat(conn, project=None):
+    """지금 쓰는 대화: 가장 최근에 턴이 온 대화 (목록에서 뺀 것은 빼고). 없으면 None.
+    project를 주면 그 프로젝트 안에서 골라요 (떠 있는 버튼의 프로젝트 버튼)."""
     return conn.execute(
-        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0"
-        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1"
+        "SELECT c.* FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.hidden = 0 AND (? IS NULL OR c.project_id = ?)"
+        " ORDER BY t.created_at DESC, t.rowid DESC LIMIT 1", (project, project)
     ).fetchone()
 
 
@@ -547,8 +599,17 @@ def _clip(text, limit):
     return text if limit is None or len(text) <= limit else text[:limit].rstrip() + "…"
 
 
+_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")      # Windows 경로의 앞머리 (C:\ …)
+
+
 def shown_name(name, cwd):
     """산출물 이름. 작업 폴더 안의 파일은 폴더 기준 경로로, 밖의 파일은 이름만."""
+    if _DRIVE.match(name):
+        # Windows에서 온 경로: \를 /로 맞춰 같은 규칙으로 봐요. 드라이브 글자 · 폴더 이름은 대소문자를 가리지 않아요
+        name, base = name.replace("\\", "/"), (cwd or "").replace("\\", "/").rstrip("/")
+        if base and name.lower().startswith(base.lower() + "/"):
+            return name[len(base) + 1:]
+        return name.rsplit("/", 1)[-1]
     if cwd and name.startswith(cwd.rstrip("/") + "/"):
         return name[len(cwd.rstrip("/")) + 1:]
     return Path(name).name if name.startswith("/") else name
@@ -628,7 +689,13 @@ def projects(conn) -> list:
         " FROM projects p JOIN chats c ON c.project_id = p.id AND c.hidden = 0 LEFT JOIN turns t ON t.chat_id = c.id"
         " GROUP BY p.id ORDER BY last IS NULL, last DESC, p.name"      # 대화를 다 뺀 프로젝트는 목록에 없어요
     )
-    return [{**dict(r), "color": project_color(r["id"])} for r in rows]   # 노선 색: 목록의 색 동그라미
+    lists = collections.defaultdict(list)    # 왼쪽 목록이 모든 프로젝트의 대화를 펼쳐 보여요. 최근에 쓴 대화가 위로
+    for c in conn.execute(
+        "SELECT c.id, c.project_id, c.title, COALESCE(MAX(t.created_at), c.created_at) AS last"
+        " FROM chats c LEFT JOIN turns t ON t.chat_id = c.id WHERE c.hidden = 0 GROUP BY c.id ORDER BY last DESC"
+    ):
+        lists[c["project_id"]].append({"id": c["id"], "title": c["title"], "date": display_date(c["last"])})
+    return [{**dict(r), "color": project_color(conn, r["id"]), "list": lists[r["id"]]} for r in rows]   # 노선 색: 목록의 색 동그라미
 
 
 def view(conn, project_id, scope="all", chat_id=None):
@@ -680,7 +747,7 @@ def view(conn, project_id, scope="all", chat_id=None):
         if r["id"].split(":")[0] in turn_ids
     }
     auto = {kind: setting(conn, "auto." + kind) == "1" for kind in AUTO_KINDS}
-    return {"project": {"id": project["id"], "name": project["name"], "color": project_color(project["id"])},
+    return {"project": {"id": project["id"], "name": project["name"], "color": project_color(conn, project["id"])},
             "chats": out, "itemStates": states, "auto": auto}
 
 
@@ -689,12 +756,19 @@ MAP_COLORS = ("#0039A6", "#FF6319", "#00933C", "#FCCC0A", "#B933AD", "#EE352E", 
 MAP_LINKS = {"handoff": "이어 가기", "repeat": "지난 대화 참조"}   # 다른 대화를 근거(at)로 든 할 일 → 환승
 
 
-def project_color(project_id) -> str:
-    """프로젝트의 노선 색. 프로젝트 id로 정해서 가닥 창 노선도 · 레일 · 전체 지도가 늘 같은 색을 써요 (회색은 곁길 몫이라 빼요)."""
-    return MAP_COLORS[zlib.crc32(str(project_id).encode()) % (len(MAP_COLORS) - 1)]
+def project_color(conn, project_id) -> str:
+    """프로젝트의 노선 색. 가닥 창 노선도 · 레일 · 전체 지도가 늘 같은 색을 써요 (회색은 곁길 몫이라 빼요).
+    만들어진 차례대로 색을 하나씩 나눠서, 프로젝트가 13개를 넘기 전에는 두 프로젝트가 같은 색을 쓰지 않아요
+    (id 해시로 고르던 때는 다섯 개만 돼도 겹쳤어요). 프로젝트는 지우지 않아서 차례가 바뀌지 않아요."""
+    n = conn.execute("SELECT COUNT(*) FROM projects WHERE rowid < (SELECT rowid FROM projects WHERE id = ?)",
+                     (project_id,)).fetchone()[0]
+    return MAP_COLORS[n % (len(MAP_COLORS) - 1)]
 
 
-def map_data(conn, days=90, today=None) -> dict:
+MAP_DAYS = 30   # 전체 지도 · 포스터는 최근 30일만 (10/8 · 90일을 넘기니 노선이 엉켜 읽히지 않았어요)
+
+
+def map_data(conn, days=MAP_DAYS, today=None) -> dict:
     """전체 지도(backend/web/map.html)용: 최근 days일의 프로젝트 · 대화 · 턴을 날짜(시작일부터 센 번호)와 함께.
     턴마다 정함 · 곁길 깊이 · 산출물 · 할 일을 싣고, 다른 대화를 근거로 든 할 일은 환승으로 이어요."""
     local = lambda ts: datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().date()
@@ -728,13 +802,13 @@ def map_data(conn, days=90, today=None) -> dict:
                 turns.append({
                     "id": row["id"], "t": row["title"], "d": 1 if row["dec"] else 0, "side": min(row["depth"], 2), "day": min(d, days - 1),
                     "f": [Path(r["name"]).name for r in files],
-                    "todo": [[item["text"], states.get(item["id"]) == "done"] for item in items],
+                    "todo": [[item["text"], states.get(item["id"]) == "done"] for item in items if states.get(item["id"]) != "dismissed"],
                 })
             if turns:
                 chats.append({"id": chat["id"], "title": chat["title"] or turns[0]["t"], "from": turns[0]["day"],
                               "to": turns[-1]["day"], "active": False, "turns": turns})
         if chats:
-            color = project_color(project["id"])
+            color = project_color(conn, project["id"])
             out.append({"id": project["id"], "name": project["name"], "color": color, **({"ink": "#111"} if color == "#FCCC0A" else {}),
                         "chats": chats})
     links = [[chat_of[at], chat, why] for at, chat, why in links if at in chat_of and chat_of[at] != chat]

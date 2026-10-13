@@ -7,14 +7,19 @@
 
 에이전트는 턴을 id로 가리켜요. 비우면 지금 턴, 숫자면 이 대화 안의 차례 번호예요.
 찾는 범위는 같은 프로젝트예요. 프로젝트가 없는 대화끼리는 서로 상관이 없어서 그 대화 안에서만 찾아요.
+
+앞길 살피기(ahead.py)는 여기에 search_turns(지난 물음과 답 찾기)를 더해 쓰고, 기록 밖을 보는 도구는 outside.py에 있어요.
 """
 import difflib
+import json
 
 from .. import store
 
 NAMES = ("get_request", "get_diff", "search_decisions", "list_open_items")
 LABELS = {"get_request": "요청 원문 보기", "get_diff": "바뀐 곳 보기",
-          "search_decisions": "정한 것 찾기", "list_open_items": "열린 할 일 보기"}
+          "search_decisions": "정한 것 찾기", "list_open_items": "열린 할 일 보기",
+          "search_turns": "지난 물음 찾기", "list_files": "파일 목록 보기", "search_files": "파일에서 찾기",
+          "read_file": "파일 읽기", "look_up": "웹에서 찾아보기"}
 KIND_LABELS = {"missing": "빠진 요청", "unasked": "요청 외 변경", "yours": "내가 할 일", "branch": "숨은 가지",
                "open": "끝나지 않은 곁길", "check": "이해 확인", "topic": "주제 전환", "repeat": "반복 질문",
                "handoff": "이어 가기", "next": "다음 할 일"}
@@ -23,6 +28,7 @@ USER_MAX = 4000
 AI_HEAD, AI_TAIL = 3000, 3000      # 답은 앞과 끝 (결론은 끝에 있어요)
 FILE_LINES, DIFF_LINES = 60, 200   # 바뀐 줄을 한 파일에서 · 한 번에 보여 주는 만큼
 FOUND_MAX, RELATED_MAX, OPEN_MAX = 15, 6, 20
+TURNS_MAX = 10                     # search_turns가 돌려주는 턴
 SNIP = 160
 
 
@@ -81,6 +87,8 @@ class Context:
         self.conn, self.row = conn, row
         self.chat = store.chat_row(conn, row["chat_id"])
         self.only_chat = self.chat["project_id"] == store.NO_PROJECT
+        self.until = None      # 정해 두면 그 시각 뒤의 턴은 아직 없는 것으로 봐요 (앞길 살피기: 그 턴에 서서 앞을 보는 것이라)
+        self.lookup = None     # 웹에서 찾아보는 함수 (켰을 때만 · outside.look_up)
 
     @property
     def turn_id(self):
@@ -90,6 +98,10 @@ class Context:
         if self.only_chat:
             return "c.id = ?", [self.chat["id"]]
         return "c.project_id = ? AND c.hidden = 0", [self.chat["project_id"]]    # 목록에서 뺀 대화는 찾아보지 않아요
+
+    def cut(self, alias="t"):
+        """until이 있으면 그때까지의 턴만 보게 하는 조건."""
+        return (f" AND {alias}.created_at <= ?", [self.until]) if self.until else ("", [])
 
     def turn(self, arg):
         if arg is None or str(arg).strip() in ("", "this", "지금"):
@@ -103,6 +115,8 @@ class Context:
             row = self.conn.execute(
                 "SELECT * FROM turns WHERE chat_id = ? AND seq = ?", (self.row["chat_id"], int(arg))
             ).fetchone()
+        if row is not None and self.until and row["created_at"] > self.until:
+            return None
         return row
 
     def edits(self, turn_id) -> dict:
@@ -166,22 +180,28 @@ def get_diff(ctx, arg=None) -> dict:
     return {"id": row["id"], "files": out}
 
 
+def _match(words, columns):
+    """낱말 중 하나라도 든 줄. (조건, 값)"""
+    if not words:
+        return "", []
+    any_word = " OR ".join("(" + " OR ".join(f"{c} LIKE ? ESCAPE '\\'" for c in columns) + ")" for _ in words)
+    return f" AND ({any_word})", [_like(w) for w in words for _ in columns]
+
+
 def search_decisions(ctx, arg=None) -> dict:
     query = " ".join(str(arg or "").split())
     words = query.split(" ")[:6] if query else []
     where, values = ctx.scope()
+    until, upto = ctx.cut()
 
     def match(columns):
-        if not words:
-            return "", []
-        any_word = " OR ".join("(" + " OR ".join(f"{c} LIKE ? ESCAPE '\\'" for c in columns) + ")" for _ in words)
-        return f" AND ({any_word})", [_like(w) for w in words for _ in columns]
+        return _match(words, columns)
 
     cond, more = match(("t.dec", "t.title", "t.user"))
     rows = ctx.conn.execute(
         "SELECT t.id, t.seq, t.title, t.dec, t.created_at, c.id AS chat_id, c.title AS chat_title"
-        f" FROM turns t JOIN chats c ON c.id = t.chat_id WHERE {where} AND t.dec IS NOT NULL{cond}"
-        " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", values + more + [FOUND_MAX],
+        f" FROM turns t JOIN chats c ON c.id = t.chat_id WHERE {where} AND t.dec IS NOT NULL{until}{cond}"
+        " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", values + upto + more + [FOUND_MAX],
     ).fetchall()
     out = {"query": query or None, "decisions": [{
         "id": r["id"], "chat": r["chat_title"], "date": store.display_date(r["created_at"]),
@@ -191,8 +211,8 @@ def search_decisions(ctx, arg=None) -> dict:
         cond, more = match(("t.title", "t.user"))
         related = ctx.conn.execute(
             "SELECT t.id, t.seq, t.title, t.user, t.created_at, c.id AS chat_id, c.title AS chat_title"
-            f" FROM turns t JOIN chats c ON c.id = t.chat_id WHERE {where} AND t.dec IS NULL AND t.id != ?{cond}"
-            " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", values + [ctx.turn_id] + more + [RELATED_MAX],
+            f" FROM turns t JOIN chats c ON c.id = t.chat_id WHERE {where} AND t.dec IS NULL AND t.id != ?{until}{cond}"
+            " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", values + [ctx.turn_id] + upto + more + [RELATED_MAX],
         ).fetchall()
         if related:
             out["related"] = [{
@@ -231,9 +251,41 @@ def open_items(conn, where, values) -> list:
     return out
 
 
+def search_turns(ctx, arg=None) -> dict:
+    """지난 물음과 답 찾기 (앞길 살피기). 정한 것이 없는 턴까지, 받은 답은 간추린 줄로 돌려줘요.
+    전에 같은 것을 물었거나 검토한 적이 있는지 볼 때 써요."""
+    query = " ".join(str(arg or "").split())
+    words = query.split(" ")[:6] if query else []
+    if not words:
+        return {"error": "찾을 말을 arg에 넣어 주세요."}
+    where, values = ctx.scope()
+    until, upto = ctx.cut()
+    cond, more = _match(words, ("t.title", "t.user", "t.dec", "t.gist"))
+    rows = ctx.conn.execute(
+        "SELECT t.id, t.seq, t.title, t.user, t.dec, t.gist, t.created_at, c.id AS chat_id, c.title AS chat_title"
+        f" FROM turns t JOIN chats c ON c.id = t.chat_id WHERE {where} AND t.classified = 1 AND t.id != ?{until}{cond}"
+        " ORDER BY t.created_at DESC, t.seq DESC LIMIT ?", values + [ctx.turn_id] + upto + more + [TURNS_MAX],
+    ).fetchall()
+    out = {"query": query, "turns": []}
+    for r in rows:
+        turn = {"id": r["id"], "chat": r["chat_title"], "date": store.display_date(r["created_at"]),
+                "this_chat": r["chat_id"] == ctx.chat["id"], "seq": r["seq"], "title": r["title"],
+                "user": _clip(" ".join(r["user"].split()), SNIP)}
+        gist = json.loads(r["gist"]) if r["gist"] else []
+        if gist:
+            turn["answer"] = gist
+        if r["dec"]:
+            turn["dec"] = r["dec"]
+        out["turns"].append(turn)
+    if not out["turns"]:
+        out["note"] = "맞는 턴이 없어요. 낱말을 줄이거나 바꿔 보세요"
+    return out
+
+
 def list_open_items(ctx, arg=None) -> dict:
     where, values = ctx.scope()
-    items = open_items(ctx.conn, where, values)
+    until, upto = ctx.cut()
+    items = open_items(ctx.conn, where + until, values + upto)
     out = {"items": items[:OPEN_MAX]}
     if len(items) > OPEN_MAX:
         out["more"] = len(items) - OPEN_MAX
@@ -268,4 +320,6 @@ def summary(tool, result) -> str:
         if result.get("related"):
             text += f" · 관련 턴 {len(result['related'])}개"
         return text
+    if tool == "search_turns":
+        return f"지난 턴 {len(result['turns'])}개"
     return f"열린 할 일 {len(result['items']) + result.get('more', 0)}개"

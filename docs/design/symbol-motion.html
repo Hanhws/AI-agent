@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가닥 심볼 움직임</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+/* 심볼 A(문법 맞춤) · D(ㄱ 노선)에 붙일 움직임 시안 (10/11). 두 가지씩:
+   후두둑 — 지금 심볼(shared/ui/mark.js)처럼 선 조각이 흩어져 있다가 떨어져 맞춰져요. 끝에 역이 톡 튀어나와요.
+   달리기 — 열차가 지나가듯 노선이 왼쪽부터 그려지고, 지나가는 역이 하나씩 켜지고, 마지막에 빨간 ‘지금’이 숨 쉬어요. */
+:root { --ink: #111; --paper: #fff; --line: #E5E5E5; --muted: #5F5F5F; --accent: #C8401A; --halo: #F6DDD4; --spur: #A7A9AC;
+  --font: "Helvetica Neue", Helvetica, Pretendard, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); letter-spacing: -0.05em; }
+header { background: #111; color: #fff; padding: 22px 16px 20px; }
+header .in, main { max-width: 1120px; margin: 0 auto; }
+header h1 { margin: 0; font-size: 32px; letter-spacing: -0.08em; }
+header p { margin: 6px 0 0; font-size: 15px; color: #CFCFCF; }
+header button { margin-top: 12px; height: 32px; padding: 0 14px; border: 1px solid rgba(255,255,255,.6); background: none; color: #fff; font: 600 14px var(--font); cursor: pointer; }
+main { padding: 8px 16px 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+.card { padding: 24px 0; border-bottom: 1px solid var(--line); }
+.card h2 { margin: 0 0 4px; font-size: 21px; }
+.card h2 small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+.card p { margin: 4px 0 14px; font-size: 14px; line-height: 1.6; color: var(--muted); min-height: 45px; }
+.stage { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.big { width: 240px; height: 120px; border: 1px solid var(--line); display: grid; place-items: center; cursor: pointer; }
+.band { display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 18px; background: #111; color: #fff; --ink: #fff; --paper: #111; --halo: #4A2A20; cursor: pointer; }
+.band b { font-size: 26px; letter-spacing: -0.08em; }
+.band b i { font-style: normal; margin-left: 6px; }
+.cap { font-size: 13px; color: var(--muted); margin-top: 6px; display: block; }
+svg { display: block; overflow: visible; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header><div class="in">
+  <h1>가닥 심볼 움직임</h1>
+  <p>A · D에 붙일 움직임 두 가지씩. 그림을 누르면 그 그림만 다시 움직여요.</p>
+  <button id="all" type="button">모두 다시 보기</button>
+</div></header>
+<main id="main"></main>
+<script>
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// 심볼 모양: segs = 떨어질 선 조각 [x1,y1,x2,y2,굵기,색], final = 다 맞춘 뒤의 깔끔한 선(꺾인 곳까지), nodes = 역
+const SHAPES = {
+  A: { vb: '0 0 120 60', w: 2,
+    final: [['M4 22 H104', 14, 'ink'], ['M44 22 L66 44 H96', 10, 'spur']],
+    segs: [[4,22,30,22,14,'ink'],[30,22,56,22,14,'ink'],[56,22,82,22,14,'ink'],[82,22,104,22,14,'ink'],[44,22,66,44,10,'spur'],[66,44,96,44,10,'spur']],
+    nodes: [{ x: 26, y: 22, r: 4, k: 'stop' }, { x: 56, y: 22, r: 4, k: 'stop' }, { x: 98, y: 44, r: 6, k: 'end' }, { x: 106, y: 22, r: 11, k: 'now' }],
+    run: [{ d: 'M4 22 H104', w: 14, c: 'ink', from: 0, len: 1 }, { d: 'M44 22 L66 44 H96', w: 10, c: 'spur', from: 0.36, len: 0.55 }],
+    at: [0.22, 0.52, 0.95, 1.0] },        // 달리기에서 각 역이 켜지는 때 (0~1)
+  D: { vb: '0 0 60 60', w: 1,
+    final: [['M6 12 H38 L50 24 V44', 12, 'ink']],
+    segs: [[6,12,22,12,12,'ink'],[22,12,38,12,12,'ink'],[38,12,50,24,12,'ink'],[50,24,50,44,12,'ink']],
+    nodes: [{ x: 16, y: 12, r: 3.5, k: 'stop' }, { x: 30, y: 12, r: 3.5, k: 'stop' }, { x: 50, y: 34, r: 3.5, k: 'stop' }, { x: 50, y: 50, r: 9, k: 'now' }],
+    run: [{ d: 'M6 12 H38 L50 24 V44', w: 12, c: 'ink', from: 0, len: 1 }],
+    at: [0.2, 0.5, 0.82, 1.0] },
+};
+const COLOR = { ink: 'var(--ink)', spur: 'var(--spur)' };
+const ease = t => 1 - Math.pow(1 - t, 3);                                   // --ease와 닮은 곡선: 빠르게 나와 부드럽게 멈춤
+const back = t => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+const bounce = t => { const n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + 0.75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + 0.9375; return n * (t -= 2.625 / d) * t + 0.984375; };
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = t => Math.max(0, Math.min(1, t));
+function mk(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+function build(key, h) {
+  const S = SHAPES[key], svg = mk('svg', { viewBox: S.vb, height: h, width: h * S.w });
+  const line = (d, w, c, extra) => mk('path', Object.assign({ d, fill: 'none', 'stroke-width': w, 'stroke-linejoin': 'miter', style: 'stroke:' + COLOR[c] }, extra || {}), svg);
+  const finals = S.final.map(f => line(f[0], f[1], f[2]));
+  const runs = S.run.map(r => line(r.d, r.w, r.c, { pathLength: 1, 'stroke-dasharray': '1 1' }));
+  const segs = S.segs.map(s => mk('line', { 'stroke-width': s[4], style: 'stroke:' + COLOR[s[5]] }, svg));
+  // 곁길은 본선 밑으로 지나가요
+  [[finals, S.final.map(f => f[2])], [runs, S.run.map(r => r.c)], [segs, S.segs.map(s => s[5])]].forEach(([els, cs]) => els.forEach((p, i) => { if (cs[i] === 'spur') svg.insertBefore(p, svg.firstChild); }));
+  const halo = mk('circle', { r: 0, style: 'fill:var(--halo)' }, svg);
+  const nodes = S.nodes.map(n => {
+    const c = mk('circle', { cx: n.x, cy: n.y, r: n.r }, svg);
+    c.setAttribute('style', n.k === 'stop' ? 'fill:var(--paper)' : n.k === 'end' ? 'fill:var(--paper);stroke:var(--ink);stroke-width:3.5' : 'fill:var(--accent)');
+    if (n.k === 'now') { halo.setAttribute('cx', n.x); halo.setAttribute('cy', n.y); }
+    return c;
+  });
+  let seed = 97; const r = () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
+  const [vx, vy, vw, vh] = S.vb.split(' ').map(Number);
+  const parts = S.segs.map(s => ({ s: { x: vx + r() * vw, y: vy - vh * (0.3 + r() * 0.5), a: r() * Math.PI, l: 8 + r() * 18 },
+    e: { x: (s[0] + s[2]) / 2, y: (s[1] + s[3]) / 2, a: Math.atan2(s[3] - s[1], s[2] - s[0]), l: Math.hypot(s[2] - s[0], s[3] - s[1]) } }));
+  return { S, svg, finals, runs, segs, nodes, halo, parts, raf: 0, nowR: S.nodes.find(n => n.k === 'now').r };
+}
+
+function show(m) {   // 마지막 모습
+  m.finals.forEach(p => p.style.opacity = 1); m.runs.forEach(p => p.style.opacity = 0); m.segs.forEach(p => p.style.opacity = 0);
+  m.nodes.forEach((c, i) => c.setAttribute('r', m.S.nodes[i].r)); m.halo.setAttribute('r', m.nowR + 5);
+}
+
+function fall(m) {          // 후두둑: 지금 심볼과 같은 결
+  const dur = 1000, stg = 90, nd = 480, total = stg * (m.parts.length - 1) + dur, t0 = performance.now();
+  m.finals.forEach(p => p.style.opacity = 0); m.runs.forEach(p => p.style.opacity = 0); m.segs.forEach(p => p.style.opacity = 1);
+  m.nodes.forEach(c => c.setAttribute('r', 0)); m.halo.setAttribute('r', 0);
+  function frame(now) {
+    const e = now - t0;
+    m.parts.forEach((p, i) => {
+      const t = clamp((e - i * stg) / dur); let d = p.e.a - p.s.a; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI;
+      const a = p.s.a + d * ease(Math.min(1, t * 1.15)), len = lerp(p.s.l, p.e.l, ease(t)), x = lerp(p.s.x, p.e.x, ease(t)), y = lerp(p.s.y, p.e.y, bounce(t));
+      const hx = Math.cos(a) * len / 2, hy = Math.sin(a) * len / 2, l = m.segs[i];
+      l.setAttribute('x1', x - hx); l.setAttribute('y1', y - hy); l.setAttribute('x2', x + hx); l.setAttribute('y2', y + hy); l.style.opacity = lerp(0.3, 1, Math.min(1, t * 2));
+    });
+    const N = clamp((e - total + 100) / nd);
+    if (N > 0) { m.finals.forEach(p => p.style.opacity = 1); m.segs.forEach(p => p.style.opacity = 0); }   // 다 맞춘 뒤엔 꺾인 곳까지 깔끔한 선으로
+    m.nodes.forEach((c, j) => { const k = clamp(N * m.nodes.length - j * 0.6); c.setAttribute('r', Math.max(0, m.S.nodes[j].r * (k <= 0 ? 0 : back(k)))); });
+    m.halo.setAttribute('r', N >= 1 ? m.nowR + 5 : 0);
+    if (e < total + nd) m.raf = requestAnimationFrame(frame);
+  }
+  m.raf = requestAnimationFrame(frame);
+}
+
+function run(m) {           // 달리기: 노선이 그려지며 역이 켜지고, 마지막에 지금이 한 번 숨 쉬어요
+  const dur = 1300, t0 = performance.now();
+  m.finals.forEach(p => p.style.opacity = 0); m.segs.forEach(p => p.style.opacity = 0); m.runs.forEach(p => { p.style.opacity = 1; p.setAttribute('stroke-dashoffset', 1); });
+  m.nodes.forEach(c => c.setAttribute('r', 0)); m.halo.setAttribute('r', 0);
+  function frame(now) {
+    const e = now - t0, T = clamp(e / dur);
+    m.runs.forEach((p, i) => { const R = m.S.run[i]; p.setAttribute('stroke-dashoffset', 1 - ease(clamp((T - R.from) / R.len))); });
+    m.nodes.forEach((c, j) => { const k = clamp((e - m.S.at[j] * dur) / 320); c.setAttribute('r', m.S.nodes[j].r * (k <= 0 ? 0 : back(k))); });
+    const h = (e - dur - 120) / 900;
+    m.halo.setAttribute('r', h <= 0 ? 0 : m.nowR + (h < 1 ? 9 * Math.sin(Math.PI * h) + 5 * ease(h) : 5));
+    if (e < dur + 1100) m.raf = requestAnimationFrame(frame);
+    else { m.finals.forEach(p => p.style.opacity = 1); m.runs.forEach(p => p.style.opacity = 0); }
+  }
+  m.raf = requestAnimationFrame(frame);
+}
+
+const CARDS = [
+  ['A', 'fall', '후두둑', '지금 심볼과 같은 결이에요. 흩어진 선 조각이 떨어져 본선과 아래 45° 곁길로 맞춰지고, 흰 역 · 종점 · 빨간 지금이 차례로 톡 튀어나와요.'],
+  ['A', 'run', '달리기', '열차가 지나가듯 본선이 왼쪽부터 그려져요. 갈림목을 지나면 곁길이 아래로 갈라져 나가고, 지나간 역이 켜진 뒤 마지막에 지금이 한 번 숨 쉬어요.'],
+  ['D', 'fall', '후두둑', '네 조각이 떨어져 ㄱ으로 맞춰지고, 꺾인 곳이 각지게 닫혀요. 역 셋과 끝의 지금이 차례로 튀어나와요.'],
+  ['D', 'run', '달리기', '노선 하나가 가로로 달리다 45°로 꺾여 내려가요. ㄱ이 한 획으로 써지는 모습이라 이름이 그려지는 느낌이 나요.'],
+];
+const plays = [];
+CARDS.forEach(([key, mode, name, text]) => {
+  const card = document.createElement('section'); card.className = 'card';
+  card.innerHTML = `<h2>${key}<small>${name}</small></h2><p>${text}</p><div class="stage"><div><div class="big"></div><span class="cap">크게 · 누르면 다시</span></div><div><div class="band"></div><span class="cap">머리띠 (30px · 실제 크기)</span></div></div>`;
+  const big = build(key, 100), small = build(key, 30);
+  card.querySelector('.big').appendChild(big.svg);
+  const band = card.querySelector('.band'); band.appendChild(small.svg); band.insertAdjacentHTML('beforeend', '<b>가닥<i>GADAK</i></b>');
+  const play = () => [big, small].forEach(m => { cancelAnimationFrame(m.raf); if (REDUCE) show(m); else (mode === 'fall' ? fall : run)(m); });
+  card.querySelector('.big').onclick = play; band.onclick = play;
+  plays.push(play); show(big); show(small);
+  document.getElementById('main').appendChild(card);
+});
+document.getElementById('all').onclick = () => plays.forEach(p => p());
+setTimeout(() => plays.forEach(p => p()), 300);
+</script>
+</body>
+</html>

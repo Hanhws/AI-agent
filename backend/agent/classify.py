@@ -12,9 +12,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .. import config, store, usage
+from .. import config, store, tokens, usage
 from ..engines import BadOutput, EngineError, OutOfCalls, get_engine, resolve_name
-from . import investigate, tools
+from . import investigate, rules, tools
 
 SYSTEM = (config.ROOT / "backend" / "prompts" / "classify.txt").read_text(encoding="utf-8")
 
@@ -41,6 +41,27 @@ SCHEMA = {
     "required": ["turns"], "additionalProperties": False,
 }
 
+SEG_SYSTEM = (config.ROOT / "backend" / "prompts" / "segment.txt").read_text(encoding="utf-8")
+SEG_SCHEMA = {
+    "type": "object",
+    "properties": {"segs": {"type": "array", "items": {
+        "type": "object", "properties": {"from": {"type": "string"}, "name": {"type": "string"}},
+        "required": ["from", "name"], "additionalProperties": False,
+    }}},
+    "required": ["segs"], "additionalProperties": False,
+}
+
+GROUP_SYSTEM = (config.ROOT / "backend" / "prompts" / "group.txt").read_text(encoding="utf-8")
+GROUP_SCHEMA = {
+    "type": "object",
+    "properties": {"chats": {"type": "array", "items": {
+        "type": "object", "properties": {"id": {"type": "string"}, "project": {"type": "string"}},
+        "required": ["id", "project"], "additionalProperties": False,
+    }}},
+    "required": ["chats"], "additionalProperties": False,
+}
+GROUP_BATCH, GROUP_ASKS, GROUP_ASK_MAX, GROUP_NAME_MAX = 60, 3, 120, 20
+
 CHUNK = 8                 # 한 번에 묻는 턴 수
 USER_CLIP = 500           # 질문은 앞부분
 AI_HEAD, AI_TAIL = 500, 400   # 답은 앞과 끝 (결론은 끝에 있어요). 간추리려면 분류할 때(220 · 220)보다 넉넉히 봐야 해요
@@ -49,6 +70,7 @@ STATE_MAINS, STATE_DECISIONS = 12, 8
 TITLE_MAX, SEG_MAX, DEC_MAX, PART_MAX = 18, 12, 40, 60   # 역 라벨은 두 줄(12자 안팎)까지 보여요
 DEC_NOTE_MAX = 120        # 정한 것을 풀어 쓴 한 문장 (이어 가기 요약에 써요)
 MAX_TRIES = 2
+SEG_MIN, SEG_EVERY = 6, 6  # 정리된 역이 이만큼 있고, 지난 구간 나누기 뒤로 이만큼 늘면 대화 전체를 보고 다시 나눠요
 STALE = 600               # 답이 끝났다는 표시 없이 이만큼(초) 지난 턴은 끝난 것으로 봐요
 
 
@@ -179,19 +201,74 @@ def apply_output(conn, rows, batch, output) -> int:
         parts = parts if len(parts) >= 2 else None    # 요청이 하나면 나누지 않아요 (빠질 것도 없어요)
         chose = item.get("chose", True)
         dec = _word(item.get("dec"), DEC_MAX) if chose else None
+        seg = _word(item.get("seg"), SEG_MAX)
         store.set_classification(
             conn, row["id"], title=title, depth=depth,
-            seg=_word(item.get("seg"), SEG_MAX), topic=_word(item.get("topic"), SEG_MAX),
+            seg=seg, topic=_word(item.get("topic"), SEG_MAX),
             # 글 칸은 비워 두라고 해도 채우는 버릇이 있어서, 골랐는지(chose)를 먼저 묻고 아니면 정함을 버려요
             dec=dec, dec_note=_word(item.get("dec_note"), DEC_NOTE_MAX) if dec else None,
             ret=(depth == 0 and previous > 0), ref=earlier(item.get("ref")),
-            parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True),
+            parts=parts, look=investigate.triggers(conn, chat, rows, row, parts, item.get("wide") is True,
+                                                   {"dec": dec, "seg": seg, "depth": depth}),
             gist=gist_lines(item.get("gist")) if row["ai"].strip() else [],      # 답이 없는 턴은 간추릴 것도 없어요
         )
         depth_of[row["seq"]] = depth
         seen_main = seen_main or depth == 0
         done += 1
     return done
+
+
+def segment_input(chat, rows) -> dict:
+    """구간 나누기는 대화 전체를 봐야 해요. 글 대신 역 이름만 보내서 호출을 가볍게 해요."""
+    return {"chat": {"title": chat["title"]},
+            "turns": [{"id": str(r["seq"]), "title": r["title"] or _clip(r["user"], TITLE_MAX), "depth": r["depth"],
+                       "topic": r["topic"]} for r in rows]}
+
+
+def group_input(conn, chat_ids) -> dict:
+    """프로젝트 없이 불러온 대화를 묶을 때: 대화마다 제목과 첫 질문 몇 개만 보내요."""
+    projects = [r["id"] for r in conn.execute("SELECT id FROM projects WHERE id != ?", (store.NO_PROJECT,))]
+    chats = []
+    for chat_id in chat_ids:
+        asks = [r["user"] for r in store.chat_turns(conn, chat_id) if r["user"].strip()][:GROUP_ASKS]
+        chat = store.chat_row(conn, chat_id)
+        chats.append({"id": chat_id, "title": chat["title"] or "", "asks": [_clip(a, GROUP_ASK_MAX) for a in asks]})
+    return {"projects": projects, "chats": chats}
+
+
+def apply_groups(conn, chat_ids, output) -> int:
+    """받은 프로젝트로 옮겨요. 이름이 비었거나 대화 하나뿐인 새 이름은 옮기지 않아요. 옮긴 대화 수를 돌려줘요."""
+    known = {r["id"] for r in conn.execute("SELECT id FROM projects")}
+    picks = {}
+    for item in (output or {}).get("chats") or []:
+        name = _word(item.get("project"), GROUP_NAME_MAX) if isinstance(item, dict) else None
+        if name and name != "(프로젝트 없음)" and item.get("id") in chat_ids:
+            picks[item["id"]] = store.project_key(name)
+    sizes = collections.Counter(picks.values())
+    return sum(store.move_chat(conn, chat_id, name) for chat_id, name in picks.items()
+               if name in known or sizes[name] > 1)
+
+
+def apply_segments(conn, rows, output) -> int:
+    """받은 경계로 seg를 다시 써요. 쓸 만한 경계가 하나도 없으면 그대로 둬요. 쓴 구간 수를 돌려줘요."""
+    by_seq = {str(r["seq"]): r for r in rows}
+    cuts = {}
+    for item in (output or {}).get("segs") or []:
+        name = _word(item.get("name"), SEG_MAX) if isinstance(item, dict) else None
+        row = by_seq.get(str(item.get("from"))) if name else None
+        if row is not None:
+            cuts.setdefault(row["seq"], (row["id"], name))
+    if not cuts:
+        return 0
+    order = sorted(cuts)
+    first = rows[0]
+    cuts[first["seq"]] = (first["id"], cuts[order[0]][1])   # 첫 구간은 첫 역부터
+    if order[0] != first["seq"]:
+        del cuts[order[0]]
+    conn.execute("UPDATE turns SET seg = NULL WHERE chat_id = ? AND seq <= ?", (first["chat_id"], rows[-1]["seq"]))
+    for turn_id, name in cuts.values():
+        conn.execute("UPDATE turns SET seg = ? WHERE id = ?", (name, turn_id))
+    return len(cuts)
 
 
 class Classifier:
@@ -210,6 +287,8 @@ class Classifier:
                        "checking": None, "checks": 0}
         self.checker = investigate.Investigator(self)
         self.gist_wanted = set()       # 예전에 분류한 턴에도 답 간추림을 채워 달라는 대화들 (화면이 부탁해요)
+        self.seg_at = {}               # 대화 id → 마지막으로 구간을 나눴을 때의 역 수 (켤 때마다 비어요)
+        self.group_wanted = []         # 프로젝트 없이 불러온 대화들. 다음 차례에 엔진을 한 번 불러 프로젝트로 묶어요
 
     def engine(self):
         if isinstance(self._engine, str):
@@ -250,14 +329,29 @@ class Classifier:
     def pause(self) -> None:
         self.status["paused"] = True
 
-    def call(self, system, payload, schema, engine=None):
-        """엔진 호출 한 번. 1단 · 2단이 같은 한도를 써요."""
+    def call(self, system, payload, schema, engine=None, kind=None, chat=None):
+        """엔진 호출 한 번. 1단 · 2단이 같은 한도를 써요. 쓴 토큰은 내 PC에만 적어요(backend/tokens.py)."""
         engine = engine or self.engine()
         if self.status["calls"] >= self.max_calls:
             self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
             raise OutOfCalls()
         self.status["calls"] += 1
-        return engine.complete_json(system, payload, schema)
+        try:
+            return engine.complete_json(system, payload, schema)
+        finally:
+            tokens.record(self.rt.home, kind, chat, getattr(engine, "last_usage", None))
+
+    def research(self, question, engine=None, chat=None):
+        """웹에서 찾아보기 한 번 (앞길 살피기 · 엔진이 할 줄 알 때만). 정리 호출과 같은 한도를 써요."""
+        engine = engine or self.engine()
+        if self.status["calls"] >= self.max_calls:
+            self.status.update(paused=True, error=f"이번에 켠 뒤로 정리 호출을 {self.max_calls}번 써서 멈췄어요.")
+            raise OutOfCalls()
+        self.status["calls"] += 1
+        try:
+            return engine.research(question)
+        finally:
+            tokens.record(self.rt.home, "lookup", chat, getattr(engine, "last_usage", None))
 
     def classify_chat(self, conn, chat_id) -> int:
         """그 대화의 밀린 턴을 CHUNK개씩 분류해요. 분류한 턴 수를 돌려줘요."""
@@ -274,13 +368,14 @@ class Classifier:
             payload = json.dumps(build_input(conn, chat, rows, batch), ensure_ascii=False)
             began = time.time()
             try:
-                output = self.call(SYSTEM, payload, SCHEMA, engine)
+                output = self.call(SYSTEM, payload, SCHEMA, engine, kind="classify", chat=chat_id)
             except OutOfCalls:
                 break
             except BadOutput:
                 output = None            # 형식이 틀린 답. 이 묶음만 실패로 세요 (거듭되면 임시 제목 그대로 둬요)
             with conn:
                 done = apply_output(conn, rows, batch, output)
+                rules.make(conn, chat_id, {row["id"] for row in batch})   # 엔진 없이 만드는 할 일 (곁길 · 반복 질문)
                 for row in batch:
                     self.tries[row["id"]] += 1
                     if self.tries[row["id"]] >= MAX_TRIES:
@@ -292,6 +387,7 @@ class Classifier:
             usage.record(conn, "classify", turns=len(batch), done=done, seconds=time.time() - began)
             self.rt.bump()
         if total:
+            self.segment_chat(conn, chat, engine)
             usage.note_chat(conn, chat_id)
         if chat_id in self.gist_wanted and not self.status["paused"]:
             self.gist_wanted.discard(chat_id)
@@ -309,7 +405,7 @@ class Classifier:
                 break
             payload = json.dumps(build_input(conn, chat, rows, batch), ensure_ascii=False)
             try:
-                output = self.call(SYSTEM, payload, SCHEMA, engine)
+                output = self.call(SYSTEM, payload, SCHEMA, engine, kind="gist", chat=chat["id"])
             except OutOfCalls:
                 break
             except BadOutput:
@@ -323,14 +419,59 @@ class Classifier:
             self.rt.bump()
         return filled
 
+    def segment_chat(self, conn, chat, engine) -> None:
+        """턴마다 붙인 seg는 앞만 보고 정해서 잘 안 끊어요. 역이 충분히 쌓이면 전체를 보고 한 번 더 나눠요."""
+        rows = [r for r in store.chat_turns(conn, chat["id"]) if r["classified"] != 0]
+        if len(rows) < SEG_MIN or len(rows) - self.seg_at.get(chat["id"], 0) < SEG_EVERY:
+            return
+        try:
+            output = self.call(SEG_SYSTEM, json.dumps(segment_input(chat, rows), ensure_ascii=False), SEG_SCHEMA, engine,
+                               kind="segment", chat=chat["id"])
+        except OutOfCalls:
+            return
+        except BadOutput:
+            self.seg_at[chat["id"]] = len(rows)   # 형식이 틀린 답. 구간은 그대로 두고, 역이 더 쌓이면 다시 물어요
+            return
+        with conn:
+            apply_segments(conn, rows, output)
+            rules.transfer(conn, chat["id"])      # 주제가 여럿 쌓이면 환승하기를 권해요
+        self.seg_at[chat["id"]] = len(rows)
+
+    def want_group(self, chat_ids) -> None:
+        self.group_wanted.extend(i for i in chat_ids if i not in self.group_wanted)
+        self.wake.set()
+
+    def group_chats(self, conn, engine) -> int:
+        """불러온 대화를 GROUP_BATCH개씩 묶어 물어요. 형식이 틀리거나 한도에 걸리면 그 대화들은 그대로 둬요."""
+        wanted, self.group_wanted = self.group_wanted, []
+        ids = [i for i in wanted if (row := store.chat_row(conn, i)) and row["project_id"] == store.NO_PROJECT]
+        moved = 0
+        for at in range(0, len(ids), GROUP_BATCH):
+            batch = ids[at:at + GROUP_BATCH]
+            try:
+                output = self.call(GROUP_SYSTEM, json.dumps(group_input(conn, batch), ensure_ascii=False),
+                                   GROUP_SCHEMA, engine, kind="group")
+            except (OutOfCalls, BadOutput):
+                return moved
+            with conn:
+                moved += apply_groups(conn, set(batch), output)
+        return moved
+
     def step(self, conn) -> bool:
         """줄 맨 앞의 대화 하나를 정리(1단)하거나, 1단이 기다리는 대화가 없으면 2단 확인을 턴 하나만큼 해요.
         할 일이 없으면 False."""
         if self.status["paused"]:
             return False
+        if self.group_wanted and self.engine() is not None:
+            try:
+                self.group_chats(conn, self.engine())
+            except EngineError as exc:
+                self.status.update(error=str(exc)[:200], paused=True)
+            self.rt.bump()
+            return True
         if self.queue:
             chat_id = self.queue.popleft()
-        elif self.checker.queue:
+        elif self.checker.waiting():
             chat_id = None
         else:
             return False

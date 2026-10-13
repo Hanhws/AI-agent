@@ -30,6 +30,8 @@ def save(conn, turn_id, triggers, result, engine=None) -> str:
         "missing": result["missing"],
         "dropped": result["dropped"],
     }
+    if "paths" in result:        # 앞길 살피기(ahead.py): 읽은 목적지 · 살핀 까닭 · 낸 길
+        body.update(goal=result.get("goal"), why=result.get("why"), paths=result["paths"])
     conn.execute(
         "INSERT INTO agent_runs(id, turn_id, trigger, steps_json, created_at) VALUES(?, ?, ?, ?, ?)",
         (run_id, turn_id, ",".join(triggers), json.dumps(body, ensure_ascii=False), store.now()),

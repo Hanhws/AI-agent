@@ -1,5 +1,5 @@
 // 가닥 앱 아이콘을 그려요. 쓰는 법: icon <폴더>  → 그 폴더(AppIcon.iconset)에 크기별 PNG를 채워요.
-// 모양은 파비콘(prototype 첫 줄)과 같아요: 본선 + 위로 빠지는 지선 + 보통 역 하나 + 빨갛게 채운 ‘지금’ (README 7-12).
+// 모양은 심볼 A(shared/ui/mark.js · 10/11)와 같아요: 굵은 본선 + 아래로 45° 곁길 + 흰 역 둘 + 종점 고리 + 빨갛게 채운 ‘지금’.
 
 import Cocoa
 
@@ -30,27 +30,31 @@ func draw(_ pixels: Int) -> Data? {
     context.setLineWidth(4)
     context.strokePath()
 
-    // 심볼: 파비콘의 좌표(가운데 100,106)를 틀 가운데(512,512)로. SVG는 y가 아래로, 여기는 위로 자라요
-    let unit: CGFloat = 4.1
-    func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: 512 + (x - 100) * unit, y: 512 - (y - 106) * unit) }
-    context.setLineCap(.round)
-    context.setLineJoin(.round)
-    context.setStrokeColor(color(0x141414))
-    context.setLineWidth(16 * unit)
-    context.move(to: point(36, 122)); context.addLine(to: point(166, 122))
-    context.move(to: point(100, 122)); context.addLine(to: point(132, 80)); context.addLine(to: point(154, 80))
-    context.strokePath()
-
+    // 심볼 A (shared/ui/mark.js와 같은 좌표, 120×60)를 틀 가운데로. SVG는 y가 아래로, 여기는 위로 자라요
+    let unit: CGFloat = 5.4
+    func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: 512 + (x - 60.5) * unit, y: 512 - (y - 31) * unit) }
     func circle(_ x: CGFloat, _ y: CGFloat, _ radius: CGFloat) -> CGRect {
         let center = point(x, y)
         return CGRect(x: center.x - radius * unit, y: center.y - radius * unit, width: radius * 2 * unit, height: radius * 2 * unit)
     }
-    context.setFillColor(color(0xFFFFFF))
-    context.fillEllipse(in: circle(100, 122, 13))
+    context.setLineCap(.butt)
+    context.setLineJoin(.miter)
+    context.setStrokeColor(color(0xA7A9AC))           // 곁길: 아래로 45°, 본선 밑으로
     context.setLineWidth(10 * unit)
-    context.strokeEllipse(in: circle(100, 122, 13))
-    context.setFillColor(color(0xC8401A))
-    context.fillEllipse(in: circle(154, 122, 16))
+    context.move(to: point(44, 22)); context.addLine(to: point(66, 44)); context.addLine(to: point(96, 44))
+    context.strokePath()
+    context.setStrokeColor(color(0x141414))           // 본선: 끝이 각진 굵은 선
+    context.setLineWidth(14 * unit)
+    context.move(to: point(4, 22)); context.addLine(to: point(104, 22))
+    context.strokePath()
+    context.setFillColor(color(0xFAF9F6))
+    context.fillEllipse(in: circle(26, 22, 4))
+    context.fillEllipse(in: circle(56, 22, 4))
+    context.fillEllipse(in: circle(98, 44, 6))
+    context.setLineWidth(3.5 * unit)
+    context.strokeEllipse(in: circle(98, 44, 6))
+    context.setFillColor(color(0xC8401A))             // 지금
+    context.fillEllipse(in: circle(106, 22, 11))
     return bitmap.representation(using: .png, properties: [:])
 }
 

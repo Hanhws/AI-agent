@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -204,6 +205,7 @@ class RoutesTest(unittest.TestCase):
         self.assertEqual(self.client.post("/auto/start", json={"site": "cursor", "chat_id": "c", "project": "p"}).get_json(), {"context": None})
         self.assertEqual(self.client.post("/auto/stop", json={}).get_json(), {"send": None})
 
+    @unittest.skipIf(sys.platform == "win32", "Windows에서는 다른 프로그램의 설정에 hook을 더하지 않아요 (backend/sources)")
     def test_connecting_claude_code_adds_two_hooks_and_keeps_the_rest(self):
         self.settings.parent.mkdir(parents=True)
         mine = {"theme": "dark", "permissions": {"allow": ["Bash(ls:*)"]},
@@ -235,6 +237,7 @@ class RoutesTest(unittest.TestCase):
             self.assertEqual(refused.status_code, 409)
             self.assertEqual(self.settings.read_text(encoding="utf-8"), broken)
 
+    @unittest.skipIf(sys.platform == "win32", "Windows에서는 다른 프로그램의 설정에 hook을 더하지 않아요 (backend/sources)")
     def test_no_settings_file_yet(self):
         self.assertEqual(self.client.post("/sources/claude-code/connect", json={}).get_json(), {"ok": True})
         self.assertEqual(sorted(json.loads(self.settings.read_text(encoding="utf-8"))["hooks"]), ["SessionStart", "Stop"])

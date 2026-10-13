@@ -1,4 +1,4 @@
-/* 노선도 카드의 오른쪽 목록: 할 일 · 정한 것 · 산출물 · 지난 대화에서 찾기
+/* 목록: 할 일 · 정한 것 · 산출물 · 앞길 · 지난 대화에서 찾기. 노선도 카드의 오른쪽에 붙거나, 입구가 준 자리에 따로 놓여요 (map.js의 mountSide)
    (prototype의 renderSide · renderLedger · renderDecisions · renderArtifacts · renderFound). README 7-9. */
 (function (G) {
   'use strict';
@@ -7,14 +7,24 @@
   G.side = function (g) {
     var st = g.st, R = g.R, KIND = G.KIND, findTimer = null;
 
+    /* 앞길 살피기(README 3-1)를 쓸 수 있는 입구인지: 누르는 hook이 있고 켜져 있을 때만 넷째 칸을 그려요 */
+    function aheadShown() { return !!(g.hooks.ahead && g.hooks.aheadOn && g.hooks.aheadOn()); }
+    /* 앞길 살피기가 낸 길: id가 <턴 id>:a<n>인 ‘다음 할 일’ */
+    function aheadPaths() { return g.allItems().filter(function (it) { return /:a\d+$/.test(it.id) && g.stateOf(it) !== 'dismissed'; }); }
+
     g.renderSide = function () {
       var n = g.openItems().length;
-      R.dbody.classList.toggle('noled', !st.ledgerOpen);
-      R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
-      R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);
-      R.ledBtn.setAttribute('aria-expanded', String(st.ledgerOpen));
+      if (R.sideHost) { if (g.hooks.sideFold) g.hooks.sideFold(st.ledgerOpen, n); else R.sideHost.hidden = !st.ledgerOpen; } else if (R.dbody) R.dbody.classList.toggle('noled', !st.ledgerOpen);
+      if (R.ledBtn) {
+        R.ledBtn.textContent = st.ledgerOpen ? '목록 접기 ›' : '‹ 할 일' + (n ? ' ' + n : '') + ' · 찾기';
+        R.ledBtn.classList.toggle('hot', !st.ledgerOpen && n > 0);
+        R.ledBtn.setAttribute('aria-expanded', String(st.ledgerOpen));
+      }
       if (!st.ledgerOpen) return;
-      tabs(R.sideHead, [['todo', '할 일', n], ['dec', '정한 것'], ['files', '산출물']], st.sideTab, function (v) { st.sideTab = v; });
+      var list = [['todo', '할 일', n], ['dec', '정한 것'], ['files', '산출물']];
+      if (aheadShown()) list.push(['ahead', '앞길', aheadPaths().filter(function (it) { return g.stateOf(it) === 'open'; }).length]);
+      else if (st.sideTab === 'ahead') st.sideTab = 'todo';
+      tabs(R.sideHead, list, st.sideTab, function (v) { st.sideTab = v; });
       if (R.qInput.value.trim() !== st.q) R.qInput.value = st.q;
       g.renderSideBody(); g.markFound();
     };
@@ -23,9 +33,21 @@
       list.forEach(function (o) {
         var b = el('button', null, o[1]); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(cur === o[0]));
         if (o[2]) b.appendChild(el('span', 'n', String(o[2])));
-        b.onclick = function () { set(o[0]); g.track('ui', { what: 'tab_' + o[0] }); g.render(); };
+        // 사용 기록의 표(backend/usage_schema.py)에 ‘앞길’ 칸은 없어서 적지 않아요. 칸을 더하려면 사람에게 먼저 물어요
+        b.onclick = function () {
+          var moved = cur !== o[0];
+          set(o[0]); if (o[0] !== 'ahead') g.track('ui', { what: 'tab_' + o[0] }); g.render();
+          if (moved && !G.reduce) { R.sideBody.classList.remove('tabin'); void R.sideBody.offsetWidth; R.sideBody.classList.add('tabin'); }   // 내용은 살짝 옆에서 들어와요
+        };
         host.appendChild(b);
       });
+      // 고른 탭의 밑줄은 앞 자리에서 미끄러져 와요 (탭은 그릴 때마다 새로 만들어서, 지난 자리를 기억해 둬요)
+      var on = host.querySelector('[aria-selected="true"]'); if (!on) return;
+      var ink = el('span', 'ink'); host.appendChild(ink);
+      var to = [on.offsetLeft, on.offsetWidth], from = host.inkAt || to;
+      ink.style.transform = 'translateX(' + from[0] + 'px)'; ink.style.width = from[1] + 'px';
+      if (from !== to) { void ink.offsetWidth; ink.style.transform = 'translateX(' + to[0] + 'px)'; ink.style.width = to[1] + 'px'; }
+      host.inkAt = to;
     }
 
     /* ---------- 찾기 ---------- */
@@ -64,6 +86,7 @@
       if (st.q) { renderFound(b); return; }
       if (st.sideTab === 'todo') renderLedger(b);
       else if (st.sideTab === 'dec') renderDecisions(b);
+      else if (st.sideTab === 'ahead') renderAheadTab(b);
       else renderArtifacts(b);
     };
     function rowBtn(host, top, main, sub, t) {
@@ -111,7 +134,7 @@
 
     /* ---------- 할 일 장부 ---------- */
     function renderLedger(host) {
-      var all = g.allItems(), led = el('div', 'led'); host.appendChild(led);
+      var all = g.allItems().filter(function (i) { return g.stateOf(i) !== 'dismissed'; }), led = el('div', 'led'); host.appendChild(led);
       if (!all.length) led.appendChild(el('div', 'lempty', '아직 없어요. 빠진 요청이나 다음 할 일이 생기면 가닥이 여기 모아요.'));
       [['miss', '놓친 일'], ['sug', '제안']].forEach(function (gr) {
         var list = all.filter(function (i) { return KIND[i.kind].g === gr[0]; });
@@ -121,6 +144,64 @@
         led.appendChild(grp);
       });
       renderAuto(led);
+      renderAheadAuto(led);
+    }
+
+    /* ---------- 앞길 (README 3-1 앞길 살피기). 자리와 문구는 임시예요 (디자인 담당과 정해요) ----------
+       SC.ahead = { state, at, paths, dropped, reason, goal, why }: 보고 있는 대화의 앞길 살피기가 어디까지 갔나.
+       state는 idle(살핀 적 없음) · queued(차례를 기다림) · looking(살피는 중) · done(길을 냄) · none(낼 길이 없었음) · failed(못 살핌) */
+    function when(iso) {
+      var d = new Date(iso); if (isNaN(d)) return '';
+      var hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      return (d.toDateString() === new Date().toDateString() ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + hm;
+    }
+    function aheadLine(a) {
+      if (a.state === 'queued') return '차례를 기다리고 있어요. 하던 정리가 끝나면 바로 살펴요.';
+      if (a.state === 'looking') return '살피는 중이에요. 보통 30초에서 2분쯤 걸려요.';
+      if (a.state === 'done') return when(a.at) + '에 살폈어요 · 길 ' + a.paths + '개' + (a.why && a.why !== 'button' ? ' · 저절로 살핌' : '');
+      if (a.state === 'none') return when(a.at) + '에 살폈는데, 내밀 만한 길을 찾지 못했어요.' + (a.dropped ? ' 찾아본 근거가 없는 길 ' + a.dropped + '개는 버렸어요.' : '');
+      if (a.state === 'failed') return '살피지 못했어요. ' + (a.reason || '');
+      return '';
+    }
+    /* 넷째 칸: 맨 위에 ‘앞길 보기’(저절로 살피기를 꺼 둔 동안), 그 아래 어디까지 갔는지, 그 아래 찾은 길 */
+    function renderAheadTab(host) {
+      var a = g.SC.ahead || { state: 'idle' }, auto = !!(g.hooks.aheadAuto && g.hooks.aheadAuto());
+      var busy = a.state === 'queued' || a.state === 'looking', box = el('div', 'led'); host.appendChild(box);
+      var top = el('div', 'lgrp'), r = el('div', 'lauto' + (auto ? ' on' : ''));
+      if (auto) r.appendChild(el('span', null, '길이 갈리는 순간마다 저절로 살피고 있어요'));
+      else {
+        r.appendChild(el('span', null, '지금 자리에서 갈 수 있는 길'));
+        var b = el('button', 'btn sm primary', busy ? '살피는 중…' : '앞길 보기'); b.type = 'button'; b.disabled = busy;
+        b.title = '이 대화가 향하는 곳을 읽고, 지난 기록 · 작업 폴더의 문서 · 웹(켰을 때)에서 갈 수 있는 길을 찾아봐요.';
+        b.onclick = function () { g.hooks.ahead(); }; r.appendChild(b);
+      }
+      top.appendChild(r);
+      var line = aheadLine(a); if (line) top.appendChild(el('div', 'astate' + (a.state === 'failed' ? ' bad' : ''), line));
+      if (a.goal && (a.state === 'done' || a.state === 'none')) top.appendChild(el('div', 'agoal', '가닥이 읽은 목적지 · ' + a.goal));
+      if (!auto) top.appendChild(el('div', 'lnote', '누를 때마다 Claude 사용 한도를 조금 써요(Pro 5시간 한도의 0.7%쯤).'));
+      box.appendChild(top);
+      var list = aheadPaths();
+      if (list.length) {
+        var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '찾은 길'));
+        list.slice().reverse().forEach(function (it) { grp.appendChild(ledgerItem(it)); });
+        box.appendChild(grp);
+      } else if (a.state === 'idle') {
+        box.appendChild(el('div', 'lempty', auto ? '아직 살핀 적이 없어요. 방금 무언가를 정했거나 구간이 바뀌면 가닥이 갈 수 있는 길을 찾아 여기에 모아요.'
+          : '아직 살핀 적이 없어요. ‘앞길 보기’를 누르면 가닥이 지난 기록과 작업 폴더의 문서에서 갈 수 있는 길을 찾아 여기에 모아요.'));
+      }
+    }
+    /* 할 일 칸 아래의 ‘저절로 살피기’: 켜 두면 길이 갈리는 순간마다 가닥이 앞길을 살펴요. 한도를 더 써서 기본은 꺼짐이에요 */
+    function renderAheadAuto(host) {
+      if (!aheadShown() || !g.hooks.aheadAuto || !g.hooks.setAheadAuto) return;
+      var on = !!g.hooks.aheadAuto();
+      var grp = el('div', 'lgrp'); grp.appendChild(el('h5', null, '가닥이 알아서 살피는 것'));
+      var r = el('div', 'lauto' + (on ? ' on' : ''));
+      r.title = '켜 두면 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)마다 가닥이 앞길을 저절로 살펴요. 꺼 두면 ‘앞길’ 칸의 ‘앞길 보기’를 누를 때만 살펴요.';
+      r.appendChild(el('span', null, '앞길 저절로 살피기' + (on ? ' · 켜짐' : ' · 꺼짐')));
+      var b = el('button', 'linkbtn', on ? '끄기' : '켜기'); b.type = 'button'; b.onclick = function () { g.hooks.setAheadAuto(!on); }; r.appendChild(b);
+      grp.appendChild(r);
+      grp.appendChild(el('div', 'lnote', '켜 두면 Claude 사용 한도를 더 써요(한 번에 Pro 5시간 한도의 0.7%쯤).'));
+      host.appendChild(grp);
     }
     /* 사용자가 ‘앞으로는 알아서’를 켠 종류. 여기서 다시 꺼요 (README 3-2: 종류별로 다시 끌 수 있어요) */
     function renderAuto(host) {
@@ -139,6 +220,10 @@
       var s = g.stateOf(it), sg = KIND[it.kind].g === 'sug';
       var d = el('div', 'litem' + (sg ? ' sg' : '') + (s === 'done' ? ' done' : '') + (s === 'later' ? ' later' : '') + (st.fresh[it.id] ? ' new' : ''));
       d.appendChild(el('span', 'mk'));
+      // ×: 쓸모없는 할 일을 지워요. 목록 · 노선도의 고리 · 알림 수에서 같이 빠져요 (상태 dismissed)
+      var x = el('button', 'lx', '×'); x.type = 'button'; x.title = '이 할 일 지우기'; x.setAttribute('aria-label', '이 할 일 지우기');
+      x.onclick = function (e) { e.stopPropagation(); g.setItem(it.id, 'dismissed'); if (st.nudge === it.id) st.nudge = null; if (G.reduce) g.render(); else { d.classList.add('gone'); setTimeout(g.render, 380); } };
+      d.appendChild(x);
       var body = el('div'); d.appendChild(body);
       var at = it.at && g.byId[it.at] ? g.byId[it.at] : it.t;
       body.appendChild(el('div', 'k', (it.t ? g.numLabel(at) + ' · ' : '') + KIND[it.kind].label + (it.sent === 'auto' ? ' · 가닥이 보냄' : '')));
@@ -147,7 +232,8 @@
       if (s !== 'done') {
         var row = el('div', 'row');
         var a = el('button', 'btn sm primary', it.btn); a.type = 'button'; a.disabled = !!st.typing; a.onclick = function (e) { e.stopPropagation(); g.act(it, a, 'list'); }; row.appendChild(a);
-        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; g.render(); }; row.appendChild(l); }
+        // 나중에: 그 칸이 옆으로 빠지며 접힌 뒤에 목록을 다시 그려요
+        if (s !== 'later') { var l = el('button', 'btn sm', '나중에'); l.type = 'button'; l.onclick = function () { g.track('item', { kind: it.kind, did: 'later', at: 'list' }); g.setItem(it.id, 'later'); if (st.nudge === it.id) st.nudge = null; if (G.reduce) g.render(); else { d.classList.add('gone'); setTimeout(g.render, 380); } }; row.appendChild(l); }
         body.appendChild(row);
       }
       return d;

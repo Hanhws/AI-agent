@@ -2,6 +2,7 @@
 
 가닥 앱 안에 묶인 백엔드(FROZEN · backend/macapp.py --bundle)에는 저장소 폴더가 없어요. 그때 ROOT는 앱 안의
 자료 폴더(화면 · 프롬프트 · hook)이고, 내 설정은 ~/.gadak/.env에서 읽어요.
+Windows에 깐 가닥(backend/winapp.py)은 실행 파일로 묶지 않고 파이썬과 코드를 폴더째 깔아요. 그것도 묶인 앱으로 봐요(bundled).
 """
 import json
 import os
@@ -10,6 +11,21 @@ from pathlib import Path
 
 FROZEN = bool(getattr(sys, "frozen", False))
 ROOT = Path(sys._MEIPASS) if FROZEN else Path(__file__).resolve().parent.parent
+
+
+def _notes() -> dict:
+    """ROOT/BUILD.json: 남에게 건네는 앱을 만들 때 적어 두는 것 (만든 때 · 판 · 사용 기록을 받을 서버)."""
+    try:
+        data = json.loads((ROOT / "BUILD.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def bundled() -> bool:
+    """남에게 건네는 앱인지 (저장소 폴더 없이 도는 것). macOS는 실행 파일로 묶은 것(FROZEN)이고, Windows는 폴더째 깐 것이에요.
+    Windows 쪽은 만들 때 BUILD.json에 "folder": true를 적어 둬요 (backend/winapp.py). 그 표시가 없는 BUILD.json은 보지 않아요."""
+    return FROZEN or _notes().get("folder") is True
 
 
 def _load_dotenv(path: Path) -> None:
@@ -23,7 +39,7 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-if FROZEN:
+if bundled():
     _load_dotenv(Path(os.environ.get("GADAK_HOME", Path.home() / ".gadak")).expanduser() / ".env")
 else:
     _load_dotenv(ROOT / "backend" / ".env")
@@ -32,11 +48,7 @@ else:
 
 def _build() -> dict:
     """묶인 앱을 만들 때 적어 둔 것 (ROOT/BUILD.json: 만든 때 · 판 · 사용 기록을 받을 서버). 묶인 앱이 아니면 비어 있어요."""
-    try:
-        data = json.loads((ROOT / "BUILD.json").read_text(encoding="utf-8")) if FROZEN else {}
-    except (OSError, ValueError):
-        data = {}
-    return data if isinstance(data, dict) else {}
+    return _notes() if bundled() else {}
 
 
 BUILD = _build()
@@ -47,9 +59,12 @@ HOST = os.environ.get("GADAK_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GADAK_PORT", "7311"))
 DB_PATH = Path(os.environ.get("GADAK_DB", HOME / "gadak.db")).expanduser()
 
-# auto | claude_cli | none  (docs/usage-guide.md)
+# auto | claude_cli | codex_cli | anthropic_api · openai_api · gemini_api(API 키. 갖고 있는 키의 회사를 따라가요) | none
+# (docs/usage-guide.md 3장). 화면의 ‘AI 연결’에서 고른 것이 이 값보다 먼저예요
 ENGINE = os.environ.get("GADAK_ENGINE", "auto")
 ENGINE_MODEL = os.environ.get("GADAK_ENGINE_MODEL", "haiku")
+# ChatGPT 구독 엔진(codex_cli)이 쓸 모델. 비우면 Codex가 고르는 기본값이고, 위의 모델 이름은 생각 깊이로 옮겨요
+CODEX_MODEL = os.environ.get("GADAK_CODEX_MODEL", "")
 # 한 번 켠 동안 정리(1단 분류 + 2단 확인)에 쓰는 LLM 호출 수의 한도. 구독 한도를 모르는 사이에 다 쓰지 않게 해요
 MAX_CALLS = int(os.environ.get("GADAK_MAX_CALLS", "150"))
 # 2단(확인)이 한 턴에서 엔진에 묻는 걸음 수의 한도 (README 3-1: 초깃값 5)
@@ -62,7 +77,7 @@ VERSION = "0.1.0"
 
 def _code_stamp() -> str:
     """이 폴더에 있는 가닥 코드를 마지막으로 고친 때. 켜져 있는 가닥이 예전 코드인지 알아보는 데 써요 (launch.py)."""
-    if FROZEN:
+    if bundled():
         return str(BUILD.get("built") or "bundle")        # 묶인 앱은 만든 때가 곧 코드의 판이에요
     newest = 0.0
     for pattern in ("backend/**/*.py", "backend/prompts/*.txt"):
@@ -72,8 +87,20 @@ def _code_stamp() -> str:
 
 
 CODE = _code_stamp()   # 이 프로세스가 켜질 때의 코드
-# 지난 결정 다시 꺼내기(‘생각 못 한 방법 추천’): 사용자가 길을 물을 때, 전에 스스로 정한 것 중 쓸 만한 것을 한마디로 짚어요.
-# 쓸데없는 한마디가 늘 수 있어서 기본은 꺼 둬요. 정확도 평가(eval/)로 재 보고 켜요 (docs/changes-detail.md 20번)
-SUGGEST = os.environ.get("GADAK_SUGGEST", "0") == "1"
+# 앞길 살피기(‘생각 못 한 방법 추천’ · backend/agent/ahead.py): 사용자가 ‘앞길 보기’를 눌렀을 때, 하려는 일을 읽고 갈 수 있는 길을
+# 미리 찾아봐서 ‘다음 할 일’로 내밀어요. 누를 때만 돌아요. 버튼을 감추려면 GADAK_AHEAD=0
+AHEAD = os.environ.get("GADAK_AHEAD", "1") == "1"
+# ‘저절로 살피기’의 처음 값: 길이 갈리는 순간(방금 정함 · 구간이 바뀜 · 다음 할 일을 물음)에 저절로도 살필지. 사용자가 가닥 창에서
+# 켜고 끄면 그쪽이 먼저예요(ahead.auto_on). 꺼 둬요: 한 곳에 Claude Pro 5시간 한도의 0.7%쯤(Sonnet 2~3번)을 써요 (10/7에 잼 · README 3-5)
+AHEAD_AUTO = os.environ.get("GADAK_AHEAD_AUTO", "0") == "1"
+AHEAD_WEB = os.environ.get("GADAK_AHEAD_WEB", "0") == "1"        # 웹에서도 찾아봐요. 대화에서 뽑은 검색어가 밖으로 나가서 따로 켜요
+AHEAD_FILES = os.environ.get("GADAK_AHEAD_FILES", "1") == "1"    # 그 대화의 작업 폴더에 있는 글 파일도 읽어요 (깃이 무시하는 파일은 빼고)
+# 길을 찾는 일은 분류보다 어려워요. 작은 모델(Haiku)은 방금 대화만 되풀이해서(10/7 시범) 이 일만 큰 모델을 기본으로 둬요.
+# 비우면(GADAK_AHEAD_MODEL=) 2단과 같은 모델
+AHEAD_MODEL = os.environ.get("GADAK_AHEAD_MODEL", "sonnet") or None
+AHEAD_EFFORT = os.environ.get("GADAK_AHEAD_EFFORT", "medium")    # 모델을 따로 정했을 때 그 모델의 생각 깊이 (구독 엔진 · OpenAI · Gemini 키 엔진)
+AHEAD_STEPS = int(os.environ.get("GADAK_AHEAD_STEPS", "8"))      # 한 번 살필 때 엔진에 묻는 걸음 수의 한도
+AHEAD_EVERY = int(os.environ.get("GADAK_AHEAD_EVERY", "8"))      # 한 대화에서 이만큼의 턴에 한 번까지 (사용자가 누른 것은 세지 않아요)
+AHEAD_FRESH = int(os.environ.get("GADAK_AHEAD_FRESH", "180"))    # 분. 이보다 오래된 턴은 지나간 일이라 살피지 않아요 (0이면 따지지 않아요)
 # 2단에 쓸 모델. 비우면 1단과 같은 모델
 CHECK_MODEL = os.environ.get("GADAK_CHECK_MODEL") or ENGINE_MODEL

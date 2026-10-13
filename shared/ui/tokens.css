@@ -9,9 +9,12 @@
   --spur: #A7A9AC;   /* 곁길 지선 (전체 지도와 같은 회색) */
   --radius: 4px;     /* 모서리는 작게 (지하철 표지판처럼 단정하게) */
   --shadow: 0 6px 18px rgba(0,0,0,0.07); --shadow-s: 0 2px 8px rgba(0,0,0,0.08);
-  /* 글꼴은 SUIT 한 벌 (전체 지도와 같아요). 제목도 본문도 같은 글꼴, 굵기로만 나눠요 */
-  --display: SUIT, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  --body: SUIT, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  /* 글꼴은 한 벌: 로마자 · 숫자는 헬베티카(비녤리의 뉴욕 지하철), 한글은 Pretendard로 이어져요 (2026-10-08).
+     자간은 세 단계: 큰 제목(28px 이상) 아주 좁게, 본문 좁게, 13px 이하 작은 글씨는 덜 좁게 */
+  --display: 'Helvetica Neue', Helvetica, Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --body: 'Helvetica Neue', Helvetica, Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --tr-title: -0.08em; --tr-body: -0.05em; --tr-small: -0.03em;
+  --ease: cubic-bezier(.2, .8, .2, 1);   /* 움직임은 한 곡선: 빠르게 나와서 부드럽게 멈춤 */
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -27,6 +30,9 @@
   --chrome: #222222; --side: #151515; --tip: #F2F2F2; --tip-fg: #121212; --tip-sub: #5A5A5A;
   --shadow: 0 12px 32px rgba(0,0,0,0.4); --shadow-s: 0 4px 14px rgba(0,0,0,0.4); color-scheme: dark }
 
+/* 밤 · 낮을 바꾸는 순간에만 색이 부드럽게 넘어가요 (shared/ui/mark.js G.setTheme). 동작 줄이기를 켜면 바로 바뀌어요 */
+html.theming, html.theming *, html.theming *::before, html.theming *::after {
+  transition: background-color .45s var(--ease), color .45s var(--ease), border-color .45s var(--ease), fill .45s var(--ease), stroke .45s var(--ease), box-shadow .45s var(--ease), opacity .45s var(--ease), transform .45s var(--ease) !important; }
 
 /* 개발 도구 입구(VS Code · Cursor)는 테마와 상관없이 이 어두운 값을 씀 */
 .vsc { --bg: #1C1B19; --surface: #232220; --fg: #ECEAE5; --fg2: #D2CEC7; --muted: #A39F98; --faint: #807C75; --line: #393733; --bubble: #2F2D2A;

@@ -13,6 +13,9 @@ from .agent.classify import Classifier
 from .sources.sync import Syncer
 
 PARENT_CHECK = 1.5  # 초. 가닥 앱이 살아 있는지 보는 간격
+WINDOW_GRACE = 6.0    # 초. 창을 띄운 브라우저가 끝난 뒤 이만큼 더 봐요: 화면이 계속 물으면 창은 살아 있는 거예요
+WINDOW_QUIET = 150.0  # 초. 그 뒤로는 화면이 이만큼 묻지 않으면 닫힌 것으로 봐요 (가려 둔 창은 1분에 한 번만 물어요)
+WINDOW_STEP = 15.0    # 초. 묻는지 보는 간격. 잠든 동안은 세지 않아요 (깨어나자마자 꺼지지 않게)
 
 
 class Runtime:
@@ -56,6 +59,26 @@ class Runtime:
                     self.quit()
         threading.Thread(target=watch, daemon=True).start()
 
+    def watch_window(self, process, grace=WINDOW_GRACE, quiet=WINDOW_QUIET, step=WINDOW_STEP) -> None:
+        """창 하나로 도는 가닥(launch.py --app · Windows 앱)은 그 창이 닫히면 따라 꺼져요. process는 창을 띄운 브라우저예요.
+        브라우저가 먼저 떠 있던 자기 창에 일을 넘기고 바로 끝나기도 해요. 그래서 끝난 뒤에도 화면이 계속 물으면(/status)
+        창이 살아 있다고 보고, 그때는 화면이 한동안 묻지 않을 때 꺼요."""
+        def watch():
+            process.wait()
+            ended, alive = time.time(), False
+            while not alive and time.time() - ended < grace:
+                if self._stop.wait(min(0.5, grace / 4)):
+                    return
+                alive = (self.last_seen or 0) > ended + grace / 3
+            misses = 0
+            while alive and misses * step < quiet:
+                seen = self.last_seen
+                if self._stop.wait(step):
+                    return
+                misses = 0 if self.last_seen != seen else misses + 1
+            self.quit()
+        threading.Thread(target=watch, daemon=True).start()
+
     def quit(self) -> None:
         self._stop.set()
         if self.on_quit:
@@ -71,8 +94,11 @@ class Runtime:
         sync, classify = self.syncer.status, dict(self.classifier.status)
         classify["queued"] = len(self.classifier.queue)
         classify["checkQueued"] = len(self.classifier.checker.queue)   # 2단을 기다리는 대화
+        classify["aheadQueued"] = len(self.classifier.checker.wanted)  # 사용자가 ‘앞길 보기’를 눌러 기다리는 대화
         return {
             "rev": self.rev,
             "sync": {k: sync.get(k) for k in ("phase", "done", "total", "scans", "error")},
             "classify": classify,
+            # 앞길 살피기(backend/agent/ahead.py)가 켜져 있는지. 화면이 ‘앞길 보기’를 보일지 정해요
+            "ahead": {"on": config.AHEAD, "web": config.AHEAD and config.AHEAD_WEB, "files": config.AHEAD and config.AHEAD_FILES},
         }

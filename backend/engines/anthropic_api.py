@@ -1,6 +1,7 @@
 """Anthropic API 키로 부르는 엔진.
 
 Claude Code(구독)가 없는 사람은 자기 API 키를 넣어 써요. 키는 macOS 키체인에 있어요(keys.py).
+넣은 키가 OpenAI · Gemini 것이면 이 엔진 대신 openai_api · gemini_api가 불려요.
 구독 엔진(claude_cli)과 같은 모양으로 불려요: complete_json(system, prompt, schema) → dict.
 부를 때마다 그 사람의 키로 돈이 나가요. Haiku 4.5로 턴 8개를 한 번에 물으면 한 번에 1~2센트예요 (README 3-5).
 """
@@ -21,11 +22,14 @@ FALLBACKS = ("claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-son
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 # 100만 토큰에 드는 값(달러): (입력, 출력). 2026-09-25에 본 값이에요. 평가에서 ‘약 얼마’를 보여 줄 때만 써요
 PRICES = {"claude-haiku-4-5": (1.0, 5.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-opus-5-5": (4.0, 20.0)}
+USAGE_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")   # backend/tokens.py가 읽는 칸
 
 
 def model_id(name=None) -> str:
     name = (name or config.ENGINE_MODEL or "haiku").strip()
-    return MODELS.get(name.lower(), name)
+    if name.lower() in MODELS:
+        return MODELS[name.lower()]
+    return name if name.lower().startswith("claude-") else MODELS["haiku"]      # 다른 회사 모델 이름(gpt-… · gemini-…)이 적혀 있으면 작은 모델로
 
 
 def api_schema(schema):
@@ -80,12 +84,13 @@ class AnthropicApiEngine:
         self.model_id = model_id(self.model)
         self.timeout = timeout
         self.last = None      # 마지막 호출의 토큰 수와 값 (정확도 평가가 봐요)
+        self.last_usage = None  # 마지막 호출이 쓴 토큰을 종류별로 (backend/tokens.py가 내 PC에 적어요)
         self._client = client
 
     def client(self):
         if self._client is None:
             anthropic = _sdk()
-            key = keys.get()
+            key = keys.get("anthropic")      # 다른 회사 키가 들어 있으면 쓰지 않아요 (그 키는 그 회사 엔진이 써요)
             if not key:
                 raise EngineError("API 키가 없어요. 키를 넣어 주세요.")
             self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout)
@@ -116,6 +121,7 @@ class AnthropicApiEngine:
 
     def complete_json(self, system: str, prompt: str, schema: dict) -> dict:
         """schema에 맞는 JSON 하나를 받아요."""
+        self.last_usage = None
         anthropic = _sdk()
         client, request = self.client(), self._request(system, prompt, schema)
         try:
@@ -130,6 +136,7 @@ class AnthropicApiEngine:
         price = PRICES.get(self.model_id)
         self.last = {"input_tokens": tokens_in, "output_tokens": used.output_tokens,
                      "cost": (tokens_in * price[0] + used.output_tokens * price[1]) / 1_000_000 if price else None}
+        self.last_usage = dict({k: getattr(used, k, 0) or 0 for k in USAGE_FIELDS}, cost=self.last["cost"], model=self.model)
         if response.stop_reason == "refusal":
             raise BadOutput("모델이 이 묶음은 다루지 않겠다고 했어요")
         if response.stop_reason == "max_tokens":

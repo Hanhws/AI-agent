@@ -1,0 +1,56 @@
+{
+  "at": "20261007-0957",
+  "scenario": "u1",
+  "data": "example_conversations.json",
+  "seconds": 259.6,
+  "prompt": "1791334413",
+  "turns": 51,
+  "junctions": 4,
+  "by_why": {
+    "decided": 4
+  },
+  "looked": 3,
+  "paths": 3,
+  "by_kind": {
+    "other": 2,
+    "onward": 1
+  },
+  "silent": 0,
+  "with_found": 3,
+  "dropped": 3,
+  "cut_lines": 0,
+  "ended": {
+    "finish": 3
+  },
+  "tools": {
+    "search_decisions": 3,
+    "list_open_items": 3,
+    "search_turns": 1,
+    "look_up": 2
+  },
+  "web": true,
+  "steps": 8,
+  "every": 8,
+  "stats": {
+    "engine": "claude_cli",
+    "model": "sonnet",
+    "calls": {
+      "classify": 9,
+      "check": 0,
+      "ahead": 6,
+      "lookup": 2
+    },
+    "seconds": {
+      "classify": 140.3,
+      "check": 0.0,
+      "ahead": 79.5,
+      "lookup": 39.7
+    },
+    "tokens": {
+      "in": 77784,
+      "out": 4792
+    },
+    "cost_usd": 0.4707,
+    "label_model": "haiku"
+  }
+}

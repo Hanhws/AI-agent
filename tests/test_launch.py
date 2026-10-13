@@ -1,7 +1,9 @@
 import contextlib
 import io
 import plistlib
+import re
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -96,6 +98,7 @@ class LaunchTest(unittest.TestCase):
 
 
 class MacAppTest(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_info_plist_points_at_this_folder(self):
         info = macapp.info_plist()
         self.assertEqual((info["CFBundleName"], info["CFBundleExecutable"], info["CFBundleIconFile"]), ("가닥", "Gadak", "AppIcon"))
@@ -104,6 +107,7 @@ class MacAppTest(unittest.TestCase):
         self.assertNotIn("LSUIElement", info)       # Dock에 보이는 보통 앱이에요
         plistlib.loads(plistlib.dumps(info))         # plist로 쓸 수 있는 값만
 
+    @unittest.skipIf(sys.platform == "win32", "macOS · Linux의 방식이에요")
     def test_search_path_keeps_only_real_folders_once(self):
         with tempfile.TemporaryDirectory() as tmp, \
                 mock.patch.dict(macapp.os.environ, {"PATH": f"{tmp}:/no/such/folder:{tmp}"}):
@@ -133,6 +137,31 @@ class MacAppTest(unittest.TestCase):
         for name in macapp.APP_SOURCES:
             self.assertTrue((macapp.SOURCES / name).is_file(), name)
         self.assertIn("@main", (macapp.SOURCES / "Gadak.swift").read_text(encoding="utf-8"))   # 파일이 여럿이라 시작하는 곳을 적어 둬요
+
+    def test_the_disk_image_carries_the_guide_for_whoever_receives_it(self):
+        """받아서 쓰는 사람에게 가는 것: 가닥 · 응용 프로그램 폴더로 가는 길 · 처음 여는 법 · 그림이 든 설치 안내(PDF)."""
+        self.assertTrue(macapp.GUIDE.is_file())
+        self.assertEqual(macapp.GUIDE.read_bytes()[:5], b"%PDF-")
+        for words in ("그래도 열기", "AI 연결", "터미널을 열 일은 없어요", "가닥 설치 안내.pdf"):
+            self.assertIn(words, macapp.FIRST_OPEN)
+        made = []
+        def fake_run(command, what):
+            made.append(sorted(p.name for p in Path(command[command.index("-srcfolder") + 1]).iterdir()))
+        with tempfile.TemporaryDirectory() as tmp:
+            app = Path(tmp) / "가닥.app"
+            (app / "Contents").mkdir(parents=True)
+            with mock.patch.object(macapp, "_run", fake_run):
+                target = macapp.dmg(app, Path(tmp) / "out")
+        self.assertEqual(made, [sorted(["Applications", "가닥 설치 안내.pdf", "가닥.app", "처음 여는 법.txt"])])
+        self.assertTrue(target.name.startswith("가닥-") and target.name.endswith(".dmg"))
+        # 설명서의 글 · 그림 · 다시 찍는 스크립트가 같이 있어요. 그림에 실제 대화가 들어가지 않게 지어낸 예시로 찍어요 (README에 적어 둠)
+        guide = macapp.GUIDE.parent / "install-guide"
+        html = (guide / "guide.html").read_text(encoding="utf-8")
+        for image in re.findall(r'src="(img/[^"]+)"', html):
+            self.assertTrue((guide / image).is_file(), image)
+        for words in ("그래도 열기", "AI 연결", "연결하기", "버튼 편집", "chrome://extensions", "~/.gadak"):
+            self.assertIn(words, html)
+        self.assertTrue((guide / "make-pdf.sh").is_file())
 
     def test_without_swift_it_says_what_to_do(self):
         with mock.patch.object(macapp.shutil, "which", return_value=None), mock.patch.object(macapp.sys, "platform", "darwin"):

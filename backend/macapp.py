@@ -15,6 +15,13 @@ python -m backend.macapp --dmg             dist/가닥-<판>-<arm64|x86_64>.dmg 
 python -m backend.macapp --dmg --collect   사용 기록을 받을 서버 주소(내 backend/.env의 GADAK_COLLECT_URL)를 앱에 적어 넣어요
 묶을 때는 PyInstaller를 써요: .venv/bin/python -m pip install pyinstaller. 만든 앱은 임시 서명이라, 받은 사람은 처음 한 번
 ‘확인되지 않은 개발자’ 경고를 넘겨야 해요(시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기).
+
+앱은 만드는 Mac과 같은 종류(arm64 · x86_64)로 나와요. Apple Silicon Mac에서 Intel Mac용을 만들려면 --arch x86_64를 붙여요.
+그때 백엔드는 Rosetta로 묶어요. Intel용 꾸러미가 깔린 파이썬이 따로 있어야 해서(.venv에는 Apple Silicon용이 깔려 있어요)
+그 자리를 GADAK_BUILD_PYTHON으로 알려 줘요. 앱은 dist/x86_64/에, 디스크 이미지는 dist/에 생겨요 (이렇게 만든 것은 macOS 13부터 돌아요):
+  arch -x86_64 /Library/Frameworks/Python.framework/Versions/3.14/bin/python3 -m venv <폴더>
+  arch -x86_64 <폴더>/bin/python -m pip install -r requirements.txt pyinstaller
+  GADAK_BUILD_PYTHON=<폴더>/bin/python .venv/bin/python -m backend.macapp --dmg --arch x86_64
 """
 import json
 import os
@@ -34,6 +41,9 @@ EXECUTABLE = "Gadak"
 BUNDLE_ID = "local.gadak.app"
 VERSION = config.VERSION
 MIN_MACOS = "12.0"
+# Apple Silicon Mac에서 Intel Mac용을 만들 때의 가장 낮은 macOS. 요즘 Swift 도구에는 macOS 12에서 돌 Intel용 호환 라이브러리가
+# 들어 있지 않아서(libswiftCompatibility56이 arm64뿐) 13부터예요. Intel Mac에서 직접 만들면 위의 값 그대로예요
+MIN_MACOS_INTEL_FROM_ARM = "13.0"
 BACKEND = "gadak-backend"      # 앱 안에 묶는 백엔드 실행 파일. mac/Gadak.swift · backend/sources(HOOK_MARKS)가 이 이름을 알아요
 ENTRY = "backend_main.py"      # mac/ 안의 그 실행 파일의 첫 줄
 # 묶인 백엔드가 파일로 읽는 것들: (저장소 안의 자리, 앱 안의 폴더). backend/config.py의 ROOT가 이 폴더들의 위예요
@@ -50,10 +60,13 @@ FIRST_OPEN = """가닥을 처음 여는 법
 3. 시스템 설정 → 개인정보 보호 및 보안으로 가서, 아래쪽의 “가닥이(가) 차단되었습니다” 옆 ‘그래도 열기’를 눌러요.
    (macOS 14 이하에서는 가닥을 오른쪽 클릭 → 열기 → 열기로도 돼요.)
 4. 한 번 열고 나면 다음부터는 그냥 열려요.
+5. 가닥이 켜지면 ‘AI 연결’ 창이 떠요. Claude 구독 · ChatGPT 구독 · API 키 중 하나를 골라 ‘연결하기’를 누르면 돼요.
+   터미널을 열 일은 없어요. 그림이 든 안내는 같이 들어 있는 ‘가닥 설치 안내.pdf’를 봐 주세요.
 
 가닥은 학교 과제로 만든 앱이라 Apple의 개발자 서명(유료)이 없어요. 그래서 처음 한 번 이 확인이 필요해요.
 대화는 이 Mac에만 저장돼요(~/.gadak). 지우려면 가닥을 휴지통에 넣고 그 폴더도 지워요.
 """
+GUIDE = config.ROOT / "docs" / "가닥-설치-안내.pdf"      # 받은 사람이 보는 설명서 (docs/install-guide/에서 만들어요). 있으면 디스크 이미지에 같이 넣어요
 SOURCES = config.ROOT / "mac"
 APP_SOURCES = ("Gadak.swift", "Float.swift", "FloatCheck.swift")     # 창 · 메뉴 · 백엔드 켜기 / 떠 있는 버튼 / 그 버튼을 스스로 확인
 DIST = config.ROOT / "dist"
@@ -106,40 +119,60 @@ def info_plist(root=None, python=None, bundled=False) -> dict:
     return info
 
 
-def _run(command, what) -> None:
-    done = subprocess.run(command, capture_output=True, text=True)
+def _run(command, what, env=None) -> None:
+    done = subprocess.run(command, capture_output=True, text=True, env=env)
     if done.returncode != 0:
         raise BuildError(f"{what}에 실패했어요.\n{(done.stderr or done.stdout).strip()[-1500:]}")
 
 
-def freeze(work, collect=None) -> Path:
-    """백엔드를 파이썬째로 실행 파일 묶음으로 만들어요 (PyInstaller). work/dist/gadak-backend 폴더를 돌려줘요."""
-    python = str(backend_python())
-    if subprocess.run([python, "-m", "PyInstaller", "--version"], capture_output=True).returncode != 0:
+def tools_first() -> dict:
+    """개발 도구의 진짜 자리를 PATH 맨 앞에 둔 환경. Rosetta로 도는 PyInstaller가 lipo를 부를 때 써요:
+    /usr/bin의 lipo는 진짜 도구를 찾아 주는 껍데기인데, 요즘 것은 Intel 쪽에서 불리면 켜지지 않아요."""
+    try:
+        home = subprocess.run(["/usr/bin/xcode-select", "-p"], capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        home = ""
+    spots = [str(Path(home) / tail) for tail in ("usr/bin", "Toolchains/XcodeDefault.xctoolchain/usr/bin") if home and (Path(home) / tail).is_dir()]
+    return dict(os.environ, PATH=os.pathsep.join(spots + [os.environ.get("PATH", "")]))
+
+
+def freeze(work, collect=None, arch=None) -> Path:
+    """백엔드를 파이썬째로 실행 파일 묶음으로 만들어요 (PyInstaller). work/dist/gadak-backend 폴더를 돌려줘요.
+    묶을 파이썬을 따로 정하려면 GADAK_BUILD_PYTHON. arch가 이 Mac과 다르면 그 파이썬을 그 종류로 돌려요 (Intel Mac용 · 위의 설명)."""
+    named = os.environ.get("GADAK_BUILD_PYTHON")
+    python, env = [named or str(backend_python())], None
+    if arch and arch != platform.machine():
+        if not named:
+            raise BuildError(f"{arch}용 꾸러미가 깔린 파이썬이 따로 있어야 해요. 그 자리를 GADAK_BUILD_PYTHON에 적어 주세요 (backend/macapp.py 머리말).")
+        python, env = ["arch", f"-{arch}"] + python, tools_first()
+    if subprocess.run(python + ["-m", "PyInstaller", "--version"], capture_output=True).returncode != 0:
         raise BuildError("PyInstaller가 없어요. 이렇게 깔아 주세요: .venv/bin/python -m pip install pyinstaller")
     work = Path(work)
     built = {"built": datetime.now().strftime("%Y%m%d-%H%M%S"), "version": VERSION, "collect": collect or None}
     (work / "BUILD.json").write_text(json.dumps(built, ensure_ascii=False), encoding="utf-8")
-    command = [python, "-m", "PyInstaller", "--noconfirm", "--clean", "--log-level", "ERROR", "--onedir", "--name", BACKEND,
+    command = python + ["-m", "PyInstaller", "--noconfirm", "--clean", "--log-level", "ERROR", "--onedir", "--name", BACKEND,
                "--distpath", str(work / "dist"), "--workpath", str(work / "build"), "--specpath", str(work),
                "--paths", str(config.ROOT), "--add-data", f"{work / 'BUILD.json'}:.",
                "--collect-submodules", "anthropic",        # SDK가 필요할 때 불러오는 모듈까지
                "--exclude-module", "tkinter", "--exclude-module", "eval", "--exclude-module", "tests"]
     for source, folder in BUNDLE_DATA:
         command += ["--add-data", f"{config.ROOT / source}:{folder}"]
-    _run(command + [str(SOURCES / ENTRY)], "백엔드 묶기")
+    _run(command + [str(SOURCES / ENTRY)], "백엔드 묶기", env)
     return work / "dist" / BACKEND
 
 
-def build(out=None, bundled=False, collect=None) -> Path:
-    """dist/가닥.app 을 만들어 그 경로를 돌려줘요. bundled면 백엔드까지 앱 안에 넣어요(저장소 폴더 없이 도는 앱)."""
+def build(out=None, bundled=False, collect=None, arch=None) -> Path:
+    """dist/가닥.app 을 만들어 그 경로를 돌려줘요. bundled면 백엔드까지 앱 안에 넣어요(저장소 폴더 없이 도는 앱).
+    arch(arm64 · x86_64)를 주면 그 종류의 Mac용으로 만들어요. 비우면 이 Mac과 같은 종류예요."""
     if sys.platform != "darwin":
         raise BuildError("앱은 macOS에서만 만들어요. 다른 곳에서는 python -m backend.launch 로 켜세요.")
     swiftc = shutil.which("swiftc")
     if not swiftc:
         raise BuildError("Swift 컴파일러가 없어요. 터미널에서 xcode-select --install 로 Xcode 명령어 도구를 깔아 주세요.")
     app = Path(out or DIST) / f"{NAME}.app"
-    target = f"{platform.machine()}-apple-macos{MIN_MACOS}"
+    crossed = bool(arch) and arch != platform.machine()
+    minimum = MIN_MACOS_INTEL_FROM_ARM if crossed and arch == "x86_64" else MIN_MACOS
+    target = f"{arch or platform.machine()}-apple-macos{minimum}"
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         _run([swiftc, "-O", "-swift-version", "5", "-parse-as-library", "-target", target, "-o", str(work / EXECUTABLE),
@@ -155,26 +188,28 @@ def build(out=None, bundled=False, collect=None) -> Path:
         (contents / "Resources").mkdir()
         shutil.copy2(work / EXECUTABLE, contents / "MacOS" / EXECUTABLE)
         shutil.copy2(work / "AppIcon.icns", contents / "Resources" / "AppIcon.icns")
-        (contents / "Info.plist").write_bytes(plistlib.dumps(info_plist(bundled=bundled)))
+        (contents / "Info.plist").write_bytes(plistlib.dumps(dict(info_plist(bundled=bundled), LSMinimumSystemVersion=minimum)))
         (contents / "PkgInfo").write_text("APPL????", encoding="ascii")
         if bundled:
-            shutil.copytree(freeze(work, collect), contents / "Resources" / "backend", symlinks=True)
+            shutil.copytree(freeze(work, collect, arch), contents / "Resources" / "backend", symlinks=True)
     # Apple 개발자 서명이 없어서 임시 서명(ad-hoc)이에요. 묶인 앱은 안의 실행 파일까지 같이 서명해요
     _run(["codesign", "--force", "--sign", "-"] + (["--deep"] if bundled else []) + [str(app)], "서명")
     return app
 
 
-def dmg(app, out=None) -> Path:
+def dmg(app, out=None, arch=None) -> Path:
     """앱을 디스크 이미지로. 열면 가닥과 응용 프로그램 폴더로 가는 길, 처음 여는 법이 보여요."""
     out = Path(out or DIST)
     out.mkdir(parents=True, exist_ok=True)
-    target = out / f"{NAME}-{VERSION}-{platform.machine()}.dmg"
+    target = out / f"{NAME}-{VERSION}-{arch or platform.machine()}.dmg"
     with tempfile.TemporaryDirectory() as tmp:
         stage = Path(tmp) / NAME
         stage.mkdir()
         shutil.copytree(app, stage / app.name, symlinks=True)
         (stage / "Applications").symlink_to("/Applications")
         (stage / "처음 여는 법.txt").write_text(FIRST_OPEN, encoding="utf-8")
+        if GUIDE.is_file():
+            shutil.copy2(GUIDE, stage / "가닥 설치 안내.pdf")
         target.unlink(missing_ok=True)
         _run(["hdiutil", "create", "-volname", NAME, "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(target)], "디스크 이미지 만들기")
     return target
@@ -204,11 +239,15 @@ def main(argv) -> int:
             collect = config.COLLECT_URL if "--collect" in argv else None
             if "--collect" in argv and not collect:
                 raise BuildError("backend/.env에 GADAK_COLLECT_URL이 없어요. --collect를 빼거나 주소를 적어 주세요.")
+            arch = argv[argv.index("--arch") + 1] if "--arch" in argv and argv.index("--arch") + 1 < len(argv) else None
+            if arch not in (None, "arm64", "x86_64"):
+                raise BuildError("--arch 뒤에는 arm64나 x86_64를 적어 주세요.")
+            other = arch if arch and arch != platform.machine() else None      # 이 Mac과 다른 종류면 dist/<종류>/에 따로 둬요
             print("백엔드를 앱 안에 묶고 있어요. 1~2분 걸려요…", flush=True)
-            app = build(bundled=True, collect=collect)
+            app = build(DIST / other if other else None, bundled=True, collect=collect, arch=other)
             print(f"만들었어요: {app} (저장소 폴더 · 파이썬 없이 돌아요" + (", 사용 기록 서버 주소 포함)" if collect else ")"))
             if "--dmg" in argv:
-                print(f"만들었어요: {dmg(app)}")
+                print(f"만들었어요: {dmg(app, arch=other)}")
                 print("받은 사람은 처음 한 번 시스템 설정 → 개인정보 보호 및 보안 → ‘그래도 열기’를 눌러야 해요 (디스크 이미지 안의 ‘처음 여는 법.txt’).")
             return 0
         if "--install" not in argv:

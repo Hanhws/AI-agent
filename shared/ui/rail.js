@@ -9,7 +9,8 @@
 
     function railY(t) { var H = R.rail.clientHeight - 64, e = R.turnEls[t.id]; var sh = Math.max(R.chat.scrollHeight, 1); return 48 + (e.offsetTop / sh) * H; }
     g.renderRail = function () {
-      var rail = R.rail; rail.innerHTML = ''; R.railDots = {};
+      var rail = R.rail; if (!rail) return;      // 레일을 놓지 않은 창(가닥 창 · 10/7)에서는 그릴 것이 없어요
+      rail.innerHTML = ''; R.railDots = {};
       var V = g.buildView('chat');
       var RX = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rx')) || 28;
       var tg = el('button', 'rail-toggle'); tg.type = 'button'; tg.appendChild(G.miniMark(17));

@@ -15,14 +15,27 @@ import shlex
 import sys
 from pathlib import Path
 
-from .. import config, store
+from .. import config, store, win
 
 APP_DIRS = (Path("/Applications"), Path.home() / "Applications")
 BROWSERS = ("Google Chrome", "Chromium", "Microsoft Edge", "Brave Browser", "Arc", "Whale")   # 크롬 확장을 넣을 수 있는 것
+# Windows에서는 다른 프로그램의 설정에 가닥을 더하는 일(hook)을 아직 하지 않아요: hook을 돌리는 방식이 달라서, 돌려 보지 못한 설정을
+# 남의 Cursor · Claude Code에 적어 넣지 않아요. 대화 읽기(Claude Code · Codex 기록 · 크롬 확장 · 내보내기 파일)는 그대로 돼요
+NO_CURSOR_ON_WINDOWS = "Windows에서는 아직 Cursor를 연결하지 못해요. Claude Code · Codex · 크롬 확장 · 내보내기 파일은 읽어요."
+NO_AUTO_ON_WINDOWS = "Windows에서는 아직 자동 실행을 연결하지 못해요. 대화는 지금처럼 알아서 읽어요."
 
 
 def _app(name) -> bool:
+    if win.WINDOWS:
+        return win.installed(name)
     return any((base / f"{name}.app").exists() for base in APP_DIRS)
+
+
+def _browser() -> bool:
+    """크롬 확장을 넣을 수 있는 브라우저가 있는지."""
+    if win.WINDOWS:
+        return bool(win.browsers())
+    return any(_app(name) for name in BROWSERS)
 
 
 def cursor_home() -> Path:
@@ -56,6 +69,8 @@ def connect_cursor() -> dict:
     base = cursor_home()
     if cursor_connected():
         return {"ok": True, "already": True}
+    if win.WINDOWS:
+        return {"ok": False, "reason": NO_CURSOR_ON_WINDOWS}
     if (base / "hooks.json").exists():
         return {"ok": False, "reason": "쓰고 계신 hooks.json이 있어서 덮어쓰지 않았어요. docs/usage-guide.md 4-2를 봐 주세요."}
     if on_the_move():
@@ -115,6 +130,8 @@ def connect_claude() -> dict:
         return {"ok": False, "reason": "Claude Code 설정 파일을 읽지 못해서 건드리지 않았어요. docs/usage-guide.md 4-1을 봐 주세요."}
     if claude_connected():
         return {"ok": True, "already": True}
+    if win.WINDOWS:
+        return {"ok": False, "reason": NO_AUTO_ON_WINDOWS}
     if on_the_move():
         return {"ok": False, "reason": MOVED}
     hooks = data.setdefault("hooks", {})
@@ -173,7 +190,7 @@ def detect(counts=None, extension=None) -> list:
     seen = extension.get("seen")
     rows.append({
         "key": "extension", "name": "Claude · ChatGPT 웹", "where": "크롬 확장", "mode": "extension",
-        "found": any(_app(name) for name in BROWSERS), "connected": bool(seen),
+        "found": _browser(), "connected": bool(seen),
         "seen": store.display_date(seen) if seen else None, "chats": extension.get("chats", 0),
         "folder": str(config.ROOT / "extension"),
     })
