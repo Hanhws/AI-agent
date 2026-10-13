@@ -27,13 +27,13 @@ The illustrated guide is [`docs/gadak-install-guide.pdf`](docs/gadak-install-gui
 
 | | Korean edition | English edition |
 |---|---|---|
-| Branch | `main` | `english` |
+| Source | the top of `main` | the `english` branch (a copy of it is kept in the `english/` folder on `main`) |
 | App | `가닥.app` | `Gadak.app` |
 | Download | [site](https://hanhws.github.io/AI-agent/download/) · release `v0.1.0` | [site](https://hanhws.github.io/AI-agent/en/download/) · release `v0.1.0-en` |
 
 The code is the same and only the language differs: the screens, the prompts, the made-up example and the install guide. In the English edition the station names and summaries Gadak writes are in English whatever language you chat in. Both editions can be installed side by side, but they share the same records (`~/.gadak`) and port, so run one at a time.
 
-To build the English edition from source on a Mac, switch to the `english` branch and double-click `Install Gadak.command`. It builds `Gadak.app`, puts it in Applications and opens it.
+To build the English edition from source on a Mac, open the English tree (the `english/` folder on `main`, or the top of the `english` branch) and double-click `Install Gadak.command`. It builds `Gadak.app`, puts it in Applications and opens it.
 
 ## Connect an AI
 
@@ -52,13 +52,14 @@ Chats are stored only on your computer (`~/.gadak`). Only while sorting does a s
 
 ## Development
 
+Run these from the top of the English tree: the `english/` folder on `main`, or the `english` branch.
+
 ```sh
-git switch english                          # the English edition (main is the Korean edition)
 python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m backend.launch          # opens the Gadak window
 .venv/bin/python -m unittest discover -s tests
 ```
 
-Open the window with `?demo` to see a made-up example. The site for both editions is built from `main` (`homepage/`). The full project handoff (in Korean) is [`README.md`](README.md), and how the English edition is kept is in [`docs/handoff-english.md`](docs/handoff-english.md) (in Korean).
+Open the window with `?demo` to see a made-up example. The site for both editions is built from the top of `main` (`homepage/`). Changes to the English edition are made on the `english` branch, and the `english/` folder is refreshed from it. The full project handoff (in Korean) is [`README.md`](README.md), and how the English edition is kept is in [`docs/handoff-english.md`](docs/handoff-english.md) (in Korean).
 
 Made as a team project for the AI applications course of the SNU Big Data & FinTech programme (KDT), cohort 13. Not affiliated with Anthropic, OpenAI or Google.

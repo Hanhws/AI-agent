@@ -1,8 +1,8 @@
 """배포 사이트(homepage/)가 제대로 만들어지는지: 쪽 · 링크 · 받기 주소 · 바로 써 보는 데모, 한국어판과 영어판.
 
 사이트는 정적 파일이라, 임시 폴더에 한 번 만들어 놓고 그 파일들을 읽어 확인해요.
-사이트는 한국어판(main)에서 만들어요. 영어판(english 브랜치)에서는 만드는 확인을 건너뛰고,
-사이트에 가져가 둔 영어판 파일(homepage/english/)이 그 브랜치의 지금 파일과 같은지를 봐요.
+사이트는 한국어판(main)에서 만들어요. 영어 쪽은 main의 english/ 폴더(english 브랜치를 통째로 가져다 둔 사본)를 써요.
+영어판(english 브랜치)에서는 만드는 확인을 건너뛰어요.
 """
 import hashlib
 import json
@@ -202,46 +202,42 @@ class DemoPatchTest(unittest.TestCase):
             self.assertIn("PATCHES", str(stop.exception))
 
 
-class EnglishFilesTest(unittest.TestCase):
-    """사이트가 쓰는 영어판 파일(homepage/english/)은 english 브랜치에서 가져온 것이에요."""
+@unittest.skipUnless(KOREAN, ONLY_MAIN)
+class EnglishFolderTest(unittest.TestCase):
+    """english/ 폴더는 english 브랜치를 통째로 가져다 둔 사본이에요. 사이트의 영어 쪽이 이 폴더의 가닥 창 · 그림을 써요."""
 
-    def test_the_folder_holds_the_english_app_and_nothing_else(self):
-        self.assertEqual(build.edition(build.ENGLISH), "en")
-        wanted = {path.as_posix() for path in build.english_files(build.ENGLISH)}
-        there = {path.relative_to(build.ENGLISH).as_posix() for path in build.ENGLISH.rglob("*") if path.is_file() and path.name != ".DS_Store"}
-        self.assertEqual(there, wanted)
-        self.assertTrue((ROOT / build.GUIDE["en"]).is_file())
+    def test_the_folder_holds_the_english_edition(self):
+        self.assertEqual((build.edition(), build.edition(build.ENGLISH)), ("ko", "en"))
+        for name in build.APP_WEB:
+            self.assertTrue((build.ENGLISH / "backend" / "web" / name).is_file(), name)
+        for name in build.SITE_SHOTS:
+            self.assertTrue((build.ENGLISH / build.SHOTS / name).is_file(), name)
+        self.assertFalse(HANGUL.findall((build.ENGLISH / "data" / build.APP_DATA).read_text(encoding="utf-8")))
 
-    @unittest.skipIf(KOREAN, "english 브랜치에서만 견줘 봐요 (여기에는 영어판의 원본이 없어요)")
-    def test_it_matches_the_english_app_in_this_folder(self):
-        """영어 화면을 고쳤으면 사이트의 사본도 같이: python -m homepage.build --pull-english . (그리고 main에도 올려요)"""
-        stale = [path.as_posix() for path in build.english_files(ROOT) if not (build.ENGLISH / path).is_file()
-                 or (build.ENGLISH / path).read_bytes() != (ROOT / path).read_bytes()]
-        self.assertEqual(stale, [], "python -m homepage.build --pull-english . 로 다시 가져와요")
+    def test_the_english_guide_out_here_is_the_one_in_the_folder(self):
+        """뿌리의 영어 설치 안내(README.en.md · 사이트가 가리키는 것)는 영어판의 것과 같은 파일이에요. 폴더를 다시 가져와 달라졌으면 이것도 같이 바꿔요."""
+        self.assertEqual((ROOT / build.GUIDE["en"]).read_bytes(), (build.ENGLISH / build.GUIDE["en"]).read_bytes())
 
-    @unittest.skipIf(KOREAN, "english 브랜치에서만이에요")
+
+@unittest.skipIf(KOREAN, "english 브랜치에서만이에요")
+class EnglishBranchTest(unittest.TestCase):
     def test_the_site_is_not_built_from_the_english_branch(self):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(build.Stop) as stop:
             build.build(Path(tmp) / "site")
         self.assertIn("main", str(stop.exception))
 
+    def test_the_copy_kept_on_main_did_not_come_along(self):
+        """main을 이 브랜치에 합치면 main의 english/ 폴더(이 브랜치의 사본)가 딸려 와요. 영어판 안에 영어판이 또 생기지 않게 빼요: git rm -r english"""
+        self.assertFalse(build.ENGLISH.exists())
+
 
 class FakeEnglish:
-    """english 브랜치를 받아 둔 폴더를 흉내 낸 임시 폴더: 가닥 창 · 그림 · 설치 안내 · 만든 설치 파일."""
+    """영어판 폴더를 흉내 낸 임시 폴더: 가닥 창의 첫 쪽 · 크롬 확장 · 만든 설치 파일."""
 
     def __init__(self, lang="en"):
         self.tmp = Path(tempfile.mkdtemp())
         self.root = self.tmp / "english"
-        for name in build.APP_WEB:
-            self.write(Path("backend", "web", name), f'<!doctype html>\n<html lang="{lang}">\n' if name == "index.html" else name)
-        for name in ("view.js", "tokens.css"):
-            self.write(Path("shared", "ui", name), name)
-        self.write(Path("shared", "ui", ".DS_Store"), "x")
-        self.write(Path("data", build.APP_DATA), "{}")
-        for name in build.SITE_SHOTS:
-            self.write(build.SHOTS / name, name)
-        self.write(build.SHOTS / "not-on-the-site.png", "x")
-        self.write(build.GUIDE["en"], "the english guide")
+        self.write(Path("backend", "web", "index.html"), f'<!doctype html>\n<html lang="{lang}">\n')
         self.write(Path("extension", "manifest.json"), "{}")
         self.version = json.loads(build.DOWNLOADS.read_text(encoding="utf-8"))["en"]["version"]
         for _, local, _ in build.INSTALLERS["en"]:
@@ -256,29 +252,6 @@ class FakeEnglish:
 
     def __exit__(self, *exc):
         shutil.rmtree(self.tmp, ignore_errors=True)
-
-
-class PullEnglishTest(unittest.TestCase):
-    def test_it_copies_only_what_the_site_uses(self):
-        with FakeEnglish() as fake:
-            into = fake.tmp / "main"
-            (into / "homepage" / "english" / "old").mkdir(parents=True)
-            (into / "homepage" / "english" / "old" / "gone.js").write_text("x", encoding="utf-8")
-            pulled = build.pull_english(fake.root, into)
-            kept = into / "homepage" / "english"
-            there = sorted(path.relative_to(kept).as_posix() for path in kept.rglob("*") if path.is_file())
-            self.assertEqual(there, sorted(path.as_posix() for path in pulled))
-            self.assertIn("shared/ui/view.js", there)
-            self.assertIn("docs/install-guide/img/window.png", there)
-            self.assertFalse([name for name in there if ".DS_Store" in name or "not-on-the-site" in name or "gone" in name])
-            self.assertEqual((into / build.GUIDE["en"]).read_text(encoding="utf-8"), "the english guide")
-
-    def test_it_refuses_a_folder_that_is_not_the_english_edition(self):
-        with FakeEnglish(lang="ko") as fake:
-            with self.assertRaises(build.Stop) as stop:
-                build.pull_english(fake.root, fake.tmp / "main")
-            self.assertIn(build.ENGLISH_BRANCH, str(stop.exception))
-            self.assertFalse((fake.tmp / "main").exists())
 
 
 class StampTest(unittest.TestCase):

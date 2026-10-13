@@ -1514,10 +1514,10 @@ Claude Code가 없는 사람은 정리를 못 했어요. Anthropic API 키로도
 
 | 무엇 | 어디 |
 |---|---|
-| 영어판의 코드 | `english` 브랜치 (같은 자리의 파일을 영어로 바꾼 것이라 `main`에 합치지 않아요) |
+| 영어판의 코드 | `english` 브랜치 (같은 자리의 파일을 영어로 바꾼 것이라 `main`의 같은 자리에 합치지 않아요). `main`에는 통째로 가져다 둔 사본이 `english/` 폴더로 (30-8) |
 | 영어판 설치 파일 | GitHub Releases `v0.1.0-en` — Mac용 디스크 이미지 둘 · Windows 설치 프로그램 · zip · 크롬 확장 zip · `SHA256SUMS.txt` |
 | 받는 곳 | https://hanhws.github.io/AI-agent/en/download/ (사이트의 영어 쪽) |
-| 사이트의 원본 | `main`의 `homepage/` 하나. 영어 쪽이 쓰는 영어판 파일은 `homepage/english/`에 사본으로 |
+| 사이트의 원본 | `main`의 `homepage/` 하나. 영어 쪽은 `main`의 `english/` 폴더(30-8)의 가닥 창 · 그림을 써요 |
 | 영어 문서 (`main`에도 있음) | `README.en.md` · `docs/gadak-install-guide.pdf` · `docs/usage-guide.en.md` · `docs/handoff-english.md`(한글) |
 
 ### 30-2. 영어로 된 자료 — 있던 것 · 없던 것
@@ -1549,13 +1549,13 @@ Claude Code가 없는 사람은 정리를 못 했어요. Anthropic API 키로도
 | | 한국어 쪽 | 영어 쪽 (`en/`) |
 |---|---|---|
 | 받는 파일 | 릴리스 `v0.1.0` | 릴리스 `v0.1.0-en` |
-| 데모 | `app/` ← 이 브랜치의 가닥 창 | `en/app/` ← `homepage/english/`의 가닥 창 |
+| 데모 | `app/` ← 이 브랜치의 가닥 창 | `en/app/` ← `english/` 폴더의 가닥 창 |
 | 화면 그림 | `assets/shots/` | `assets/shots/en/` |
 | 설치 안내 | `gadak-install-guide.pdf` | `en/gadak-install-guide.pdf` |
 | 쓰는 법 (발치) | `docs/usage-guide.md` | `docs/usage-guide.en.md` |
 
-- **영어판 파일을 `main`에 사본으로 둔 까닭**: 사이트는 한 곳에서 만들어 한 번에 올려야 하는데 영어판의 가닥 창은 `english`에만 있어요. 만들 때마다 다른 브랜치를 읽게 하면 `main`만으로는 사이트를 다시 만들 수 없어요. 그래서 사이트가 쓰는 17개 파일(`backend/web`의 다섯 · `shared/ui` 여덟 · 예시 · 그림 셋)만 `homepage/english/`에 같은 경로로 가져와요(`python -m homepage.build --pull-english <english를 받아 둔 폴더>`).
-- **사본이 낡지 않게**: `homepage/`와 `tests/test_homepage.py`는 두 브랜치에 똑같이 있어요. `english`에서는 사이트를 만들지 않고(멈춰요), 테스트가 사본이 그 브랜치의 지금 파일과 같은지 봐요.
+- **영어 쪽이 쓰는 영어판 파일**: 사이트는 한 곳에서 만들어 한 번에 올려야 하는데 영어판의 가닥 창은 `english`에만 있었어요. 오후에는 사이트가 쓰는 17개 파일만 `homepage/english/`에 가져다 뒀다가, 같은 날 저녁 `english` 브랜치를 통째로 `english/` 폴더에 두면서(30-8) 그 작은 사본은 없앴어요. 사이트는 이제 `english/`의 가닥 창 · `shared/ui` · 예시 · 그림을 그대로 읽어요. 바꾼 뒤에 만든 사이트는 올라가 있는 것과 파일 51개가 하나도 다르지 않았어요.
+- `english` 브랜치에서는 사이트를 만들지 않아요(만들기가 멈춰요 · 한국어 데모를 만들 수 없어서).
 - **받기 쪽에 어느 판인지 한 줄**: “이 쪽의 파일은 한국어판이에요 … 영어판 받기 →” / “These files are the English edition … Get the Korean edition →”.
 - **올린 이름**: 영어판은 만든 이름 그대로 올렸어요(`Gadak-0.1.0-arm64.dmg` …). 영어 설치 안내와 ‘How to open Gadak.txt’에 적힌 이름과 같게요. Windows용 둘은 한국어판 릴리스의 것과 이름이 같아서 릴리스로만 구분돼요. 확인 값 아래에 그렇게 적었어요.
 - 데모의 도움말 쪽에 아이콘이 없어서 브라우저가 `/favicon.ico`를 찾다 404가 나던 것도 같이 고쳤어요.
@@ -1587,7 +1587,26 @@ Claude Code가 없는 사람은 정리를 못 했어요. Anthropic API 키로도
 
 ### 30-7. 다시 할 때
 
-1. `english`를 받아 둔 폴더에서 설치 파일을 만들어요(`docs/handoff-english.md` 2장의 명령).
-2. `main`에서 `./.venv/bin/python -m homepage.build --pull-english <그 폴더> --stamp-english <그 폴더> --stage <빈 폴더>` — 영어 화면 사본과 받기 버튼의 값을 다시 적고, 올릴 파일 여섯을 모아요.
+1. 영어판은 `english` 브랜치에서 고쳐 올리고, `main`의 `english/` 폴더를 다시 가져와요(30-8의 두 줄).
+2. 설치 파일은 그 폴더에서 만들어요(`cd english` 뒤 `docs/handoff-english.md` 2장의 명령 · 파이썬은 `../.venv/bin/python`). 그다음 뿌리에서 `./.venv/bin/python -m homepage.build --stamp-english --stage <빈 폴더>` — 받기 버튼의 값을 다시 적고, 올릴 파일 여섯을 모아요.
 3. 모은 것을 릴리스에 올리고(`gh release create v…-en --target english …` · 서버가 계산한 digest를 `SHA256SUMS.txt`와 견줘요), `dist/site/`를 `gh-pages`에 올려요(29-8).
-4. `homepage/` · `tests/test_homepage.py` · 영어 문서의 바뀜은 두 브랜치에 똑같이 올려요.
+4. `homepage/` · `tests/test_homepage.py` · 영어 문서를 `main`에서 고쳤으면 `english` 브랜치에도 같은 내용으로 올려요(안 그러면 다음에 합칠 때 부딪혀요).
+
+### 30-8. `english/` 폴더 — main 하나에 영어판까지 (10/13 저녁)
+
+구현 담당이 “main 브랜치 안에 모든 파일이 들어 있게” 해 달라고 해서, `english` 브랜치를 통째로 `main`의 `english/` 폴더에 넣었어요.
+
+- **무엇**: `english` 브랜치의 파일 전부가 같은 경로로 `english/` 아래에 있어요. 폴더의 나무가 브랜치의 나무와 같아서 `git rev-parse main:english`와 `git rev-parse 'english^{tree}'`가 같은 값이에요. 같은 내용을 가리킬 뿐이라 저장소가 커지지도 않아요.
+- **고치는 곳은 여전히 `english` 브랜치예요.** 폴더는 사본이라 여기서 고치지 않아요(두 군데에서 고치면 갈라져요). 브랜치를 고친 뒤 `main`에서 다시 가져와요:
+
+  ```sh
+  git fetch origin
+  git rm -r -q english && git read-tree --prefix=english/ -u origin/english     # 폴더를 브랜치의 지금 모습으로
+  [ "$(git write-tree --prefix=english/)" = "$(git rev-parse 'origin/english^{tree}')" ] && echo 같음     # 커밋하기 전에 확인
+  ```
+
+- **그 폴더에서 영어판을 돌리고 만들 수 있어요**: `cd english` 뒤 `../.venv/bin/python -m backend.launch` · `-m unittest discover -s tests` · `-m backend.macapp --dmg`. Mac에서는 `english/Install Gadak.command`를 더블클릭하면 가지를 바꾸지 않고도 영어판 앱(`Gadak.app`)이 깔려요.
+- **폴더 안의 `homepage/` · `docs/` · `README.md` · `CHANGES.md`는 브랜치에 딸려 온 사본**이에요. 사이트와 문서의 원본은 뿌리의 것이에요.
+- 사이트의 영어 쪽이 이 폴더를 읽게 바꾸고, 오후에 둔 작은 사본(`homepage/english/`)과 `--pull-english`는 없앴어요(30-3).
+- **확인**: 뿌리의 테스트 385개(8개 건너뜀), `english/` 안에서 돌린 영어판 테스트 387개(21개 건너뜀), 폴더로 만든 사이트가 올라가 있는 것과 같은 것(파일 51개). 뿌리의 영어 설치 안내(`docs/gadak-install-guide.pdf`)가 폴더의 것과 같은 파일인지는 테스트가 봐요.
+- **기획 담당이 봐 주실 것**: 영어판을 두 군데(브랜치 · 폴더)에 두는 것이 괜찮은지. 브랜치를 고칠 때마다 위의 두 줄로 폴더를 다시 가져와야 해요. 폴더만 원본으로 삼고 브랜치를 없애는 길도 있어요(정해 주시면 바꿔요).
