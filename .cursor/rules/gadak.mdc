@@ -1,11 +1,11 @@
 ---
-description: 가닥 저장소 작업 규칙 (README.md 요약)
+description: 가닥 저장소 작업 규칙 (docs/spec.md 요약)
 alwaysApply: true
 ---
 
 # 가닥 — 코딩 에이전트 작업 규칙
 
-이 저장소는 ‘가닥’이에요. LLM 대화 옆에 붙어 흐름을 노선도로 정리하고 놓친 일을 먼저 알려 주는 에이전트예요. 작업 전에 `README.md`를 끝까지 읽어요.
+이 저장소는 ‘가닥’이에요. LLM 대화 옆에 붙어 흐름을 노선도로 정리하고 놓친 일을 먼저 알려 주는 에이전트예요. 작업 전에 `docs/spec.md`(설계 명세 · 10/13까지 저장소 첫 화면이던 인수인계 README)를 끝까지 읽어요. 문서와 주석의 ‘README 3-1’ 같은 표기는 그 문서의 절이에요. 저장소 첫 화면인 `README.md` · `README.en.md`는 밖에 보이는 소개 글이에요. 기능이나 숫자가 바뀌면 두 글을 같이 맞추고, 실명은 적지 않아요(역할로 써요).
 
 ## 기준
 - **화면의 정답은 `prototype/index.html`**이에요. 크기 · 색 · 간격 · 움직임 · 문구를 바꾸지 말고 그대로 옮겨요. 값은 `docs/design/prototype.css`, 토큰은 `docs/design/tokens.css`.
@@ -21,7 +21,7 @@ alwaysApply: true
 
 ## 코드
 - `shared/ui/`는 모든 입구(크롬 확장 · MCP · VS Code · Cursor)가 같이 써요. 입구별 차이는 `extension/content/sites/*`, `cursor-hooks/`(Cursor · Claude Code 어댑터), `mcp/`, `backend/sources/`(내 PC의 기록 읽기), `backend/web/`(가닥 창), `mac/`(macOS 앱의 겉: 창 · Dock · 메뉴 · 다른 앱 위에 떠 있는 버튼), `win/` · `backend/win.py`(Windows에 까는 가닥 · 10/12)에만 둬요. 입구마다 다른 동작은 `shared/ui/view.js` 머리말의 hooks로 넘겨요.
-- 배포 사이트(`homepage/` · 10/13)의 ‘바로 써 보는 데모’는 `backend/web` · `shared/ui`를 복사해 몇 줄만 바꾼 것이에요(`homepage/build.py`의 `PATCHES`). 가닥 창에서 그 줄을 고치면 `tests/test_homepage.py`가 알려 줘요. 그때 `PATCHES`를 맞춰요. 사이트의 글은 `homepage/strings/`에 있고 한국어와 영어의 열쇠가 같아야 해요. 화면 그림과 데모에는 만든 예시만 써요. 사이트는 `main`에서만 만들고, 말마다 그 말의 가닥을 줘요(10/13): 영어 쪽은 영어판을 받고 데모 · 그림도 영어판 것이에요. 영어판은 `english` 브랜치에 따로 있어요(같은 자리의 파일을 영어로 바꾼 것이라 `main`에 합치지 않아요 · `docs/handoff-english.md`). `main`의 `english/` 폴더는 그 브랜치를 통째로 가져다 둔 사본이에요(10/13 · 사이트의 영어 쪽이 이 폴더의 가닥 창 · 그림을 써요). **`english/` 안에서 고치지 않아요.** `english` 브랜치에서 고친 뒤 폴더를 다시 가져와요(`docs/handoff-english.md` 6장). 그 안의 `homepage/` · `docs/` · `README.md`는 브랜치에 딸려 온 사본이고, 사이트와 문서의 원본은 뿌리의 것이에요.
+- 배포 사이트(`homepage/` · 10/13)의 ‘바로 써 보는 데모’는 `backend/web` · `shared/ui`를 복사해 몇 줄만 바꾼 것이에요(`homepage/build.py`의 `PATCHES`). 가닥 창에서 그 줄을 고치면 `tests/test_homepage.py`가 알려 줘요. 그때 `PATCHES`를 맞춰요. 사이트의 글은 `homepage/strings/`에 있고 한국어와 영어의 열쇠가 같아야 해요. 화면 그림과 데모에는 만든 예시만 써요. 사이트는 `main`에서만 만들고, 말마다 그 말의 가닥을 줘요(10/13): 영어 쪽은 영어판을 받고 데모 · 그림도 영어판 것이에요. 영어판은 `english` 브랜치에 따로 있어요(같은 자리의 파일을 영어로 바꾼 것이라 `main`에 합치지 않아요 · `docs/handoff-english.md`). `main`의 `english/` 폴더는 그 브랜치를 통째로 가져다 둔 사본이에요(10/13 · 사이트의 영어 쪽이 이 폴더의 가닥 창 · 그림을 써요). **`english/` 안에서 고치지 않아요.** `english` 브랜치에서 고친 뒤 폴더를 다시 가져와요(`docs/handoff-english.md` 6장). 그 안의 `homepage/` · `docs/`는 브랜치에 딸려 온 사본이고, 사이트와 문서의 원본은 뿌리의 것이에요(`english/README.md`는 영어판의 짧은 안내예요).
 - 화면을 고치면 가닥 창을 `?demo`(만든 예시)와 `?demo=example&scen=u1`(각자 PC의 실제 예시)로 열어 `screenshots/`와 나란히 비교해요.
 - 사용자가 설정하지 않아도 돌아야 해요. 켜면 알아서 찾고 읽어요(`backend/sources/`). 다른 프로그램의 설정을 고치는 일(Cursor hook 연결)만 사용자가 한 번 눌러요.
 - 에이전트는 2단이에요. 매 턴 분류 1회(`backend/agent/classify.py`) + 조건이 걸린 턴만 도구 루프(`backend/agent/investigate.py`). 2단이 돈 턴은 판단 기록을 남겨요. README 3-1.
