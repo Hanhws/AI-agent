@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gadak — long LLM chats as a transit map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Gadak is an agent that sits beside your LLM conversations. It draws the questions, decisions and files of a long session as a transit map and tells you what you missed. Free for Mac and Windows.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Gadak — long LLM chats as a transit map">
+<meta property="og:description" content="Gadak is an agent that sits beside your LLM conversations. It draws the questions, decisions and files of a long session as a transit map and tells you what you missed. Free for Mac and Windows.">
+<link rel="icon" href="../assets/gadak.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="ko" href="../index.html">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="../assets/site.css">
+<script>try { var th = localStorage.getItem('gadak.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}</script>
+</head>
+<body class="page-index">
+<a class="skip" href="#main">Skip to content</a>
+<header class="band">
+  <div class="band-in">
+    <a class="brand" href="../en/index.html" aria-label="Gadak home"><svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+<span class="word">가닥 GADAK</span></a>
+    <nav class="nav" aria-label="Menu">
+      <a href="../en/index.html#features">Features</a>
+      <a href="../en/index.html#demo">Demo</a>
+      <a href="../en/index.html#start">Get started</a>
+      <a href="../en/index.html#faq">FAQ</a>
+    </nav>
+    <div class="band-tools">
+      <a class="lang" href="../index.html" lang="ko" hreflang="ko" aria-label="View in Korean">한국어</a>
+      <button class="gswitch" type="button" role="switch" id="theme" aria-checked="false" aria-label="Light or dark"><span class="sd off">Day</span><i class="trk"></i><span class="sd on">Night</span></button>
+<a class="btn btn-band" href="../en/download/index.html">Download</a>    </div>
+  </div>
+</header>
+<main id="main">
+<section class="hero" id="top">
+  <div class="hero-in">
+    <div class="hero-text">
+      <p class="eyebrow">An agent for long LLM conversations</p>
+      <h1>Keep the thread<br>of long chats.</h1>
+      <p class="lead">Work with an LLM long enough and the questions, decisions and files sink into the scroll. Gadak redraws the conversation as a transit map and tells you first about what slipped past.</p>
+      <p class="kept"><span class="kept-k">Holding on to</span><span class="kept-v" id="kept">a question that wandered off</span></p>
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href="../en/download/index.html" data-get><svg class="dl" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.5v9M4 7l4 4 4-4M2 14.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg><span data-get-label>Download</span></a>
+        <a class="btn btn-lg" href="#demo">Try it without installing</a>
+      </div>
+      <p class="fine">Free · macOS and Windows · v0.1.0</p>
+    </div>
+    <figure class="hero-map">
+      <svg id="hero-map" viewBox="0 0 760 536" role="img" aria-label="A Gadak map drawing itself. Each project is a coloured line, each question a station; side trips branch off in grey and a red dot marks where you are now."></svg>
+      <figcaption class="legend" id="legend" aria-hidden="true">
+        <span data-k="station"><i><svg viewBox="0 0 18 14"><path class="rt-line" d="M1 7H17" stroke="var(--track)" stroke-width="6"/><circle class="rt-dot-in" cx="9" cy="7" r="2"/></svg></i>Question</span>
+        <span data-k="decided"><i><svg viewBox="0 0 18 14"><path class="rt-line" d="M1 7H17" stroke="var(--track)" stroke-width="6"/><circle class="rt-big" cx="9" cy="7" r="5" stroke-width="2"/></svg></i>Decided</span>
+        <span data-k="spur"><i><svg viewBox="0 0 18 14"><path class="rt-spur" d="M1 3L7 10H17" stroke-width="5"/></svg></i>Side trip</span>
+        <span data-k="file"><i><svg viewBox="0 0 18 14"><circle class="rt-file" cx="9" cy="7" r="3.2"/></svg></i>File</span>
+        <span data-k="todo"><i><svg viewBox="0 0 18 14"><circle class="rt-ring" cx="9" cy="7" r="4.4" stroke-width="2.4"/></svg></i>To do</span>
+        <span data-k="now"><i><svg viewBox="0 0 18 14"><circle class="rt-halo" cx="9" cy="7" r="7"/><circle class="rt-now" cx="9" cy="7" r="4.5"/></svg></i>Now</span>
+      </figcaption>
+      <button class="replay" type="button" id="replay" hidden>Play again</button>
+    </figure>
+  </div>
+</section>
+
+<div class="track">
+  <nav class="rail" id="rail" aria-label="Menu"></nav>
+  <div class="sections">
+
+    <section class="sec" id="why" data-station="Problem">
+      <header class="sec-head">
+        <p class="eyebrow">Why it exists</p>
+        <h2>A chat piles up in one line. Work branches.</h2>
+        <p class="sec-lead">You talk, wander off on a side question, come back, decide, and the same file changes three times. Scrolling alone will not tell you where you decided something or what you left out.</p>
+      </header>
+      <div class="versus">
+        <div>
+          <h3>As a chat</h3>
+          <ul class="bubbles">
+            <li>I want a bot that alerts me on exchange rates</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>How is polling different from a webhook?</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>Polling it is, then</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>Compare with my target and send an alert</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>Just change the threshold to 1,380</li>
+            <li class="a" aria-hidden="true"></li>
+          </ul>
+          <p>One column, top to bottom. A decision looks the same as a detour.</p>
+        </div>
+        <div>
+          <h3>As a Gadak map</h3>
+          <svg id="why-map" viewBox="0 0 440 232" role="img" aria-label="The main line and the side trip split apart. You can see what was decided and where you are."></svg>
+          <p>The main line and the side trip split apart. You can see what was decided and where you are.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="features" data-station="Features">
+      <header class="sec-head">
+        <p class="eyebrow">What Gadak does</p>
+        <h2>It reads, sorts, and speaks up about what you missed.</h2>
+        <p class="sec-lead">Gadak stays beside the conversation. It never answers for the model. It draws the flow.</p>
+      </header>
+      <div class="feat" id="feat">
+        <div class="feat-list">
+          <div class="feat-item is-open" data-feat="route" style="--c: var(--r1)">
+            <h3><button type="button" aria-expanded="true" aria-controls="feat-route"><span class="dot"></span><span>Read a conversation as a map</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-route"><div>
+              <p>One question is one station. A decision is a large dot with a bold name, a side trip is a grey branch that drops below the line, and a red dot shows where you are. Click a station to jump to that moment.</p>
+              <div class="feat-fig-inline"><div class="shot"><img src="../assets/shots/feature-route.png" width="1322" height="776" style="--ratio: 1.7036" alt="The route card in the Gadak window: a made-up project drawn as a main line with a side trip, a decided station and the current station." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="todo" style="--c: var(--r2)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-todo"><span class="dot"></span><span>Hear about missed work first</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-todo"><div>
+              <p>A file that changed without being asked, a request that never got an answer, the context to carry into a new chat. Gadak rereads the record, lists only what it could verify, and keeps a trace of how it decided.</p>
+              <div class="feat-fig-inline"><div class="shot"><img src="../assets/shots/feature-todo.png" width="759" height="1067" style="--ratio: 0.7113" alt="The to-do list in the Gadak window, with items for an unrequested change, something left for you to do, and a missed request." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="map" style="--c: var(--r3)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-map"><span class="dot"></span><span>See a month on one sheet</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-map"><div>
+              <p>Every project is a line with its own colour, laid over the last 7, 15 or 30 days. Conversations that continue each other are joined as transfers, and clicking a line opens its strip map.</p>
+              <div class="feat-fig-inline"><div class="shot"><img src="../assets/shots/map.png" width="2640" height="1720" style="--ratio: 1.5349" alt="The Gadak system map: four projects drawn as blue, yellow, orange and green lines over a row of dates." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="float" style="--c: var(--r4)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-float"><span class="dot"></span><span>Float it over the app you are in</span><span class="tag">macOS</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-float"><div>
+              <p>On a Mac, a Gadak button rests at the edge of the screen. Click it and the map of your current conversation appears over whatever you are working in, with small buttons for to-dos, decisions and files. You choose which buttons it shows.</p>
+              <div class="feat-fig-inline"><div class="shot pad narrow"><img src="../assets/shots/float-fan.png" width="288" height="472" style="--ratio: 0.6102" alt="The Gadak button at the screen edge with six small buttons fanned around it." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="ahead" style="--c: var(--r5)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-ahead"><span class="dot"></span><span>Scout the road ahead</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-ahead"><div>
+              <p>Press Look ahead and Gadak reads what you are trying to do, searches your past records and the documents in your working folder, and offers up to three ways forward. They are questions to take to your LLM, not answers. A path with nothing found behind it is not offered.</p>
+              <div class="feat-fig-inline"><div class="drawn"><svg class="draw-ahead" viewBox="0 0 560 300" role="img" aria-label="Three dotted routes leaving the current station: carry on, another way, and something to prepare."></svg></div>
+</div>
+            </div></div>
+          </div>
+        </div>
+        <div class="feat-media" aria-hidden="true">
+          <figure data-feat="route" class="on"><div class="shot"><img src="../assets/shots/feature-route.png" width="1322" height="776" style="--ratio: 1.7036" alt="The route card in the Gadak window: a made-up project drawn as a main line with a side trip, a decided station and the current station." loading="lazy"></div>
+</figure>
+          <figure data-feat="todo"><div class="shot"><img src="../assets/shots/feature-todo.png" width="759" height="1067" style="--ratio: 0.7113" alt="The to-do list in the Gadak window, with items for an unrequested change, something left for you to do, and a missed request." loading="lazy"></div>
+</figure>
+          <figure data-feat="map"><div class="shot"><img src="../assets/shots/map.png" width="2640" height="1720" style="--ratio: 1.5349" alt="The Gadak system map: four projects drawn as blue, yellow, orange and green lines over a row of dates." loading="lazy"></div>
+</figure>
+          <figure data-feat="float"><div class="shot pad narrow"><img src="../assets/shots/float-fan.png" width="288" height="472" style="--ratio: 0.6102" alt="The Gadak button at the screen edge with six small buttons fanned around it." loading="lazy"></div>
+</figure>
+          <figure data-feat="ahead"><div class="drawn"><svg class="draw-ahead" viewBox="0 0 560 300" role="img" aria-label="Three dotted routes leaving the current station: carry on, another way, and something to prepare."></svg></div>
+</figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="trust" data-station="On your PC">
+      <header class="sec-head">
+        <p class="eyebrow">Private and in your hands</p>
+        <h2>Your chats stay on your computer. Sending stays with you.</h2>
+      </header>
+      <div class="cards">
+        <article class="card"><h3>Conversations are stored on your computer</h3><p>What Gadak reads lives only in the <code>.gadak</code> folder on this machine. Only while sorting does a slice of that turn (the start of the question, the ends of the answer, the names and line counts of changed files) go to the AI you connected. API keys are kept only in the macOS Keychain or Windows Credential Manager.</p></article>
+        <article class="card"><h3>Gadak does not answer</h3><p>There is no chat box in Gadak. It prepares what to say and hands it to you; you send it. Only the two kinds you switch on (undoing an unrequested change, and a summary to carry on) are sent by Gadak itself.</p></article>
+      </div>
+    </section>
+
+    <section class="sec" id="demo" data-station="Demo">
+      <header class="sec-head">
+        <p class="eyebrow">Try it now</p>
+        <h2>Click around before you install.</h2>
+        <p class="sec-lead">This is the real Gadak window running on a made-up conversation about an exchange-rate alert bot. Click a station, work through the to-dos, open the system map. The app itself is in Korean for now, so the demo is too.</p>
+      </header>
+      <div class="window window-live">
+        <div class="window-bar"><span>Gadak window demo</span><a href="../en/demo/index.html">Open full screen ↗</a></div>
+        <div class="window-body" id="demo-body"><iframe id="demo-frame" title="Gadak window demo" data-src="../app/index.html" width="1440" height="900" loading="lazy"></iframe></div>
+      </div>
+      <div class="demo-still">
+        <a class="shot" href="../en/demo/index.html"><img src="../assets/shots/window.png" width="2640" height="1720" style="--ratio: 1.5349" alt="The whole Gadak window: conversations on the left, the map and the chat in the middle, to-dos on the right." loading="lazy"></a>
+        <p class="fine" style="margin-top: 12px">The demo is laid out for a wide screen. Open it on a computer to click around.</p>
+      </div>
+      <p class="fine demo-note"><span>A prepared example. Not a real conversation.</span></p>
+    </section>
+
+    <section class="sec" id="start" data-station="Get started">
+      <header class="sec-head">
+        <p class="eyebrow">Three stops</p>
+        <h2>Leave it on and it reads by itself.</h2>
+      </header>
+      <ol class="stops">
+        <li><span class="n" aria-hidden="true">1</span><h3>Install</h3><p>On a Mac, drag Gadak from the disk image into Applications. On Windows, open the installer. No Python, no terminal.</p></li>
+        <li><span class="n" aria-hidden="true">2</span><h3>Connect an AI</h3><p>Pick one AI for the sorting: a Claude subscription, a ChatGPT subscription, or an LLM API key (Anthropic, OpenAI or Gemini).</p></li>
+        <li><span class="n" aria-hidden="true">3</span><h3>Leave it on</h3><p>Gadak finds the Claude Code and Codex conversations on this computer and sorts the one you are looking at first. Web chats on Claude and ChatGPT are read through a Chrome extension.</p></li>
+      </ol>
+    </section>
+
+    <section class="sec" id="cost" data-station="Tokens">
+      <header class="sec-head">
+        <p class="eyebrow">Tokens and cost</p>
+        <h2>Gadak added about 2⁠–⁠3% to what I already used.</h2>
+        <p class="sec-lead">Gadak sorts your conversations with the AI you connect. Sorting runs on a small, cheap model, and a large model is used only when you press Look ahead. These are the makers&#39; own measurements.</p>
+      </header>
+      <div class="share" role="img" aria-label="A bar: my own Claude usage as a long black line, and the 2–3% Gadak added as a short red line at its end.">
+        <div class="share-bar"><span class="mine"></span><span class="more"></span></div>
+        <div class="share-key"><span>What I spent on Claude</span><b>What Gadak added, 2–3%</b></div>
+      </div>
+      <div class="figs">
+        <div class="fig"><b>2–3%</b><span>Added by Gadak on top of my Claude usage</span><small>7–12 Oct · one maker&#39;s real records</small></div>
+        <div class="fig"><b>About 1¢</b><span>One automatic sorting pass</span><small>Classifying, checking, sectioning and summarising together</small></div>
+        <div class="fig"><b>6–17¢</b><span>One Look ahead</span><small>Runs only when you press it</small></div>
+      </div>
+      <h3 class="tbl-cap" id="cost-table">What it took to sort one conversation · measured on a real 55-turn chat</h3>
+      <div class="tbl-wrap">
+        <table class="tbl" aria-labelledby="cost-table">
+          <thead>
+            <tr><td></td><th scope="col">Small model (Haiku)<small>What Gadak uses for sorting · range over four runs</small></th><th scope="col">Large model (Sonnet)<small>One run, for comparison</small></th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Input tokens</th><td>68,000 – 95,000</td><td>68,000</td></tr>
+            <tr><th scope="row">Output tokens</th><td>13,000 – 18,000</td><td>18,000</td></tr>
+            <tr><th scope="row">Calls to the AI</th><td>12 – 14</td><td>9</td></tr>
+            <tr><th scope="row">Time taken</th><td>2 – 5 min</td><td>4 min</td></tr>
+            <tr><th scope="row">At API prices</th><td>$0.19 – 0.24 · 0.3–0.5¢ per turn</td><td>$0.34</td></tr>
+            <tr><th scope="row">Result</th><td>Finds six or seven side trips out of ten</td><td>No better. It finds every side trip but calls twice as many turns a side trip</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="notes">
+        <li><b>With a subscription</b> nothing extra is charged; Gadak shares that plan's limit. <b>With an API key</b> the usage is billed to that key.</li>
+        <li><b>Look ahead</b> uses about 0.7% of a Claude Pro five-hour limit per spot. Left to run by itself it would take about 4% for one 58-turn conversation, so automatic scouting is off by default.</li>
+        <li><b>Importing past chats in bulk</b> costs in proportion. Sorting 90 days of chats (35 conversations, 408 turns) came to $2.41 at API prices and took about 40 minutes. On a subscription it stopped at 97% of the five-hour limit.</li>
+        <li>Every call Gadak makes is logged with its token count on your own computer. Nothing is sent to a server.</li>
+      </ul>
+      <p class="fine" style="margin-top: 18px; max-width: 50em">Costs are converted at Anthropic API prices. They come from one conversation and one person&#39;s records, so they vary with the length of your chats and the model you choose. <a class="more" href="https://github.com/Hanhws/AI-agent/tree/main/eval/results">See the measurement records (GitHub)</a></p>
+    </section>
+
+    <section class="sec" id="get" data-station="Download">
+      <div class="get">
+        <figure class="shot get-shot"><img src="../assets/shots/window.png" width="2640" height="1720" style="--ratio: 1.5349" alt="The whole Gadak window: conversations on the left, the map and the chat in the middle, to-dos on the right." loading="lazy"></figure>
+        <div class="get-text">
+          <p class="eyebrow">Get Gadak</p>
+          <h2>The Gadak for your computer</h2>
+          <p>It is free. The first launch needs one confirmation, and the download page shows how.</p>
+          <div class="cta"><a class="btn btn-primary btn-lg" href="../en/download/index.html" data-get><svg class="dl" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.5v9M4 7l4 4 4-4M2 14.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg><span data-get-label>Download</span></a></div>
+          <p class="fine" data-get-note data-detected="This is the file for this computer." data-mobile="Gadak runs on a computer (macOS or Windows). Open this page there to download it." hidden></p>
+          <p><a class="more" href="../en/download/index.html">Other computers · first launch →</a></p>
+          <p class="fine">v0.1.0 · 12 Oct 2026</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="faq" data-station="FAQ">
+      <header class="sec-head">
+        <p class="eyebrow">Questions</p>
+        <h2>Before you download</h2>
+      </header>
+      <div class="qa-list">
+        <details class="qa" open>
+          <summary><h3>Is it free?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Yes. Gadak is a free app made as a class project, and the code is public on GitHub. For the sorting it uses the subscription or API key you already have, so what Gadak uses counts against that plan's limit or that key's bill.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>Which conversations does it read?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Claude Code and Codex conversations are read automatically while Gadak is on. Web chats on Claude and ChatGPT are read once you add the Chrome extension, and past conversations can be brought in at once from an export file. Cursor connects with one click on a Mac. ChatGPT on the web, Cursor and export files have not been verified end to end in real use yet. Chats in the desktop and mobile apps cannot be read directly.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>Where do my conversations go?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>The full text is stored only on your computer. While sorting, the start of that turn's question, the ends of the answer, and the names and line counts of changed files go to the company behind the AI you connected. A turn being checked for missed work sends a little more. The app you download here sends no usage records to the Gadak team.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>Which AI do I need?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>One of these: a Claude subscription (Pro or Max), a ChatGPT subscription (Plus or Pro), or an LLM API key (Anthropic, OpenAI or Gemini). Choose it under AI 연결 (Connect AI) in the Gadak window. Without one, Gadak only reads and shows your conversations.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>I get a warning on first launch</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Gadak is a class project and has no paid signature from Apple or Microsoft, so the first launch needs one confirmation. On a Mac: System Settings → Privacy & Security → Open Anyway. On Windows: More info → Run anyway. You can check the file against the SHA-256 values on the download page.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>What is different on Windows?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>The Windows version is a first release. The makers have no Windows PC, so it was checked only under Wine on a Mac and has not been run on a real PC yet. The floating button, the one-click setup that fetches Claude Code or Codex for you, the Cursor connection with auto-send, and the Claude usage gauge are not there yet.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>How far can I trust the sorting?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>An AI does the sorting, so it can be wrong. In the conversation we measured it found six or seven side trips out of ten, and the Decided mark still wavers between runs. That is why a to-do appears only when Gadak has checked the evidence itself, and why it keeps a record of what it looked at.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>How do I remove it?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>On a Mac, move Gadak from Applications to the Trash. On Windows, uninstall it under Settings → Apps. To delete the conversations it read as well, remove the <code>.gadak</code> folder in your home folder.</p>
+        </details>
+      </div>
+    </section>
+
+  </div>
+</div>
+</main>
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <a class="brand" href="../en/index.html" aria-label="Gadak home"><svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+<span class="word">가닥 GADAK</span></a>
+      <p class="foot-tag">Keep the thread of every long chat.</p>
+      <p>Made as a team project for the AI applications course of the SNU Big Data &amp; FinTech programme (KDT), cohort 13.</p>
+      <p>Every screenshot and the demo on this site use a made-up conversation. Gadak is a student project and is not affiliated with Anthropic, OpenAI or Google.</p>
+      <p>The line grammar is learned from Massimo Vignelli&#39;s 1972 New York subway map.</p>
+    </div>
+    <nav aria-label="Links">
+      <h2>Links</h2>
+      <ul>
+        <li><a href="../en/download/index.html">Download</a></li>
+        <li><a href="../en/demo/index.html">Live demo</a></li>
+        <li><a href="../gadak-install-guide.pdf">Install guide (PDF, Korean)</a></li>
+        <li><a href="https://github.com/Hanhws/AI-agent">GitHub repository</a></li>
+        <li><a href="https://github.com/Hanhws/AI-agent/blob/main/docs/usage-guide.md">Full usage guide (Korean)</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+<script>window.GADAK = { lang: "en", root: "../", download: "../en/download/index.html", os: {"mac": "macOS", "mac_arm": "Apple Silicon Mac", "mac_intel": "Intel Mac", "win": "Windows", "win_setup": "Windows installer", "win_zip": "Windows zip (no install)"}, getFor: "Download for {os}", detected: "This computer" };</script>
+<script src="../assets/site.js"></script>
+<script type="application/json" id="map-data">{"files": ["plan.md", "main.py", "report.pdf"], "kept": ["a question that wandered off", "what you decided yesterday", "a file that changed quietly", "a request that got no answer"], "lines": ["Gadak", "TOEIC", "Data project", "Grad show"], "now": "Now", "stops": ["Alert channel", "Skeleton", "Compare to target", "Change threshold", "Once a day", "Listening notes", "Mock test", "Collect data", "Modelling", "Poster concept", "Leaflet"], "ways": ["Carry on", "Another way", "Prepare first"], "why": ["Alert bot", "Polling vs webhook", "Chose polling", "Compare to target", "Now \u00b7 threshold"]}</script>
+<script src="../assets/routes.js"></script>
+</body>
+</html>

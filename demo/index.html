@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가닥 — 바로 써 보는 데모</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="LLM과의 긴 작업에서 묻히는 질문 · 결정 · 산출물을 노선도로 정리하고, 놓친 일을 먼저 알려 주는 에이전트예요. Mac과 Windows에서 무료로 받아 써요.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="가닥 — 바로 써 보는 데모">
+<meta property="og:description" content="LLM과의 긴 작업에서 묻히는 질문 · 결정 · 산출물을 노선도로 정리하고, 놓친 일을 먼저 알려 주는 에이전트예요. Mac과 Windows에서 무료로 받아 써요.">
+<link rel="icon" href="../assets/gadak.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="en" href="../en/demo/index.html">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="../assets/site.css">
+<script>try { var th = localStorage.getItem('gadak.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}</script>
+</head>
+<body class="page-demo">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<header class="band">
+  <div class="band-in">
+    <a class="brand" href="../index.html" aria-label="가닥 첫 화면"><svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+<span class="word">가닥 GADAK</span></a>
+<div class="demo-tabs" role="tablist" aria-label="바로 써 보는 데모">
+  <button type="button" role="tab" aria-selected="true" aria-controls="pane-app">가닥 창</button>
+  <button type="button" role="tab" aria-selected="false" aria-controls="pane-map">전체 지도</button>
+</div>
+    <div class="band-tools">
+      <a class="lang" href="../en/demo/index.html" lang="en" hreflang="en" aria-label="영어로 보기">English</a>
+      <button class="gswitch" type="button" role="switch" id="theme" aria-checked="false" aria-label="낮 · 밤 화면"><span class="sd off">낮</span><i class="trk"></i><span class="sd on">밤</span></button>
+<a class="btn btn-band" href="../download/index.html">받기</a>    </div>
+  </div>
+</header>
+<main id="main">
+<div class="demo-full">
+  <iframe id="pane-app" title="가닥 창 데모" src="../app/index.html"></iframe>
+  <iframe id="pane-map" title="전체 지도 데모" data-src="../app/map.html" hidden></iframe>
+</div>
+</main>
+<script>window.GADAK = { lang: "ko", root: "../", download: "../download/index.html", os: {"mac": "macOS", "mac_arm": "Apple Silicon Mac", "mac_intel": "Intel Mac", "win": "Windows", "win_setup": "Windows \uc124\uce58 \ud504\ub85c\uadf8\ub7a8", "win_zip": "Windows zip (\uc124\uce58 \uc5c6\uc774)"}, getFor: "{os}\uc6a9 \ubc1b\uae30", detected: "\uc774 \ucef4\ud4e8\ud130" };</script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가닥 — 긴 LLM 대화를 노선도로</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="LLM과의 긴 작업에서 묻히는 질문 · 결정 · 산출물을 노선도로 정리하고, 놓친 일을 먼저 알려 주는 에이전트예요. Mac과 Windows에서 무료로 받아 써요.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="가닥 — 긴 LLM 대화를 노선도로">
+<meta property="og:description" content="LLM과의 긴 작업에서 묻히는 질문 · 결정 · 산출물을 노선도로 정리하고, 놓친 일을 먼저 알려 주는 에이전트예요. Mac과 Windows에서 무료로 받아 써요.">
+<link rel="icon" href="assets/gadak.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="en" href="en/index.html">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="assets/site.css">
+<script>try { var th = localStorage.getItem('gadak.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}</script>
+</head>
+<body class="page-index">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<header class="band">
+  <div class="band-in">
+    <a class="brand" href="index.html" aria-label="가닥 첫 화면"><svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+<span class="word">가닥 GADAK</span></a>
+    <nav class="nav" aria-label="메뉴">
+      <a href="index.html#features">기능</a>
+      <a href="index.html#demo">데모</a>
+      <a href="index.html#start">시작하기</a>
+      <a href="index.html#faq">자주 묻는 것</a>
+    </nav>
+    <div class="band-tools">
+      <a class="lang" href="en/index.html" lang="en" hreflang="en" aria-label="영어로 보기">English</a>
+      <button class="gswitch" type="button" role="switch" id="theme" aria-checked="false" aria-label="낮 · 밤 화면"><span class="sd off">낮</span><i class="trk"></i><span class="sd on">밤</span></button>
+<a class="btn btn-band" href="download/index.html">받기</a>    </div>
+  </div>
+</header>
+<main id="main">
+<section class="hero" id="top">
+  <div class="hero-in">
+    <div class="hero-text">
+      <p class="eyebrow">긴 LLM 대화를 위한 에이전트</p>
+      <h1>긴 대화도<br>가닥을 잡아 드려요.</h1>
+      <p class="lead">LLM과 오래 일하다 보면 질문 · 결정 · 산출물이 스크롤 속에 묻혀요. 가닥은 그 대화를 지하철 노선도로 정리하고, 놓친 일을 먼저 알려 줘요.</p>
+      <p class="kept"><span class="kept-k">지금 잡아 둔 것</span><span class="kept-v" id="kept">곁길로 샌 질문</span></p>
+      <div class="cta">
+        <a class="btn btn-primary btn-lg" href="download/index.html" data-get><svg class="dl" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.5v9M4 7l4 4 4-4M2 14.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg><span data-get-label>받기</span></a>
+        <a class="btn btn-lg" href="#demo">설치 없이 써 보기</a>
+      </div>
+      <p class="fine">무료 · macOS와 Windows · v0.1.0</p>
+    </div>
+    <figure class="hero-map">
+      <svg id="hero-map" viewBox="0 0 760 536" role="img" aria-label="노선이 스스로 그어지는 가닥 노선도. 프로젝트마다 색이 다른 노선에 질문이 역으로 놓이고, 곁길은 회색으로 갈라지고, 지금 있는 곳은 빨간 점이에요."></svg>
+      <figcaption class="legend" id="legend" aria-hidden="true">
+        <span data-k="station"><i><svg viewBox="0 0 18 14"><path class="rt-line" d="M1 7H17" stroke="var(--track)" stroke-width="6"/><circle class="rt-dot-in" cx="9" cy="7" r="2"/></svg></i>질문</span>
+        <span data-k="decided"><i><svg viewBox="0 0 18 14"><path class="rt-line" d="M1 7H17" stroke="var(--track)" stroke-width="6"/><circle class="rt-big" cx="9" cy="7" r="5" stroke-width="2"/></svg></i>정함</span>
+        <span data-k="spur"><i><svg viewBox="0 0 18 14"><path class="rt-spur" d="M1 3L7 10H17" stroke-width="5"/></svg></i>곁길</span>
+        <span data-k="file"><i><svg viewBox="0 0 18 14"><circle class="rt-file" cx="9" cy="7" r="3.2"/></svg></i>산출물</span>
+        <span data-k="todo"><i><svg viewBox="0 0 18 14"><circle class="rt-ring" cx="9" cy="7" r="4.4" stroke-width="2.4"/></svg></i>할 일</span>
+        <span data-k="now"><i><svg viewBox="0 0 18 14"><circle class="rt-halo" cx="9" cy="7" r="7"/><circle class="rt-now" cx="9" cy="7" r="4.5"/></svg></i>지금</span>
+      </figcaption>
+      <button class="replay" type="button" id="replay" hidden>처음부터 다시</button>
+    </figure>
+  </div>
+</section>
+
+<div class="track">
+  <nav class="rail" id="rail" aria-label="메뉴"></nav>
+  <div class="sections">
+
+    <section class="sec" id="why" data-station="문제">
+      <header class="sec-head">
+        <p class="eyebrow">왜 필요한가요</p>
+        <h2>채팅은 한 줄로 쌓이는데, 일은 가지를 치며 진행돼요.</h2>
+        <p class="sec-lead">한참 이야기하다 곁길로 새고, 돌아와서 정하고, 같은 파일이 몇 번씩 바뀌어요. 스크롤만으로는 어디서 무엇을 정했는지, 무엇을 빠뜨렸는지 다시 찾기 어려워요.</p>
+      </header>
+      <div class="versus">
+        <div>
+          <h3>채팅으로 보면</h3>
+          <ul class="bubbles">
+            <li>환율 알림 봇을 만들고 싶어</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>폴링이랑 웹훅은 뭐가 달라?</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>그럼 폴링으로 하자</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>목표가랑 비교해서 알림 보내 줘</li>
+            <li class="a" aria-hidden="true"></li>
+            <li>임계값만 1,380원으로 바꿔 줘</li>
+            <li class="a" aria-hidden="true"></li>
+          </ul>
+          <p>위에서 아래로 한 줄. 정한 순간도 곁길도 같은 모양이에요.</p>
+        </div>
+        <div>
+          <h3>가닥으로 보면</h3>
+          <svg id="why-map" viewBox="0 0 440 232" role="img" aria-label="본선과 곁길이 갈라지고, 정한 곳과 지금 있는 곳이 보여요."></svg>
+          <p>본선과 곁길이 갈라지고, 정한 곳과 지금 있는 곳이 보여요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="features" data-station="기능">
+      <header class="sec-head">
+        <p class="eyebrow">가닥이 하는 일</p>
+        <h2>읽고, 정리하고, 놓친 일을 먼저 알려 줘요.</h2>
+        <p class="sec-lead">가닥은 대화 옆에 붙어 있어요. 대답은 하지 않고, 흐름을 그려요.</p>
+      </header>
+      <div class="feat" id="feat">
+        <div class="feat-list">
+          <div class="feat-item is-open" data-feat="route" style="--c: var(--r1)">
+            <h3><button type="button" aria-expanded="true" aria-controls="feat-route"><span class="dot"></span><span>대화를 노선도로 읽어요</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-route"><div>
+              <p>질문 하나가 역 하나예요. 정한 순간은 큰 점과 굵은 이름으로, 곁길로 샌 이야기는 아래로 갈라지는 회색 선으로, 지금 있는 곳은 빨간 점으로 보여요. 역을 누르면 그때의 대화로 가요.</p>
+              <div class="feat-fig-inline"><div class="shot"><img src="assets/shots/feature-route.png" width="1322" height="776" style="--ratio: 1.7036" alt="가닥 창의 노선도 카드. ‘환율 알리미’ 프로젝트의 대화가 본선과 곁길, 정한 역, 지금 역으로 그려져 있어요." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="todo" style="--c: var(--r2)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-todo"><span class="dot"></span><span>놓친 일을 먼저 알려 줘요</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-todo"><div>
+              <p>요청하지 않았는데 바뀐 파일, 답이 오지 않은 요청, 새 대화로 옮길 때 챙길 맥락을 찾아요. 가닥이 기록을 다시 읽어 근거를 직접 본 것만 할 일로 올리고, 어떻게 판단했는지 기록을 남겨요.</p>
+              <div class="feat-fig-inline"><div class="shot"><img src="assets/shots/feature-todo.png" width="759" height="1067" style="--ratio: 0.7113" alt="가닥 창의 할 일 목록. 요청 외 변경, 내가 할 일, 빠진 요청이 한 줄씩 있고 ‘바뀐 곳 보기’ 같은 버튼이 붙어 있어요." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="map" style="--c: var(--r3)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-map"><span class="dot"></span><span>한 달을 한 장의 지도로 봐요</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-map"><div>
+              <p>프로젝트마다 색이 다른 노선으로, 최근 7 · 15 · 30일의 대화가 한 장에 놓여요. 이어서 한 대화는 환승으로 이어지고, 노선을 누르면 그 대화의 한 줄 노선도로 들어가요.</p>
+              <div class="feat-fig-inline"><div class="shot"><img src="assets/shots/map.png" width="2640" height="1720" style="--ratio: 1.5349" alt="가닥의 전체 지도. 네 프로젝트가 파랑 · 노랑 · 주황 · 초록 노선으로 날짜 위에 그려져 있어요." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="float" style="--c: var(--r4)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-float"><span class="dot"></span><span>일하던 창 위에 바로 띄워요</span><span class="tag">macOS</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-float"><div>
+              <p>Mac에서는 화면 가장자리에 가닥 버튼이 떠 있어요. 누르면 지금 대화의 노선도가 일하던 앱 위에 뜨고, 둘레 버튼으로 할 일 · 정한 것 · 산출물을 바로 열어요. 버튼은 내가 고쳐 둘 수 있어요.</p>
+              <div class="feat-fig-inline"><div class="shot pad narrow"><img src="assets/shots/float-fan.png" width="288" height="472" style="--ratio: 0.6102" alt="화면 가장자리의 가닥 버튼과 그 둘레에 펼쳐진 여섯 개의 작은 버튼." loading="lazy"></div>
+</div>
+            </div></div>
+          </div>
+          <div class="feat-item" data-feat="ahead" style="--c: var(--r5)">
+            <h3><button type="button" aria-expanded="false" aria-controls="feat-ahead"><span class="dot"></span><span>앞길을 미리 살펴요</span><span class="pm" aria-hidden="true"></span></button></h3>
+            <div class="feat-body" id="feat-ahead"><div>
+              <p>‘앞길 보기’를 누르면 하려는 일을 읽고, 지난 기록과 작업 폴더의 문서에서 갈 수 있는 길을 찾아 셋까지 내밀어요. 답이 아니라 LLM에게 가져갈 물음이에요. 찾아본 것이 없는 길은 내지 않아요.</p>
+              <div class="feat-fig-inline"><div class="drawn"><svg class="draw-ahead" viewBox="0 0 560 300" role="img" aria-label="지금 역에서 세 갈래로 갈라지는 점선 노선: 이어 가기, 다른 길, 미리 챙길 것."></svg></div>
+</div>
+            </div></div>
+          </div>
+        </div>
+        <div class="feat-media" aria-hidden="true">
+          <figure data-feat="route" class="on"><div class="shot"><img src="assets/shots/feature-route.png" width="1322" height="776" style="--ratio: 1.7036" alt="가닥 창의 노선도 카드. ‘환율 알리미’ 프로젝트의 대화가 본선과 곁길, 정한 역, 지금 역으로 그려져 있어요." loading="lazy"></div>
+</figure>
+          <figure data-feat="todo"><div class="shot"><img src="assets/shots/feature-todo.png" width="759" height="1067" style="--ratio: 0.7113" alt="가닥 창의 할 일 목록. 요청 외 변경, 내가 할 일, 빠진 요청이 한 줄씩 있고 ‘바뀐 곳 보기’ 같은 버튼이 붙어 있어요." loading="lazy"></div>
+</figure>
+          <figure data-feat="map"><div class="shot"><img src="assets/shots/map.png" width="2640" height="1720" style="--ratio: 1.5349" alt="가닥의 전체 지도. 네 프로젝트가 파랑 · 노랑 · 주황 · 초록 노선으로 날짜 위에 그려져 있어요." loading="lazy"></div>
+</figure>
+          <figure data-feat="float"><div class="shot pad narrow"><img src="assets/shots/float-fan.png" width="288" height="472" style="--ratio: 0.6102" alt="화면 가장자리의 가닥 버튼과 그 둘레에 펼쳐진 여섯 개의 작은 버튼." loading="lazy"></div>
+</figure>
+          <figure data-feat="ahead"><div class="drawn"><svg class="draw-ahead" viewBox="0 0 560 300" role="img" aria-label="지금 역에서 세 갈래로 갈라지는 점선 노선: 이어 가기, 다른 길, 미리 챙길 것."></svg></div>
+</figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="trust" data-station="내 PC에서">
+      <header class="sec-head">
+        <p class="eyebrow">안전과 통제</p>
+        <h2>대화는 내 PC에, 보내는 일은 내 손에.</h2>
+      </header>
+      <div class="cards">
+        <article class="card"><h3>대화는 내 PC에 저장돼요</h3><p>읽은 대화는 이 컴퓨터의 <code>.gadak</code> 폴더에만 있어요. 정리할 때만 그 턴의 일부(질문 앞부분, 답의 앞뒤, 바뀐 파일의 이름과 줄 수)가 내가 연결한 AI로 가요. API 키는 macOS 키체인이나 Windows 자격 증명 관리자에만 둬요.</p></article>
+        <article class="card"><h3>가닥은 대답하지 않아요</h3><p>가닥 화면에는 채팅 입력창이 없어요. 할 말을 만들어 건네기까지만 하고, 보내는 것은 내가 해요. 내가 켠 두 종류(요청 외 변경 되돌리기 · 이어 가기 요약)만 가닥이 직접 보내요.</p></article>
+      </div>
+    </section>
+
+    <section class="sec" id="demo" data-station="데모">
+      <header class="sec-head">
+        <p class="eyebrow">바로 써 보기</p>
+        <h2>설치 전에 눌러 보세요.</h2>
+        <p class="sec-lead">만든 예시 대화 ‘환율 알리미’로 실제 가닥 화면을 그대로 띄웠어요. 역을 누르고, 할 일을 넘기고, 전체 지도를 열어 보세요.</p>
+      </header>
+      <div class="window window-live">
+        <div class="window-bar"><span>가닥 창 데모</span><a href="demo/index.html">큰 화면으로 열기 ↗</a></div>
+        <div class="window-body" id="demo-body"><iframe id="demo-frame" title="가닥 창 데모" data-src="app/index.html" width="1440" height="900" loading="lazy"></iframe></div>
+      </div>
+      <div class="demo-still">
+        <a class="shot" href="demo/index.html"><img src="assets/shots/window.png" width="2640" height="1720" style="--ratio: 1.5349" alt="가닥 창 전체 화면. 왼쪽에 대화 목록, 가운데에 노선도와 대화, 오른쪽에 할 일이 있어요." loading="lazy"></a>
+        <p class="fine" style="margin-top: 12px">데모는 넓은 화면에 맞춰져 있어요. 컴퓨터에서 열면 직접 눌러 볼 수 있어요.</p>
+      </div>
+      <p class="fine demo-note"><span>미리 정리해 둔 예시예요. 실제 대화가 아니에요.</span></p>
+    </section>
+
+    <section class="sec" id="start" data-station="시작하기">
+      <header class="sec-head">
+        <p class="eyebrow">세 정거장이면 돼요</p>
+        <h2>켜 두면 알아서 읽어요.</h2>
+      </header>
+      <ol class="stops">
+        <li><span class="n" aria-hidden="true">1</span><h3>받아서 깔기</h3><p>Mac은 디스크 이미지에서 응용 프로그램 폴더로 끌어 넣고, Windows는 설치 파일을 열어요. 파이썬도 터미널도 필요 없어요.</p></li>
+        <li><span class="n" aria-hidden="true">2</span><h3>AI 연결</h3><p>정리에 쓸 AI를 하나 골라요. Claude 구독, ChatGPT 구독, LLM API 키(Anthropic · OpenAI · Gemini) 가운데 하나면 돼요.</p></li>
+        <li><span class="n" aria-hidden="true">3</span><h3>켜 두기</h3><p>가닥이 이 컴퓨터의 Claude Code · Codex 대화를 찾아 읽고, 보는 대화부터 정리해요. 웹의 Claude · ChatGPT는 크롬 확장으로 읽어요.</p></li>
+      </ol>
+    </section>
+
+    <section class="sec" id="cost" data-station="토큰">
+      <header class="sec-head">
+        <p class="eyebrow">토큰과 비용</p>
+        <h2>가닥이 더 쓴 만큼은 내 사용량의 2~3%쯤이었어요.</h2>
+        <p class="sec-lead">가닥은 내가 연결한 AI로 대화를 정리해요. 정리는 작은 모델로 싸게 돌리고, 큰 모델은 내가 ‘앞길 보기’를 누를 때만 써요. 아래는 만든 사람들이 직접 잰 값이에요.</p>
+      </header>
+      <div class="share" role="img" aria-label="내 Claude 사용량을 긴 검은 선으로, 가닥이 더 쓴 2~3%를 그 끝의 짧은 빨간 선으로 그린 막대">
+        <div class="share-bar"><span class="mine"></span><span class="more"></span></div>
+        <div class="share-key"><span>내가 Claude에 쓴 것</span><b>가닥이 더 쓴 것 2~3%</b></div>
+      </div>
+      <div class="figs">
+        <div class="fig"><b>2~3%</b><span>내 Claude 사용 대비 가닥이 더 쓴 비용</span><small>10/7~10/12 · 만든 사람의 실제 기록</small></div>
+        <div class="fig"><b>약 1센트</b><span>자동 정리 한 번</span><small>분류 · 확인 · 구간 · 요약을 합친 값</small></div>
+        <div class="fig"><b>6~17센트</b><span>앞길 보기 한 번</span><small>누를 때만 돌아요</small></div>
+      </div>
+      <h3 class="tbl-cap" id="cost-table">대화 하나를 정리하는 데 든 것 · 실제 대화 55턴으로 잰 값</h3>
+      <div class="tbl-wrap">
+        <table class="tbl" aria-labelledby="cost-table">
+          <thead>
+            <tr><td></td><th scope="col">작은 모델 (Haiku)<small>가닥이 정리에 쓰는 것 · 네 번 돌린 범위</small></th><th scope="col">큰 모델 (Sonnet)<small>견줘 보려고 한 번 돌린 것</small></th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">입력 토큰</th><td>6만 8천 ~ 9만 5천</td><td>6만 8천</td></tr>
+            <tr><th scope="row">출력 토큰</th><td>1만 3천 ~ 1만 8천</td><td>1만 8천</td></tr>
+            <tr><th scope="row">AI를 부른 횟수</th><td>12 ~ 14번</td><td>9번</td></tr>
+            <tr><th scope="row">걸린 시간</th><td>2 ~ 5분</td><td>4분</td></tr>
+            <tr><th scope="row">API 요금으로 치면</th><td>$0.19 ~ 0.24 · 턴 하나에 0.3~0.5센트</td><td>$0.34</td></tr>
+            <tr><th scope="row">결과</th><td>곁길 열 개 중 예닐곱을 찾아요</td><td>더 낫지 않았어요. 곁길을 다 찾지만 두 배로 많이 곁길이라고 해요</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="notes">
+        <li><b>구독을 연결하면</b> 따로 돈이 나가지 않고 그 구독의 한도를 같이 써요. <b>API 키를 연결하면</b> 그 키로 요금이 나가요.</li>
+        <li><b>앞길 보기</b>는 한 곳에 Claude Pro 5시간 한도의 0.7%쯤을 써요. 저절로 살피게 두면 58턴 대화 하나에 4%쯤이라, 저절로 살피기는 기본이 꺼져 있어요.</li>
+        <li><b>지난 대화를 한꺼번에 넣으면</b> 그만큼 들어요. 90일치 대화 35개(408턴)를 모두 정리하니 API 요금으로 2.41달러였고 40분쯤 걸렸어요. 구독으로 돌렸을 때는 5시간 한도의 97%에서 멈췄어요.</li>
+        <li>가닥이 쓴 토큰은 부를 때마다 내 PC에 적혀요. 서버로 보내지 않아요.</li>
+      </ul>
+      <p class="fine" style="margin-top: 18px; max-width: 50em">값은 Anthropic API 요금으로 환산한 것이에요. 대화 하나와 한 사람의 기록으로 잰 값이라, 대화의 길이와 고른 모델에 따라 달라져요. <a class="more" href="https://github.com/Hanhws/AI-agent/tree/main/eval/results">잰 기록 보기 (GitHub)</a></p>
+    </section>
+
+    <section class="sec" id="get" data-station="받기">
+      <div class="get">
+        <figure class="shot get-shot"><img src="assets/shots/window.png" width="2640" height="1720" style="--ratio: 1.5349" alt="가닥 창 전체 화면. 왼쪽에 대화 목록, 가운데에 노선도와 대화, 오른쪽에 할 일이 있어요." loading="lazy"></figure>
+        <div class="get-text">
+          <p class="eyebrow">가닥 받기</p>
+          <h2>내 컴퓨터에 맞는 가닥</h2>
+          <p>무료예요. 처음 열 때 한 번 확인이 필요해요. 여는 법은 받기 페이지에 그림과 함께 있어요.</p>
+          <div class="cta"><a class="btn btn-primary btn-lg" href="download/index.html" data-get><svg class="dl" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 1.5v9M4 7l4 4 4-4M2 14.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg><span data-get-label>받기</span></a></div>
+          <p class="fine" data-get-note data-detected="이 컴퓨터에 맞는 파일이에요." data-mobile="가닥은 컴퓨터(macOS · Windows)에서 써요. 컴퓨터에서 이 페이지를 열어 받아 주세요." hidden></p>
+          <p><a class="more" href="download/index.html">다른 컴퓨터용 · 여는 법 보기 →</a></p>
+          <p class="fine">v0.1.0 · 2026.10.12</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="faq" data-station="묻는 것">
+      <header class="sec-head">
+        <p class="eyebrow">자주 묻는 것</p>
+        <h2>받기 전에 궁금한 것</h2>
+      </header>
+      <div class="qa-list">
+        <details class="qa" open>
+          <summary><h3>무료인가요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>네. 가닥은 수업 과제로 만든 무료 앱이고 코드는 GitHub에 공개돼 있어요. 정리에 쓰는 AI는 내가 이미 쓰는 구독이나 API 키를 연결해요. 가닥이 정리에 쓴 만큼은 그 구독의 한도나 키의 요금에 들어가요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>어떤 대화를 읽나요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Claude Code와 Codex의 대화는 켜 두면 알아서 읽어요. 크롬에서 연 Claude · ChatGPT 웹 대화는 크롬 확장을 넣으면 읽고, 지난 대화는 내보내기 파일로 한꺼번에 넣을 수 있어요. Cursor는 Mac에서 한 번 연결해요. ChatGPT 웹, Cursor, 내보내기 파일은 아직 실제 환경에서 끝까지 확인하지 못했어요. 데스크톱 앱과 모바일 앱의 채팅은 직접 읽지 못해요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>내 대화가 어디로 가나요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>대화 원문은 내 PC에만 저장돼요. 정리할 때 그 턴의 질문 앞부분과 답의 앞뒤 일부, 바뀐 파일의 이름과 줄 수가 내가 연결한 AI의 회사로 가요. 놓친 일을 확인하는 턴에서는 조금 더 읽어 보내요. 여기서 받는 앱은 사용 기록을 가닥 팀에 보내지 않아요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>어떤 AI가 있어야 하나요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Claude 구독(Pro · Max), ChatGPT 구독(Plus · Pro), LLM API 키(Anthropic · OpenAI · Gemini) 가운데 하나예요. 가닥 창의 ‘AI 연결’에서 골라요. 연결하지 않으면 대화를 읽어 보여 주기만 해요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>처음 열 때 경고가 떠요</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>가닥은 과제로 만든 앱이라 Apple과 Microsoft의 유료 서명이 없어요. 그래서 처음 한 번 확인이 필요해요. Mac은 시스템 설정 → 개인정보 보호 및 보안 → ‘그래도 열기’, Windows는 ‘추가 정보’ → ‘실행’이에요. 받은 파일이 맞는지는 받기 페이지의 확인 값(SHA-256)으로 볼 수 있어요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>Windows에서는 무엇이 다른가요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Windows 판은 처음 나온 판이에요. 만든 사람들에게 Windows PC가 없어서 Mac에서 Wine으로만 확인했고, 진짜 PC에서는 아직 켜 보지 못했어요. 떠 있는 가닥 버튼, Claude Code · Codex를 대신 받아 주는 ‘연결하기’, Cursor 연결과 자동 실행, Claude 사용 한도 게이지는 아직 없어요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>가닥의 정리를 얼마나 믿어도 되나요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>정리는 AI가 하는 일이라 틀릴 수 있어요. 재 본 대화에서 곁길은 열에 예닐곱을 찾았고, ‘정함’ 표시는 아직 흔들려요. 그래서 할 일은 가닥이 근거를 직접 확인한 것만 올리고, 무엇을 보고 그렇게 판단했는지 기록을 남겨요.</p>
+        </details>
+        <details class="qa">
+          <summary><h3>지우려면 어떻게 하나요?</h3><span class="pm" aria-hidden="true"></span></summary>
+          <p>Mac은 응용 프로그램 폴더의 가닥을 휴지통에 넣고, Windows는 설정 → 앱에서 가닥을 제거해요. 읽어 둔 대화까지 지우려면 홈 폴더의 <code>.gadak</code> 폴더도 지워요.</p>
+        </details>
+      </div>
+    </section>
+
+  </div>
+</div>
+</main>
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <a class="brand" href="index.html" aria-label="가닥 첫 화면"><svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+<span class="word">가닥 GADAK</span></a>
+      <p class="foot-tag">긴 대화도 가닥을 잡아 드려요.</p>
+      <p>SNU 빅데이터 핀테크 과정(KDT) 13기, AI 응용사례 수업의 팀 과제로 만들었어요.</p>
+      <p>이 사이트의 화면 그림과 데모는 모두 만든 예시 대화예요. 가닥은 Anthropic · OpenAI · Google과 관계없는 학생 프로젝트예요.</p>
+      <p>노선 표기는 마시모 비녤리의 1972년 뉴욕 지하철 지도에서 배웠어요.</p>
+    </div>
+    <nav aria-label="바로 가기">
+      <h2>바로 가기</h2>
+      <ul>
+        <li><a href="download/index.html">받기</a></li>
+        <li><a href="demo/index.html">바로 써 보는 데모</a></li>
+        <li><a href="gadak-install-guide.pdf">설치 안내 PDF</a></li>
+        <li><a href="https://github.com/Hanhws/AI-agent">GitHub 저장소</a></li>
+        <li><a href="https://github.com/Hanhws/AI-agent/blob/main/docs/usage-guide.md">쓰는 법 자세히</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+<script>window.GADAK = { lang: "ko", root: "", download: "download/index.html", os: {"mac": "macOS", "mac_arm": "Apple Silicon Mac", "mac_intel": "Intel Mac", "win": "Windows", "win_setup": "Windows \uc124\uce58 \ud504\ub85c\uadf8\ub7a8", "win_zip": "Windows zip (\uc124\uce58 \uc5c6\uc774)"}, getFor: "{os}\uc6a9 \ubc1b\uae30", detected: "\uc774 \ucef4\ud4e8\ud130" };</script>
+<script src="assets/site.js"></script>
+<script type="application/json" id="map-data">{"files": ["plan.md", "main.py", "report.pdf"], "kept": ["\uacc1\uae38\ub85c \uc0cc \uc9c8\ubb38", "\uc5b4\uc81c \uc815\ud55c \uac83", "\ub9d0\uc5c6\uc774 \ubc14\ub010 \ud30c\uc77c", "\ub2f5\uc774 \uc548 \uc628 \uc694\uccad"], "lines": ["\uac00\ub2e5", "\ud1a0\uc775", "\ube45\ub370\uc774\ud130 \uacfc\uc81c", "\uc878\uc5c5 \uc804\uc2dc"], "now": "\uc9c0\uae08", "stops": ["\uc54c\ub9bc \ucc44\ub110", "\ubf08\ub300 \ub9cc\ub4e4\uae30", "\ubaa9\ud45c\uac00\uc640 \ube44\uad50", "\uc784\uacc4\uac12 \ubc14\uafb8\uae30", "\ud558\ub8e8 \ud55c \ubc88\ub9cc", "LC \uc624\ub2f5", "\ubaa8\uc758\uace0\uc0ac", "\ub370\uc774\ud130 \uc218\uc9d1", "\ubaa8\ub378\ub9c1", "\ud3ec\uc2a4\ud130 \ucee8\uc149", "\ub9ac\ud50c\ub9bf"], "ways": ["\uc774\uc5b4 \uac00\uae30", "\ub2e4\ub978 \uae38", "\ubbf8\ub9ac \ucc59\uae38 \uac83"], "why": ["\uc54c\ub9bc \ubd07", "\ud3f4\ub9c1 \u00b7 \uc6f9\ud6c5", "\ud3f4\ub9c1\uc73c\ub85c \uc815\ud568", "\ubaa9\ud45c\uac00\uc640 \ube44\uad50", "\uc9c0\uae08 \u00b7 \uc784\uacc4\uac12"]}</script>
+<script src="assets/routes.js"></script>
+</body>
+</html>

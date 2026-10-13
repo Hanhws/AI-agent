@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gadak — live demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Gadak is an agent that sits beside your LLM conversations. It draws the questions, decisions and files of a long session as a transit map and tells you what you missed. Free for Mac and Windows.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Gadak — live demo">
+<meta property="og:description" content="Gadak is an agent that sits beside your LLM conversations. It draws the questions, decisions and files of a long session as a transit map and tells you what you missed. Free for Mac and Windows.">
+<link rel="icon" href="../../assets/gadak.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="ko" href="../../demo/index.html">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try { var th = localStorage.getItem('gadak.theme'); if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; } catch (e) {}</script>
+</head>
+<body class="page-demo">
+<a class="skip" href="#main">Skip to content</a>
+<header class="band">
+  <div class="band-in">
+    <a class="brand" href="../../en/index.html" aria-label="Gadak home"><svg class="mark" viewBox="0 -4 120 62" aria-hidden="true" focusable="false">
+  <path d="M44 22L66 44H96" fill="none" stroke="#A7A9AC" stroke-width="10"/>
+  <path d="M4 22H104" fill="none" stroke="currentColor" stroke-width="14"/>
+  <circle cx="26" cy="22" r="4" fill="var(--band)"/><circle cx="56" cy="22" r="4" fill="var(--band)"/>
+  <circle cx="98" cy="44" r="6" fill="var(--band)" stroke="currentColor" stroke-width="3.5"/>
+  <circle cx="106" cy="22" r="11" fill="#C8401A"/>
+</svg>
+<span class="word">가닥 GADAK</span></a>
+<div class="demo-tabs" role="tablist" aria-label="Live demo">
+  <button type="button" role="tab" aria-selected="true" aria-controls="pane-app">Gadak window</button>
+  <button type="button" role="tab" aria-selected="false" aria-controls="pane-map">System map</button>
+</div>
+    <div class="band-tools">
+      <a class="lang" href="../../demo/index.html" lang="ko" hreflang="ko" aria-label="View in Korean">한국어</a>
+      <button class="gswitch" type="button" role="switch" id="theme" aria-checked="false" aria-label="Light or dark"><span class="sd off">Day</span><i class="trk"></i><span class="sd on">Night</span></button>
+<a class="btn btn-band" href="../../en/download/index.html">Download</a>    </div>
+  </div>
+</header>
+<main id="main">
+<div class="demo-full">
+  <iframe id="pane-app" title="Gadak window demo" src="../../app/index.html"></iframe>
+  <iframe id="pane-map" title="System map demo" data-src="../../app/map.html" hidden></iframe>
+</div>
+</main>
+<script>window.GADAK = { lang: "en", root: "../../", download: "../../en/download/index.html", os: {"mac": "macOS", "mac_arm": "Apple Silicon Mac", "mac_intel": "Intel Mac", "win": "Windows", "win_setup": "Windows installer", "win_zip": "Windows zip (no install)"}, getFor: "Download for {os}", detected: "This computer" };</script>
+<script src="../../assets/site.js"></script>
+</body>
+</html>
