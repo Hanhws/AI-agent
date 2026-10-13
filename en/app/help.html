@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gadak Help</title>
+<link rel="icon" href="../../assets/gadak.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="ui/tokens.css">
+<script>
+/* 가닥 창에서 고른 밤 · 낮을 따라가요 (shared/ui/mark.js와 같은 값 gadak.theme). 가닥 창에서 바꾸면 이 창도 부드럽게 바뀌어요 */
+(function () {
+  var root = document.documentElement;
+  function apply(t) { if (t === 'light' || t === 'dark') root.dataset.theme = t; else delete root.dataset.theme; }
+  try { apply(localStorage.getItem('gadak.theme')); } catch (e) {}
+  window.addEventListener('storage', function (e) {
+    if (e.key !== 'gadak.theme') return;
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) { root.classList.add('theming'); setTimeout(function () { root.classList.remove('theming'); }, 500); }
+    apply(e.newValue);
+  });
+})();
+</script>
+<style>
+/* 가닥 도움말. 가닥 창의 ‘도움말’ 버튼과 가닥 앱의 메뉴 ‘도움말’이 새 창으로 열어요.
+   한 번에 주제 하나만 보여요(왼쪽에서 고르거나 위에서 찾아요). 주소 끝에 #map처럼 주제 이름을 붙이면 그 주제로 열려요.
+   색 · 글꼴은 shared/ui/tokens.css 그대로이고, 빨강은 ‘지금 · 할 일’을 가리킬 때만 써요. */
+html, body { margin: 0; height: 100%; background: var(--bg); }
+body { color: var(--fg); font-family: var(--body); letter-spacing: var(--tr-body); font-size: 15px; line-height: 1.65; display: flex; flex-direction: column; }
+header { flex: none; height: 48px; padding: 0 20px; display: flex; align-items: center; gap: 12px; background: #111; color: #fff; }
+header b { font-family: var(--display); font-size: 22px; letter-spacing: -0.02em; color: #fff; }   /* 아래의 b 색(본문 글자색)이 검은 머리띠에서는 안 보여요 */
+header span { font-size: 15px; }
+header input { margin-left: auto; width: 240px; max-width: 46vw; height: 30px; padding: 0 12px; border: 1px solid #555; border-radius: 15px; background: #222; color: #fff; font: inherit; font-size: 13.5px; }
+header input::placeholder { color: #aaa; }
+header input:focus { outline: 2px solid #fff; outline-offset: 1px; }
+.wrap { flex: 1; min-height: 0; display: flex; }
+nav { flex: none; width: 176px; padding: 16px 10px; border-right: 1px solid var(--line); background: var(--side); overflow-y: auto; }
+nav button { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 6px; background: none; color: var(--fg2); font: inherit; font-size: 14.5px; text-align: left; cursor: pointer; }
+nav button:hover { background: var(--bubble); color: var(--fg); }
+nav button.on { background: var(--bubble); color: var(--fg); font-weight: 700; }
+nav button:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
+nav button[hidden] { display: none; }
+main { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 30px 60px; }
+section { max-width: 640px; }
+section[hidden] { display: none; }
+h1 { font-size: 22px; line-height: 1.35; margin: 0 0 4px; letter-spacing: -0.02em; }
+h2 { font-size: 15px; margin: 24px 0 2px; color: var(--muted); font-weight: 600; }
+.lead { margin: 0 0 14px; color: var(--fg2); }
+p { margin: 6px 0; color: var(--fg2); }
+b, strong { color: var(--fg); }
+kbd { font: 600 12.5px var(--body); padding: 1px 7px; border: 1px solid var(--ring); border-radius: 4px; color: var(--fg); white-space: nowrap; letter-spacing: var(--tr-small); }
+ol { margin: 6px 0; padding: 0; list-style: none; counter-reset: step; }
+ol li { counter-increment: step; position: relative; margin: 0; padding: 9px 0 9px 38px; border-bottom: 1px solid var(--line); color: var(--fg2); }
+ol li::before { content: counter(step); position: absolute; left: 4px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--fg); color: var(--surface); font-size: 12.5px; font-weight: 700; line-height: 22px; text-align: center; letter-spacing: var(--tr-small); }
+.note { margin: 14px 0 0; padding: 9px 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--side); font-size: 14px; color: var(--fg2); }
+/* 낱말 한 줄: 왼쪽에 이름, 오른쪽에 한두 문장 */
+dl { margin: 6px 0; }
+.e { display: grid; grid-template-columns: 156px 1fr; gap: 0 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.e[hidden] { display: none; }
+dt { color: var(--fg); font-weight: 600; }
+dd { margin: 0; color: var(--fg2); }
+/* 막힐 때: 물음을 누르면 답이 펴져요 */
+details { border-bottom: 1px solid var(--line); }
+details[hidden] { display: none; }
+summary { padding: 10px 0; cursor: pointer; color: var(--fg); font-weight: 600; }
+summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+details p { margin: 0 0 12px 18px; }
+.none { margin-top: 20px; color: var(--muted); }
+.from { display: none; margin: 22px 0 0; font-size: 13px; color: var(--muted); letter-spacing: var(--tr-small); }
+body.finding .from { display: block; }
+body.finding h1, body.finding .lead, body.finding h2, body.finding .note, body.finding ol, body.finding section > p { display: none; }
+/* 노선도에 나오는 표시를 작게 그린 것 (shared/ui/map.js의 노선도 카드와 같은 문법) */
+.sym { width: 56px; height: 28px; vertical-align: middle; margin-right: 6px; overflow: visible; }
+.sym .bar { fill: var(--legend, #B23AAE); }
+.sym .ink { fill: var(--fg); } .sym .hole { fill: var(--surface); stroke: var(--fg); stroke-width: 2; }
+.sym .now { fill: var(--accent); } .sym .halo { fill: var(--halo); }
+.sym .spur { fill: none; stroke: var(--spur); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.sym .todo { fill: none; stroke: var(--accent); stroke-width: 1.8; } .sym .done { fill: none; stroke: var(--ring); stroke-width: 1.8; }
+.sym .dash { fill: none; stroke: var(--ring); stroke-width: 1.6; stroke-dasharray: 3 3; }
+.sym .dots { fill: none; stroke: var(--ring); stroke-width: 2.5; stroke-dasharray: 0.1 6; stroke-linecap: round; }
+.sym .ghost { fill: var(--surface); stroke: var(--ring); stroke-width: 1.4; stroke-dasharray: 2 2; }
+.sym text { fill: var(--fg); font: 600 9px var(--body); letter-spacing: var(--tr-small); }
+@media (max-width: 680px) {
+  .wrap { flex-direction: column; }
+  nav { width: auto; display: flex; gap: 4px; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  nav button { width: auto; white-space: nowrap; }
+  main { padding: 18px 18px 50px; }
+  .e { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <b>Gadak</b><span>Help</span>
+  <input id="find" type="search" placeholder="Search by word · e.g. side trip, limit" aria-label="Search help">
+</header>
+<div class="wrap">
+<nav id="topics" aria-label="Topics"></nav>
+<main>
+
+<section id="start" data-name="First 3 minutes">
+<h1>First 3 minutes</h1>
+<p class="lead">Gadak draws your conversations with an AI as a <b>transit map</b> and tells you first about what slipped past. Gadak does not answer. You keep chatting where you always do.</p>
+<ol>
+  <li><b>Turn Gadak on.</b> It reads the Claude Code and Codex chats on this <span class="os-mac">Mac</span><span class="os-win">PC</span> by itself.</li>
+  <li><b>Connect an AI for sorting.</b> Pick one under <kbd>Connect AI</kbd> at the bottom left.</li>
+  <li><b>Choose a chat on the left.</b> The strip map appears at the top, the chat in the middle and the lists on the right.</li>
+  <li><b>Click a station on the map.</b> It jumps straight to where that was said.</li>
+</ol>
+<div class="note">Chat text is stored only on this <span class="os-mac">Mac</span><span class="os-win">PC</span>. It goes to the AI you connected only while it is being sorted.</div>
+</section>
+
+<section id="ai" data-name="Connect AI">
+<h1>Connect AI</h1>
+<p class="lead">The AI Gadak uses to sort your chats. Pick one of three under <kbd>Connect AI</kbd> at the bottom left. Without one, Gadak only reads and shows your chats.</p>
+<dl>
+  <div class="e"><dt>Claude subscription</dt><dd>Uses your Pro or Max subscription. No extra charge. Press <kbd>Connect</kbd> and sign in in your browser.</dd></div>
+  <div class="e"><dt>ChatGPT subscription</dt><dd>Uses your Plus or Pro subscription. No extra charge. Press <kbd>Connect</kbd> and sign in in your browser.</dd></div>
+  <div class="e"><dt>LLM API key</dt><dd>Paste an Anthropic, OpenAI or Gemini API key. Usage is billed to that key. The key is kept only in <span class="os-mac">the Keychain on this Mac</span><span class="os-win">Windows Credential Manager on this PC</span>.</dd></div>
+  <div class="e"><dt>Free Gemini key</dt><dd>A free key from Google AI Studio works too. It costs nothing, but the limit is low and what you send may be used by Google to improve its products.</dd></div>
+  <div class="e"><dt>Usage limit</dt><dd>With a subscription, Gadak shares the same limit as your own Claude or ChatGPT use.</dd></div>
+</dl>
+</section>
+
+<section id="read" data-name="Reading chats">
+<h1>Reading chats</h1>
+<p class="lead">Where Gadak reads chats from is shown under <kbd>Sources</kbd> at the bottom left.</p>
+<dl>
+  <div class="e"><dt>Claude Code · Codex</dt><dd>Nothing to do. Turn Gadak on and it reads them by itself.</dd></div>
+  <div class="e"><dt>Cursor</dt><dd>Press <kbd>Connect</kbd> once under <kbd>Sources</kbd>.</dd></div>
+  <div class="e"><dt>Claude · ChatGPT on the web</dt><dd>Add the Gadak extension to Chrome once. How to add it is under <kbd>Sources</kbd>.</dd></div>
+  <div class="e"><dt>Past chats in bulk</dt><dd>Add the file you exported from each service with <kbd>Choose file</kbd> under <kbd>Sources</kbd>.</dd></div>
+  <div class="e"><dt>Remove from the list</dt><dd>Hover over a chat and press ×. Nothing is deleted; restore it at the bottom of the list.</dd></div>
+</dl>
+</section>
+
+<section id="map" data-name="Reading the map">
+<h1>Reading the map</h1>
+<p class="lead">One chat is one line. The left is the start, the right is now. Fold and unfold the strip map card at the top with <kbd>Esc</kbd>.</p>
+<dl>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/></svg>Main line</dt><dd>A thick line in the project’s colour. The same colour on the system map.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/></svg>Station</dt><dd>A small black dot. One question and its answer. Click it to go there.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="6"/></svg>Decided</dt><dd>A large black dot with a bold station name. Something was decided there.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="halo" cx="28" cy="14" r="11"/><circle class="now" cx="28" cy="14" r="7"/></svg>Now</dt><dd>A red dot with a glow. Where the chat is now.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><path class="spur" d="M16 14 L28 26 H46"/><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="12" cy="14" r="3.5"/><circle class="hole" cx="46" cy="26" r="3.5"/></svg>Side trip</dt><dd>A grey line dropping 45° below. A question that wandered off for a while.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="todo" cx="28" cy="26" r="4"/></svg>To do</dt><dd>A red ring below a station. Something is still left to do. Hover to see it.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="done" cx="28" cy="26" r="4"/></svg>Done</dt><dd>A grey ring. A to-do that is finished.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="10" cy="14" r="3.5"/><circle class="ink" cx="12" cy="26" r="2.5"/><text x="18" y="29">a.py</text></svg>File</dt><dd>A small dot with a file name. A file was made or changed there.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><text x="0" y="8">Build</text><rect class="bar" x="0" y="16" width="56" height="8"/></svg>Section</dt><dd>The label above the line. A stage of the conversation.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="10" cy="14" r="1.8"/><circle class="ink" cx="17" cy="14" r="1.8"/><circle class="ink" cx="24" cy="14" r="1.8"/><circle class="ink" cx="31" cy="14" r="1.8"/><circle class="ink" cx="38" cy="14" r="1.8"/><circle class="ink" cx="45" cy="14" r="1.8"/></svg>Folded section</dt><dd>Past sections shrink to ticks. Click the label to unfold.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><path class="dash" d="M18 14 C18 2, 38 2, 38 14"/><rect class="bar" x="0" y="10" width="56" height="8"/><circle class="ink" cx="28" cy="14" r="3.5"/><circle class="ghost" cx="28" cy="6" r="3"/></svg>Hidden branch</dt><dd>A dotted curve above a station. A trace of a question you edited and asked again.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="bar" x="0" y="10" width="18" height="8"/><path class="dots" d="M22 14 H34"/><rect class="bar" x="38" y="10" width="18" height="8"/></svg>Between chats</dt><dd>A grey dotted line. Joins one chat to the next when you view the whole project.</dd></div>
+  <div class="e"><dt><svg class="sym" viewBox="0 0 56 28" aria-hidden="true"><rect class="ink" x="4" y="11.5" width="30" height="5"/><path class="ink" d="M32 5 L50 14 L32 23 Z"/></svg>Transfer</dt><dd>The black arrow at the end of the line. Copies a summary of this chat to paste at the start of a new one.</dd></div>
+  <div class="e"><dt>System map</dt><dd>The button in the black bar at the top. Draws every project and chat from the last 30 days on one sheet. Switch with <kbd>View as poster</kbd> and close with <kbd>Esc</kbd>.</dd></div>
+  <div class="e"><dt>Day · Night</dt><dd>The switch on the right of the black bar at the top (also on the system map). Swaps between a light and a dark screen. Your choice is kept on this <span class="os-mac">Mac</span><span class="os-win">PC</span>.</dd></div>
+</dl>
+</section>
+
+<section id="lists" data-name="To-dos and lists">
+<h1>To-dos and lists</h1>
+<p class="lead">There are four tabs on the right. Type a word in the search box above them to search past chats too.</p>
+<dl>
+  <div class="e"><dt>To do</dt><dd>Missed work and suggestions Gadak found. Press a button to copy text to send to the AI. To put one off, press <kbd>Later</kbd>.</dd></div>
+  <div class="e"><dt>Decided</dt><dd>Everything decided so far, newest first. Click one to go to where it was decided.</dd></div>
+  <div class="e"><dt>Files</dt><dd>Files that came out of the chat. A file changed several times is grouped into versions (v1 · v2).</dd></div>
+  <div class="e"><dt>Ahead</dt><dd>Ways forward from here that Gadak has scouted.</dd></div>
+</dl>
+<h2>What shows up as a to-do</h2>
+<dl>
+  <div class="e"><dt>Missed request</dt><dd>Something you asked for that the answer left out.</dd></div>
+  <div class="e"><dt>Unrequested change</dt><dd>Something the AI changed without being asked.</dd></div>
+  <div class="e"><dt>Unfinished side trip</dt><dd>A side trip you came back from without deciding anything.</dd></div>
+  <div class="e"><dt>Carry on</dt><dd>When you open a new chat, paste in what was decided in the previous one.</dd></div>
+  <div class="e"><dt>Repeated question</dt><dd>Something you asked in another chat too. You can see that answer again.</dd></div>
+  <div class="e"><dt>Topic change</dt><dd>When several topics pile up in one chat, Gadak suggests moving to a new chat.</dd></div>
+  <div class="e"><dt>Next step</dt><dd>A path found by looking ahead.</dd></div>
+</dl>
+<h2>What Gadak sends by itself</h2>
+<p>Turn these on below the To do tab. Only two kinds, <b>undoing an unrequested change</b> and <b>a summary to carry on</b>, are sent by Gadak itself, and only when you turn them on. For everything else it only prepares the text.</p>
+</section>
+
+<section id="ahead" data-name="Ahead">
+<h1>Ahead</h1>
+<p class="lead">Gadak reads where this chat is trying to go and finds up to three ways forward. They are questions to take to your AI, not answers.</p>
+<dl>
+  <div class="e"><dt>Look ahead</dt><dd>The button at the top of the Ahead tab. Looks once, from where you are. Takes 30 seconds to 2 minutes.</dd></div>
+  <div class="e"><dt>Look ahead automatically</dt><dd>Turn it on below the To do tab. Looks by itself when you decide something or the section changes.</dd></div>
+  <div class="e"><dt>Carry on</dt><dd>A likely next step in the direction you were going.</dd></div>
+  <div class="e"><dt>Another way</dt><dd>A different approach you could try.</dd></div>
+  <div class="e"><dt>Prepare first</dt><dd>Something to check first, because it may trip you up if you carry on as you are.</dd></div>
+  <div class="e"><dt>See this path</dt><dd>Shows why this path and what was looked up. Press <kbd>Ask this way</kbd> to copy the text to send.</dd></div>
+</dl>
+<div class="note">Each look uses a little of your AI usage limit (about 0.7% of a Claude Pro five-hour limit). That is why automatic look-ahead starts off.</div>
+</section>
+
+<section id="float" data-name="Floating button">
+<h1>Floating button</h1>
+<p class="lead">The Gadak button that rests on the edge of the screen in the Mac app.<span class="os-win"> Not available yet in Gadak for Windows.</span> It stays visible while you use other apps. Hover over it and buttons fan out around it.</p>
+<dl>
+  <div class="e"><dt>Strip map</dt><dd>Shows the strip map of the chat you are in at the top of the screen. Press again to close it.</dd></div>
+  <div class="e"><dt>To do · Decided · Files</dt><dd>Opens a separate list window on that tab.</dd></div>
+  <div class="e"><dt>Search · Window</dt><dd>Opens the Gadak window. Search goes straight to the chat search box.</dd></div>
+  <div class="e"><dt>Change buttons</dt><dd>Right-click the Gadak button → <kbd>Edit Buttons</kbd>. Remove or add buttons and change their order. Up to six.</dd></div>
+  <div class="e"><dt>Project buttons</dt><dd>Add a project in Edit Buttons and that button opens the project’s strip map. Switch projects without opening the Gadak window.</dd></div>
+  <div class="e"><dt>Move</dt><dd>Drag the Gadak button to move it to another edge.</dd></div>
+  <div class="e"><dt>Close</dt><dd>Close floating windows with <kbd>Esc</kbd>.</dd></div>
+  <div class="e"><dt>Hide · Show again</dt><dd>Right-click the Gadak button → <kbd>Hide Button</kbd>. To show it again, use the <kbd>Gadak button</kbd> switch at the top right of the Gadak window, <kbd>⇧⌘B</kbd>, the menu <kbd>View → Floating Button</kbd>, or right-click the Gadak icon in the Dock → <kbd>Show Floating Button</kbd>.</dd></div>
+</dl>
+</section>
+
+<section id="words" data-name="Glossary">
+<h1>Glossary</h1>
+<p class="lead">The words Gadak uses. Type one in the search box above to find it.</p>
+<dl>
+  <div class="e"><dt>Gadak</dt><dd>Korean for a strand. From “가닥을 잡다”, to get hold of the thread of something.</dd></div>
+  <div class="e"><dt>Line · Main line</dt><dd>The thick line drawing the flow of one chat.</dd></div>
+  <div class="e"><dt>Station</dt><dd>One question and its answer.</dd></div>
+  <div class="e"><dt>Section</dt><dd>A stage of the conversation. The label above the line.</dd></div>
+  <div class="e"><dt>Side trip</dt><dd>A question that wandered off from what you were talking about.</dd></div>
+  <div class="e"><dt>Decided</dt><dd>A mark that something was decided there.</dd></div>
+  <div class="e"><dt>File</dt><dd>A file made or changed in the chat.</dd></div>
+  <div class="e"><dt>Missed</dt><dd>Things that are easy to let slip. Missed requests, unrequested changes and unfinished side trips.</dd></div>
+  <div class="e"><dt>Suggestion</dt><dd>Something Gadak recommends. Carry on, repeated question, topic change and next step.</dd></div>
+  <div class="e"><dt>Note</dt><dd>The small card that pops up in a corner when a new to-do appears.</dd></div>
+  <div class="e"><dt>Ahead</dt><dd>Ways forward from here, scouted in advance.</dd></div>
+  <div class="e"><dt>Transfer</dt><dd>Copying a summary of this chat to move on to a new one.</dd></div>
+  <div class="e"><dt>System map</dt><dd>A map of every project and chat on one sheet.</dd></div>
+  <div class="e"><dt>Sources</dt><dd>The panel showing where Gadak reads chats from. At the bottom left.</dd></div>
+  <div class="e"><dt>Sorting engine</dt><dd>The AI that sorts your chats. Choose it under <kbd>Connect AI</kbd>.</dd></div>
+  <div class="e"><dt>Decision trace</dt><dd>A record of what Gadak looked at when it decided something was a to-do.</dd></div>
+</dl>
+</section>
+
+<section id="stuck" data-name="When you’re stuck">
+<h1>When you’re stuck</h1>
+<p class="lead">First look at the line at the bottom left. It says what Gadak is doing now, or why it stopped.</p>
+<details class="e"><summary>Station names are just the start of my questions</summary><p>No AI is connected for sorting. Pick one under <kbd>Connect AI</kbd> at the bottom left.</p></details>
+<details class="e"><summary>It says in red that it stopped</summary><p>You hit the usage limit or were signed out. Once the limit resets, press <kbd>Resume sorting</kbd> and it carries on from where it stopped.</p></details>
+<details class="e"><summary>I pressed Look ahead and nothing appeared</summary><p>Look at the line below the button. “Looking ahead” means just wait. “Found no path worth offering” means there was no path with evidence behind it. After “Could not look ahead” the reason is given.</p></details>
+<details class="e"><summary>I don’t see any chats</summary><p>Check what was found under <kbd>Sources</kbd>. If you have never used an AI on this <span class="os-mac">Mac</span><span class="os-win">PC</span>, there is nothing to read.</p></details>
+<details class="e"><summary>Chats I don’t need are mixed in</summary><p>Hover over the chat and press ×. Restore it under “removed” at the bottom of the list.</p></details>
+<details class="e"><summary>A web chat doesn’t come in</summary><p>Click the Gadak extension icon in Chrome. If Gadak is off, turn it on, and reload tabs you opened before adding the extension.</p></details>
+<details class="e"><summary>I can’t see the floating button</summary><p>It is hidden. Turn on the <kbd>Gadak button</kbd> switch at the top right of the Gadak window, or right-click the Gadak icon in the Dock → <kbd>Show Floating Button</kbd>. If it still isn’t there, check all four edges of the screen.</p></details>
+<details class="e"><summary>The screen is too bright or too dark</summary><p>Change it with the <kbd>Day · Night</kbd> switch on the right of the black bar at the top. If you don’t choose, it follows the <span class="os-mac">Mac</span><span class="os-win">Windows</span> appearance setting.</p></details>
+<details class="e os-mac"><summary>The Mac blocks it the first time I open it</summary><p>Go to System Settings → Privacy &amp; Security and press <kbd>Open Anyway</kbd> near the bottom. You only need to do this once.</p></details>
+<details class="e os-win"><summary>Windows blocks the installer</summary><p>In the “Windows protected your PC” window, press <kbd>More info</kbd> → <kbd>Run anyway</kbd>.</p></details>
+</section>
+
+<p id="none" class="none" hidden>No help matches that. Try another word.</p>
+</main>
+</div>
+<script>
+/* 주제는 한 번에 하나만 보여요. 찾기 칸에 글을 치면 모든 주제에서 그 말이 든 줄만 모아 보여요. */
+(function () {
+  'use strict';
+  // Mac과 Windows에서 다른 말은 둘 다 적어 두고(.os-mac · .os-win), 지금 컴퓨터의 것이 아닌 쪽을 빼요
+  var win = /Win/i.test(navigator.platform || '');
+  Array.prototype.forEach.call(document.querySelectorAll(win ? '.os-mac' : '.os-win'), function (n) { n.parentNode.removeChild(n); });
+  var nav = document.getElementById('topics'), find = document.getElementById('find'), none = document.getElementById('none');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section')), buttons = {};
+  sections.forEach(function (s) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = s.dataset.name;
+    b.onclick = function () { find.value = ''; show(s.id, true); };
+    nav.appendChild(b); buttons[s.id] = b;
+    var from = document.createElement('p'); from.className = 'from'; from.textContent = s.dataset.name; s.insertBefore(from, s.firstChild);
+  });
+  function show(id, remember) {
+    if (!buttons[id]) id = sections[0].id;
+    document.body.classList.remove('finding'); none.hidden = true;
+    sections.forEach(function (s) {
+      s.hidden = s.id !== id; buttons[s.id].hidden = false; buttons[s.id].classList.toggle('on', s.id === id);
+      Array.prototype.forEach.call(s.querySelectorAll('.e'), function (e) { e.hidden = false; });
+    });
+    if (remember) { try { history.replaceState(null, '', '#' + id); } catch (e) {} }
+    document.querySelector('main').scrollTop = 0;
+  }
+  function search(q) {
+    q = q.trim().toLowerCase();
+    if (!q) { show((location.hash || '').slice(1)); return; }
+    var any = false;
+    document.body.classList.add('finding');
+    sections.forEach(function (s) {
+      var hit = false;
+      Array.prototype.forEach.call(s.querySelectorAll('.e'), function (e) {
+        var ok = e.textContent.toLowerCase().indexOf(q) >= 0; e.hidden = !ok; hit = hit || ok;
+        if (ok && e.tagName === 'DETAILS') e.open = true;
+      });
+      s.hidden = !hit; buttons[s.id].hidden = !hit; buttons[s.id].classList.remove('on'); any = any || hit;
+    });
+    none.hidden = any;
+  }
+  find.addEventListener('input', function () { search(find.value); });
+  find.addEventListener('keydown', function (e) { if (e.key === 'Escape') { find.value = ''; search(''); } });
+  window.addEventListener('hashchange', function () { find.value = ''; show(location.hash.slice(1)); });
+  show((location.hash || '').slice(1));
+})();
+</script>
+</body>
+</html>
