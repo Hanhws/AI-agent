@@ -779,7 +779,7 @@
      이름 앞은 노선 불릿처럼 검은 동그라미에 글자 하나.
      노선 색은 쓰지 않아요: 프로젝트 노선과 헷갈리지 않게 검정(밤에는 흰색) 하나로 (10/11) */
   var LIMITS = { claude: { name: 'Claude', bullet: 'C' }, codex: { name: 'ChatGPT', bullet: 'G' } };
-  var WINDOWS = [['five_hour', '5시간'], ['week', '이번 주']];
+  var WINDOWS = [['five_hour', '5시간'], ['week', '이번 주'], ['week_model', null]];   // week_model: 모델 전용 주간 (예: Fable). 이름은 x.label
   function until(iso) {
     var m = Math.round((new Date(iso) - Date.now()) / 60000); if (!(m > 0)) return '';
     return (m < 60 ? m + '분' : m < 1440 ? Math.round(m / 60) + '시간' : Math.round(m / 1440) + '일') + ' 뒤 풀려요';
@@ -793,11 +793,11 @@
       var when = at ? (at.toDateString() === new Date().toDateString() ? '' : (at.getMonth() + 1) + '/' + at.getDate() + ' ') + String(at.getHours()).padStart(2, '0') + ':' + String(at.getMinutes()).padStart(2, '0') + ' 기준' : '';
       var h = el('div', 'lhead'); h.appendChild(el('span', 'bul', L.bullet)); h.appendChild(el('b', null, L.name)); h.appendChild(el('span', 'lk', v.stale ? when : '사용 한도')); grp.appendChild(h);
       WINDOWS.forEach(function (w) {
-        var x = v[w[0]]; if (!x) return;
+        var x = v[w[0]]; if (!x) return; var wn = w[1] || x.label;
         var p = Math.max(0, Math.min(100, x.used)), row = el('div', 'lrow');
-        row.appendChild(el('span', 'ln', w[1]));
+        row.appendChild(el('span', 'ln', wn));
         var rt = el('div', 'lroute'); rt.setAttribute('role', 'meter'); rt.setAttribute('aria-valuemin', '0'); rt.setAttribute('aria-valuemax', '100'); rt.setAttribute('aria-valuenow', String(p));
-        rt.setAttribute('aria-label', L.name + ' ' + w[1] + ' 한도 ' + Math.round(p) + '% 씀');
+        rt.setAttribute('aria-label', L.name + ' ' + wn + ' 한도 ' + Math.round(p) + '% 씀');
         var f = el('i', 'f'), n = el('i', 'n'); rt.appendChild(f); rt.appendChild(el('i', 'e')); rt.appendChild(n);
         fills.push([f, n, p]); if (!grow) { f.style.setProperty('--p', p); n.style.setProperty('--p', p); }
         row.appendChild(rt); row.appendChild(el('span', 'lp', Math.round(p) + '%'));
