@@ -89,7 +89,10 @@ def stale_claude(now=None):
     try:
         saved = json.loads(LAST.read_text(encoding="utf-8"))
         out = {}
-        for name in ("five_hour", "week"):
+        for name in ("five_hour", "week", "week_model"):
+            if saved["value"].get(name) is None:
+                out[name] = None                   # 이 요금제에 없는 창 (Ultra의 5시간)
+                continue
             w = dict(saved["value"][name])
             reset = w.get("resets_at")
             if reset and datetime.fromisoformat(reset.replace("Z", "+00:00")).timestamp() <= now:
@@ -102,9 +105,28 @@ def stale_claude(now=None):
 
 
 def parse_claude(body):
-    """Anthropic의 답 → 게이지 값. 형식이 다르면 ValueError."""
-    return {name: {"used": _pct(body[key]["utilization"]), "resets_at": body[key].get("resets_at")}
-            for name, key in (("five_hour", "five_hour"), ("week", "seven_day"))}
+    """Anthropic의 답 → 게이지 값. 형식이 다르면 ValueError.
+    창이 null이면 그 요금제에 그 한도가 없는 거예요 (Ultra: five_hour가 null) → 그 줄만 빼요. 키가 아예 없으면 형식이 바뀐 거예요."""
+    out = {name: None if body[key] is None else {"used": _pct(body[key]["utilization"]), "resets_at": body[key].get("resets_at")}
+           for name, key in (("five_hour", "five_hour"), ("week", "seven_day"))}
+    if not any(out.values()):
+        raise ValueError("no windows")
+    model = _model_week(body.get("limits"))
+    if model:
+        out["week_model"] = model
+    return out
+
+
+def _model_week(rows):
+    """모델 전용 주간 한도 (예: Fable 주간). 덤이라 형식이 다르면 이 줄만 빼고 나머지 게이지는 그대로 둬요."""
+    try:
+        for r in rows or []:
+            name = (((r.get("scope") or {}).get("model")) or {}).get("display_name")
+            if r.get("kind") == "weekly_scoped" and name:
+                return {"used": _pct(r["percent"]), "resets_at": r.get("resets_at"), "label": str(name)}
+    except (ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return None
 
 
 def _claude_token():

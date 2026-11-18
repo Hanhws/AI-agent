@@ -42,6 +42,20 @@ class ClaudeLimits(unittest.TestCase):
                                    "seven_day": {"utilization": 47, "resets_at": None}, "seven_day_opus": None})
         self.assertEqual(got, {"five_hour": {"used": 23.0, "resets_at": "2026-10-11T09:00:00+00:00"}, "week": {"used": 47.0, "resets_at": None}})
 
+    def test_null_window_skipped(self):    # Ultra: 5시간 한도가 없어서 five_hour가 null → 주간만
+        got = limits.parse_claude({"five_hour": None, "seven_day": {"utilization": 19.0, "resets_at": None}})
+        self.assertEqual(got, {"five_hour": None, "week": {"used": 19.0, "resets_at": None}})
+        with self.assertRaises(ValueError):
+            limits.parse_claude({"five_hour": None, "seven_day": None})
+
+    def test_model_week(self):           # 모델 전용 주간 한도 (Fable) → week_model. 형식이 이상하면 그 줄만 빠져요
+        body = {"five_hour": None, "seven_day": {"utilization": 19.0, "resets_at": None},
+                "limits": [{"kind": "weekly_all", "percent": 19},
+                           {"kind": "weekly_scoped", "percent": 30, "resets_at": "R", "scope": {"model": {"display_name": "Fable"}}}]}
+        self.assertEqual(limits.parse_claude(body)["week_model"], {"used": 30.0, "resets_at": "R", "label": "Fable"})
+        body["limits"][1]["percent"] = "많이"
+        self.assertNotIn("week_model", limits.parse_claude(body))
+
     def test_changed_format_raises(self):   # 형식이 바뀌면 claude_usage가 None → 화면에서 Claude 칸이 사라져요
         for body in ({"five_hour": {"used": 23}}, {"five_hour": {"utilization": 23}}, {"five_hour": {"utilization": 0.5e3}, "seven_day": {"utilization": 1}}):
             with self.assertRaises((KeyError, ValueError, TypeError)):
